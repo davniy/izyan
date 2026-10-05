@@ -1482,6 +1482,41 @@ func TestReviewRepairLoopConverges(t *testing.T) {
 	}
 }
 
+func TestReviewRepairPromotesConditionToMandatory(t *testing.T) {
+	c := &domain.AnalysisCase{
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{{ID: "C-1", Kind: domain.ConditionSymbolReachable}},
+			SupportingFactors:   []domain.Condition{{ID: "C-XDS-SERVER", Kind: domain.ConditionConfiguration}},
+		},
+		Reviews: []domain.Review{{
+			Result: domain.ReviewRevise,
+			Findings: []domain.ReviewFinding{{
+				Severity:   "high",
+				TargetType: "condition",
+				TargetID:   "C-XDS-SERVER",
+				Problem:    "xDS server initialization required for crash",
+			}},
+		}},
+	}
+	rp := states.RepairAnalysis{}
+	tr, err := rp.Run(context.Background(), c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tr.Next != domain.StateReview {
+		t.Fatalf("next=%s want re-REVIEW", tr.Next)
+	}
+	if len(c.Exploit.MandatoryConditions) != 2 || c.Exploit.MandatoryConditions[1].ID != "C-XDS-SERVER" {
+		t.Fatalf("mandatory conditions: %+v", c.Exploit.MandatoryConditions)
+	}
+	if !c.Exploit.MandatoryConditions[1].Mandatory {
+		t.Fatalf("promoted condition must be marked Mandatory")
+	}
+	if len(c.Exploit.SupportingFactors) != 0 {
+		t.Fatalf("supporting factors must be empty after promotion: %+v", c.Exploit.SupportingFactors)
+	}
+}
+
 // A VERIFIED FALSE falls only to a finding that cites a concrete
 // counterexample artifact already present in the claim's own record
 // (dynamic marker, uncovered site, traced origin, linked evidence) — or

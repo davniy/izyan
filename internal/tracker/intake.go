@@ -249,14 +249,20 @@ func stringValue(v any) string {
 		return strings.TrimSpace(val)
 	case []any:
 		for _, item := range val {
-			if s, ok := item.(string); ok && strings.TrimSpace(s) != "" {
-				return strings.TrimSpace(s)
+			if s := stringValue(item); s != "" {
+				return s
 			}
 		}
 	case []string:
 		for _, s := range val {
 			if strings.TrimSpace(s) != "" {
 				return strings.TrimSpace(s)
+			}
+		}
+	case map[string]any:
+		for _, k := range []string{"name", "value", "code", "id", "text"} {
+			if s := stringValue(val[k]); s != "" {
+				return s
 			}
 		}
 	}
@@ -275,8 +281,8 @@ func stringSliceValue(v any) []string {
 		}
 	case []any:
 		for _, item := range val {
-			if s, ok := item.(string); ok && strings.TrimSpace(s) != "" {
-				out = append(out, strings.TrimSpace(s))
+			if s := stringValue(item); s != "" {
+				out = append(out, s)
 			}
 		}
 	case []string:
@@ -284,6 +290,10 @@ func stringSliceValue(v any) []string {
 			if strings.TrimSpace(s) != "" {
 				out = append(out, strings.TrimSpace(s))
 			}
+		}
+	case map[string]any:
+		if s := stringValue(val); s != "" {
+			out = append(out, s)
 		}
 	}
 	return out
@@ -380,8 +390,79 @@ func parseSingleTicketJSON(data []byte) (*Ticket, error) {
 	}
 
 	t := &Ticket{}
+
+	// Support nested tracker envelopes (e.g. Jira / enterprise issue tracker envelope with unit and attributes)
+	if unit, ok := m["unit"].(map[string]any); ok {
+		if id := findField(unit, []string{"code", "id", "key"}, "code", "key"); id != "" && t.ID == "" {
+			t.ID = id
+		}
+		if summary := findField(unit, []string{"summary", "title", "name"}, "summary", "title"); summary != "" && t.Summary == "" {
+			t.Summary = summary
+		}
+		if desc := findField(unit, []string{"descriptionPlain", "description", "details", "body", "text"}, "description"); desc != "" && t.Description == "" {
+			t.Description = desc
+		}
+	}
+	if attrs, ok := m["attributes"].([]any); ok {
+		for _, rawAttr := range attrs {
+			attrMap, ok := rawAttr.(map[string]any)
+			if !ok {
+				continue
+			}
+			var attrCode string
+			if c, ok := attrMap["code"].(string); ok {
+				attrCode = c
+			} else if sub, ok := attrMap["attribute"].(map[string]any); ok {
+				if c, ok := sub["code"].(string); ok {
+					attrCode = c
+				} else if c, ok := sub["name"].(string); ok {
+					attrCode = c
+				}
+			}
+			lowerCode := strings.ToLower(attrCode)
+			val := attrMap["value"]
+
+			switch {
+			case strings.Contains(lowerCode, "rationale") || strings.Contains(lowerCode, "resolution") || strings.Contains(lowerCode, "result_text") || strings.Contains(lowerCode, "triage_comment") || strings.Contains(lowerCode, "justification"):
+				if s := stringValue(val); s != "" && t.Rationale == "" {
+					t.Rationale = s
+				}
+			case strings.Contains(lowerCode, "vulnerabilit") && (strings.Contains(lowerCode, "identifier") || strings.Contains(lowerCode, "id")):
+				for _, v := range stringSliceValue(val) {
+					if isVulnID(v) {
+						if t.Vulnerability == "" {
+							t.Vulnerability = strings.ToUpper(v)
+						} else if !strings.EqualFold(t.Vulnerability, v) {
+							t.Aliases = append(t.Aliases, strings.ToUpper(v))
+						}
+					}
+				}
+			case (strings.Contains(lowerCode, "vulnerable") && strings.Contains(lowerCode, "package")) || lowerCode == "package" || lowerCode == "library":
+				if s := stringValue(val); s != "" && t.Package == "" {
+					t.Package = s
+				}
+			case (strings.Contains(lowerCode, "version") && strings.Contains(lowerCode, "package")) || lowerCode == "version":
+				if s := stringValue(val); s != "" && t.Version == "" {
+					t.Version = s
+				}
+			case strings.Contains(lowerCode, "component"):
+				if s := stringValue(val); s != "" && t.Component == "" {
+					t.Component = s
+				}
+			case strings.Contains(lowerCode, "priority") || strings.Contains(lowerCode, "severity"):
+				if s := stringValue(val); s != "" && t.Severity == "" {
+					t.Severity = s
+				}
+			case strings.Contains(lowerCode, "cvss"):
+				if s := stringValue(val); s != "" && t.CVSS == "" {
+					t.CVSS = s
+				}
+			}
+		}
+	}
+
 	// Extract standard or custom ticket ID
-	if id := findField(m, []string{"id", "code", "key", "ticket", "ticket_id", "issue_key", "issue_id", "task_id"}, "ticket", "issue"); id != "" && !isVulnID(id) {
+	if id := findField(m, []string{"id", "code", "key", "ticket", "ticket_id", "issue_key", "issue_id", "task_id"}, "ticket", "issue"); id != "" && !isVulnID(id) && t.ID == "" {
 		t.ID = id
 	}
 
@@ -389,11 +470,11 @@ func parseSingleTicketJSON(data []byte) (*Ticket, error) {
 	vulnCandidates := findFieldSlice(m,
 		[]string{"vulnerability", "vuln", "cve", "ghsa", "go_id", "vulnerabilities", "vuln_id"},
 		"vulnerabilit", "vuln", "cve")
-	if len(vulnCandidates) == 0 {
+	if len(vulnCandidates) == 0 && t.Vulnerability == "" {
 		// Fallback: search all string values in m
 		vulnCandidates = extractVulnIDs(string(data))
 	}
-	if len(vulnCandidates) > 0 {
+	if len(vulnCandidates) > 0 && t.Vulnerability == "" {
 		t.Vulnerability = vulnCandidates[0]
 		if len(vulnCandidates) > 1 {
 			t.Aliases = vulnCandidates[1:]
@@ -414,40 +495,118 @@ func parseSingleTicketJSON(data []byte) (*Ticket, error) {
 	}
 
 	// Component & Product
-	t.Component = findField(m, []string{"component", "component_name", "service", "service_name", "app", "project"}, "component")
-	t.Product = findField(m, []string{"product", "product_name", "product_code", "project_code"}, "product")
-	t.Release = findField(m, []string{"release", "product_version", "target_version", "milestone"}, "release")
+	if t.Component == "" {
+		t.Component = findField(m, []string{"component", "component_name", "service", "service_name", "app", "project"}, "component")
+	}
+	if t.Product == "" {
+		t.Product = findField(m, []string{"product", "product_name", "product_code", "project_code"}, "product")
+	}
+	if t.Release == "" {
+		t.Release = findField(m, []string{"release", "product_version", "target_version", "milestone"}, "release")
+	}
 
 	// Package & Module
-	t.Package = findField(m, []string{"package", "pkg", "module", "library", "lib", "vulnerable_package", "affected_package"}, "package", "module")
-	t.Module = findField(m, []string{"module"}, "module")
+	if t.Package == "" {
+		t.Package = findField(m, []string{"package", "pkg", "module", "library", "lib", "vulnerable_package", "affected_package"}, "package", "module")
+	}
+	if t.Module == "" {
+		t.Module = findField(m, []string{"module"}, "module")
+	}
+
+	// Version
+	if t.Version == "" {
+		t.Version = findField(m, []string{"version", "version_vulnerable_package", "vulnerable_version", "fixed_version", "affected_version", "package_version"}, "version")
+	}
+	if len(t.FixedVersions) == 0 {
+		t.FixedVersions = findFieldSlice(m, []string{"fixed_versions", "fixed_version"}, "fixed_version")
+	}
+
+	// Summary & Description & Rationale
+	if t.Summary == "" {
+		t.Summary = findField(m, []string{"summary", "title", "name", "subject"}, "summary", "title")
+	}
+	if t.Description == "" {
+		t.Description = findField(m, []string{"description", "details", "body", "text"}, "description")
+	}
+	if t.Rationale == "" {
+		t.Rationale = findField(m, []string{"rationale", "comment", "notes", "analysis", "resolution", "result"}, "rationale", "comment", "analysis", "result")
+	}
+	if t.Repo == "" {
+		t.Repo = findField(m, []string{"repo", "repository"}, "repo")
+	}
+
+	// Go version & Toolchain
+	if t.GoVersion == "" {
+		t.GoVersion = findField(m, []string{"go_version", "goversion", "release_go_version", "release_go", "compiler_version", "compiler", "go"}, "go_version", "toolchain")
+	}
+	if t.Toolchain == "" {
+		t.Toolchain = findField(m, []string{"toolchain"}, "toolchain")
+	}
+	if t.GoVersion == "" && t.Toolchain != "" {
+		t.GoVersion = t.Toolchain
+	}
+
+	// Severity & CVSS
+	if t.Severity == "" {
+		t.Severity = findField(m, []string{"severity", "priority"}, "severity", "priority")
+	}
+	if t.CVSS == "" {
+		t.CVSS = findField(m, []string{"cvss", "cvss_score", "score"}, "cvss")
+	}
+
+	// Enrich missing fields from structured text in Description or Summary
+	textToScan := t.Description
+	if textToScan == "" {
+		textToScan = t.Summary
+	}
+	if textToScan != "" {
+		if t.ID == "" {
+			t.ID = extractTicketID(textToScan)
+		}
+		if t.Component == "" {
+			if m := reComponentLabel.FindStringSubmatch(textToScan); len(m) > 1 {
+				t.Component = strings.TrimSpace(m[1])
+			}
+		}
+		if t.Release == "" {
+			if m := reProductLabel.FindStringSubmatch(textToScan); len(m) > 1 {
+				t.Release = strings.TrimSpace(m[1])
+			}
+		}
+		if t.Package == "" {
+			if m := rePackageLabel.FindStringSubmatch(textToScan); len(m) > 1 {
+				t.Package = strings.TrimSpace(m[1])
+			} else if m := reGoModule.FindStringSubmatch(textToScan); len(m) > 1 {
+				t.Package = strings.TrimSpace(m[1])
+			}
+		}
+		if t.Version == "" {
+			if m := reVersionLabel.FindStringSubmatch(textToScan); len(m) > 1 {
+				t.Version = strings.TrimSpace(m[1])
+			}
+		}
+		if t.GoVersion == "" {
+			if m := reGoVersionLabel.FindStringSubmatch(textToScan); len(m) > 1 {
+				t.GoVersion = strings.TrimSpace(m[1])
+			}
+		}
+		if t.Vulnerability == "" {
+			vulns := extractVulnIDs(textToScan)
+			if len(vulns) > 0 {
+				t.Vulnerability = vulns[0]
+				if len(vulns) > 1 && len(t.Aliases) == 0 {
+					t.Aliases = vulns[1:]
+				}
+			}
+		}
+	}
+
 	if t.Module == "" && t.Package != "" {
 		t.Module = t.Package
 	}
 	if len(t.Imports) == 0 && t.Package != "" {
 		t.Imports = []string{t.Package}
 	}
-
-	// Version
-	t.Version = findField(m, []string{"version", "version_vulnerable_package", "vulnerable_version", "fixed_version", "affected_version", "package_version"}, "version")
-	t.FixedVersions = findFieldSlice(m, []string{"fixed_versions", "fixed_version"}, "fixed_version")
-
-	// Summary & Description & Rationale
-	t.Summary = findField(m, []string{"summary", "title", "name", "subject"}, "summary", "title")
-	t.Description = findField(m, []string{"description", "details", "body", "text"}, "description")
-	t.Rationale = findField(m, []string{"rationale", "comment", "notes", "analysis", "resolution", "result"}, "rationale", "comment", "analysis", "result")
-	t.Repo = findField(m, []string{"repo", "repository"}, "repo")
-
-	// Go version & Toolchain
-	t.GoVersion = findField(m, []string{"go_version", "goversion", "release_go_version", "release_go", "compiler_version", "compiler", "go"}, "go_version", "toolchain")
-	t.Toolchain = findField(m, []string{"toolchain"}, "toolchain")
-	if t.GoVersion == "" && t.Toolchain != "" {
-		t.GoVersion = t.Toolchain
-	}
-
-	// Severity & CVSS
-	t.Severity = findField(m, []string{"severity", "priority"}, "severity", "priority")
-	t.CVSS = findField(m, []string{"cvss", "cvss_score", "score"}, "cvss")
 
 	type osvWrapper struct {
 		OSV json.RawMessage `json:"osv"`

@@ -534,6 +534,11 @@ func toolchainVersion(product domain.ProductSnapshot, lims []string) (string, []
 	if v := product.ReleaseGoVersion; v != "" {
 		return v, lims
 	}
+	if product.GoModDirective != "" {
+		lims = append(lims,
+			"stdlib version check fell back to the go.mod minimum — actual release toolchain unknown")
+		return "go" + product.GoModDirective, lims
+	}
 	// product.GoVersion is "go version go1.26.1 darwin/arm64".
 	f := strings.Fields(product.GoVersion)
 	for _, tok := range f {
@@ -542,11 +547,6 @@ func toolchainVersion(product domain.ProductSnapshot, lims []string) (string, []
 				"stdlib version check used the analysis toolchain; pass --release-go-version or --binary for the release toolchain")
 			return tok, lims
 		}
-	}
-	if product.GoModDirective != "" {
-		lims = append(lims,
-			"stdlib version check fell back to the go.mod minimum — actual release toolchain unknown")
-		return "go" + product.GoModDirective, lims
 	}
 	return "", append(lims, "no toolchain version available for stdlib advisory")
 }

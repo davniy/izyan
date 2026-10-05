@@ -273,3 +273,59 @@ func TestVerdictExploitableBlockedByAbsentSubject(t *testing.T) {
 		t.Fatalf("got %s, want INCONCLUSIVE — pruned candidate set cannot ground EXPLOITABLE", got.Verdict)
 	}
 }
+
+// A verified locus-function-unreached claim grounds NO_EXPLOIT_PATH_FOUND when
+// all present candidate sinks were verified unreached, and any unresolved
+// sinks were proven absent (AbsentSubjects, e.g. from newer library versions).
+func TestVerdictNepfAllowedForLocusFunctionUnreachedCoveringAbsentSubjects(t *testing.T) {
+	presentSubj := domain.SymbolRef{Package: "example.com/dep/fasthttp", Symbol: "ServeFile"}
+	absentSubj := domain.SymbolRef{Package: "example.com/dep/fasthttp", Symbol: "ServeFS"}
+	model := domain.ExploitModel{
+		MandatoryConditions: []domain.Condition{{
+			ID: "C-LOCUS", Kind: domain.ConditionSymbolReachable,
+			Subjects: []domain.SymbolRef{presentSubj},
+		}},
+		UnresolvedSubjects: []domain.SymbolRef{absentSubj},
+		AbsentSubjects:     []domain.SymbolRef{absentSubj},
+	}
+	claims := []domain.Claim{{
+		ConditionID: "C-LOCUS",
+		Result:      domain.ClaimFalse,
+		Falsifier:   domain.FalsifierLocusFunctionUnreached,
+		NegativeVerification: &domain.NegativeVerification{
+			Status: domain.NegativeVerified,
+		},
+	}}
+	got := VerdictEvaluator{}.Evaluate(affectedAllTrue(), model, claims)
+	if got.Verdict != domain.VerdictNoExploitPathFound {
+		t.Fatalf("got %s, want NO_EXPLOIT_PATH_FOUND", got.Verdict)
+	}
+}
+
+// But if an unresolved subject is NOT in AbsentSubjects (genuinely unmodeled),
+// locus-function-unreached cannot claim completeness and demotes to INCONCLUSIVE.
+func TestVerdictNepfBlockedForLocusFunctionUnreachedWithUnmodeledSubject(t *testing.T) {
+	presentSubj := domain.SymbolRef{Package: "example.com/dep/fasthttp", Symbol: "ServeFile"}
+	unmodeledSubj := domain.SymbolRef{Package: "example.com/dep/fasthttp", Symbol: "UnresolvedSink"}
+	model := domain.ExploitModel{
+		MandatoryConditions: []domain.Condition{{
+			ID: "C-LOCUS", Kind: domain.ConditionSymbolReachable,
+			Subjects: []domain.SymbolRef{presentSubj},
+		}},
+		UnresolvedSubjects: []domain.SymbolRef{unmodeledSubj},
+		AbsentSubjects:     nil, // not proven absent
+	}
+	claims := []domain.Claim{{
+		ConditionID: "C-LOCUS",
+		Result:      domain.ClaimFalse,
+		Falsifier:   domain.FalsifierLocusFunctionUnreached,
+		NegativeVerification: &domain.NegativeVerification{
+			Status: domain.NegativeVerified,
+		},
+	}}
+	got := VerdictEvaluator{}.Evaluate(affectedAllTrue(), model, claims)
+	if got.Verdict != domain.VerdictInconclusive {
+		t.Fatalf("got %s, want INCONCLUSIVE", got.Verdict)
+	}
+}
+

@@ -157,14 +157,31 @@ func coversAllDeclared(claim domain.Claim) bool {
 // falsifier also discharges the model's unresolved subjects: only when every
 // unresolved symbol is itself a member of the locus set the verification
 // proved absent from the build graph. An unresolved symbol outside L keeps
-// the negative unproven — the model cannot claim its exploit shape is
-// covered by an absence it was never checked against.
+// locusCoversUnresolved reports whether a verified negative falsifier also
+// discharges the model's unresolved subjects.
+//
+// For locus-package-absent and package-absent, every unresolved symbol must be
+// proved absent from the build graph or a member of the verified absent set.
+//
+// For locus-function-unreached, every present sink in the condition was verified
+// unreached. An unresolved subject that is proven absent (package not in build graph
+// or symbol not declared in the linked dependency version, model.AbsentSubjects)
+// has no executable form in the snapshot and cannot be reached through any path,
+// so the unreached verification over all present sinks covers the advisory.
 func locusCoversUnresolved(falsifier string, cond domain.Condition, model domain.ExploitModel) bool {
 	if falsifier != domain.FalsifierLocusPackageAbsent &&
-		falsifier != domain.FalsifierPackageAbsent {
+		falsifier != domain.FalsifierPackageAbsent &&
+		falsifier != domain.FalsifierLocusFunctionUnreached {
 		return false
 	}
+	absent := make(map[domain.SymbolRef]bool, len(model.AbsentSubjects))
+	for _, s := range model.AbsentSubjects {
+		absent[s] = true
+	}
 	for _, u := range model.UnresolvedSubjects {
+		if absent[u] {
+			continue
+		}
 		member := false
 		for _, s := range cond.Subjects {
 			if s == u {

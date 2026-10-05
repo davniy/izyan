@@ -32,7 +32,9 @@ izyan analyze --repo /src/product --vuln GO-2025-3595 [флаги]
 | `--goos`, `--goarch` | целевая платформа снапшота |
 | `--build-tags <t1,t2>` | build tags при загрузке пакетов |
 | `--binary <path>` | собранный бинарь релиза: `govulncheck -mode binary` + реальный toolchain и модули из встроенного build info |
-| `--release-go-version <ver>` | версия Go, которой собран релиз (из тикета/релиз-нот) — для `std`-advisory |
+| `--deploy-manifests <path>` | путь к каталогу, внешнему GitOps-репозиторию или архиву чарта (`.tgz`, `.tar.gz`, `.zip`) с манифестами развёртывания (Helm/K8s/Compose) с защитой от Zip Slip и автопоиском в `deploy/`, `helm/`, `deployments/` |
+| `--perimeter <auto|cluster|public>` | контекст сетевого периметра развёртывания для разрешения вердикта (по умолчанию `auto`, выбирает кластер при наличии фактов изоляции) |
+| `--release-go-version <ver>` | версия Go, которой собран релиз (из тикета/релиз-нот) — для `std`-advisory (по умолчанию извлекается из директивы `go` в `go.mod`) |
 
 Ручные входы (обходят автоматику, полезны при отсутствии fix-commit):
 
@@ -179,10 +181,11 @@ izyan analyze --repo /path/to/project --ticket ./ticket.json --checkout-release
    - Название компонента и релиза.
    Номер тикета, компонент и релиз автоматически сохраняются в кейсе и выводятся в `report.md`, `report.en.md` и `report.json`.
 
-2. **JSON-выгрузки трекеров (Jira, GitLab, Bugzilla и др.):**
+2. **JSON-выгрузки трекеров (Jira, GitLab, Bugzilla, Redmine и др.):**
    ```bash
    izyan analyze --ticket ticket.json --repo /path/to/project
    ```
+   Поддерживаются как плоские структуры JSON, так и вложенные конверты корпоративных трекеров (`unit` с полями `code`, `summary`, `descriptionPlain` и списком `attributes`), включая автоматическое извлечение обоснований триажа из полей `result_text` / `rationale`, идентификаторов уязвимостей и компонентов.
    Если JSON-файл содержит массив тикетов, можно выбрать нужный по ключу:
    ```bash
    izyan analyze --ticket tickets.json --ticket-id APP-1002

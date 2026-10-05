@@ -200,15 +200,38 @@ var (
 	reCVSSLabel      = regexp.MustCompile(`(?i)(?:cvss|score)[\s:=]+([^\s,;]+)`)
 )
 
+func canonicalVulnID(s string) string {
+	s = strings.TrimSpace(s)
+	upper := strings.ToUpper(s)
+	if strings.HasPrefix(upper, "GHSA-") && len(s) > 5 {
+		return "GHSA-" + strings.ToLower(s[5:])
+	}
+	return upper
+}
+
+func vulnPriority(id string) int {
+	upper := strings.ToUpper(id)
+	switch {
+	case strings.HasPrefix(upper, "GO-"):
+		return 1
+	case strings.HasPrefix(upper, "GHSA-"):
+		return 2
+	case strings.HasPrefix(upper, "CVE-"):
+		return 3
+	default:
+		return 4
+	}
+}
+
 func extractVulnIDs(s string) []string {
 	var results []string
 	seen := make(map[string]bool)
 	add := func(matches []string) {
 		for _, m := range matches {
-			upper := strings.ToUpper(m)
-			if !seen[upper] {
-				seen[upper] = true
-				results = append(results, upper)
+			canon := canonicalVulnID(m)
+			if !seen[canon] {
+				seen[canon] = true
+				results = append(results, canon)
 			}
 		}
 	}
@@ -403,6 +426,7 @@ func parseSingleTicketJSON(data []byte) (*Ticket, error) {
 			t.Description = desc
 		}
 	}
+	var vulnCandidates []string
 	if attrs, ok := m["attributes"].([]any); ok {
 		for _, rawAttr := range attrs {
 			attrMap, ok := rawAttr.(map[string]any)
@@ -430,11 +454,7 @@ func parseSingleTicketJSON(data []byte) (*Ticket, error) {
 			case strings.Contains(lowerCode, "vulnerabilit") && (strings.Contains(lowerCode, "identifier") || strings.Contains(lowerCode, "id")):
 				for _, v := range stringSliceValue(val) {
 					if isVulnID(v) {
-						if t.Vulnerability == "" {
-							t.Vulnerability = strings.ToUpper(v)
-						} else if !strings.EqualFold(t.Vulnerability, v) {
-							t.Aliases = append(t.Aliases, strings.ToUpper(v))
-						}
+						vulnCandidates = append(vulnCandidates, canonicalVulnID(v))
 					}
 				}
 			case (strings.Contains(lowerCode, "vulnerable") && strings.Contains(lowerCode, "package")) || lowerCode == "package" || lowerCode == "library":
@@ -467,17 +487,32 @@ func parseSingleTicketJSON(data []byte) (*Ticket, error) {
 	}
 
 	// Extract vulnerability IDs
-	vulnCandidates := findFieldSlice(m,
+	fieldVulns := findFieldSlice(m,
 		[]string{"vulnerability", "vuln", "cve", "ghsa", "go_id", "vulnerabilities", "vuln_id"},
 		"vulnerabilit", "vuln", "cve")
+	vulnCandidates = append(vulnCandidates, fieldVulns...)
 	if len(vulnCandidates) == 0 && t.Vulnerability == "" {
 		// Fallback: search all string values in m
 		vulnCandidates = extractVulnIDs(string(data))
 	}
-	if len(vulnCandidates) > 0 && t.Vulnerability == "" {
-		t.Vulnerability = vulnCandidates[0]
-		if len(vulnCandidates) > 1 {
-			t.Aliases = vulnCandidates[1:]
+	if len(vulnCandidates) > 0 {
+		var unique []string
+		seen := make(map[string]bool)
+		for _, v := range vulnCandidates {
+			canon := canonicalVulnID(v)
+			if !seen[canon] {
+				seen[canon] = true
+				unique = append(unique, canon)
+			}
+		}
+		sort.SliceStable(unique, func(i, j int) bool {
+			return vulnPriority(unique[i]) < vulnPriority(unique[j])
+		})
+		if len(unique) > 0 {
+			t.Vulnerability = unique[0]
+			if len(unique) > 1 {
+				t.Aliases = unique[1:]
+			}
 		}
 	}
 

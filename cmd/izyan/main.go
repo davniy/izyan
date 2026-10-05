@@ -88,6 +88,8 @@ options:
   --knowledge <path>     extend the ecosystem knowledge base (JSON, additive)
   --non-locus-basis <path> JSON file with expert non-locus basis decisions
   --accept-locus-proposals adopt machine-generated non_locus recommendations into expert basis
+  --deploy-manifests <path> path to deployment manifests (directory or .tgz/.tar.gz/.zip archive)
+  --perimeter <auto|cluster|public> deployment perimeter context (default: auto)
   --cve-analysis <off|assist|verified>  LLM CVE analysis profile (default: off)
   --llm-intake           use LLM to extract vulnerability and metadata from unstructured ticket text
   --checkout-release     resolve release/tag and analyze in an isolated git worktree
@@ -144,6 +146,8 @@ type analyzeOpts struct {
 	// acceptLocusProposals adopts machine-generated non_locus proposals as basis.
 	acceptLocusProposals bool
 	trustedPeer          bool
+	deployManifests      string
+	perimeterMode        string
 	// toolchain is the resolved target Go toolchain; zero value = local.
 	toolchain toolchain.Toolchain
 	// tcLims carries resolution notes into the case's limitations.
@@ -180,7 +184,57 @@ func commonFlags(fs *flag.FlagSet, o *analyzeOpts) {
 	fs.BoolVar(&o.checkoutRel, "checkout-release", false, "resolve release/tag from ticket or --release and run analysis in an isolated git worktree")
 	fs.StringVar(&o.releaseRef, "release", "", "explicit release tag, branch, or commit to analyze (overrides ticket release)")
 	fs.StringVar(&o.releaseRef, "git-ref", "", "alias for --release")
+	deployDefault := o.deployManifests
+	if deployDefault == "" {
+		deployDefault = os.Getenv("VA_DEPLOY_MANIFESTS")
+	}
+	fs.StringVar(&o.deployManifests, "deploy-manifests", deployDefault, "path to deployment manifests (directory or .tgz/.tar.gz/.zip archive)")
+	perimeterDefault := o.perimeterMode
+	if perimeterDefault == "" {
+		perimeterDefault = os.Getenv("VA_PERIMETER")
+	}
+	if perimeterDefault == "" {
+		perimeterDefault = "auto"
+	}
+	fs.StringVar(&o.perimeterMode, "perimeter", perimeterDefault, "deployment perimeter context: auto, cluster, public")
 	fs.StringVar(&o.lang, "lang", "ru", "report and output language: ru (default) or en")
+}
+
+func buildSnapshotOptions(o analyzeOpts) repository.SnapshotOptions {
+	opts := repository.SnapshotOptions{
+		GOOS:              o.goos,
+		GOARCH:            o.goarch,
+		BuildTags:         splitCSV(o.tags),
+		BinaryPath:        o.binary,
+		ReleaseGoVersion:  o.releaseGo,
+		TrustedPeer:       o.trustedPeer,
+		PerimeterOverride: normalizePerimeter(o.perimeterMode),
+	}
+	path := strings.TrimSpace(o.deployManifests)
+	lower := strings.ToLower(path)
+	if strings.HasSuffix(lower, ".tgz") || strings.HasSuffix(lower, ".tar.gz") || strings.HasSuffix(lower, ".zip") {
+		opts.DeployArchive = path
+	} else if path != "" {
+		for _, part := range strings.Split(path, ",") {
+			if trimmed := strings.TrimSpace(part); trimmed != "" {
+				opts.DeployManifests = append(opts.DeployManifests, trimmed)
+			}
+		}
+	}
+	return opts
+}
+
+func normalizePerimeter(p string) string {
+	switch strings.ToLower(strings.TrimSpace(p)) {
+	case "cluster", "cluster-internal":
+		return domain.PerimeterClusterInternal
+	case "public":
+		return domain.PerimeterPublic
+	case "auto", "":
+		return "auto"
+	default:
+		return p
+	}
 }
 
 // loadKnowledgeBase resolves the --knowledge extension: built-in
@@ -584,16 +638,9 @@ func analyzeCase(ctx context.Context, o analyzeOpts) (*domain.AnalysisCase, erro
 	engine := workflow.New(store,
 		states.Created{},
 		states.SnapshotProduct{
-			Repo: repository.Service{},
-			Path: absRepo,
-			Options: repository.SnapshotOptions{
-				GOOS:             o.goos,
-				GOARCH:           o.goarch,
-				BuildTags:        splitCSV(o.tags),
-				BinaryPath:       o.binary,
-				ReleaseGoVersion: o.releaseGo,
-				TrustedPeer:      o.trustedPeer,
-			},
+			Repo:    repository.Service{},
+			Path:    absRepo,
+			Options: buildSnapshotOptions(o),
 		},
 		states.ResolveVulnerability{Source: src, ID: o.vulnID},
 		states.CheckAffected{Resolver: affected.GoResolver{Tool: goTool}},
@@ -647,6 +694,17 @@ func printCase(c *domain.AnalysisCase, caseDir string, lang ...string) {
 			c.ContextualRisk.Priority, c.ContextualRisk.ContextualLevel, c.ContextualRisk.ContextualScore, c.ContextualRisk.SLA)
 		if c.ContextualRisk.AdjustmentReason != "" {
 			fmt.Printf("triage_reason: %s\n", c.ContextualRisk.AdjustmentReason)
+		}
+	}
+	if len(c.Profiles) > 0 {
+		if c.DetectedPerimeter != "" {
+			fmt.Printf("perimeter: %s\n", c.DetectedPerimeter)
+		}
+		for _, p := range c.Profiles {
+			if p.IsTargetActual {
+				fmt.Printf("target_profile: %s (Verdict: %s, Priority: %s)\n", p.Profile, p.Verdict, p.Priority)
+				break
+			}
 		}
 	}
 	if len(c.Workflow.Timings) > 0 {
@@ -848,11 +906,7 @@ func runScan(args []string) error {
 	// Cheap deterministic pre-filter: resolve affectedness without the
 	// full engine. Deterministically-not-affected advisories are recorded
 	// and skipped; survivors get the full pipeline.
-	snap, err := repository.Service{}.Snapshot(ctx, absRepo, repository.SnapshotOptions{
-		GOOS: o.goos, GOARCH: o.goarch, BuildTags: splitCSV(o.tags),
-		BinaryPath: o.binary, ReleaseGoVersion: o.releaseGo,
-		TrustedPeer: o.trustedPeer,
-	})
+	snap, err := repository.Service{}.Snapshot(ctx, absRepo, buildSnapshotOptions(o))
 	if err != nil {
 		return fmt.Errorf("snapshot: %w", err)
 	}

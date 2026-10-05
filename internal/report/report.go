@@ -405,6 +405,7 @@ func Markdown(c *domain.AnalysisCase, lang ...string) string {
 		}
 		renderTriageAssessment(&b, c, isRU)
 	}
+	renderPerimeterMatrix(&b, c, isRU)
 	if rat := rationale(c); rat != "" {
 		if isRU {
 			fmt.Fprintf(&b, "## Резюме\n\n%s\n\n", rat)
@@ -1694,5 +1695,124 @@ func formatRiskStatus(s domain.ContextualRiskStatus, isRU bool) string {
 		return "**NOT_APPLICABLE** (Not Applicable)"
 	default:
 		return "**" + string(s) + "**"
+	}
+}
+
+func profileContourAndModel(p domain.ProfileVerdict, isRU bool) (string, string) {
+	switch p.Profile {
+	case domain.ProfileClusterPerimeter:
+		if isRU {
+			return "Внутренний кластер / Mesh", "Доверенная инфраструктура"
+		}
+		return "Internal Cluster / Mesh", "Trusted Infrastructure"
+	case domain.ProfileZeroTrust:
+		if isRU {
+			return "Публичный интернет", "Zero Trust / Hostile Peer"
+		}
+		return "Public Internet", "Zero Trust / Hostile Peer"
+	default:
+		name := string(p.Profile)
+		if p.Title != "" {
+			name = p.Title
+		}
+		return name, string(p.Profile)
+	}
+}
+
+func verdictBadge(v domain.Verdict) string {
+	switch v {
+	case domain.VerdictNoExploitPathFound, domain.VerdictNotAffected:
+		return "🟢"
+	case domain.VerdictExploitable:
+		return "🔴"
+	case domain.VerdictInconclusive:
+		return "🟡"
+	default:
+		return "⚪"
+	}
+}
+
+func perimeterActionRecommendation(p domain.TriagePriority, isRU bool) string {
+	switch p {
+	case domain.PriorityDismissed:
+		if isRU {
+			return "Действий не требуется: уязвимость закрыта сетевым периметром."
+		}
+		return "No remediation required: vulnerability neutralized by network perimeter."
+	case domain.PriorityP0:
+		if isRU {
+			return "Критично: немедленное устранение (24h)."
+		}
+		return "Critical: immediate remediation (24h)."
+	case domain.PriorityP1:
+		if isRU {
+			return "Высокий приоритет: устранение в течение 7 дней."
+		}
+		return "High priority: remediation within 7 days."
+	case domain.PriorityP2:
+		if isRU {
+			return "Плановый спринт: устранение в течение 30 дней."
+		}
+		return "Planned sprint: remediation within 30 days."
+	default:
+		if isRU {
+			return "Внимание: при выносе сервиса за пределы кластера потребуется аудит."
+		}
+		return "Notice: audit required if service is exposed outside cluster."
+	}
+}
+
+func renderPerimeterMatrix(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+	if len(c.Profiles) == 0 {
+		return
+	}
+
+	detPerimeter := c.DetectedPerimeter
+	if detPerimeter == "" {
+		detPerimeter = domain.PerimeterUnknown
+	}
+	detRationale := c.PerimeterRationale
+	if detRationale == "" {
+		detRationale = "-"
+	}
+
+	if isRU {
+		b.WriteString("### Матрица сетевых периметров угроз\n\n")
+		fmt.Fprintf(b, "- **Обнаруженный периметр развёртывания:** `%s`\n", detPerimeter)
+		fmt.Fprintf(b, "- **Обоснование периметра:** %s\n\n", detRationale)
+		b.WriteString("| Сетевой контур | Модель угроз | Вердикт анализатора | Приоритет триажа | Действие для команды |\n")
+		b.WriteString("|---|---|---|---|---|\n")
+		for _, p := range c.Profiles {
+			contour, model := profileContourAndModel(p, true)
+			icon := verdictBadge(p.Verdict)
+			action := perimeterActionRecommendation(p.Priority, true)
+			if p.IsTargetActual {
+				fmt.Fprintf(b, "| **%s** *(Фактический)* | %s | %s **%s** | **%s** | %s |\n",
+					contour, model, icon, p.Verdict, p.Priority, action)
+			} else {
+				fmt.Fprintf(b, "| **%s** | %s | %s **%s** | **%s** | %s |\n",
+					contour, model, icon, p.Verdict, p.Priority, action)
+			}
+		}
+		b.WriteString("\n")
+	} else {
+		b.WriteString("### Security Perimeter Matrix\n\n")
+		fmt.Fprintf(b, "- **Detected Deployment Perimeter:** `%s`\n", detPerimeter)
+		fmt.Fprintf(b, "- **Perimeter Rationale:** %s\n\n", detRationale)
+		b.WriteString("| Security Perimeter | Threat Model | Analyzer Verdict | Triage Priority | Recommended Action |\n")
+		b.WriteString("|---|---|---|---|---|\n")
+		for _, p := range c.Profiles {
+			contour, model := profileContourAndModel(p, false)
+			icon := verdictBadge(p.Verdict)
+			action := perimeterActionRecommendation(p.Priority, false)
+			if p.IsTargetActual {
+				fmt.Fprintf(b, "| **%s** *(Actual)* | %s | %s **%s** | **%s** | %s |\n",
+					contour, model, icon, p.Verdict, p.Priority, action)
+			} else {
+				fmt.Fprintf(b, "| **%s** | %s | %s **%s** | **%s** | %s |\n",
+					contour, model, icon, p.Verdict, p.Priority, action)
+			}
+		}
+		b.WriteString("\n")
 	}
 }

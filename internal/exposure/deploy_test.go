@@ -165,3 +165,201 @@ metadata:
 		t.Errorf("istio:RequestAuthentication fact not found in %+v", facts)
 	}
 }
+
+func TestScanDeployWithOptions_Archive(t *testing.T) {
+	tempDir := t.TempDir()
+	tgzData, err := createMockTGZ(map[string]string{
+		"mychart/templates/service.yaml": `apiVersion: v1
+kind: Service
+metadata:
+  name: internal-svc
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	archivePath := filepath.Join(tempDir, "mychart-1.0.0.tgz")
+	if err := os.WriteFile(archivePath, tgzData, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	facts, err := ScanDeployWithOptions(DeployScanOptions{
+		ArchivePath: archivePath,
+	})
+	if err != nil {
+		t.Fatalf("ScanDeployWithOptions failed: %v", err)
+	}
+
+	found := false
+	for _, f := range facts {
+		if f.Target == "k8s:Service:ClusterIP" {
+			found = true
+			if f.Scope != domain.ScopeLoopback {
+				t.Errorf("scope = %s, want %s", f.Scope, domain.ScopeLoopback)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected k8s:Service:ClusterIP fact, got %+v", facts)
+	}
+}
+
+func TestScanDeployWithOptions_ExtraPaths(t *testing.T) {
+	repoDir := t.TempDir()
+	extraDir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(repoDir, "docker-compose.yml"), []byte(`services:
+  app:
+    ports:
+      - "8080:8080"
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(extraDir, "service.yaml"), []byte(`apiVersion: v1
+kind: Service
+metadata:
+  name: extra-svc
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 443
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	facts, err := ScanDeployWithOptions(DeployScanOptions{
+		RootPath:   repoDir,
+		ExtraPaths: []string{extraDir},
+	})
+	if err != nil {
+		t.Fatalf("ScanDeployWithOptions failed: %v", err)
+	}
+
+	var foundCompose, foundLB bool
+	for _, f := range facts {
+		if f.Target == "compose:published-port" {
+			foundCompose = true
+		}
+		if f.Target == "k8s:Service:LoadBalancer" {
+			foundLB = true
+		}
+	}
+	if !foundCompose {
+		t.Errorf("expected compose:published-port fact, got %+v", facts)
+	}
+	if !foundLB {
+		t.Errorf("expected k8s:Service:LoadBalancer fact, got %+v", facts)
+	}
+}
+
+func TestScanDeployWithOptions_AutoDiscovery(t *testing.T) {
+	parentDir := t.TempDir()
+	repoDir := filepath.Join(parentDir, "app")
+	if err := os.MkdirAll(repoDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. Chart archive in root
+	tgzData, err := createMockTGZ(map[string]string{
+		"chart/templates/ingress.yaml": `apiVersion: networking.k8s.io/v1
+kind: Ingress
+spec:
+  rules:
+  - host: autodiscover.example.com
+`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, "app-0.1.0.tgz"), tgzData, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// 2. Sibling directory app-deploy
+	siblingDir := filepath.Join(parentDir, "app-deploy")
+	if err := os.MkdirAll(siblingDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(siblingDir, "service.yaml"), []byte(`apiVersion: v1
+kind: Service
+metadata:
+  name: sibling-svc
+spec:
+  type: NodePort
+  ports:
+  - nodePort: 30080
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	facts, err := ScanDeployWithOptions(DeployScanOptions{
+		RootPath: repoDir,
+	})
+	if err != nil {
+		t.Fatalf("ScanDeployWithOptions failed: %v", err)
+	}
+
+	var foundIngress, foundNodePort bool
+	for _, f := range facts {
+		if f.Target == "k8s:Ingress" && f.Address == "autodiscover.example.com" {
+			foundIngress = true
+		}
+		if f.Target == "k8s:Service:NodePort" {
+			foundNodePort = true
+		}
+	}
+
+	if !foundIngress {
+		t.Errorf("expected autodiscovered Ingress fact from root archive, got %+v", facts)
+	}
+	if !foundNodePort {
+		t.Errorf("expected autodiscovered NodePort fact from sibling app-deploy, got %+v", facts)
+	}
+}
+
+func TestScanDeployWithOptions_Deduplication(t *testing.T) {
+	repoDir := t.TempDir()
+	extraDir := t.TempDir()
+
+	svcYAML := `apiVersion: v1
+kind: Service
+metadata:
+  name: svc
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+`
+	if err := os.MkdirAll(filepath.Join(repoDir, "deploy"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, "deploy", "svc.yaml"), []byte(svcYAML), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(extraDir, "svc.yaml"), []byte(svcYAML), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	facts, err := ScanDeployWithOptions(DeployScanOptions{
+		RootPath:   repoDir,
+		ExtraPaths: []string{extraDir},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lbCount := 0
+	for _, f := range facts {
+		if f.Target == "k8s:Service:LoadBalancer" {
+			lbCount++
+		}
+	}
+	if lbCount != 1 {
+		t.Fatalf("expected exactly 1 LoadBalancer fact after deduplication, got %d", lbCount)
+	}
+}

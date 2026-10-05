@@ -119,6 +119,9 @@ type ProductSnapshot struct {
 	GoWorkFile        string             `json:"go_work_file,omitempty"`
 	ReplaceDirectives []ReplaceDirective `json:"replace_directives,omitempty"`
 	TrustedPeer       bool               `json:"trusted_peer,omitempty"`
+	DeployManifests   []string           `json:"deploy_manifests,omitempty"`
+	DeployArchive     string             `json:"deploy_archive,omitempty"`
+	PerimeterOverride string             `json:"perimeter_override,omitempty"`
 }
 
 type ReplaceDirective struct {
@@ -319,13 +322,14 @@ const (
 // address. Inbound: how broadly a listener binds; outbound: where the
 // endpoint's value originates.
 const (
-	ScopeAllInterfaces = "all-interfaces"  // :port, 0.0.0.0, [::]
-	ScopeLoopback      = "loopback"        // 127.0.0.1, ::1, localhost
-	ScopeUnix          = "unix"            // unix socket path / "unix" network
-	ScopeHostSpecific  = "host-specific"   // bound to a concrete IP/DNS name
-	ScopeStatic        = "static-endpoint" // outbound literal/const address
-	ScopeConfigured    = "configured"      // outbound address from env/config/var
-	ScopeUnknown       = "unknown"
+	ScopeAllInterfaces   = "all-interfaces"   // :port, 0.0.0.0, [::]
+	ScopeLoopback        = "loopback"         // 127.0.0.1, ::1, localhost
+	ScopeUnix            = "unix"             // unix socket path / "unix" network
+	ScopeHostSpecific    = "host-specific"    // bound to a concrete IP/DNS name
+	ScopeStatic          = "static-endpoint"  // outbound literal/const address
+	ScopeConfigured      = "configured"       // outbound address from env/config/var
+	ScopeClusterInternal = "cluster-internal" // cluster-internal service (ClusterIP, loopback, mesh)
+	ScopeUnknown         = "unknown"
 )
 
 // ExposureFact is a resolved network-exposure fact: an inbound listener
@@ -471,6 +475,8 @@ type Claim struct {
 	// picks the matching strategy: "guards" = bound-guard coverage.
 	Falsifier string `json:"falsifier,omitempty"`
 }
+
+type FalsifierKind string
 
 const (
 	FalsifierGovulncheckSilence       = "govulncheck-silence"
@@ -1203,6 +1209,30 @@ type RiskFactors struct {
 	BlastRadius    string `json:"blast_radius"`    // PROCESS_CRASH_DOS, DATA_LEAK, RCE, DOWNGRADE, UNKNOWN
 }
 
+type ThreatProfile string
+
+const (
+	ProfileZeroTrust        ThreatProfile = "zero_trust"
+	ProfileClusterPerimeter ThreatProfile = "cluster_perimeter"
+)
+
+const (
+	PerimeterClusterInternal = "cluster-internal"
+	PerimeterPublic          = "public"
+	PerimeterUnknown         = "unknown"
+)
+
+type ProfileVerdict struct {
+	Profile        ThreatProfile  `json:"profile"`
+	Title          string         `json:"title"`
+	Verdict        Verdict        `json:"verdict"`
+	Reason         string         `json:"reason"`
+	Falsifier      FalsifierKind  `json:"falsifier,omitempty"`
+	Priority       TriagePriority `json:"priority"`
+	SLA            string         `json:"sla"`
+	IsTargetActual bool           `json:"is_target_actual"`
+}
+
 type AnalysisLimits struct {
 	MaxIterations       int `json:"max_iterations"`
 	MaxToolCalls        int `json:"max_tool_calls"`
@@ -1280,6 +1310,9 @@ type AnalysisCase struct {
 	SemanticReview     *SemanticReview        `json:"semantic_review,omitempty"`
 	Justification      *AnalysisJustification `json:"justification,omitempty"`
 	ContextualRisk     *ContextualRisk        `json:"contextual_risk,omitempty"`
+	DetectedPerimeter  string                 `json:"detected_perimeter,omitempty"`
+	PerimeterRationale string                 `json:"perimeter_rationale,omitempty"`
+	Profiles           []ProfileVerdict       `json:"profiles,omitempty"`
 }
 
 // AddHypothesis appends a hypothesis with an assigned H-id.

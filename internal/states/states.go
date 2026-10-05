@@ -488,27 +488,40 @@ func (h CollectEvidence) runListenerScan(ctx context.Context, c *domain.Analysis
 // record.
 func (h CollectEvidence) runExposure(ctx context.Context, c *domain.AnalysisCase) {
 	var facts []domain.ExposureFact
-	in, err := h.Source.ListenSites(ctx)
-	if err != nil {
-		c.EvidenceGraph.AddToolLimitation(fmt.Sprintf("listener address scan failed: %v", err))
-	} else {
-		for i := range in {
-			in[i].Scope = exposure.Scope(in[i].Address)
-		}
-		facts = append(facts, in...)
-	}
-	if module := c.Vulnerability.Module; module != "" && !isStdlibModule(module) {
-		out, err := h.Source.DialSites(ctx, module)
+	if h.Source != nil {
+		in, err := h.Source.ListenSites(ctx)
 		if err != nil {
-			c.EvidenceGraph.AddToolLimitation(fmt.Sprintf("dial-site scan failed: %v", err))
+			c.EvidenceGraph.AddToolLimitation(fmt.Sprintf("listener address scan failed: %v", err))
 		} else {
-			facts = append(facts, out...)
+			for i := range in {
+				in[i].Scope = exposure.Scope(in[i].Address)
+			}
+			facts = append(facts, in...)
+		}
+		if module := c.Vulnerability.Module; module != "" && !isStdlibModule(module) {
+			out, err := h.Source.DialSites(ctx, module)
+			if err != nil {
+				c.EvidenceGraph.AddToolLimitation(fmt.Sprintf("dial-site scan failed: %v", err))
+			} else {
+				facts = append(facts, out...)
+			}
+		}
+		if auth, err := h.Source.InboundAuthFacts(ctx); err != nil {
+			c.EvidenceGraph.AddToolLimitation(fmt.Sprintf("inbound auth-middleware scan failed: %v", err))
+		} else {
+			facts = append(facts, auth...)
 		}
 	}
-	if auth, err := h.Source.InboundAuthFacts(ctx); err != nil {
-		c.EvidenceGraph.AddToolLimitation(fmt.Sprintf("inbound auth-middleware scan failed: %v", err))
-	} else {
-		facts = append(facts, auth...)
+
+	if c.Product.Repository != "" || len(c.Product.DeployManifests) > 0 || c.Product.DeployArchive != "" {
+		deployFacts, err := exposure.ScanDeployWithOptions(exposure.DeployScanOptions{
+			RootPath:    c.Product.Repository,
+			ExtraPaths:  c.Product.DeployManifests,
+			ArchivePath: c.Product.DeployArchive,
+		})
+		if err == nil {
+			facts = append(facts, deployFacts...)
+		}
 	}
 
 	// Resolve env:/var:/field:-sourced addresses through the repo's config
@@ -538,6 +551,15 @@ func (h CollectEvidence) runExposure(ctx context.Context, c *domain.AnalysisCase
 	for _, f := range facts {
 		c.EvidenceGraph.AddExposure(f)
 	}
+
+	scope, rationale := exposure.ClassifyPerimeter(c.EvidenceGraph.ExposuresList())
+	if c.Product.PerimeterOverride != "" && c.Product.PerimeterOverride != "auto" {
+		scope = c.Product.PerimeterOverride
+		rationale = "perimeter overridden by configuration: " + c.Product.PerimeterOverride
+	}
+	c.DetectedPerimeter = scope
+	c.PerimeterRationale = rationale
+
 	var summary strings.Builder
 	fmt.Fprintf(&summary, "%d exposure fact(s):", len(facts))
 	for _, f := range facts {
@@ -556,6 +578,16 @@ func (h CollectEvidence) runExposure(ctx context.Context, c *domain.AnalysisCase
 		Tool:    "goanalysis.Index.ListenSites+DialSites+InboundAuthFacts, exposure.ScanRepo",
 		Content: summary.String(),
 	})
+	if c.DetectedPerimeter == domain.PerimeterClusterInternal {
+		c.EvidenceGraph.AddEvidence(domain.Evidence{
+			ID:      "EV-PERIMETER-CLUSTER",
+			Kind:    domain.EvidenceConfiguration,
+			Quality: domain.QualityDeterministic,
+			Source:  "perimeter classifier: cluster-internal",
+			Tool:    "exposure.ClassifyPerimeter",
+			Content: fmt.Sprintf("cluster isolation verified: %s", c.PerimeterRationale),
+		})
+	}
 }
 
 func filepathBase(p string) string {
@@ -1496,6 +1528,23 @@ func exploitOf(c *domain.AnalysisCase) domain.ExploitModel {
 	return domain.ExploitModel{}
 }
 
+func cloneCaseForRisk(c *domain.AnalysisCase, claims []domain.Claim, trustedPeer bool) *domain.AnalysisCase {
+	cloned := &domain.AnalysisCase{
+		ID:            c.ID,
+		Vulnerability: c.Vulnerability,
+		Product:       c.Product,
+		Claims:        claims,
+	}
+	cloned.Product.TrustedPeer = trustedPeer
+	for _, exp := range c.EvidenceGraph.ExposuresList() {
+		cloned.EvidenceGraph.AddExposure(exp)
+	}
+	for _, ev := range c.EvidenceGraph.EvidenceList() {
+		cloned.EvidenceGraph.AddEvidence(ev)
+	}
+	return cloned
+}
+
 type EvaluateVerdict struct {
 	Evaluator evaluator.VerdictEvaluator
 }
@@ -1511,12 +1560,85 @@ func (h EvaluateVerdict) Run(_ context.Context, c *domain.AnalysisCase) (workflo
 	if c.Exploit != nil {
 		model = *c.Exploit
 	}
-	v := h.Evaluator.Evaluate(affected, model, c.Claims)
-	v.Limitations = append(v.Limitations, c.EvidenceGraph.Limitations...)
-	c.Verdict = &v
-	cRisk := risk.Assess(c.Vulnerability, c, v)
-	c.ContextualRisk = &cRisk
-	return workflow.Transition{Next: domain.StateBuildReport, Reason: "verdict evaluated: " + string(v.Verdict)}, nil
+
+	conds := make(map[domain.ConditionID]domain.Condition, len(model.MandatoryConditions)+len(model.SupportingFactors))
+	for _, cond := range model.MandatoryConditions {
+		conds[cond.ID] = cond
+	}
+	for _, cond := range model.SupportingFactors {
+		conds[cond.ID] = cond
+	}
+
+	// Profile 1: zero_trust (TrustedPeer = false)
+	vZT := h.Evaluator.Evaluate(affected, model, c.Claims)
+	vZT.Limitations = append(vZT.Limitations, c.EvidenceGraph.Limitations...)
+
+	// Profile 2: cluster_perimeter (TrustedPeer = true)
+	claimsCP := make([]domain.Claim, len(c.Claims))
+	copy(claimsCP, c.Claims)
+	for i := range claimsCP {
+		cl := &claimsCP[i]
+		cond := conds[cl.ConditionID]
+		isPeerInput := (cond.Kind == domain.ConditionAttackerControl || cond.Kind == domain.ConditionInputConstraint) &&
+			cond.Params[domain.ParamInputSource] != domain.InputArg &&
+			cond.Params[domain.ParamInputSource] != domain.InputConfig &&
+			evaluator.WantsPeerInput(cond, c.Vulnerability)
+		if isPeerInput || cl.Falsifier == domain.FalsifierTrustedInfrastructure {
+			cl.Result = domain.ClaimFalse
+			cl.Falsifier = domain.FalsifierTrustedInfrastructure
+			cl.Explanation = "FALSE is decided by trusted cluster infrastructure / perimeter"
+			cl.NegativeVerification = &domain.NegativeVerification{
+				Status: domain.NegativeVerified,
+				Notes:  "FALSE is decided by product snapshot deployment trust facts (cluster-internal perimeter)",
+			}
+		}
+	}
+	vCP := h.Evaluator.Evaluate(affected, model, claimsCP)
+	vCP.Limitations = append(vCP.Limitations, c.EvidenceGraph.Limitations...)
+
+	cClonedZT := cloneCaseForRisk(c, c.Claims, false)
+	cClonedCP := cloneCaseForRisk(c, claimsCP, true)
+
+	cRiskZT := risk.Assess(c.Vulnerability, cClonedZT, vZT)
+	cRiskCP := risk.Assess(c.Vulnerability, cClonedCP, vCP)
+
+	isClusterTarget := c.DetectedPerimeter == domain.PerimeterClusterInternal || c.Product.TrustedPeer
+
+	ztProfile := domain.ProfileVerdict{
+		Profile:        domain.ProfileZeroTrust,
+		Title:          "Внешний периметр (Zero Trust / Недоверенный пир)",
+		Verdict:        vZT.Verdict,
+		Reason:         vZT.Reason,
+		Priority:       cRiskZT.Priority,
+		SLA:            cRiskZT.SLA,
+		IsTargetActual: !isClusterTarget,
+	}
+	var cpFalsifier domain.FalsifierKind
+	if vCP.Verdict == domain.VerdictNoExploitPathFound {
+		cpFalsifier = domain.FalsifierTrustedInfrastructure
+	}
+	cpProfile := domain.ProfileVerdict{
+		Profile:        domain.ProfileClusterPerimeter,
+		Title:          "Внутренний кластер (K8s ClusterIP / Service Mesh)",
+		Verdict:        vCP.Verdict,
+		Reason:         vCP.Reason,
+		Falsifier:      cpFalsifier,
+		Priority:       cRiskCP.Priority,
+		SLA:            cRiskCP.SLA,
+		IsTargetActual: isClusterTarget,
+	}
+	c.Profiles = []domain.ProfileVerdict{ztProfile, cpProfile}
+
+	if isClusterTarget {
+		c.Verdict = &vCP
+		c.ContextualRisk = &cRiskCP
+		c.Claims = claimsCP
+	} else {
+		c.Verdict = &vZT
+		c.ContextualRisk = &cRiskZT
+	}
+
+	return workflow.Transition{Next: domain.StateBuildReport, Reason: "verdict evaluated: " + string(c.Verdict.Verdict)}, nil
 }
 
 type BuildReport struct {

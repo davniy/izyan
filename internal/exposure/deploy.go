@@ -58,9 +58,107 @@ var authPolicyKinds = map[string]string{
 	"RequestAuthentication": "istio:RequestAuthentication",
 }
 
+// DeployScanOptions configures deployment manifest discovery and scanning.
+type DeployScanOptions struct {
+	RootPath    string
+	ExtraPaths  []string
+	ArchivePath string
+}
+
 // ScanDeploy walks root for deployment manifests in deploy-scoped paths
 // and returns one fact per published surface it can statically describe.
+// It delegates to ScanDeployWithOptions for backward compatibility.
 func ScanDeploy(root string) ([]domain.ExposureFact, error) {
+	return ScanDeployWithOptions(DeployScanOptions{RootPath: root})
+}
+
+// ScanDeployWithOptions scans deployment manifests using provided root, extra paths,
+// archive files, and auto-discovery of sibling repositories and root archives.
+func ScanDeployWithOptions(opts DeployScanOptions) ([]domain.ExposureFact, error) {
+	var allFacts []domain.ExposureFact
+
+	// 1. Explicit archive path
+	if opts.ArchivePath != "" {
+		facts, err := scanArchive(opts.ArchivePath)
+		if err != nil {
+			return nil, err
+		}
+		allFacts = append(allFacts, facts...)
+	}
+
+	// 2. Root path scan (deploy-scoped)
+	if opts.RootPath != "" {
+		facts, err := scanDeployRepo(opts.RootPath)
+		if err != nil {
+			return nil, err
+		}
+		allFacts = append(allFacts, facts...)
+	}
+
+	// 3. Extra paths
+	if len(opts.ExtraPaths) > 0 {
+		for _, extraPath := range opts.ExtraPaths {
+			facts, err := scanDeployDir(extraPath)
+			if err != nil {
+				return nil, err
+			}
+			allFacts = append(allFacts, facts...)
+		}
+	} else if opts.RootPath != "" {
+		// 4. Auto-Discovery (only when ExtraPaths is empty and RootPath is set)
+		// 4a. Archives in root (*.tgz, *.tar.gz, *.zip)
+		for _, pattern := range []string{"*.tgz", "*.tar.gz", "*.zip"} {
+			matches, err := filepath.Glob(filepath.Join(opts.RootPath, pattern))
+			if err == nil {
+				for _, match := range matches {
+					if match == opts.ArchivePath {
+						continue
+					}
+					facts, err := scanArchive(match)
+					if err == nil {
+						allFacts = append(allFacts, facts...)
+					}
+				}
+			}
+		}
+
+		// 4b. Sibling directories (repoName-deploy, repoName-helm, etc.)
+		rootAbs := opts.RootPath
+		if abs, err := filepath.Abs(rootAbs); err == nil {
+			rootAbs = abs
+		}
+		repoName := filepath.Base(rootAbs)
+		parentDir := filepath.Dir(rootAbs)
+		siblingSuffixes := []string{"-deploy", "-helm", "-manifests", "-gitops", "-infra"}
+		for _, suffix := range siblingSuffixes {
+			siblingPath := filepath.Join(parentDir, repoName+suffix)
+			if fi, err := os.Stat(siblingPath); err == nil && fi.IsDir() {
+				facts, err := scanDeployDir(siblingPath)
+				if err == nil {
+					allFacts = append(allFacts, facts...)
+				}
+			}
+		}
+	}
+
+	return dedupeFacts(allFacts), nil
+}
+
+func scanArchive(archivePath string) ([]domain.ExposureFact, error) {
+	tmpDir, err := os.MkdirTemp("", "deploy-archive-*")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := extractArchive(archivePath, tmpDir); err != nil {
+		return nil, err
+	}
+
+	return scanDeployDir(tmpDir)
+}
+
+func scanDeployRepo(root string) ([]domain.ExposureFact, error) {
 	var out []domain.ExposureFact
 	err := filepath.WalkDir(root, func(path string, e fs.DirEntry, err error) error {
 		if err != nil {
@@ -86,6 +184,52 @@ func ScanDeploy(root string) ([]domain.ExposureFact, error) {
 		return nil
 	})
 	return out, err
+}
+
+func scanDeployDir(dir string) ([]domain.ExposureFact, error) {
+	var out []domain.ExposureFact
+	err := filepath.WalkDir(dir, func(path string, e fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if e.IsDir() {
+			if deploySkipDirs[e.Name()] {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		base := filepath.Base(path)
+		lowerBase := strings.ToLower(base)
+		isYAML := strings.HasSuffix(lowerBase, ".yaml") || strings.HasSuffix(lowerBase, ".yml")
+		isCompose := composeFileRe.MatchString(base)
+		isDocker := dockerfileRe.MatchString(base)
+		if !isYAML && !isCompose && !isDocker {
+			return nil
+		}
+		if info, err := e.Info(); err != nil || info.Size() > 1<<20 {
+			return nil
+		}
+		facts, err := scanDeployFile(dir, path)
+		if err != nil {
+			return nil
+		}
+		out = append(out, facts...)
+		return nil
+	})
+	return out, err
+}
+
+func dedupeFacts(facts []domain.ExposureFact) []domain.ExposureFact {
+	seen := make(map[string]bool, len(facts))
+	var out []domain.ExposureFact
+	for _, f := range facts {
+		key := f.Direction + "|" + f.Kind + "|" + f.Target + "|" + f.Address + "|" + f.Scope
+		if !seen[key] {
+			seen[key] = true
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // deployPath reports whether path lives under a deploy-scoped directory
@@ -116,8 +260,10 @@ func scanDeployFile(root, path string) ([]domain.ExposureFact, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
 	rel, _ := filepath.Rel(root, path)
+	if rel == "." || rel == "" {
+		rel = filepath.Base(path)
+	}
 	var out []domain.ExposureFact
 	kind := ""
 	line := 0

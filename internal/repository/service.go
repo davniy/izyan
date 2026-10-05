@@ -29,6 +29,12 @@ type SnapshotOptions struct {
 	// TrustedPeer indicates the service communicates strictly with trusted peers
 	// in trusted infrastructure.
 	TrustedPeer bool
+	// DeployManifests specifies explicit paths to Kubernetes/Helm/deployment manifests.
+	DeployManifests []string
+	// DeployArchive specifies path to zip/tar archive containing deployment manifests.
+	DeployArchive string
+	// PerimeterOverride overrides auto-detected perimeter classification.
+	PerimeterOverride string
 }
 
 type Snapshotter interface {
@@ -62,16 +68,19 @@ func (Service) Snapshot(ctx context.Context, path string, opts SnapshotOptions) 
 		goarch = runtime.GOARCH
 	}
 	return domain.ProductSnapshot{
-		Repository:       path,
-		Commit:           commit,
-		GoVersion:        goversion,
-		GoModDirective:   gomod,
-		ReleaseGoVersion: releaseGo,
-		BinaryPath:       opts.BinaryPath,
-		GOOS:             goos,
-		GOARCH:           goarch,
-		BuildTags:        opts.BuildTags,
-		TrustedPeer:      opts.TrustedPeer,
+		Repository:        path,
+		Commit:            commit,
+		GoVersion:         goversion,
+		GoModDirective:    gomod,
+		ReleaseGoVersion:  releaseGo,
+		BinaryPath:        opts.BinaryPath,
+		GOOS:              goos,
+		GOARCH:            goarch,
+		BuildTags:         opts.BuildTags,
+		TrustedPeer:       opts.TrustedPeer,
+		DeployManifests:   opts.DeployManifests,
+		DeployArchive:     opts.DeployArchive,
+		PerimeterOverride: opts.PerimeterOverride,
 	}, nil
 }
 

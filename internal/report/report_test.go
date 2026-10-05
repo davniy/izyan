@@ -1243,3 +1243,141 @@ func TestReportTriageAssessmentTable(t *testing.T) {
 		t.Fatalf("report.json missing priority P2: %s", string(repJSON))
 	}
 }
+
+func TestReportMarkdown_DualTrackPerimeterMatrix_RU(t *testing.T) {
+	c := &domain.AnalysisCase{
+		Vulnerability: domain.Vulnerability{
+			ID: "CVE-2026-TEST",
+		},
+		Verdict: &domain.VerdictResult{
+			Verdict: domain.VerdictNoExploitPathFound,
+			Reason:  "mandatory exploit condition is proven false",
+		},
+		DetectedPerimeter:  domain.PerimeterClusterInternal,
+		PerimeterRationale: "ClusterIP service found",
+		Profiles: []domain.ProfileVerdict{
+			{
+				Profile:        domain.ProfileZeroTrust,
+				Title:          "Внешний периметр (Zero Trust / Недоверенный пир)",
+				Verdict:        domain.VerdictInconclusive,
+				Priority:       domain.PriorityP1,
+				SLA:            "7 days",
+				IsTargetActual: false,
+			},
+			{
+				Profile:        domain.ProfileClusterPerimeter,
+				Title:          "Внутренний кластер (K8s ClusterIP / Service Mesh)",
+				Verdict:        domain.VerdictNoExploitPathFound,
+				Priority:       domain.PriorityDismissed,
+				SLA:            "No action",
+				IsTargetActual: true,
+			},
+		},
+	}
+
+	md := Markdown(c, "ru")
+	if !strings.Contains(md, "### Матрица сетевых периметров угроз") {
+		t.Fatalf("expected matrix heading in RU report:\n%s", md)
+	}
+	if !strings.Contains(md, "- **Обнаруженный периметр развёртывания:** `cluster-internal`") {
+		t.Errorf("expected detected perimeter in RU report:\n%s", md)
+	}
+	if !strings.Contains(md, "- **Обоснование периметра:** ClusterIP service found") {
+		t.Errorf("expected perimeter rationale in RU report:\n%s", md)
+	}
+	if !strings.Contains(md, "*(Фактический)*") {
+		t.Errorf("expected *(Фактический)* in RU report:\n%s", md)
+	}
+	if !strings.Contains(md, "**DISMISSED**") {
+		t.Errorf("expected DISMISSED in RU report:\n%s", md)
+	}
+	if !strings.Contains(md, "Действий не требуется: уязвимость закрыта сетевым периметром.") {
+		t.Errorf("expected dismissed action recommendation in RU report:\n%s", md)
+	}
+	if !strings.Contains(md, "Высокий приоритет: устранение в течение 7 дней.") {
+		t.Errorf("expected P1 action recommendation in RU report:\n%s", md)
+	}
+
+	lines := strings.Split(md, "\n")
+	foundClusterActual := false
+	for _, l := range lines {
+		if strings.Contains(l, "Cluster") || strings.Contains(l, "Кластер") || strings.Contains(l, "кластер") {
+			if strings.Contains(l, "*(Фактический)*") {
+				foundClusterActual = true
+				break
+			}
+		}
+	}
+	if !foundClusterActual {
+		t.Errorf("expected *(Фактический)* to be on the cluster row:\n%s", md)
+	}
+}
+
+func TestReportMarkdown_DualTrackPerimeterMatrix_EN(t *testing.T) {
+	c := &domain.AnalysisCase{
+		Vulnerability: domain.Vulnerability{
+			ID: "CVE-2026-TEST",
+		},
+		Verdict: &domain.VerdictResult{
+			Verdict: domain.VerdictNoExploitPathFound,
+			Reason:  "mandatory exploit condition is proven false",
+		},
+		DetectedPerimeter:  domain.PerimeterClusterInternal,
+		PerimeterRationale: "ClusterIP service found",
+		Profiles: []domain.ProfileVerdict{
+			{
+				Profile:        domain.ProfileZeroTrust,
+				Title:          "Public Internet (Zero Trust)",
+				Verdict:        domain.VerdictInconclusive,
+				Priority:       domain.PriorityP1,
+				SLA:            "7 days",
+				IsTargetActual: false,
+			},
+			{
+				Profile:        domain.ProfileClusterPerimeter,
+				Title:          "Internal Cluster (ClusterIP)",
+				Verdict:        domain.VerdictNoExploitPathFound,
+				Priority:       domain.PriorityDismissed,
+				SLA:            "No action",
+				IsTargetActual: true,
+			},
+		},
+	}
+
+	md := Markdown(c, "en")
+	if !strings.Contains(md, "### Security Perimeter Matrix") {
+		t.Fatalf("expected matrix heading in EN report:\n%s", md)
+	}
+	if !strings.Contains(md, "- **Detected Deployment Perimeter:** `cluster-internal`") {
+		t.Errorf("expected detected perimeter in EN report:\n%s", md)
+	}
+	if !strings.Contains(md, "- **Perimeter Rationale:** ClusterIP service found") {
+		t.Errorf("expected perimeter rationale in EN report:\n%s", md)
+	}
+	if !strings.Contains(md, "*(Actual)*") {
+		t.Errorf("expected *(Actual)* in EN report:\n%s", md)
+	}
+	if !strings.Contains(md, "**DISMISSED**") {
+		t.Errorf("expected DISMISSED in EN report:\n%s", md)
+	}
+	if !strings.Contains(md, "No remediation required: vulnerability neutralized by network perimeter.") {
+		t.Errorf("expected dismissed action recommendation in EN report:\n%s", md)
+	}
+	if !strings.Contains(md, "High priority: remediation within 7 days.") {
+		t.Errorf("expected P1 action recommendation in EN report:\n%s", md)
+	}
+
+	lines := strings.Split(md, "\n")
+	foundClusterActual := false
+	for _, l := range lines {
+		if strings.Contains(l, "Cluster") {
+			if strings.Contains(l, "*(Actual)*") {
+				foundClusterActual = true
+				break
+			}
+		}
+	}
+	if !foundClusterActual {
+		t.Errorf("expected *(Actual)* to be on the cluster row:\n%s", md)
+	}
+}

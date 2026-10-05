@@ -114,15 +114,10 @@ func redact(raw string) string {
 
 // File describes one file touched by a unified diff.
 type File struct {
-	Path    string   `json:"path"`
-	Symbols []string `json:"symbols,omitempty"` // enclosing function names
-	// GuardedSymbols names functions whose hunk adds a guard (length/nil
-	// check) over an operand that unchanged or removed lines of the same
-	// hunk then use in a faulting position (index, dereference, call) —
-	// the signature of a fix applied at the defect site itself, as
-	// opposed to upstream validation (enabler) where the guarded value
-	// is only rejected, never consumed unsafely.
-	GuardedSymbols []string `json:"guarded_symbols,omitempty"`
+	Path           string              `json:"path"`
+	Symbols        []string            `json:"symbols,omitempty"`        // pre-existing enclosing or modified function names
+	AddedSymbols   []string            `json:"added_symbols,omitempty"`  // functions newly introduced in the patch
+	GuardedSymbols []string            `json:"guarded_symbols,omitempty"`
 	// GuardOperands maps each function to the operand expressions its
 	// added guards check — whether or not a faulting use was visible in
 	// hunk context. Callers verifying an enabler classification need the
@@ -164,6 +159,8 @@ func Parse(patch string) Patch {
 	var files Patch
 	var cur *File
 	var hk *hunk
+	var contextFuncs, deletedFuncs, addedFuncs []string
+
 	flushHunk := func() {
 		if hk != nil {
 			markGuardedSite(cur, *hk)
@@ -173,8 +170,27 @@ func Parse(patch string) Patch {
 	flush := func() {
 		flushHunk()
 		if cur != nil {
+			preExisting := make(map[string]bool, len(contextFuncs)+len(deletedFuncs))
+			for _, s := range contextFuncs {
+				preExisting[s] = true
+				addSymbol(cur, s)
+			}
+			for _, s := range deletedFuncs {
+				preExisting[s] = true
+				addSymbol(cur, s)
+			}
+			for _, s := range addedFuncs {
+				if preExisting[s] {
+					addSymbol(cur, s)
+				} else {
+					addAddedSymbol(cur, s)
+				}
+			}
 			files = append(files, *cur)
 		}
+		contextFuncs = nil
+		deletedFuncs = nil
+		addedFuncs = nil
 	}
 	for _, line := range strings.Split(patch, "\n") {
 		if m := diffGitRe.FindStringSubmatch(line); m != nil {
@@ -190,7 +206,7 @@ func Parse(patch string) Patch {
 			hk = &hunk{}
 			if fm := funcCtxRe.FindStringSubmatch(m[1]); fm != nil {
 				hk.symbol = qualifySym(fm[1], fm[2])
-				addSymbol(cur, hk.symbol)
+				contextFuncs = append(contextFuncs, hk.symbol)
 			}
 			continue
 		}
@@ -207,22 +223,36 @@ func Parse(patch string) Patch {
 				}
 				hk.uses = append(hk.uses, body)
 			}
+			if fm := funcDeclRe.FindStringSubmatch(line); fm != nil {
+				sym := qualifySym(fm[1], fm[2])
+				if hk != nil {
+					hk.symbol = sym
+				}
+				addedFuncs = append(addedFuncs, sym)
+			}
 		case strings.HasPrefix(line, "-"):
 			cur.Dels++
 			if hk != nil {
 				hk.uses = append(hk.uses, line[1:])
 			}
+			if fm := funcDeclRe.FindStringSubmatch(line); fm != nil {
+				sym := qualifySym(fm[1], fm[2])
+				if hk != nil {
+					hk.symbol = sym
+				}
+				deletedFuncs = append(deletedFuncs, sym)
+			}
 		case strings.HasPrefix(line, " "):
 			if hk != nil {
 				hk.uses = append(hk.uses, line[1:])
 			}
-		}
-		if fm := funcDeclRe.FindStringSubmatch(strings.TrimLeft(line, "+-")); fm != nil {
-			sym := qualifySym(fm[1], fm[2])
-			if hk != nil {
-				hk.symbol = sym
+			if fm := funcDeclRe.FindStringSubmatch(strings.TrimPrefix(line, " ")); fm != nil {
+				sym := qualifySym(fm[1], fm[2])
+				if hk != nil {
+					hk.symbol = sym
+				}
+				contextFuncs = append(contextFuncs, sym)
 			}
-			addSymbol(cur, sym)
 		}
 	}
 	flush()
@@ -336,3 +366,16 @@ func addSymbol(f *File, name string) {
 	}
 	f.Symbols = append(f.Symbols, name)
 }
+
+func addAddedSymbol(f *File, name string) {
+	if f == nil || name == "" {
+		return
+	}
+	for _, s := range f.AddedSymbols {
+		if s == name {
+			return
+		}
+	}
+	f.AddedSymbols = append(f.AddedSymbols, name)
+}
+

@@ -90,3 +90,47 @@ index 111..222 100644
 		t.Fatalf("missing symbols %v in %+v", want, files[0].Symbols)
 	}
 }
+
+func TestParseDiff_AddedFunctionNotPrePatchSymbol(t *testing.T) {
+	patch := `diff --git a/amqp/channel.go b/amqp/channel.go
+index 111..222 100644
+--- a/amqp/channel.go
++++ b/amqp/channel.go
+@@ -100,7 +100,8 @@ func (c *Channel) Qos(prefetchCount, prefetchSize int, global bool) error {
+-	old()
++	if err := c.validateQos(prefetchCount, prefetchSize); err != nil {
++		return err
++	}
+@@ -200,0 +206,12 @@
++func (ch *Channel) validateQos(prefetchCount, prefetchSize int) error {
++	return nil
++}
+`
+	files := Parse(patch)
+	if len(files) != 1 {
+		t.Fatalf("files=%+v", files)
+	}
+	f := files[0]
+	hasQos := false
+	for _, s := range f.Symbols {
+		if s == "Channel.Qos" {
+			hasQos = true
+		}
+		if s == "Channel.validateQos" {
+			t.Fatalf("f.Symbols must not contain patch-added function Channel.validateQos: %+v", f.Symbols)
+		}
+	}
+	if !hasQos {
+		t.Fatalf("f.Symbols missing Channel.Qos: %+v", f.Symbols)
+	}
+	hasAddedValidate := false
+	for _, s := range f.AddedSymbols {
+		if s == "Channel.validateQos" {
+			hasAddedValidate = true
+		}
+	}
+	if !hasAddedValidate {
+		t.Fatalf("f.AddedSymbols missing Channel.validateQos: %+v", f.AddedSymbols)
+	}
+}
+

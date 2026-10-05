@@ -107,3 +107,25 @@ func TestConfigKeyEvaluation(t *testing.T) {
 		t.Fatalf("no items: result=%s", cl.Result)
 	}
 }
+
+func TestConfigFlagPackageAbsent(t *testing.T) {
+	cond := domain.Condition{
+		ID:   "C-XDS-SERVER",
+		Kind: domain.ConditionConfiguration,
+		Params: map[string]string{
+			domain.ParamCheck:         domain.CheckConfigFlag,
+			domain.ParamConfigPackage: "google.golang.org/grpc/xds",
+			domain.ParamConfigSymbol:  "NewGRPCServer",
+		},
+	}
+	c := &domain.AnalysisCase{}
+	c.EvidenceGraph.Evidence = append(c.EvidenceGraph.Evidence, domain.Evidence{
+		ID: "EV-PKGS", Kind: domain.EvidencePackageList,
+		Content: `{"ImportPath":"example.com/app"}{"ImportPath":"google.golang.org/grpc"}`,
+	})
+	cl := ConfigFlag{}.Evaluate(cond, c)
+	if cl.Result != domain.ClaimFalse || cl.Falsifier != domain.FalsifierPackageAbsent {
+		t.Fatalf("got claim=%+v, want FALSE package-absent", cl)
+	}
+}
+

@@ -31,6 +31,12 @@ func (v Verifier) verifyLocusAbsent(c *domain.AnalysisCase, claim domain.Claim,
 	if cond.Subject != nil {
 		subjects = append(subjects, *cond.Subject)
 	}
+	if len(subjects) == 0 && cond.Params[domain.ParamConfigPackage] != "" {
+		subjects = append(subjects, domain.SymbolRef{
+			Package: cond.Params[domain.ParamConfigPackage],
+			Symbol:  cond.Params[domain.ParamConfigSymbol],
+		})
+	}
 	nv := &domain.NegativeVerification{Status: domain.NegativeVerified}
 	if len(subjects) == 0 {
 		return setNeg(claim, &domain.NegativeVerification{

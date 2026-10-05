@@ -1364,7 +1364,24 @@ func (RepairAnalysis) Run(_ context.Context, c *domain.AnalysisCase) (workflow.T
 	rev := c.Reviews[len(c.Reviews)-1]
 	repaired := false
 	for _, f := range rev.Findings {
-		if f.TargetType != "claim" || f.Severity != "high" {
+		if f.Severity != "high" {
+			continue
+		}
+		if f.TargetType == "condition" && c.Exploit != nil {
+			for idx, sc := range c.Exploit.SupportingFactors {
+				if string(sc.ID) == f.TargetID {
+					promoted := sc
+					promoted.Mandatory = true
+					c.Exploit.MandatoryConditions = append(c.Exploit.MandatoryConditions, promoted)
+					c.Exploit.SupportingFactors = append(c.Exploit.SupportingFactors[:idx], c.Exploit.SupportingFactors[idx+1:]...)
+					c.EvidenceGraph.AddLimitation(fmt.Sprintf("condition %s promoted to mandatory by reviewer: %s", sc.ID, f.Problem))
+					repaired = true
+					break
+				}
+			}
+			continue
+		}
+		if f.TargetType != "claim" {
 			continue
 		}
 		for i := range c.Claims {

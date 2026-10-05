@@ -272,8 +272,8 @@ Found vulnerability: CVE-2026-77406 (GHSA-rm6m-hrcw-jw33)
 	if tk.Vulnerability != "CVE-2026-77406" {
 		t.Errorf("Vulnerability = %q, want CVE-2026-77406", tk.Vulnerability)
 	}
-	if len(tk.Aliases) == 0 || tk.Aliases[0] != "GHSA-RM6M-HRCW-JW33" {
-		t.Errorf("Aliases = %v, want [GHSA-RM6M-HRCW-JW33]", tk.Aliases)
+	if len(tk.Aliases) == 0 || tk.Aliases[0] != "GHSA-rm6m-hrcw-jw33" {
+		t.Errorf("Aliases = %v, want [GHSA-rm6m-hrcw-jw33]", tk.Aliases)
 	}
 	if tk.Package != "github.com/rabbitmq/amqp091-go" {
 		t.Errorf("Package = %q, want github.com/rabbitmq/amqp091-go", tk.Package)

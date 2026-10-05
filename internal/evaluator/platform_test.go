@@ -49,3 +49,24 @@ func TestPlatformEvaluate(t *testing.T) {
 		t.Fatalf("no params => UNKNOWN+limitation, got %+v", cl)
 	}
 }
+
+func TestPlatformEvaluate_GoModDirective(t *testing.T) {
+	ev := Platform{}
+	c := &domain.AnalysisCase{
+		Product: domain.ProductSnapshot{
+			GOOS:           "linux",
+			GOARCH:         "amd64",
+			GoVersion:      "go version go1.26.1 darwin/arm64",
+			GoModDirective: "1.23",
+		},
+	}
+	mk := func(params map[string]string) domain.Condition {
+		return domain.Condition{ID: "C-PLAT", Kind: domain.ConditionPlatform, Params: params}
+	}
+
+	// Because GoModDirective is 1.23, "<1.24" should be TRUE, not violated by host go1.26.1
+	cl := ev.Evaluate(mk(map[string]string{"go_version": "<1.24"}), c)
+	if cl.Result != domain.ClaimTrue {
+		t.Fatalf("go.mod 1.23 should satisfy <1.24, got %s (%s)", cl.Result, cl.Explanation)
+	}
+}

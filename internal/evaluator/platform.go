@@ -30,7 +30,11 @@ var goVersionFrom = regexp.MustCompile(`go(\d+\.\d+(?:\.\d+)?)`)
 func productGoVersion(p domain.ProductSnapshot) string {
 	v := p.ReleaseGoVersion
 	if v == "" {
-		v = p.GoVersion
+		if p.GoModDirective != "" {
+			v = "go" + p.GoModDirective
+		} else {
+			v = p.GoVersion
+		}
 	}
 	if m := goVersionFrom.FindStringSubmatch(v); m != nil {
 		return "v" + m[1]

@@ -128,6 +128,55 @@ func TestParseCustomJSONTicket(t *testing.T) {
 	}
 }
 
+func TestParseTicket_NestedTrackerEnvelope(t *testing.T) {
+	raw := `{
+		"unit": {
+			"code": "TRACK-1024",
+			"summary": "Potential vulnerability in Gateway",
+			"descriptionPlain": "Версия продукта: Demo Service 2.6.0\nКомпонент: GATEWAY 6.5.0\nБиблиотека: github.com/valyala/fasthttp v1.47.0\nАлиасы на уязвимость: GO-2026-4950\nОписание уязвимости: Test"
+		},
+		"attributes": [
+			{
+				"attribute": { "code": "result_text_field_multi_line" },
+				"value": "Vulnerability is not exploitable because ServeFile is not called"
+			},
+			{
+				"attribute": { "code": "vulnerable_package_custom" },
+				"value": ["github.com/valyala/fasthttp"]
+			},
+			{
+				"attribute": { "code": "version_vulnerable_package" },
+				"value": ["v1.47.0"]
+			},
+			{
+				"attribute": { "code": "target_component" },
+				"value": [{"code": "uuid-123", "name": "GATEWAY"}]
+			},
+			{
+				"attribute": { "code": "triage_result" },
+				"value": {"code": "not_exploitable", "name": "Not exploitable"}
+			}
+		]
+	}`
+
+	tk, err := ParseTicket([]byte(raw))
+	if err != nil {
+		t.Fatalf("ParseTicket error: %v", err)
+	}
+	if tk.ID != "TRACK-1024" {
+		t.Errorf("ID = %q, want TRACK-1024", tk.ID)
+	}
+	if tk.Vulnerability != "GO-2026-4950" {
+		t.Errorf("Vulnerability = %q, want GO-2026-4950", tk.Vulnerability)
+	}
+	if tk.Package != "github.com/valyala/fasthttp" {
+		t.Errorf("Package = %q, want github.com/valyala/fasthttp", tk.Package)
+	}
+	if tk.Rationale != "Vulnerability is not exploitable because ServeFile is not called" {
+		t.Errorf("Rationale = %q, want 'Vulnerability is not exploitable because ServeFile is not called'", tk.Rationale)
+	}
+}
+
 func TestParseCustomJSONArray(t *testing.T) {
 	raw := `[
 		{

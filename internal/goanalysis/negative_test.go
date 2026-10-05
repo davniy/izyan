@@ -339,3 +339,38 @@ func TestNegativeVerification_InterfaceDispatchUninstantiatedType(t *testing.T) 
 			out2.NegativeVerification.Status, out2.NegativeVerification.Notes)
 	}
 }
+
+func TestNegativeVerification_GovulncheckSilenceScopesToLocusSubjects(t *testing.T) {
+	ix := fixture(t, "constprod")
+	v := Verifier{Source: ix}
+
+	calledUntouchedSym := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "Parse"}
+	uncalledLocusSym := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "NewDict"}
+
+	c := &domain.AnalysisCase{
+		Vulnerability: domain.Vulnerability{
+			Module:          "example.com/dep",
+			AffectedSymbols: []domain.SymbolRef{calledUntouchedSym, uncalledLocusSym},
+		},
+		Exploit: &domain.ExploitModel{
+			LocusSubjects: []domain.SymbolRef{uncalledLocusSym},
+		},
+	}
+
+	claim := domain.Claim{
+		ConditionID: "C-REACH",
+		Result:      domain.ClaimFalse,
+		Falsifier:   domain.FalsifierGovulncheckSilence,
+	}
+	cond := domain.Condition{
+		ID:       "C-REACH",
+		Kind:     domain.ConditionSymbolReachable,
+		Subjects: []domain.SymbolRef{calledUntouchedSym, uncalledLocusSym},
+	}
+
+	out := v.VerifyFalse(context.Background(), c, claim, cond)
+	if out.NegativeVerification == nil || out.NegativeVerification.Status != domain.NegativeVerified {
+		t.Fatalf("expected NegativeVerified because defect locus is uncalled, got status=%v notes=%q",
+			out.NegativeVerification.Status, out.NegativeVerification.Notes)
+	}
+}

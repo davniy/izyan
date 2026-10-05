@@ -83,37 +83,9 @@ func (r Resolver) Resolve(ctx context.Context, _ *domain.AnalysisCase, v domain.
 				})
 			}
 		}
-		if len(model.Alternatives) > 0 {
-			if len(model.RootCauses) == 0 {
-				model.RootCauses = model.Alternatives
-				model.Alternatives = nil
-			} else {
-				// Coarse multi-symbol advisory: if the fix commit specifically modifies
-				// a strict subset of the advisory declared symbols, isolate the fix-modified
-				// symbols as the authoritative defect locus (RootCauses), and demote the
-				// untouched package utilities to Alternatives.
-				var fixMatched []domain.RootCause
-				var untouched []domain.RootCause
-				for _, rc := range model.RootCauses {
-					matched := false
-					for _, alt := range model.Alternatives {
-						if matchSymbolRef(alt.Symbol, rc.Symbol) && (alt.Package == rc.Package || alt.Package == "" || rc.Package == "") {
-							matched = true
-							break
-						}
-					}
-					if matched {
-						rc.Mechanism = fmt.Sprintf("advisory symbol confirmed by fix commit %s", ref.URL)
-						fixMatched = append(fixMatched, rc)
-					} else {
-						untouched = append(untouched, rc)
-					}
-				}
-				if len(fixMatched) > 0 && len(untouched) > 0 {
-					model.RootCauses = fixMatched
-					model.Alternatives = untouched
-				}
-			}
+		if len(model.Alternatives) > 0 && len(model.RootCauses) == 0 {
+			model.RootCauses = model.Alternatives
+			model.Alternatives = nil
 		}
 		break // one authoritative patch is enough
 	}

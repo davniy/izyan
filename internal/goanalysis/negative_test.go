@@ -292,3 +292,50 @@ func TestIsReceiverTypeInstantiated(t *testing.T) {
 		t.Fatal("expected uninstantiated (*ExternalType).Action to return false")
 	}
 }
+
+func TestNegativeVerification_InterfaceDispatchUninstantiatedType(t *testing.T) {
+	ix := fixture(t, "ifaceprod")
+	v := Verifier{Source: ix}
+	c := &domain.AnalysisCase{}
+	c.Vulnerability.Module = "example.com/dep"
+
+	// 1. URI.String: URI is instantiated in ifaceprod, and render() calls fmt.Stringer.String().
+	// InterfaceDispatchSites finds render(), and because URI is instantiated,
+	// NegativeVerification demotes to NegativeInsufficientScope.
+	uriSym := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "URI.String"}
+	claim1 := domain.Claim{
+		ConditionID: "C-REACH",
+		Result:      domain.ClaimFalse,
+		Falsifier:   domain.FalsifierGovulncheckSilence,
+	}
+	cond1 := domain.Condition{
+		ID:       "C-REACH",
+		Kind:     domain.ConditionSymbolReachable,
+		Subjects: []domain.SymbolRef{uriSym},
+	}
+	out1 := v.VerifyFalse(context.Background(), c, claim1, cond1)
+	if out1.NegativeVerification == nil || out1.NegativeVerification.Status != domain.NegativeInsufficientScope {
+		t.Fatalf("expected NegativeInsufficientScope for instantiated URI.String, got: %+v", out1.NegativeVerification)
+	}
+
+	// 2. SafeFormatter.String: SafeFormatter also implements fmt.Stringer, so
+	// InterfaceDispatchSites returns render() as well. But SafeFormatter is NEVER
+	// instantiated anywhere in ifaceprod. Therefore, interface dispatch cannot reach
+	// it, and NegativeVerification should remain NegativeVerified!
+	safeSym := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "SafeFormatter.String"}
+	claim2 := domain.Claim{
+		ConditionID: "C-REACH",
+		Result:      domain.ClaimFalse,
+		Falsifier:   domain.FalsifierGovulncheckSilence,
+	}
+	cond2 := domain.Condition{
+		ID:       "C-REACH",
+		Kind:     domain.ConditionSymbolReachable,
+		Subjects: []domain.SymbolRef{safeSym},
+	}
+	out2 := v.VerifyFalse(context.Background(), c, claim2, cond2)
+	if out2.NegativeVerification == nil || out2.NegativeVerification.Status != domain.NegativeVerified {
+		t.Fatalf("expected NegativeVerified for uninstantiated SafeFormatter.String, got status=%v notes=%q",
+			out2.NegativeVerification.Status, out2.NegativeVerification.Notes)
+	}
+}

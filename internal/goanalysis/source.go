@@ -26,7 +26,6 @@ import (
 // but the requested symbol does not exist in that package version.
 var ErrSymbolNotFoundInPackage = errors.New("symbol not found in package")
 
-
 // Index is a lazily loaded go/packages view of the analyzed product.
 // It backs the targeted source tools (find_symbol, find_callers,
 // read_function, find_entrypoints, argument provenance).

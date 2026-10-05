@@ -120,6 +120,11 @@ func (v Verifier) VerifyFalse(ctx context.Context, c *domain.AnalysisCase, claim
 				Notes:  "dynamic scan failed: " + err.Error(),
 			})
 		}
+		if skipped := v.Source.SkippedPackagesImporting(subj.Package); len(skipped) > 0 {
+			nv.Limitations = append(nv.Limitations,
+				fmt.Sprintf("package %s imports %s but had compilation errors; negative verification incomplete",
+					skipped[0], subj.Package))
+		}
 		for _, m := range markers {
 			evID := c.EvidenceGraph.AddEvidence(domain.Evidence{
 				Kind:    domain.EvidenceSourceSnippet,

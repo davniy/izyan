@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -113,10 +114,36 @@ func (r ExecRunner) RunGovulncheck(ctx context.Context, dir string, build domain
 	if build.GOARCH != "" {
 		env = append(env, "GOARCH="+build.GOARCH)
 	}
-	env = append(env, fmt.Sprintf("CGO_ENABLED=%t", build.CGOEnabled))
+	cgo := "0"
+	if build.CGOEnabled {
+		cgo = "1"
+	}
+	env = append(env, "CGO_ENABLED="+cgo)
 	env = append(env, extraEnv...)
 	stdout, stderr, err := toolaudit.Run(ctx, "govulncheck", "", dir, bin, env, args...)
 	if err != nil {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) && ee.ExitCode() == 3 {
+			// govulncheck exits with code 3 when vulnerabilities are found; stdout has the full JSON stream.
+			return stdout, nil
+		}
+		// Fallback: if ./... failed (e.g. uncompilable optional subpackages/cgo),
+		// try package patterns for main entrypoints if ./cmd exists.
+		if len(args) > 0 && args[len(args)-1] == "./..." {
+			if st, serr := os.Stat(filepath.Join(dir, "cmd")); serr == nil && st.IsDir() {
+				fbArgs := make([]string, len(args)-1)
+				copy(fbArgs, args[:len(args)-1])
+				fbArgs = append(fbArgs, "./cmd/...")
+				fbStdout, fbStderr, fbErr := toolaudit.Run(ctx, "govulncheck", "", dir, bin, env, fbArgs...)
+				if fbErr == nil {
+					return fbStdout, nil
+				}
+				if errors.As(fbErr, &ee) && ee.ExitCode() == 3 {
+					return fbStdout, nil
+				}
+				stderr = append(append(stderr, "\nfallback ./cmd/...: "...), fbStderr...)
+			}
+		}
 		return stdout, fmt.Errorf("govulncheck: %w: %s", err, stderr)
 	}
 	return stdout, nil

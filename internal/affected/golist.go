@@ -122,7 +122,11 @@ func buildEnv(build domain.ProductSnapshot) []string {
 	if build.GOARCH != "" {
 		env = append(env, "GOARCH="+build.GOARCH)
 	}
-	env = append(env, fmt.Sprintf("CGO_ENABLED=%t", build.CGOEnabled))
+	cgo := "0"
+	if build.CGOEnabled {
+		cgo = "1"
+	}
+	env = append(env, "CGO_ENABLED="+cgo)
 	return env
 }
 

@@ -26,7 +26,7 @@ import (
 var (
 	// deployDirRe scopes the scan to deployment-ish directories — config
 	// YAML elsewhere (CI, tests) must not inflate the exposure surface.
-	deployDirRe = regexp.MustCompile(`(?i)^(helm|deploy|deployments?|k8s|kubernetes|charts?|manifests?|openshift|istio|infra|docker|compose)$`)
+	deployDirRe = regexp.MustCompile(`(?i)^(helm|deploy|deployments?|k8s|kubernetes|charts?|manifests?|openshift|istio|infra|docker|compose|gitops|argocd|environments?)$`)
 	// deploySkipDirs never count as deployment scope — fixture trees.
 	deploySkipDirs = map[string]bool{
 		"vendor": true, ".git": true, "node_modules": true,
@@ -40,7 +40,8 @@ var (
 	hostPortRe    = regexp.MustCompile(`^\s*-?\s*hostPort:\s*(\d+)\s*$`)
 	hostNetRe     = regexp.MustCompile(`^\s*hostNetwork:\s*true\s*$`)
 	nodePortRe    = regexp.MustCompile(`^\s*-?\s*nodePort:\s*(\d+)\s*$`)
-	publishRe     = regexp.MustCompile(`^\s*-\s*"?(\d+):(\d+)"?\s*$`) // compose "HOST:CONTAINER"
+	publishRe     = regexp.MustCompile(`^\s*-\s*"?(?:(\S+):)?(\d+):(\d+)"?\s*$`) // compose "[BIND:]HOST:CONTAINER"
+	publishedRe   = regexp.MustCompile(`^\s*-?\s*published:\s*"?(\d+)"?\s*$`)    // compose long syntax
 )
 
 // ingressKinds are Kubernetes-adjacent objects that publish inbound
@@ -333,11 +334,23 @@ func scanDeployFile(root, path string) ([]domain.ExposureFact, error) {
 				last.Address = m[1]
 			}
 		}
-		// Compose published ports: "- \"HOST:CONTAINER\"" entries.
-		if m := publishRe.FindStringSubmatch(text); m != nil &&
-			composeFileRe.MatchString(filepath.Base(path)) {
-			out = append(out, deployFact("compose:published-port",
-				m[1]+":"+m[2], rel, line))
+		// Compose published ports: "- \"[BIND:]HOST:CONTAINER\"" entries and
+		// long-syntax "published:" keys. A loopback bind (127.0.0.1:8080:80)
+		// is internal evidence; any other or absent bind exposes the port.
+		if composeFileRe.MatchString(filepath.Base(path)) {
+			if m := publishRe.FindStringSubmatch(text); m != nil {
+				addr := m[2] + ":" + m[3]
+				fact := deployFact("compose:published-port", addr, rel, line)
+				if m[1] != "" {
+					addr = m[1] + ":" + m[2] + ":" + m[3]
+					fact.Address = addr
+					fact.Scope = Scope(m[1] + ":" + m[2])
+				}
+				out = append(out, fact)
+			} else if m := publishedRe.FindStringSubmatch(text); m != nil {
+				out = append(out, deployFact("compose:published-port",
+					"published="+m[1], rel, line))
+			}
 		}
 	}
 	flushService()

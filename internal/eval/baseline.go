@@ -58,7 +58,7 @@ func BaselineFromOutput(raw []byte, v domain.Vulnerability) string {
 // reports about v. The runner must not be the corpus-wide caching one —
 // generated products differ per case.
 func Baseline(ctx context.Context, r goanalysis.Runner, dir string, v domain.Vulnerability, build domain.ProductSnapshot) string {
-	raw, err := r.RunGovulncheck(ctx, dir, build)
+	raw, _, err := r.RunGovulncheck(ctx, dir, build)
 	if err != nil {
 		return fmt.Sprintf("%s: %v", BaselineError, err)
 	}

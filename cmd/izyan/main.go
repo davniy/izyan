@@ -188,7 +188,7 @@ func commonFlags(fs *flag.FlagSet, o *analyzeOpts) {
 	if deployDefault == "" {
 		deployDefault = os.Getenv("VA_DEPLOY_MANIFESTS")
 	}
-	fs.StringVar(&o.deployManifests, "deploy-manifests", deployDefault, "path to deployment manifests (directory or .tgz/.tar.gz/.zip archive)")
+	fs.StringVar(&o.deployManifests, "deploy-manifests", deployDefault, "comma-separated paths to deployment manifests (directories or .tgz/.tar.gz/.zip archive)")
 	perimeterDefault := o.perimeterMode
 	if perimeterDefault == "" {
 		perimeterDefault = os.Getenv("VA_PERIMETER")
@@ -200,7 +200,11 @@ func commonFlags(fs *flag.FlagSet, o *analyzeOpts) {
 	fs.StringVar(&o.lang, "lang", "ru", "report and output language: ru (default) or en")
 }
 
-func buildSnapshotOptions(o analyzeOpts) repository.SnapshotOptions {
+func buildSnapshotOptions(o analyzeOpts) (repository.SnapshotOptions, error) {
+	perimeter, err := normalizePerimeter(o.perimeterMode)
+	if err != nil {
+		return repository.SnapshotOptions{}, err
+	}
 	opts := repository.SnapshotOptions{
 		GOOS:              o.goos,
 		GOARCH:            o.goarch,
@@ -208,7 +212,7 @@ func buildSnapshotOptions(o analyzeOpts) repository.SnapshotOptions {
 		BinaryPath:        o.binary,
 		ReleaseGoVersion:  o.releaseGo,
 		TrustedPeer:       o.trustedPeer,
-		PerimeterOverride: normalizePerimeter(o.perimeterMode),
+		PerimeterOverride: perimeter,
 	}
 	path := strings.TrimSpace(o.deployManifests)
 	lower := strings.ToLower(path)
@@ -221,19 +225,19 @@ func buildSnapshotOptions(o analyzeOpts) repository.SnapshotOptions {
 			}
 		}
 	}
-	return opts
+	return opts, nil
 }
 
-func normalizePerimeter(p string) string {
+func normalizePerimeter(p string) (string, error) {
 	switch strings.ToLower(strings.TrimSpace(p)) {
 	case "cluster", "cluster-internal":
-		return domain.PerimeterClusterInternal
+		return domain.PerimeterClusterInternal, nil
 	case "public":
-		return domain.PerimeterPublic
+		return domain.PerimeterPublic, nil
 	case "auto", "":
-		return "auto"
+		return "auto", nil
 	default:
-		return p
+		return "", fmt.Errorf("invalid --perimeter value %q: expected auto, cluster, or public", p)
 	}
 }
 
@@ -635,12 +639,16 @@ func analyzeCase(ctx context.Context, o analyzeOpts) (*domain.AnalysisCase, erro
 			"llm configured but LLM_ENABLED is off")
 	}
 
+	snapOpts, err := buildSnapshotOptions(o)
+	if err != nil {
+		return nil, err
+	}
 	engine := workflow.New(store,
 		states.Created{},
 		states.SnapshotProduct{
 			Repo:    repository.Service{},
 			Path:    absRepo,
-			Options: buildSnapshotOptions(o),
+			Options: snapOpts,
 		},
 		states.ResolveVulnerability{Source: src, ID: o.vulnID},
 		states.CheckAffected{Resolver: affected.GoResolver{Tool: goTool}},
@@ -906,7 +914,11 @@ func runScan(args []string) error {
 	// Cheap deterministic pre-filter: resolve affectedness without the
 	// full engine. Deterministically-not-affected advisories are recorded
 	// and skipped; survivors get the full pipeline.
-	snap, err := repository.Service{}.Snapshot(ctx, absRepo, buildSnapshotOptions(o))
+	snapOpts, err := buildSnapshotOptions(o)
+	if err != nil {
+		return err
+	}
+	snap, err := repository.Service{}.Snapshot(ctx, absRepo, snapOpts)
 	if err != nil {
 		return fmt.Errorf("snapshot: %w", err)
 	}

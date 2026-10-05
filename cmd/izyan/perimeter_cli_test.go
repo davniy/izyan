@@ -16,7 +16,10 @@ func TestCLI_SnapshotOptionsArchive(t *testing.T) {
 	archives := []string{"manifests.tgz", "manifests.tar.gz", "manifests.zip", "CHART.TGZ"}
 	for _, a := range archives {
 		o := analyzeOpts{deployManifests: a, perimeterMode: "cluster"}
-		opts := buildSnapshotOptions(o)
+		opts, err := buildSnapshotOptions(o)
+		if err != nil {
+			t.Fatalf("for %s, buildSnapshotOptions returned error: %v", a, err)
+		}
 		if opts.DeployArchive != a {
 			t.Errorf("for %s, DeployArchive = %q, want %q", a, opts.DeployArchive, a)
 		}
@@ -34,7 +37,10 @@ func TestCLI_SnapshotOptionsManifestList(t *testing.T) {
 		deployManifests: "k8s/service.yaml,helm/values.yaml",
 		perimeterMode:   "public",
 	}
-	opts := buildSnapshotOptions(o)
+	opts, err := buildSnapshotOptions(o)
+	if err != nil {
+		t.Fatalf("buildSnapshotOptions returned error: %v", err)
+	}
 	if opts.DeployArchive != "" {
 		t.Errorf("DeployArchive = %q, want empty", opts.DeployArchive)
 	}
@@ -65,7 +71,10 @@ func TestCLI_Flags_EnvFallback(t *testing.T) {
 		t.Errorf("perimeterMode = %q, want %q", o.perimeterMode, "cluster")
 	}
 
-	opts := buildSnapshotOptions(o)
+	opts, err := buildSnapshotOptions(o)
+	if err != nil {
+		t.Fatalf("buildSnapshotOptions returned error: %v", err)
+	}
 	if opts.DeployArchive != "chart.tgz" {
 		t.Errorf("DeployArchive = %q, want %q", opts.DeployArchive, "chart.tgz")
 	}

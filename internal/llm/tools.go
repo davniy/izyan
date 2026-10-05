@@ -363,7 +363,7 @@ func (t Tools) Call(ctx context.Context, c *domain.AnalysisCase, name string, ar
 		if t.Govulncheck == nil {
 			return ToolResult{Error: "govulncheck runner not configured"}
 		}
-		raw, gvErr := t.Govulncheck.RunGovulncheck(ctx, c.Product.Repository, c.Product)
+		raw, pattern, gvErr := t.Govulncheck.RunGovulncheck(ctx, c.Product.Repository, c.Product)
 		if gvErr != nil {
 			return fail(fmt.Errorf("govulncheck: %w", gvErr))
 		}
@@ -383,6 +383,7 @@ func (t Tools) Call(ctx context.Context, c *domain.AnalysisCase, name string, ar
 			"in_database": res.Covers(c.Vulnerability),
 			"findings":    findings,
 			"count":       len(findings),
+			"scope":       pattern,
 		})
 
 	case "run_build", "run_tests":

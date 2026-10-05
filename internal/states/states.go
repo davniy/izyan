@@ -396,18 +396,26 @@ func (h CollectEvidence) runGovulncheck(ctx context.Context, c *domain.AnalysisC
 			toolVer = info
 		}
 	}
-	raw, err := h.Govulncheck.RunGovulncheck(ctx, c.Product.Repository, c.Product)
+	raw, pattern, err := h.Govulncheck.RunGovulncheck(ctx, c.Product.Repository, c.Product)
 	if err != nil {
 		c.EvidenceGraph.AddToolLimitation(fmt.Sprintf("govulncheck failed: %v", err))
 		return
 	}
+	command := "govulncheck -json -mode source " + pattern
+	if c.Product.BinaryPath != "" {
+		command = "govulncheck -json -mode binary " + pattern
+	}
+	if c.Product.BinaryPath == "" && pattern != "./..." {
+		c.EvidenceGraph.AddToolLimitation(fmt.Sprintf(
+			"govulncheck ran on narrowed scope %s after ./... failed; packages outside the pattern were not analyzed", pattern))
+	}
 	evID := c.EvidenceGraph.AddEvidence(domain.Evidence{
 		Kind:        domain.EvidenceGovulncheck,
 		Quality:     domain.QualityDeterministic,
-		Source:      "govulncheck -json -mode source ./...",
+		Source:      command,
 		Tool:        "govulncheck",
 		ToolVersion: toolVer,
-		Command:     "govulncheck -json -mode source ./...",
+		Command:     command,
 		Content:     string(raw),
 	})
 	res, err := goanalysis.Parse(raw)
@@ -519,7 +527,9 @@ func (h CollectEvidence) runExposure(ctx context.Context, c *domain.AnalysisCase
 			ExtraPaths:  c.Product.DeployManifests,
 			ArchivePath: c.Product.DeployArchive,
 		})
-		if err == nil {
+		if err != nil {
+			c.EvidenceGraph.AddToolLimitation(fmt.Sprintf("deployment manifest scan failed: %v", err))
+		} else {
 			facts = append(facts, deployFacts...)
 		}
 	}
@@ -1585,11 +1595,17 @@ func (h EvaluateVerdict) Run(_ context.Context, c *domain.AnalysisCase) (workflo
 			evaluator.WantsPeerInput(cond, c.Vulnerability)
 		if isPeerInput || cl.Falsifier == domain.FalsifierTrustedInfrastructure {
 			cl.Result = domain.ClaimFalse
-			cl.Falsifier = domain.FalsifierTrustedInfrastructure
-			cl.Explanation = "FALSE is decided by trusted cluster infrastructure / perimeter"
-			cl.NegativeVerification = &domain.NegativeVerification{
-				Status: domain.NegativeVerified,
-				Notes:  "FALSE is decided by product snapshot deployment trust facts (cluster-internal perimeter)",
+			if cl.Falsifier == "" {
+				cl.Falsifier = domain.FalsifierTrustedInfrastructure
+			}
+			if cl.Explanation == "" {
+				cl.Explanation = "FALSE is decided by trusted cluster infrastructure / perimeter"
+			}
+			if cl.NegativeVerification == nil {
+				cl.NegativeVerification = &domain.NegativeVerification{
+					Status: domain.NegativeVerified,
+					Notes:  "FALSE is decided by product snapshot deployment trust facts (cluster-internal perimeter)",
+				}
 			}
 		}
 	}

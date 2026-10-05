@@ -430,8 +430,8 @@ type fakeGovulncheck struct {
 	err error
 }
 
-func (f fakeGovulncheck) RunGovulncheck(context.Context, string, domain.ProductSnapshot) ([]byte, error) {
-	return f.out, f.err
+func (f fakeGovulncheck) RunGovulncheck(context.Context, string, domain.ProductSnapshot) ([]byte, string, error) {
+	return f.out, "./...", f.err
 }
 
 type stubResolver struct{}

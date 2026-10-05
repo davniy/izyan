@@ -11,10 +11,16 @@ import (
 	"strings"
 )
 
-const maxManifestSize = 1 << 20 // 1MB
+const (
+	maxManifestSize  = 1 << 20  // 1MB per file
+	maxManifestFiles = 512      // total extracted manifests
+	maxArchiveBytes  = 64 << 20 // 64MB decompressed stream cap
+)
 
 // extractManifestsFromTGZ extracts .yaml and .yml files (<= 1MB) from a gzipped tar archive.
-// Applies strict Zip Slip protection against directory traversal.
+// Applies strict Zip Slip protection against directory traversal. The gzip
+// stream is capped: skipped members still consume decompressed bytes, so a
+// decompression bomb terminates the scan instead of burning CPU.
 func extractManifestsFromTGZ(reader io.Reader, destDir string) error {
 	gzr, err := gzip.NewReader(reader)
 	if err != nil {
@@ -23,7 +29,8 @@ func extractManifestsFromTGZ(reader io.Reader, destDir string) error {
 	defer gzr.Close()
 
 	cleanDest := filepath.Clean(destDir)
-	tr := tar.NewReader(gzr)
+	tr := tar.NewReader(io.LimitReader(gzr, maxArchiveBytes))
+	extracted := 0
 
 	for {
 		header, err := tr.Next()
@@ -48,6 +55,10 @@ func extractManifestsFromTGZ(reader io.Reader, destDir string) error {
 		// Filter: max size 1MB
 		if header.Size > maxManifestSize || header.Size < 0 {
 			continue
+		}
+		extracted++
+		if extracted > maxManifestFiles {
+			return fmt.Errorf("archive exceeds manifest file limit (%d)", maxManifestFiles)
 		}
 
 		// Zip Slip protection: normalize backslashes from Windows archives
@@ -91,6 +102,7 @@ func extractManifestsFromZIP(reader io.ReaderAt, size int64, destDir string) err
 	}
 
 	cleanDest := filepath.Clean(destDir)
+	extracted := 0
 	for _, f := range zr.File {
 		// Filter: skip directories and non-regular files
 		if f.FileInfo().IsDir() || !f.Mode().IsRegular() {
@@ -106,6 +118,10 @@ func extractManifestsFromZIP(reader io.ReaderAt, size int64, destDir string) err
 		// Filter: max size 1MB
 		if f.UncompressedSize64 > maxManifestSize {
 			continue
+		}
+		extracted++
+		if extracted > maxManifestFiles {
+			return fmt.Errorf("archive exceeds manifest file limit (%d)", maxManifestFiles)
 		}
 
 		// Zip Slip protection: normalize backslashes from Windows archives

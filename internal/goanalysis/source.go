@@ -179,7 +179,6 @@ type Index struct {
 	fset           *token.FileSet
 	loaded         bool
 	loadErr        error
-	skippedPkgs    []string
 	skippedImports map[string][]string
 	modCacheOnce   sync.Once
 	modCache       string
@@ -247,12 +246,10 @@ func (ix *Index) load(ctx context.Context) error {
 		return ix.loadErr
 	}
 	var validPkgs []*packages.Package
-	var errPkgs []string
 	skippedImports := make(map[string][]string)
 
 	for _, p := range rawPkgs {
 		if len(p.Errors) > 0 || p.TypesInfo == nil {
-			errPkgs = append(errPkgs, p.PkgPath)
 			for impPath := range p.Imports {
 				skippedImports[impPath] = append(skippedImports[impPath], p.PkgPath)
 			}
@@ -266,7 +263,6 @@ func (ix *Index) load(ctx context.Context) error {
 		return ix.loadErr
 	}
 	ix.pkgs = validPkgs
-	ix.skippedPkgs = errPkgs
 	ix.skippedImports = skippedImports
 	return nil
 }

@@ -25,8 +25,8 @@ type stubRunner struct {
 	err error
 }
 
-func (s stubRunner) RunGovulncheck(_ context.Context, _ string, _ domain.ProductSnapshot) ([]byte, error) {
-	return s.raw, s.err
+func (s stubRunner) RunGovulncheck(_ context.Context, _ string, _ domain.ProductSnapshot) ([]byte, string, error) {
+	return s.raw, "./...", s.err
 }
 
 type stubVulnSource struct{ v *domain.Vulnerability }

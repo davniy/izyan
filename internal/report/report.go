@@ -405,13 +405,16 @@ func Markdown(c *domain.AnalysisCase, lang ...string) string {
 		}
 		renderTriageAssessment(&b, c, isRU)
 	}
-	renderPerimeterMatrix(&b, c, isRU)
-	if rat := rationale(c); rat != "" {
+	if rat := rationale(c); rat != "" || len(c.Profiles) > 0 {
 		if isRU {
-			fmt.Fprintf(&b, "## Резюме\n\n%s\n\n", rat)
+			b.WriteString("## Резюме\n\n")
 		} else {
-			fmt.Fprintf(&b, "## Executive Summary\n\n%s\n\n", rat)
+			b.WriteString("## Executive Summary\n\n")
 		}
+		if rat != "" {
+			fmt.Fprintf(&b, "%s\n\n", rat)
+		}
+		renderPerimeterMatrix(&b, c, isRU)
 	}
 	if r := remediation(c, isRU); r != "" {
 		if isRU {

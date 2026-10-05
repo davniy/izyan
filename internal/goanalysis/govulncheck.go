@@ -19,9 +19,11 @@ import (
 	"github.com/fedorovmv/izyan/internal/toolaudit"
 )
 
-// Runner executes govulncheck and returns the raw -json stream.
+// Runner executes govulncheck and returns the raw -json stream plus the
+// package pattern that actually produced it ("./...", "./cmd/...", or the
+// binary path) — callers record the real scope, a fallback narrows it.
 type Runner interface {
-	RunGovulncheck(ctx context.Context, dir string, build domain.ProductSnapshot) ([]byte, error)
+	RunGovulncheck(ctx context.Context, dir string, build domain.ProductSnapshot) (raw []byte, pattern string, err error)
 }
 
 type ExecRunner struct {
@@ -74,20 +76,21 @@ func fileExists(p string) bool {
 func CachingRunner(inner Runner) Runner { return &cachingRunner{inner: inner} }
 
 type cachingRunner struct {
-	inner Runner
-	once  sync.Once
-	out   []byte
-	err   error
+	inner   Runner
+	once    sync.Once
+	out     []byte
+	pattern string
+	err     error
 }
 
-func (r *cachingRunner) RunGovulncheck(ctx context.Context, dir string, build domain.ProductSnapshot) ([]byte, error) {
+func (r *cachingRunner) RunGovulncheck(ctx context.Context, dir string, build domain.ProductSnapshot) ([]byte, string, error) {
 	r.once.Do(func() {
-		r.out, r.err = r.inner.RunGovulncheck(ctx, dir, build)
+		r.out, r.pattern, r.err = r.inner.RunGovulncheck(ctx, dir, build)
 	})
-	return r.out, r.err
+	return r.out, r.pattern, r.err
 }
 
-func (r ExecRunner) RunGovulncheck(ctx context.Context, dir string, build domain.ProductSnapshot) ([]byte, error) {
+func (r ExecRunner) RunGovulncheck(ctx context.Context, dir string, build domain.ProductSnapshot) ([]byte, string, error) {
 	bin := r.Bin
 	if bin == "" {
 		bin = resolveGovulnBin(ctx)
@@ -96,10 +99,12 @@ func (r ExecRunner) RunGovulncheck(ctx context.Context, dir string, build domain
 	// source mode loads stdlib through the `go` it finds in PATH.
 	extraEnv := r.Env
 	var args []string
+	pattern := "./..."
 	if build.BinaryPath != "" {
 		// Binary mode reads the release artifact's embedded build info: the
 		// real toolchain and module versions, not the source tree's claims.
 		args = []string{"-json", "-mode", "binary", build.BinaryPath}
+		pattern = build.BinaryPath
 	} else {
 		args = []string{"-json", "-mode", "source"}
 		if len(build.BuildTags) > 0 {
@@ -125,10 +130,11 @@ func (r ExecRunner) RunGovulncheck(ctx context.Context, dir string, build domain
 		var ee *exec.ExitError
 		if errors.As(err, &ee) && ee.ExitCode() == 3 {
 			// govulncheck exits with code 3 when vulnerabilities are found; stdout has the full JSON stream.
-			return stdout, nil
+			return stdout, pattern, nil
 		}
 		// Fallback: if ./... failed (e.g. uncompilable optional subpackages/cgo),
-		// try package patterns for main entrypoints if ./cmd exists.
+		// try package patterns for main entrypoints if ./cmd exists. The
+		// narrowed scope is reported via the pattern return value.
 		if len(args) > 0 && args[len(args)-1] == "./..." {
 			if st, serr := os.Stat(filepath.Join(dir, "cmd")); serr == nil && st.IsDir() {
 				fbArgs := make([]string, len(args)-1)
@@ -136,17 +142,17 @@ func (r ExecRunner) RunGovulncheck(ctx context.Context, dir string, build domain
 				fbArgs = append(fbArgs, "./cmd/...")
 				fbStdout, fbStderr, fbErr := toolaudit.Run(ctx, "govulncheck", "", dir, bin, env, fbArgs...)
 				if fbErr == nil {
-					return fbStdout, nil
+					return fbStdout, "./cmd/...", nil
 				}
 				if errors.As(fbErr, &ee) && ee.ExitCode() == 3 {
-					return fbStdout, nil
+					return fbStdout, "./cmd/...", nil
 				}
 				stderr = append(append(stderr, "\nfallback ./cmd/...: "...), fbStderr...)
 			}
 		}
-		return stdout, fmt.Errorf("govulncheck: %w: %s", err, stderr)
+		return stdout, pattern, fmt.Errorf("govulncheck: %w: %s", err, stderr)
 	}
-	return stdout, nil
+	return stdout, pattern, nil
 }
 
 // DBInformer is an optional Runner capability: it reports the local

@@ -1049,14 +1049,16 @@ func (ix *Index) classifySelector(pkg *packages.Package, enc *ast.FuncDecl, e *a
 			if o, why, ok3 := ix.fieldOrigin(fv, depth+1); ok3 {
 				return o, fmt.Sprintf("field %s: %s", e.Sel.Name, why)
 			}
-			// No textual write sites: a mapstructure/env-tagged field is
-			// populated by config-decoding machinery (viper, envconfig) —
-			// reflection writes are invisible, but the tag is the honest
-			// provenance marker. json/yaml tags stay UNKNOWN — they mark
-			// API payload surfaces, not configuration.
+			// No textual write sites: a config-tagged (yaml/mapstructure/env) or
+			// config-package field is populated by config-decoding machinery
+			// (viper, yaml.Unmarshal, envconfig) — reflection writes are invisible,
+			// but the tag and package structure are the honest provenance marker.
 			if ix.fieldConfigTagged(fv) {
-				return domain.OriginConfiguration,
-					fmt.Sprintf("field %s carries a config-decode tag (mapstructure/env)", e.Sel.Name)
+				why := fmt.Sprintf("field %s carries a config-decode tag (yaml/mapstructure/env)", e.Sel.Name)
+				if fv.Pkg() != nil && isConfigPackage(fv.Pkg()) {
+					why = fmt.Sprintf("field %s belongs to config package %s", e.Sel.Name, fv.Pkg().Path())
+				}
+				return domain.OriginConfiguration, why
 			}
 		}
 	}
@@ -1085,6 +1087,17 @@ func (ix *Index) classifySelector(pkg *packages.Package, enc *ast.FuncDecl, e *a
 	return ix.classify(pkg, enc, e.X, depth)
 }
 
+func isConfigPackage(pkg *types.Package) bool {
+	if pkg == nil {
+		return false
+	}
+	name := pkg.Name()
+	path := pkg.Path()
+	return name == "config" || name == "conf" || name == "configuration" ||
+		strings.HasSuffix(path, "/config") || strings.HasSuffix(path, "/conf") ||
+		strings.Contains(path, "/config/") || strings.Contains(path, "/conf/")
+}
+
 // fieldConfigTagged locates the field's declaration and reports whether
 // its struct tag marks a configuration-decoded value.
 func (ix *Index) fieldConfigTagged(field *types.Var) bool {
@@ -1106,9 +1119,15 @@ func (ix *Index) fieldConfigTaggedScan(field *types.Var) bool {
 	pkgPath := ""
 	if field.Pkg() != nil {
 		pkgPath = field.Pkg().Path()
+		if isConfigPackage(field.Pkg()) {
+			return true
+		}
 	}
 	for _, pkg := range ix.memberScope(pkgPath) {
 		info := pkg.TypesInfo
+		if info == nil {
+			continue
+		}
 		for _, f := range pkg.Syntax {
 			found := false
 			tagged := false
@@ -1125,8 +1144,15 @@ func (ix *Index) fieldConfigTaggedScan(field *types.Var) bool {
 						found = true
 						if fd.Tag != nil {
 							tag := strings.Trim(fd.Tag.Value, "`")
+							st := reflect.StructTag(tag)
 							for _, k := range ix.kb().ConfigTagKeys {
-								if _, ok := reflect.StructTag(tag).Lookup(k); ok {
+								if _, ok := st.Lookup(k); ok {
+									tagged = true
+									break
+								}
+							}
+							if !tagged {
+								if _, ok := st.Lookup("yaml"); ok {
 									tagged = true
 								}
 							}

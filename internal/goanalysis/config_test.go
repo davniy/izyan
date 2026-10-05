@@ -102,3 +102,35 @@ func TestCheckCallSiteGuard_DeadCodeAndDynamic(t *testing.T) {
 		t.Errorf("callVulnerableDynamic not found in sites: %+v", sites)
 	}
 }
+
+func TestTraceArgument_YamlTagAndConfigPackage(t *testing.T) {
+	ix := fixture(t, "yamlconfigprod")
+
+	// 1. AppConfig.XPath has yaml:"xpath" tag: must trace to OriginConfiguration
+	parseSym := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "Parse"}
+	parseSites, err := ix.FindCallers(context.Background(), parseSym)
+	if err != nil || len(parseSites) != 1 {
+		t.Fatalf("FindCallers(Parse): sites=%v err=%v", parseSites, err)
+	}
+	flowYaml, _, err := ix.TraceArgumentBound(context.Background(), parseSites[0], 0, 6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if flowYaml.Origin != domain.OriginConfiguration {
+		t.Errorf("yaml tag field: got origin %s, want CONFIGURATION (summary: %s)", flowYaml.Origin, flowYaml.Summary)
+	}
+
+	// 2. Settings.Query is declared in package config: must trace to OriginConfiguration
+	parseURISym := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "ParseURI"}
+	uriSites, err := ix.FindCallers(context.Background(), parseURISym)
+	if err != nil || len(uriSites) != 1 {
+		t.Fatalf("FindCallers(ParseURI): sites=%v err=%v", uriSites, err)
+	}
+	flowConfig, _, err := ix.TraceArgumentBound(context.Background(), uriSites[0], 0, 6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if flowConfig.Origin != domain.OriginConfiguration {
+		t.Errorf("config package field: got origin %s, want CONFIGURATION (summary: %s)", flowConfig.Origin, flowConfig.Summary)
+	}
+}

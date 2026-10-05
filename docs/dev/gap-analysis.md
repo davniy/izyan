@@ -26,6 +26,7 @@
 | Dep-internal opaque dispatch | Статическое разрешение функциональных полей и method values в struct-field/package-var/local колбэках (`funcFields`, `packageVars`, `funcEdges`, `resolveMethodValue`) в `moduleEdges` и reachability-анализе; разрешение внутренней цепочки диспетчеризации фильтров и транспорта gRPC xDS (`real-micro-xds` -> EXPLOITABLE, baseline corpus 100% resolved, 0 inconclusive) | закрыто |
 | Reflect & reachability precision | Субъектно-ориентированная непрозрачность в `ModuleInternalReach` (проверка совместимости сигнатур/интерфейсов) + проверка инстанцирования типов ресиверов при обработке маркеров `reflect_method` в `negative.go`; разрешение `ghsa-465g-fh3v-9jw4` в `NO_EXPLOIT_PATH_FOUND` на live-корпусе (дефект D4 закрыт) | закрыто |
 | Snapshot/toolchain platform conditions | Определение версии Go из бинаря, тикета/LLM и локального окружения; эксплойт-паттерн CRYPTO_DOWNGRADE с обязательным C-PLATFORM условием по go_version; разрешение ghsa-33mj-cw25-m34h в NO_EXPLOIT_PATH_FOUND (дефект D3 закрыт) | закрыто |
+| Двухконтурная оценка угроз (Dual-Track Perimeter) и внешние манифесты (Helm/K8s/GitOps) (B34) | Сканер ScanDeployWithOptions с поддержкой внешних репозиториев и архивов (.tgz, .zip) с Zip Slip защитой; классификатор ClassifyPerimeter; двухконтурная оценка (zero_trust vs cluster_perimeter) с автовыбором целевого вердикта; матрица сетевых периметров в отчётах | closed (2026-10-05) |
 
 ## 2. Открытый бэклог (приоритетный, с done-критериями)
 

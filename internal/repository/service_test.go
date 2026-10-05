@@ -141,3 +141,33 @@ func TestNewWorktree(t *testing.T) {
 		t.Errorf("expected worktree %s to be removed after cleanup", wtPath)
 	}
 }
+
+func TestService_Snapshot_DeployOptions(t *testing.T) {
+	repoDir, _ := setupTestGitRepo(t)
+	ctx := context.Background()
+
+	opts := SnapshotOptions{
+		DeployManifests:   []string{"k8s/svc.yaml", "helm/chart"},
+		DeployArchive:     "archive.zip",
+		PerimeterOverride: "cluster-internal",
+		TrustedPeer:       true,
+	}
+
+	snap, err := Service{}.Snapshot(ctx, repoDir, opts)
+	if err != nil {
+		t.Fatalf("Service.Snapshot failed: %v", err)
+	}
+
+	if len(snap.DeployManifests) != 2 || snap.DeployManifests[0] != "k8s/svc.yaml" || snap.DeployManifests[1] != "helm/chart" {
+		t.Errorf("snap.DeployManifests = %v, want %v", snap.DeployManifests, opts.DeployManifests)
+	}
+	if snap.DeployArchive != "archive.zip" {
+		t.Errorf("snap.DeployArchive = %q, want %q", snap.DeployArchive, opts.DeployArchive)
+	}
+	if snap.PerimeterOverride != "cluster-internal" {
+		t.Errorf("snap.PerimeterOverride = %q, want %q", snap.PerimeterOverride, opts.PerimeterOverride)
+	}
+	if !snap.TrustedPeer {
+		t.Errorf("snap.TrustedPeer = false, want true")
+	}
+}

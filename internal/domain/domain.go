@@ -351,6 +351,10 @@ type ExposureFact struct {
 	// "var", "env:NAME", "config:key", "field:…" or "" when unresolved.
 	AddressSource string `json:"address_source,omitempty"`
 	Scope         string `json:"scope,omitempty"`
+	// Owner names the deployment resource that declares the surface
+	// (k8s metadata.name, compose service key). Empty = unattributed —
+	// perimeter classification counts only owner-matched deploy facts.
+	Owner string `json:"owner,omitempty"`
 }
 
 type Condition struct {
@@ -474,6 +478,11 @@ type Claim struct {
 	// Falsifier marks how a FALSE claim was derived so negative verification
 	// picks the matching strategy: "guards" = bound-guard coverage.
 	Falsifier string `json:"falsifier,omitempty"`
+	// FalsifierBasis records what grounds a trusted-infrastructure FALSE:
+	// "declared-trust" = operator assertion (--trusted-peer/--perimeter),
+	// "auto-perimeter" = classifier-detected cluster isolation, "" = the
+	// falsifier rests on code-level provenance (e.g. config-file origin).
+	FalsifierBasis string `json:"falsifier_basis,omitempty"`
 }
 
 type FalsifierKind string
@@ -513,6 +522,20 @@ const (
 	// FalsifierLoopbackOnly grounds FALSE for exposure conditions requiring public scope
 	// when all resolved network binds are strictly loopback/unix/cluster-internal.
 	FalsifierLoopbackOnly = "loopback-only"
+)
+
+// FalsifierBasis values for Claim.FalsifierBasis and VerdictResult.GroundBasis.
+const (
+	// BasisDeclaredTrust marks trusted-infrastructure falsification that
+	// rests on an operator assertion (--trusted-peer or --perimeter), not
+	// on code-level evidence.
+	BasisDeclaredTrust = "declared-trust"
+	// BasisAutoPerimeter marks trusted-infrastructure falsification that
+	// rests on the classifier-detected cluster-internal perimeter.
+	BasisAutoPerimeter = "auto-perimeter"
+	// BasisConfigOrigin marks trusted-infrastructure falsification that
+	// rests on traced config-file origins — a code-level provenance fact.
+	BasisConfigOrigin = "config-origin"
 )
 
 type EvidenceQuality string
@@ -1157,6 +1180,12 @@ type VerdictResult struct {
 	ConditionIDs []ConditionID `json:"condition_ids,omitempty"`
 	EvidenceIDs  []EvidenceID  `json:"evidence_ids,omitempty"`
 	Limitations  []string      `json:"limitations,omitempty"`
+	// GroundBasis distinguishes what a NO_EXPLOIT_PATH_FOUND verdict rests
+	// on: "declared-trust" (operator-asserted perimeter), "auto-perimeter"
+	// (classifier-detected cluster isolation), "config-origin" (traced
+	// inputs resolve to host configuration). Empty = grounded by
+	// code-level verification (reachability/locus/provenance falsifiers).
+	GroundBasis string `json:"ground_basis,omitempty"`
 }
 
 type RiskLevel string

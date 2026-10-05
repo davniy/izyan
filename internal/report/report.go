@@ -1287,6 +1287,11 @@ func rationaleNoExploitPathFound(c *domain.AnalysisCase) string {
 			repo, mod, ver, c.Vulnerability.ID)
 	}
 
+	if basis := groundBasisRationale(c); basis != "" {
+		b.WriteString(basis)
+		b.WriteString("\n\n")
+	}
+
 	env := formatEnv(c)
 	if commit != "" {
 		if mod != "" && ver != "" {
@@ -1326,6 +1331,25 @@ func rationaleNoExploitPathFound(c *domain.AnalysisCase) string {
 
 	b.WriteString("Текст выше можно использовать в задаче трекера как обоснование статуса **Not Exploitable**.")
 	return b.String()
+}
+
+// groundBasisRationale makes the trust basis of a NEPF verdict explicit
+// in the human-readable report: a verdict resting on a declared or
+// detected deployment trust boundary is an assumption, not a code-level
+// proof, and must read as such in tracker-ready rationale.
+func groundBasisRationale(c *domain.AnalysisCase) string {
+	if c.Verdict == nil {
+		return ""
+	}
+	switch c.Verdict.GroundBasis {
+	case domain.BasisDeclaredTrust:
+		return "Основание вердикта: заявленная граница доверия развертывания (`--trusted-peer`/`--perimeter`). Это допущение оператора о доверенности пиров и инфраструктуры, а не результат проверки кода — при смене условий деплоя вердикт требует пересмотра."
+	case domain.BasisAutoPerimeter:
+		return "Основание вердикта: автоматически определённый кластерный периметр по манифестам развертывания (ClusterIP/mesh-изоляция). Достоверность ограничена найденными манифестами — публичные маршруты вне сканированных файлов не учтены."
+	case domain.BasisConfigOrigin:
+		return "Основание вердикта: все отслеженные входы разрешаются в локальные файлы конфигурации хоста (доверенный источник данных)."
+	}
+	return ""
 }
 
 func rationaleNotAffected(c *domain.AnalysisCase) string {

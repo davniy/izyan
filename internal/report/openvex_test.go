@@ -112,3 +112,25 @@ func TestOpenVEXInconclusiveIsUnderInvestigation(t *testing.T) {
 		}
 	}
 }
+
+func TestOpenVEXTrustGroundedJustification(t *testing.T) {
+	for _, tc := range []struct {
+		basis      string
+		wantJust   string
+		wantSubstr string
+	}{
+		{domain.BasisDeclaredTrust, "vulnerable_code_cannot_be_controlled_by_adversary", "declared deployment trust"},
+		{domain.BasisAutoPerimeter, "vulnerable_code_cannot_be_controlled_by_adversary", "auto-detected cluster-internal perimeter"},
+		{domain.BasisConfigOrigin, "vulnerable_code_cannot_be_controlled_by_adversary", "local host configuration"},
+	} {
+		c := vexCase(t, domain.VerdictNoExploitPathFound)
+		c.Verdict.GroundBasis = tc.basis
+		st := decodeVex(t, c).Statements[0]
+		if st.Justification != tc.wantJust {
+			t.Errorf("basis %s: justification=%s want %s", tc.basis, st.Justification, tc.wantJust)
+		}
+		if !strings.Contains(st.ImpactStatement, tc.wantSubstr) {
+			t.Errorf("basis %s: impact=%q missing %q", tc.basis, st.ImpactStatement, tc.wantSubstr)
+		}
+	}
+}

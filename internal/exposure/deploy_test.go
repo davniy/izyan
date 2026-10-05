@@ -363,3 +363,127 @@ spec:
 		t.Fatalf("expected exactly 1 LoadBalancer fact after deduplication, got %d", lbCount)
 	}
 }
+
+func TestScanDeploy_OwnerAttribution(t *testing.T) {
+	root := t.TempDir()
+	mk := func(p, content string) {
+		full := filepath.Join(root, p)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mk("deploy/svc.yaml", `apiVersion: v1
+kind: Service
+metadata:
+  name: myapp
+spec:
+  type: ClusterIP
+`)
+	mk("deploy/ingress.yaml", `apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: billing-api
+spec:
+  rules:
+  - host: billing.example.com
+`)
+
+	facts, err := scanDeployDir(root)
+	if err != nil {
+		t.Fatalf("scanDeployDir: %v", err)
+	}
+	var svcOwner, ingOwner string
+	for _, f := range facts {
+		switch f.Target {
+		case "k8s:Service:ClusterIP":
+			svcOwner = f.Owner
+		case "k8s:Ingress":
+			ingOwner = f.Owner
+		}
+	}
+	if svcOwner != "myapp" {
+		t.Errorf("ClusterIP owner = %q, want %q", svcOwner, "myapp")
+	}
+	if ingOwner != "billing-api" {
+		t.Errorf("Ingress owner = %q, want %q", ingOwner, "billing-api")
+	}
+}
+
+func TestScanDeploy_ComposeServiceOwner(t *testing.T) {
+	root := t.TempDir()
+	mk := func(p, content string) {
+		full := filepath.Join(root, p)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mk("deploy/docker-compose.yml", `version: "3"
+services:
+  myapp:
+    image: myapp:1.0
+    ports:
+      - "8080:8080"
+  rabbitmq:
+    image: rabbitmq:3
+    ports:
+      - "5672:5672"
+volumes:
+  data:
+`)
+	facts, err := scanDeployDir(root)
+	if err != nil {
+		t.Fatalf("scanDeployDir: %v", err)
+	}
+	owners := map[string]int{}
+	for _, f := range facts {
+		if f.Target == "compose:published-port" {
+			owners[f.Owner]++
+		}
+	}
+	if owners["myapp"] != 1 || owners["rabbitmq"] != 1 {
+		t.Errorf("published-port owners = %v, want myapp:1 rabbitmq:1", owners)
+	}
+}
+
+func TestScanDeploy_TemplatedNameFallsBackToChart(t *testing.T) {
+	root := t.TempDir()
+	mk := func(p, content string) {
+		full := filepath.Join(root, p)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mk("charts/myapp/Chart.yaml", `apiVersion: v2
+name: myapp
+version: 1.0.0
+`)
+	mk("charts/myapp/templates/svc.yaml", `apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "myapp.fullname" . }}
+spec:
+  type: ClusterIP
+`)
+	facts, err := scanDeployDir(root)
+	if err != nil {
+		t.Fatalf("scanDeployDir: %v", err)
+	}
+	var owner string
+	for _, f := range facts {
+		if f.Target == "k8s:Service:ClusterIP" {
+			owner = f.Owner
+		}
+	}
+	if owner != "myapp" {
+		t.Errorf("templated-name ClusterIP owner = %q, want %q (chart fallback)", owner, "myapp")
+	}
+}

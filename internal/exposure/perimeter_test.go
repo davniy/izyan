@@ -27,7 +27,7 @@ func TestClassifyPerimeter_ClusterIPOnly(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts)
+	scope, rationale := ClassifyPerimeter(facts, nil)
 	if scope != domain.PerimeterClusterInternal {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterClusterInternal, scope, rationale)
 	}
@@ -56,7 +56,7 @@ func TestClassifyPerimeter_PublicIngress(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts)
+	scope, rationale := ClassifyPerimeter(facts, nil)
 	if scope != domain.PerimeterPublic {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterPublic, scope, rationale)
 	}
@@ -77,7 +77,7 @@ func TestClassifyPerimeter_PublicListener(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts)
+	scope, rationale := ClassifyPerimeter(facts, nil)
 	if scope != domain.PerimeterPublic {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterPublic, scope, rationale)
 	}
@@ -105,7 +105,7 @@ func TestClassifyPerimeter_IstioMesh(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts)
+	scope, rationale := ClassifyPerimeter(facts, nil)
 	if scope != domain.PerimeterClusterInternal {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterClusterInternal, scope, rationale)
 	}
@@ -115,7 +115,7 @@ func TestClassifyPerimeter_IstioMesh(t *testing.T) {
 }
 
 func TestClassifyPerimeter_Empty(t *testing.T) {
-	scope, rationale := ClassifyPerimeter(nil)
+	scope, rationale := ClassifyPerimeter(nil, nil)
 	if scope != domain.PerimeterUnknown {
 		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
 	}
@@ -137,7 +137,7 @@ func TestClassifyPerimeter_ServiceLoadBalancer(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts)
+	scope, rationale := ClassifyPerimeter(facts, nil)
 	if scope != domain.PerimeterPublic {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterPublic, scope, rationale)
 	}
@@ -155,7 +155,7 @@ func TestClassifyPerimeter_ServiceNodePort(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts)
+	scope, rationale := ClassifyPerimeter(facts, nil)
 	if scope != domain.PerimeterPublic {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterPublic, scope, rationale)
 	}
@@ -181,7 +181,7 @@ func TestClassifyPerimeter_UnixAndConfiguredDial(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts)
+	scope, rationale := ClassifyPerimeter(facts, nil)
 	if scope != domain.PerimeterClusterInternal {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterClusterInternal, scope, rationale)
 	}
@@ -199,7 +199,7 @@ func TestClassifyPerimeter_IPv6Loopback(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts)
+	scope, rationale := ClassifyPerimeter(facts, nil)
 	if scope != domain.PerimeterClusterInternal {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterClusterInternal, scope, rationale)
 	}
@@ -219,7 +219,7 @@ func TestClassifyPerimeter_OutboundDialOnlyIsUnknown(t *testing.T) {
 		},
 	}
 
-	scope, _ := ClassifyPerimeter(facts)
+	scope, _ := ClassifyPerimeter(facts, nil)
 	if scope != domain.PerimeterUnknown {
 		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
 	}
@@ -236,7 +236,7 @@ func TestClassifyPerimeter_MeshOnlyIsUnknown(t *testing.T) {
 		},
 	}
 
-	scope, _ := ClassifyPerimeter(facts)
+	scope, _ := ClassifyPerimeter(facts, nil)
 	if scope != domain.PerimeterUnknown {
 		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
 	}
@@ -264,7 +264,7 @@ func TestClassifyPerimeter_UnresolvedListenerBlocksListenerTier(t *testing.T) {
 		},
 	}
 
-	scope, _ := ClassifyPerimeter(facts)
+	scope, _ := ClassifyPerimeter(facts, nil)
 	if scope != domain.PerimeterUnknown {
 		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
 	}
@@ -292,8 +292,105 @@ func TestClassifyPerimeter_UnresolvedListenerBoundedByClusterIP(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts)
+	scope, rationale := ClassifyPerimeter(facts, nil)
 	if scope != domain.PerimeterClusterInternal {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterClusterInternal, scope, rationale)
+	}
+}
+
+func TestClassifyPerimeter_ForeignClusterIPIgnored(t *testing.T) {
+	// A sibling service's ClusterIP does not scope OUR inbound
+	// reachability — bundle manifests routinely describe the whole stack.
+	facts := []domain.ExposureFact{
+		{
+			CallSite:  domain.CallSite{File: "deploy/svc.yaml", Line: 5},
+			Direction: "inbound",
+			Kind:      "deployment",
+			Target:    "k8s:Service:ClusterIP",
+			Address:   "ClusterIP",
+			Scope:     domain.ScopeLoopback,
+			Owner:     "billing-api",
+		},
+	}
+
+	scope, _ := ClassifyPerimeter(facts, []string{"myapp"})
+	if scope != domain.PerimeterUnknown {
+		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
+	}
+}
+
+func TestClassifyPerimeter_AttributedClusterIP(t *testing.T) {
+	facts := []domain.ExposureFact{
+		{
+			CallSite:  domain.CallSite{File: "deploy/svc.yaml", Line: 5},
+			Direction: "inbound",
+			Kind:      "deployment",
+			Target:    "k8s:Service:ClusterIP",
+			Address:   "ClusterIP",
+			Scope:     domain.ScopeLoopback,
+			Owner:     "myapp-svc",
+		},
+	}
+
+	scope, _ := ClassifyPerimeter(facts, []string{"myapp"})
+	if scope != domain.PerimeterClusterInternal {
+		t.Fatalf("expected scope %q, got %q", domain.PerimeterClusterInternal, scope)
+	}
+}
+
+func TestClassifyPerimeter_ForeignIngressIgnored(t *testing.T) {
+	facts := []domain.ExposureFact{
+		{
+			CallSite:  domain.CallSite{File: "deploy/ingress.yaml", Line: 1},
+			Direction: "inbound",
+			Kind:      "deployment",
+			Target:    "k8s:Ingress",
+			Address:   "api.example.com",
+			Scope:     domain.ScopeAllInterfaces,
+			Owner:     "public-web",
+		},
+		{
+			CallSite:  domain.CallSite{File: "deploy/svc.yaml", Line: 5},
+			Direction: "inbound",
+			Kind:      "deployment",
+			Target:    "k8s:Service:ClusterIP",
+			Address:   "ClusterIP",
+			Scope:     domain.ScopeLoopback,
+			Owner:     "myapp",
+		},
+	}
+
+	scope, _ := ClassifyPerimeter(facts, []string{"myapp"})
+	if scope != domain.PerimeterClusterInternal {
+		t.Fatalf("expected scope %q, got %q", domain.PerimeterClusterInternal, scope)
+	}
+}
+
+func TestClassifyPerimeter_UnattributedDeployFactBlocksCluster(t *testing.T) {
+	// A deploy surface we cannot attribute is not proof of isolation —
+	// it holds the perimeter at unknown even beside an owned ClusterIP.
+	facts := []domain.ExposureFact{
+		{
+			CallSite:  domain.CallSite{File: "deploy/svc.yaml", Line: 5},
+			Direction: "inbound",
+			Kind:      "deployment",
+			Target:    "k8s:Service:ClusterIP",
+			Address:   "ClusterIP",
+			Scope:     domain.ScopeLoopback,
+			Owner:     "myapp",
+		},
+		{
+			CallSite:  domain.CallSite{File: "deploy/ingress.yaml", Line: 1},
+			Direction: "inbound",
+			Kind:      "deployment",
+			Target:    "k8s:Ingress",
+			Address:   "x.example.com",
+			Scope:     domain.ScopeAllInterfaces,
+		},
+	}
+
+	scope, _ := ClassifyPerimeter(facts, []string{"myapp"})
+	if scope != domain.PerimeterUnknown {
+		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
 	}
 }

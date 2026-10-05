@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -562,7 +563,7 @@ func (h CollectEvidence) runExposure(ctx context.Context, c *domain.AnalysisCase
 		c.EvidenceGraph.AddExposure(f)
 	}
 
-	scope, rationale := exposure.ClassifyPerimeter(c.EvidenceGraph.ExposuresList())
+	scope, rationale := exposure.ClassifyPerimeter(c.EvidenceGraph.ExposuresList(), productNames(c))
 	if c.Product.PerimeterOverride != "" && c.Product.PerimeterOverride != "auto" {
 		scope = c.Product.PerimeterOverride
 		rationale = "perimeter overridden by configuration: " + c.Product.PerimeterOverride
@@ -598,6 +599,45 @@ func (h CollectEvidence) runExposure(ctx context.Context, c *domain.AnalysisCase
 			Content: fmt.Sprintf("cluster isolation verified: %s", c.PerimeterRationale),
 		})
 	}
+}
+
+// productNames collects identity candidates for deploy-fact attribution:
+// the go.mod module basename, the analyzed binary name and the repository
+// directory name. A manifest resource whose owner matches one of these
+// names is attributed to the product; other owners describe foreign
+// services (B35).
+func productNames(c *domain.AnalysisCase) []string {
+	var names []string
+	add := func(s string) {
+		s = strings.ToLower(strings.TrimSpace(s))
+		if s != "" {
+			names = append(names, s)
+		}
+	}
+	if mod := goModuleName(c.Product.Repository); mod != "" {
+		add(mod[strings.LastIndex(mod, "/")+1:])
+	}
+	if c.Product.BinaryPath != "" {
+		add(strings.TrimSuffix(filepathBase(c.Product.BinaryPath), filepath.Ext(c.Product.BinaryPath)))
+	}
+	if c.Product.Repository != "" {
+		add(filepathBase(c.Product.Repository))
+	}
+	return names
+}
+
+func goModuleName(repo string) string {
+	b, err := os.ReadFile(filepath.Join(repo, "go.mod"))
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "module ") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "module "))
+		}
+	}
+	return ""
 }
 
 func filepathBase(p string) string {
@@ -1584,8 +1624,15 @@ func (h EvaluateVerdict) Run(_ context.Context, c *domain.AnalysisCase) (workflo
 	vZT.Limitations = append(vZT.Limitations, c.EvidenceGraph.Limitations...)
 
 	// Profile 2: cluster_perimeter (TrustedPeer = true)
+	operatorAsserted := c.Product.TrustedPeer ||
+		(c.Product.PerimeterOverride != "" && c.Product.PerimeterOverride != "auto")
+	profileBasis := domain.BasisAutoPerimeter
+	if operatorAsserted {
+		profileBasis = domain.BasisDeclaredTrust
+	}
 	claimsCP := make([]domain.Claim, len(c.Claims))
 	copy(claimsCP, c.Claims)
+	rewritten := make([]bool, len(claimsCP))
 	for i := range claimsCP {
 		cl := &claimsCP[i]
 		cond := conds[cl.ConditionID]
@@ -1594,9 +1641,16 @@ func (h EvaluateVerdict) Run(_ context.Context, c *domain.AnalysisCase) (workflo
 			cond.Params[domain.ParamInputSource] != domain.InputConfig &&
 			evaluator.WantsPeerInput(cond, c.Vulnerability)
 		if isPeerInput || cl.Falsifier == domain.FalsifierTrustedInfrastructure {
+			if cl.Result != domain.ClaimFalse {
+				rewritten[i] = true
+				cl.Falsifier = domain.FalsifierTrustedInfrastructure
+			}
 			cl.Result = domain.ClaimFalse
 			if cl.Falsifier == "" {
 				cl.Falsifier = domain.FalsifierTrustedInfrastructure
+			}
+			if cl.Falsifier == domain.FalsifierTrustedInfrastructure && cl.FalsifierBasis == "" {
+				cl.FalsifierBasis = profileBasis
 			}
 			if cl.Explanation == "" {
 				cl.Explanation = "FALSE is decided by trusted cluster infrastructure / perimeter"
@@ -1611,6 +1665,34 @@ func (h EvaluateVerdict) Run(_ context.Context, c *domain.AnalysisCase) (workflo
 	}
 	vCP := h.Evaluator.Evaluate(affected, model, claimsCP)
 	vCP.Limitations = append(vCP.Limitations, c.EvidenceGraph.Limitations...)
+
+	// An operator assertion cannot discharge sinks the exploit model
+	// never resolved: a perimeter-rewritten FALSE covers only the modeled
+	// conditions. With unresolved advisory subjects the unmodeled exploit
+	// shape stays unproven — demote to INCONCLUSIVE. Auto-detected
+	// perimeter rests on structural deploy facts and is allowed through.
+	if vCP.Verdict == domain.VerdictNoExploitPathFound && operatorAsserted &&
+		len(model.UnresolvedSubjects) > 0 {
+		demote := false
+		for _, cid := range vCP.ConditionIDs {
+			for i := range claimsCP {
+				if claimsCP[i].ConditionID == cid && rewritten[i] {
+					demote = true
+				}
+			}
+		}
+		if demote {
+			vCP.Verdict = domain.VerdictInconclusive
+			vCP.Reason = fmt.Sprintf(
+				"cluster-perimeter verdict rests on a declared trust boundary, but %d advisory-declared subject(s) are unresolved: an operator assertion cannot discharge an unmodeled exploit shape",
+				len(model.UnresolvedSubjects))
+			vCP.ConditionIDs = nil
+			vCP.EvidenceIDs = nil
+		}
+	}
+
+	setGroundBasis(c.Claims, &vZT)
+	setGroundBasis(claimsCP, &vCP)
 
 	cClonedZT := cloneCaseForRisk(c, c.Claims, false)
 	cClonedCP := cloneCaseForRisk(c, claimsCP, true)
@@ -1630,8 +1712,12 @@ func (h EvaluateVerdict) Run(_ context.Context, c *domain.AnalysisCase) (workflo
 		IsTargetActual: !isClusterTarget,
 	}
 	var cpFalsifier domain.FalsifierKind
-	if vCP.Verdict == domain.VerdictNoExploitPathFound {
-		cpFalsifier = domain.FalsifierTrustedInfrastructure
+	for _, id := range vCP.ConditionIDs {
+		for _, cl := range claimsCP {
+			if cl.ConditionID == id && cl.Falsifier != "" {
+				cpFalsifier = domain.FalsifierKind(cl.Falsifier)
+			}
+		}
 	}
 	cpProfile := domain.ProfileVerdict{
 		Profile:        domain.ProfileClusterPerimeter,
@@ -1655,6 +1741,31 @@ func (h EvaluateVerdict) Run(_ context.Context, c *domain.AnalysisCase) (workflo
 	}
 
 	return workflow.Transition{Next: domain.StateBuildReport, Reason: "verdict evaluated: " + string(c.Verdict.Verdict)}, nil
+}
+
+// setGroundBasis records what a NO_EXPLOIT_PATH_FOUND verdict rests on
+// when the grounding claim is trusted-infrastructure: the claim's
+// FalsifierBasis distinguishes operator assertion from detected perimeter
+// and code-level config origin. Non-trust-grounded verdicts keep
+// GroundBasis empty — their falsifier is already code-level.
+func setGroundBasis(claims []domain.Claim, v *domain.VerdictResult) {
+	if v.Verdict != domain.VerdictNoExploitPathFound {
+		return
+	}
+	for _, id := range v.ConditionIDs {
+		for _, cl := range claims {
+			if cl.ConditionID != id {
+				continue
+			}
+			if cl.Falsifier == domain.FalsifierTrustedInfrastructure {
+				v.GroundBasis = cl.FalsifierBasis
+				if v.GroundBasis == "" {
+					v.GroundBasis = domain.BasisDeclaredTrust
+				}
+				return
+			}
+		}
+	}
 }
 
 type BuildReport struct {

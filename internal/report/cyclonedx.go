@@ -95,6 +95,15 @@ func CycloneDX(c *domain.AnalysisCase) ([]byte, error) {
 	case domain.VerdictNoExploitPathFound:
 		an.State = "not_affected"
 		an.Justification = "code_not_reachable"
+		switch c.Verdict.GroundBasis {
+		case domain.BasisDeclaredTrust, domain.BasisAutoPerimeter:
+			an.Justification = "protected_at_perimeter"
+		case domain.BasisConfigOrigin:
+			an.Justification = "protected_by_mitigating_control"
+		}
+		if c.Verdict.GroundBasis != "" {
+			an.Detail = reason + " (" + groundBasisText(c.Verdict.GroundBasis) + ")"
+		}
 	default:
 		an.State = "in_triage"
 		if an.Detail == "" {

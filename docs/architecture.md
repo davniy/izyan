@@ -261,11 +261,21 @@ flowchart TD
 
 ### 6.2. Классификация сетевого периметра (`ClassifyPerimeter`)
 Детерминированное сопоставление собранных фактов экспозиции (`domain.ExposureFact`):
-* **`cluster` (закрытый кластерный контур)**: все Service имеют тип `ClusterIP`, сетевые слушатели привязаны к `127.0.0.1` / `localhost` / `unix`, используются политики Istio `AuthorizationPolicy` / `RequestAuthentication`, внешние шлюзы `Ingress`, `LoadBalancer`, `NodePort` отсутствуют.
-* **`public` (публичный контур)**: обнаружены внешние `Ingress`, `Gateway`, `LoadBalancer`, `NodePort` или проброшенные порты `compose:published-port` на интерфейсах `0.0.0.0`.
-* **`unknown`**: манифесты развёртывания не обнаружены.
+* **`cluster` (закрытый кластерный контур)**: только при структурном доказательстве — атрибутированный продукту Service типа `ClusterIP` (либо все сетевые слушатели привязаны к `127.0.0.1` / `localhost` / `unix` и нет неразрешённых inbound-поверхностей). Mesh-политики и исходящие вызовы — лишь корроборация, самостоятельно периметр не устанавливают.
+* **`public` (публичный контур)**: обнаружены атрибутированные внешние `Ingress`, `Gateway`, `LoadBalancer`, `NodePort` или проброшенные порты `compose:published-port` на интерфейсах `0.0.0.0`.
+* **`unknown`**: манифесты развёртывания не обнаружены; либо найдены манифесты, которые нельзя атрибутировать продукту (шаблонизированное/отсутствующее имя) и содержащие объекты внешней маршрутизации — `Ingress`, `LoadBalancer` могут выставлять `ClusterIP`-сервис наружу и потому ветируют чтение `cluster`.
 
-### 6.3. Двухконтурный движок оценки (Dual-Track Assessment Engine)
+**Атрибуция манифестов (B35)**: каждый `ExposureFact` несёт `owner` — имя ресурса (`metadata.name` для k8s, ключ сервиса для compose, имя чарта `Chart.yaml` для шаблонизированных Helm-манифестов). Факт засчитывается в периметр только если `owner` совпадает с идентификатором продукта (basename модуля `go.mod`, имя бинаря, имя каталога репозитория); ресурсы чужих сервисов из общих GitOps-бандлов игнорируются.
+
+### 6.3. Основание доверия и гейт неполной модели
+Вердикт `NO_EXPLOIT_PATH_FOUND`, опирающийся на `FalsifierTrustedInfrastructure`, маркируется основанием (`verdict.ground_basis`):
+* `declared-trust` — заявленная оператором граница доверия (`--trusted-peer`, `--perimeter cluster`);
+* `auto-perimeter` — автоматически детектированная кластерная изоляция;
+* `config-origin` — все отслеженные входы резолвятся в локальную конфигурацию хоста.
+
+Основание экспортируется различимо: OpenVEX `justification=vulnerable_code_cannot_be_controlled_by_adversary`, CycloneDX `protected_at_perimeter`/`protected_by_mitigating_control` — trust-grounded негатив не читается как доказанный кодом. При operator-asserted основании и неполной exploit-модели (`UnresolvedSubjects`) вердикт кластерного профиля понижается до `INCONCLUSIVE`: заявление оператора не может снять не смоделированную форму эксплойта.
+
+### 6.4. Двухконтурный движок оценки (Dual-Track Assessment Engine)
 
 ```mermaid
 flowchart TD

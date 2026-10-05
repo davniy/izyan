@@ -42,6 +42,10 @@ var (
 	nodePortRe    = regexp.MustCompile(`^\s*-?\s*nodePort:\s*(\d+)\s*$`)
 	publishRe     = regexp.MustCompile(`^\s*-\s*"?(?:(\S+):)?(\d+):(\d+)"?\s*$`) // compose "[BIND:]HOST:CONTAINER"
 	publishedRe   = regexp.MustCompile(`^\s*-?\s*published:\s*"?(\d+)"?\s*$`)    // compose long syntax
+	metadataRe    = regexp.MustCompile(`^(\s*)metadata:\s*$`)
+	metaNameRe    = regexp.MustCompile(`^(\s*)name:\s*"?([^"'\s]+)"?\s*$`)
+	servicesRe    = regexp.MustCompile(`^(\s*)services:\s*$`)
+	svcKeyRe      = regexp.MustCompile(`^(\s*)([A-Za-z0-9._-]+):\s*$`)
 )
 
 // ingressKinds are Kubernetes-adjacent objects that publish inbound
@@ -177,7 +181,7 @@ func scanDeployRepo(root string) ([]domain.ExposureFact, error) {
 		if info, err := e.Info(); err != nil || info.Size() > 1<<20 {
 			return nil
 		}
-		facts, err := scanDeployFile(root, path)
+		facts, err := scanDeployFileOwner(root, path, chartOwner(root, path))
 		if err != nil {
 			return nil
 		}
@@ -185,6 +189,34 @@ func scanDeployRepo(root string) ([]domain.ExposureFact, error) {
 		return nil
 	})
 	return out, err
+}
+
+// chartOwner returns the Helm chart name governing path — the nearest
+// ancestor directory (within the scan root) containing a Chart.yaml.
+// Templated resource names inherit the chart identity.
+func chartOwner(root, path string) string {
+	dir := filepath.Dir(path)
+	rootAbs, _ := filepath.Abs(root)
+	for {
+		if dirAbs, _ := filepath.Abs(dir); rootAbs == "" || dirAbs == "" ||
+			len(dirAbs) < len(rootAbs) {
+			return ""
+		}
+		chartFile := filepath.Join(dir, "Chart.yaml")
+		if data, err := os.ReadFile(chartFile); err == nil {
+			for _, l := range strings.Split(string(data), "\n") {
+				l = strings.TrimSpace(l)
+				if strings.HasPrefix(l, "name:") {
+					return strings.Trim(strings.TrimSpace(strings.TrimPrefix(l, "name:")), `"'`)
+				}
+			}
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
 }
 
 func scanDeployDir(dir string) ([]domain.ExposureFact, error) {
@@ -210,7 +242,7 @@ func scanDeployDir(dir string) ([]domain.ExposureFact, error) {
 		if info, err := e.Info(); err != nil || info.Size() > 1<<20 {
 			return nil
 		}
-		facts, err := scanDeployFile(dir, path)
+		facts, err := scanDeployFileOwner(dir, path, chartOwner(dir, path))
 		if err != nil {
 			return nil
 		}
@@ -224,7 +256,7 @@ func dedupeFacts(facts []domain.ExposureFact) []domain.ExposureFact {
 	seen := make(map[string]bool, len(facts))
 	var out []domain.ExposureFact
 	for _, f := range facts {
-		key := f.Direction + "|" + f.Kind + "|" + f.Target + "|" + f.Address + "|" + f.Scope
+		key := f.Direction + "|" + f.Kind + "|" + f.Target + "|" + f.Address + "|" + f.Scope + "|" + f.Owner
 		if !seen[key] {
 			seen[key] = true
 			out = append(out, f)
@@ -256,7 +288,10 @@ func deployPath(root, path string) bool {
 	return false
 }
 
-func scanDeployFile(root, path string) ([]domain.ExposureFact, error) {
+// scanDeployFileOwner parses one manifest; fallbackOwner attributes facts
+// whose document/service name is absent or templated — the Helm chart
+// name scopes the file as a whole.
+func scanDeployFileOwner(root, path, fallbackOwner string) ([]domain.ExposureFact, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -270,11 +305,42 @@ func scanDeployFile(root, path string) ([]domain.ExposureFact, error) {
 	line := 0
 	svcLine := 0
 	sawSvcType := false
+	// Owner attribution: docOwner = the k8s resource's metadata.name of the
+	// current YAML document; svcOwner = the compose service key currently
+	// being parsed. Facts carry the owner so perimeter classification can
+	// attribute surfaces to the analyzed product (B35).
+	docOwner := ""
+	metaIndent := -1
+	docStartIdx := 0
+	svcOwner := ""
+	svcIndent := -1
+	isCompose := composeFileRe.MatchString(filepath.Base(path))
 
+	owner := func() string {
+		o := docOwner
+		if isCompose {
+			o = svcOwner
+		}
+		// Templated names (helm `{{ include ... }}`) are not identities —
+		// an unresolvable owner is unattributed, not foreign.
+		if strings.Contains(o, "{{") || strings.Contains(o, "$") {
+			return fallbackOwner
+		}
+		if o == "" {
+			return fallbackOwner
+		}
+		return o
+	}
 	flushService := func() {
 		if kind == "Service" && !sawSvcType && svcLine > 0 {
-			out = append(out, deployFactWithScope("k8s:Service:ClusterIP", "ClusterIP", rel, svcLine, domain.ScopeLoopback))
+			f := deployFactWithScope("k8s:Service:ClusterIP", "ClusterIP", rel, svcLine, domain.ScopeLoopback)
+			f.Owner = owner()
+			out = append(out, f)
 		}
+	}
+	emit := func(f domain.ExposureFact) {
+		f.Owner = owner()
+		out = append(out, f)
 	}
 
 	sc := bufio.NewScanner(f)
@@ -288,7 +354,42 @@ func scanDeployFile(root, path string) ([]domain.ExposureFact, error) {
 			kind = ""
 			svcLine = 0
 			sawSvcType = false
+			docOwner = ""
+			metaIndent = -1
+			docStartIdx = len(out)
 			continue
+		}
+		indent := len(text) - len(strings.TrimLeft(text, " \t"))
+		if isCompose {
+			if m := servicesRe.FindStringSubmatch(text); m != nil {
+				svcIndent = len(m[1])
+				svcOwner = ""
+			} else if svcIndent >= 0 && indent <= svcIndent && trimmed != "" {
+				svcIndent = -1
+				svcOwner = ""
+			} else if svcIndent >= 0 {
+				if m := svcKeyRe.FindStringSubmatch(text); m != nil && len(m[1]) == svcIndent+2 {
+					svcOwner = m[2]
+				}
+			}
+		} else {
+			if m := metadataRe.FindStringSubmatch(text); m != nil {
+				metaIndent = len(m[1])
+			} else if metaIndent >= 0 {
+				if m := metaNameRe.FindStringSubmatch(text); m != nil && len(m[1]) > metaIndent {
+					docOwner = m[2]
+					metaIndent = -1
+					// kind: precedes metadata.name — backfill the
+					// owner onto facts already emitted for this doc.
+					for i := docStartIdx; i < len(out); i++ {
+						if out[i].Owner == "" {
+							out[i].Owner = owner()
+						}
+					}
+				} else if trimmed != "" && !strings.HasPrefix(trimmed, "#") && indent <= metaIndent {
+					metaIndent = -1
+				}
+			}
 		}
 		if m := kindRe.FindStringSubmatch(text); m != nil {
 			flushService()
@@ -296,18 +397,18 @@ func scanDeployFile(root, path string) ([]domain.ExposureFact, error) {
 			svcLine = line
 			sawSvcType = false
 			if t, ok := ingressKinds[kind]; ok {
-				out = append(out, deployFact(t, "", rel, line))
+				emit(deployFact(t, "", rel, line))
 			} else if t, ok := authPolicyKinds[kind]; ok {
-				out = append(out, deployAuthFact(t, rel, line))
+				emit(deployAuthFact(t, rel, line))
 			}
 			continue
 		}
 		if m := hostPortRe.FindStringSubmatch(text); m != nil {
-			out = append(out, deployFact("k8s:hostPort", "hostPort="+m[1], rel, line))
+			emit(deployFact("k8s:hostPort", "hostPort="+m[1], rel, line))
 			continue
 		}
 		if hostNetRe.MatchString(text) {
-			out = append(out, deployFact("k8s:hostNetwork", "hostNetwork=true", rel, line))
+			emit(deployFact("k8s:hostNetwork", "hostNetwork=true", rel, line))
 			continue
 		}
 		if kind == "Service" {
@@ -315,15 +416,15 @@ func scanDeployFile(root, path string) ([]domain.ExposureFact, error) {
 				sawSvcType = true
 				switch m[1] {
 				case "LoadBalancer", "NodePort", "ExternalName":
-					out = append(out, deployFact("k8s:Service:"+m[1], m[1], rel, line))
+					emit(deployFact("k8s:Service:"+m[1], m[1], rel, line))
 				case "ClusterIP":
-					out = append(out, deployFactWithScope("k8s:Service:ClusterIP", m[1], rel, line, domain.ScopeLoopback))
+					emit(deployFactWithScope("k8s:Service:ClusterIP", m[1], rel, line, domain.ScopeLoopback))
 				}
 				continue
 			}
 			if m := nodePortRe.FindStringSubmatch(text); m != nil {
 				sawSvcType = true
-				out = append(out, deployFact("k8s:Service:NodePort", "nodePort="+m[1], rel, line))
+				emit(deployFact("k8s:Service:NodePort", "nodePort="+m[1], rel, line))
 			}
 			continue
 		}
@@ -337,7 +438,7 @@ func scanDeployFile(root, path string) ([]domain.ExposureFact, error) {
 		// Compose published ports: "- \"[BIND:]HOST:CONTAINER\"" entries and
 		// long-syntax "published:" keys. A loopback bind (127.0.0.1:8080:80)
 		// is internal evidence; any other or absent bind exposes the port.
-		if composeFileRe.MatchString(filepath.Base(path)) {
+		if isCompose {
 			if m := publishRe.FindStringSubmatch(text); m != nil {
 				addr := m[2] + ":" + m[3]
 				fact := deployFact("compose:published-port", addr, rel, line)
@@ -346,9 +447,9 @@ func scanDeployFile(root, path string) ([]domain.ExposureFact, error) {
 					fact.Address = addr
 					fact.Scope = Scope(m[1] + ":" + m[2])
 				}
-				out = append(out, fact)
+				emit(fact)
 			} else if m := publishedRe.FindStringSubmatch(text); m != nil {
-				out = append(out, deployFact("compose:published-port",
+				emit(deployFact("compose:published-port",
 					"published="+m[1], rel, line))
 			}
 		}

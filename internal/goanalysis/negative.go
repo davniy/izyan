@@ -425,8 +425,23 @@ func (v Verifier) verifyReachableFalse(ctx context.Context, c *domain.AnalysisCa
 			return setNeg(claim, nv)
 		}
 	}
+	checkSubjects := subjects
+	if claim.Falsifier == domain.FalsifierGovulncheckSilence && c != nil && c.Exploit != nil && len(c.Exploit.LocusSubjects) > 0 {
+		var locusOnly []domain.SymbolRef
+		for _, s := range subjects {
+			for _, ls := range c.Exploit.LocusSubjects {
+				if s == ls || (s.Symbol == ls.Symbol && (s.Package == "" || ls.Package == "" || s.Package == ls.Package)) {
+					locusOnly = append(locusOnly, s)
+					break
+				}
+			}
+		}
+		if len(locusOnly) > 0 {
+			checkSubjects = locusOnly
+		}
+	}
 	total := 0
-	for _, s := range subjects {
+	for _, s := range checkSubjects {
 		total += len(allSites[s.Package+"."+s.Symbol])
 	}
 	if total == 0 {
@@ -435,18 +450,18 @@ func (v Verifier) verifyReachableFalse(ctx context.Context, c *domain.AnalysisCa
 		// call sites are outside that scope; a member dead in the whole
 		// build while its receiver pipeline runs is a missing-call
 		// shape, where the absent call IS the vulnerable behavior.
-		if weak := v.checkDepInvocation(ctx, c, subjects); weak != "" {
+		if weak := v.checkDepInvocation(ctx, c, checkSubjects); weak != "" {
 			nv.Status = domain.NegativeInsufficientScope
 			nv.Notes = weak
 			return setNeg(claim, nv)
 		}
 		nv.Notes = fmt.Sprintf("none of %d affected symbol(s) is referenced in product code",
-			len(subjects))
+			len(checkSubjects))
 		return setNeg(claim, nv)
 	}
 	nv.Status = domain.NegativeInsufficientScope
 	nv.Notes = fmt.Sprintf("%d static reference(s) across %d subject(s) exist without a govulncheck path; "+
-		"cannot exclude dynamic dispatch or un-modeled entrypoints", total, len(subjects))
+		"cannot exclude dynamic dispatch or un-modeled entrypoints", total, len(checkSubjects))
 	return setNeg(claim, nv)
 }
 

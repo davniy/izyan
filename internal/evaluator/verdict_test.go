@@ -328,4 +328,3 @@ func TestVerdictNepfBlockedForLocusFunctionUnreachedWithUnmodeledSubject(t *test
 		t.Fatalf("got %s, want INCONCLUSIVE", got.Verdict)
 	}
 }
-

@@ -128,4 +128,3 @@ func TestConfigFlagPackageAbsent(t *testing.T) {
 		t.Fatalf("got claim=%+v, want FALSE package-absent", cl)
 	}
 }
-

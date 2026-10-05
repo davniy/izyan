@@ -114,10 +114,10 @@ func redact(raw string) string {
 
 // File describes one file touched by a unified diff.
 type File struct {
-	Path           string              `json:"path"`
-	Symbols        []string            `json:"symbols,omitempty"`        // pre-existing enclosing or modified function names
-	AddedSymbols   []string            `json:"added_symbols,omitempty"`  // functions newly introduced in the patch
-	GuardedSymbols []string            `json:"guarded_symbols,omitempty"`
+	Path           string   `json:"path"`
+	Symbols        []string `json:"symbols,omitempty"`       // pre-existing enclosing or modified function names
+	AddedSymbols   []string `json:"added_symbols,omitempty"` // functions newly introduced in the patch
+	GuardedSymbols []string `json:"guarded_symbols,omitempty"`
 	// GuardOperands maps each function to the operand expressions its
 	// added guards check — whether or not a faulting use was visible in
 	// hunk context. Callers verifying an enabler classification need the
@@ -378,4 +378,3 @@ func addAddedSymbol(f *File, name string) {
 	}
 	f.AddedSymbols = append(f.AddedSymbols, name)
 }
-

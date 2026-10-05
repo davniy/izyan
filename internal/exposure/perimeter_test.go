@@ -328,13 +328,65 @@ func TestClassifyPerimeter_AttributedClusterIP(t *testing.T) {
 			Target:    "k8s:Service:ClusterIP",
 			Address:   "ClusterIP",
 			Scope:     domain.ScopeLoopback,
-			Owner:     "myapp-svc",
+			Owner:     "myapp",
 		},
 	}
 
 	scope, _ := ClassifyPerimeter(facts, []string{"myapp"})
 	if scope != domain.PerimeterClusterInternal {
 		t.Fatalf("expected scope %q, got %q", domain.PerimeterClusterInternal, scope)
+	}
+}
+
+func TestClassifyPerimeter_SiblingPrefixClusterIPNotCredited(t *testing.T) {
+	// "myapp-db" shares our name prefix but is a sibling service: its
+	// ClusterIP must not ground OUR cluster-internal perimeter.
+	facts := []domain.ExposureFact{
+		{
+			CallSite:  domain.CallSite{File: "deploy/svc.yaml", Line: 5},
+			Direction: "inbound",
+			Kind:      "deployment",
+			Target:    "k8s:Service:ClusterIP",
+			Address:   "ClusterIP",
+			Scope:     domain.ScopeLoopback,
+			Owner:     "myapp-db",
+		},
+	}
+
+	scope, _ := ClassifyPerimeter(facts, []string{"myapp"})
+	if scope != domain.PerimeterUnknown {
+		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
+	}
+}
+
+func TestClassifyPerimeter_SiblingPrefixIngressVetoesCluster(t *testing.T) {
+	// An Ingress owned by a same-prefix sibling may or may not front us —
+	// backends are not parsed — so it blocks a cluster reading without
+	// establishing public exposure.
+	facts := []domain.ExposureFact{
+		{
+			CallSite:  domain.CallSite{File: "deploy/svc.yaml", Line: 5},
+			Direction: "inbound",
+			Kind:      "deployment",
+			Target:    "k8s:Service:ClusterIP",
+			Address:   "ClusterIP",
+			Scope:     domain.ScopeLoopback,
+			Owner:     "myapp",
+		},
+		{
+			CallSite:  domain.CallSite{File: "deploy/ingress.yaml", Line: 1},
+			Direction: "inbound",
+			Kind:      "deployment",
+			Target:    "k8s:Ingress",
+			Address:   "db.example.com",
+			Scope:     domain.ScopeAllInterfaces,
+			Owner:     "myapp-db",
+		},
+	}
+
+	scope, _ := ClassifyPerimeter(facts, []string{"myapp"})
+	if scope != domain.PerimeterUnknown {
+		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
 	}
 }
 

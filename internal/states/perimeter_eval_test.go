@@ -326,3 +326,102 @@ func TestEvaluateVerdict_AutoDetectedPerimeterGroundBasis(t *testing.T) {
 		t.Errorf("GroundBasis = %q, want %q", c.Verdict.GroundBasis, domain.BasisAutoPerimeter)
 	}
 }
+
+func TestEvaluateVerdict_ConfigOriginDoesNotCoverUnresolved(t *testing.T) {
+	// A config-origin trusted-infrastructure falsifier is proven against
+	// the *resolved* sinks' traced inputs; it constrains nothing about an
+	// unmodeled sink's inputs. On an incomplete model it must not ground
+	// NEPF — unlike a declared/auto perimeter basis, which asserts the
+	// trust boundary sink-agnostically.
+	c := &domain.AnalysisCase{
+		ID: "CASE-GATE-4",
+		Vulnerability: domain.Vulnerability{
+			ID:           "CVE-2026-GATE4",
+			BaseSeverity: "HIGH",
+		},
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{
+				{
+					ID:        "C-INPUT",
+					Kind:      domain.ConditionAttackerControl,
+					Mandatory: true,
+					Params: map[string]string{
+						domain.ParamInputSource: domain.InputPeer,
+					},
+				},
+			},
+			UnresolvedSubjects: []domain.SymbolRef{
+				{Package: "dep/pkg", Symbol: "Parse"},
+			},
+		},
+		Claims: []domain.Claim{
+			{
+				ID:             "CL-01",
+				ConditionID:    "C-INPUT",
+				Result:         domain.ClaimFalse,
+				Falsifier:      domain.FalsifierTrustedInfrastructure,
+				FalsifierBasis: domain.BasisConfigOrigin,
+				NegativeVerification: &domain.NegativeVerification{
+					Status: domain.NegativeVerified,
+				},
+				Producer: "test",
+			},
+		},
+		DetectedPerimeter: domain.PerimeterUnknown,
+	}
+
+	h := EvaluateVerdict{Evaluator: evaluator.VerdictEvaluator{}}
+	if _, err := h.Run(context.Background(), c); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if c.Verdict.Verdict != domain.VerdictInconclusive {
+		t.Fatalf("verdict = %s, want %s", c.Verdict.Verdict, domain.VerdictInconclusive)
+	}
+}
+
+func TestEvaluateVerdict_ConfigOriginCompleteModelStaysNEPF(t *testing.T) {
+	c := &domain.AnalysisCase{
+		ID: "CASE-GATE-5",
+		Vulnerability: domain.Vulnerability{
+			ID:           "CVE-2026-GATE5",
+			BaseSeverity: "HIGH",
+		},
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{
+				{
+					ID:        "C-INPUT",
+					Kind:      domain.ConditionAttackerControl,
+					Mandatory: true,
+					Params: map[string]string{
+						domain.ParamInputSource: domain.InputPeer,
+					},
+				},
+			},
+		},
+		Claims: []domain.Claim{
+			{
+				ID:             "CL-01",
+				ConditionID:    "C-INPUT",
+				Result:         domain.ClaimFalse,
+				Falsifier:      domain.FalsifierTrustedInfrastructure,
+				FalsifierBasis: domain.BasisConfigOrigin,
+				NegativeVerification: &domain.NegativeVerification{
+					Status: domain.NegativeVerified,
+				},
+				Producer: "test",
+			},
+		},
+		DetectedPerimeter: domain.PerimeterUnknown,
+	}
+
+	h := EvaluateVerdict{Evaluator: evaluator.VerdictEvaluator{}}
+	if _, err := h.Run(context.Background(), c); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if c.Verdict.Verdict != domain.VerdictNoExploitPathFound {
+		t.Fatalf("verdict = %s, want %s", c.Verdict.Verdict, domain.VerdictNoExploitPathFound)
+	}
+	if c.Verdict.GroundBasis != domain.BasisConfigOrigin {
+		t.Errorf("GroundBasis = %q, want %q", c.Verdict.GroundBasis, domain.BasisConfigOrigin)
+	}
+}

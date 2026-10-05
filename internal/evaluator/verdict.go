@@ -77,7 +77,7 @@ func (VerdictEvaluator) Evaluate(affected domain.AffectedResult, model domain.Ex
 				// input/constraint/pair falsifiers bind just the resolved
 				// subjects.
 				if len(model.UnresolvedSubjects) > 0 &&
-					!coversAllDeclared(claim.Falsifier) &&
+					!coversAllDeclared(claim) &&
 					!locusCoversUnresolved(claim.Falsifier, condition, model) {
 					continue
 				}
@@ -131,9 +131,18 @@ func (VerdictEvaluator) Evaluate(affected domain.AffectedResult, model domain.Ex
 // is incomplete (UnresolvedSubjects non-empty). The grouped reachability
 // falsifiers evaluate the union of declared symbols; falsifiers bound to
 // resolved-sink arguments, readers or pair members leave the unmodeled
-// sink's exploit shape unconstrained.
-func coversAllDeclared(falsifier string) bool {
-	switch falsifier {
+// sink's exploit shape unconstrained. A config-origin trusted-infrastructure
+// claim is verified against the *resolved* sinks' traced inputs only — it
+// constrains nothing about an unmodeled sink's inputs and therefore does
+// not cover unresolved subjects, unlike a declared/auto-detected perimeter
+// basis which asserts the trust boundary sink-agnostically.
+func coversAllDeclared(claim domain.Claim) bool {
+	if claim.Falsifier == domain.FalsifierTrustedInfrastructure &&
+		claim.FalsifierBasis != domain.BasisDeclaredTrust &&
+		claim.FalsifierBasis != domain.BasisAutoPerimeter {
+		return false
+	}
+	switch claim.Falsifier {
 	case domain.FalsifierGovulncheckSilence,
 		domain.FalsifierNoModuleUsage,
 		domain.FalsifierUnreachedExportedSubject,

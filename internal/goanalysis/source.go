@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -176,12 +175,14 @@ type Index struct {
 	extrasGen int
 	// lastFreeOS throttles the post-eviction FreeOSMemory sweep — it is
 	// a full GC plus madvise, far too expensive to run per load.
-	lastFreeOS   time.Time
-	fset         *token.FileSet
-	loaded       bool
-	loadErr      error
-	modCacheOnce sync.Once
-	modCache     string
+	lastFreeOS     time.Time
+	fset           *token.FileSet
+	loaded         bool
+	loadErr        error
+	skippedPkgs    []string
+	skippedImports map[string][]string
+	modCacheOnce   sync.Once
+	modCache       string
 	// importers caches the reverse import index of the full dependency
 	// closure for depSiteLive's cross-module-caller bound (lazily built,
 	// no syntax — import edges only).
@@ -201,7 +202,11 @@ func buildEnv(build domain.ProductSnapshot) []string {
 	if build.GOARCH != "" {
 		env = append(env, "GOARCH="+build.GOARCH)
 	}
-	env = append(env, "CGO_ENABLED="+strconv.FormatBool(build.CGOEnabled))
+	cgo := "0"
+	if build.CGOEnabled {
+		cgo = "1"
+	}
+	env = append(env, "CGO_ENABLED="+cgo)
 	return env
 }
 
@@ -236,11 +241,43 @@ func (ix *Index) load(ctx context.Context) error {
 	if len(ix.Build.BuildTags) > 0 {
 		cfg.BuildFlags = []string{"-tags", strings.Join(ix.Build.BuildTags, ",")}
 	}
-	ix.pkgs, ix.loadErr = packages.Load(cfg, "./...")
-	if ix.loadErr == nil && packages.PrintErrors(ix.pkgs) > 0 {
-		ix.loadErr = fmt.Errorf("package loading produced errors (incomplete type information)")
+	rawPkgs, err := packages.Load(cfg, "./...")
+	if err != nil {
+		ix.loadErr = err
+		return ix.loadErr
 	}
-	return ix.loadErr
+	var validPkgs []*packages.Package
+	var errPkgs []string
+	skippedImports := make(map[string][]string)
+
+	for _, p := range rawPkgs {
+		if len(p.Errors) > 0 || p.TypesInfo == nil {
+			errPkgs = append(errPkgs, p.PkgPath)
+			for impPath := range p.Imports {
+				skippedImports[impPath] = append(skippedImports[impPath], p.PkgPath)
+			}
+			continue
+		}
+		validPkgs = append(validPkgs, p)
+	}
+
+	if len(validPkgs) == 0 && len(rawPkgs) > 0 {
+		ix.loadErr = fmt.Errorf("all %d packages failed to load (incomplete type information)", len(rawPkgs))
+		return ix.loadErr
+	}
+	ix.pkgs = validPkgs
+	ix.skippedPkgs = errPkgs
+	ix.skippedImports = skippedImports
+	return nil
+}
+
+// SkippedPackagesImporting returns the names of any product packages that failed to
+// type-check during index load and directly import targetPkg.
+func (ix *Index) SkippedPackagesImporting(targetPkg string) []string {
+	if ix == nil || ix.skippedImports == nil {
+		return nil
+	}
+	return ix.skippedImports[targetPkg]
 }
 
 // ctxOr prefers the caller's context; a bare Background (internal helpers

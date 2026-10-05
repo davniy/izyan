@@ -133,4 +133,3 @@ index 111..222 100644
 		t.Fatalf("f.AddedSymbols missing Channel.validateQos: %+v", f.AddedSymbols)
 	}
 }
-

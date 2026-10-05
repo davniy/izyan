@@ -83,9 +83,37 @@ func (r Resolver) Resolve(ctx context.Context, _ *domain.AnalysisCase, v domain.
 				})
 			}
 		}
-		if len(model.Alternatives) > 0 && len(model.RootCauses) == 0 {
-			model.RootCauses = model.Alternatives
-			model.Alternatives = nil
+		if len(model.Alternatives) > 0 {
+			if len(model.RootCauses) == 0 {
+				model.RootCauses = model.Alternatives
+				model.Alternatives = nil
+			} else {
+				// Coarse multi-symbol advisory: if the fix commit specifically modifies
+				// a strict subset of the advisory declared symbols, isolate the fix-modified
+				// symbols as the authoritative defect locus (RootCauses), and demote the
+				// untouched package utilities to Alternatives.
+				var fixMatched []domain.RootCause
+				var untouched []domain.RootCause
+				for _, rc := range model.RootCauses {
+					matched := false
+					for _, alt := range model.Alternatives {
+						if matchSymbolRef(alt.Symbol, rc.Symbol) && (alt.Package == rc.Package || alt.Package == "" || rc.Package == "") {
+							matched = true
+							break
+						}
+					}
+					if matched {
+						rc.Mechanism = fmt.Sprintf("advisory symbol confirmed by fix commit %s", ref.URL)
+						fixMatched = append(fixMatched, rc)
+					} else {
+						untouched = append(untouched, rc)
+					}
+				}
+				if len(fixMatched) > 0 && len(untouched) > 0 {
+					model.RootCauses = fixMatched
+					model.Alternatives = untouched
+				}
+			}
 		}
 		break // one authoritative patch is enough
 	}
@@ -212,4 +240,17 @@ func inAffectedPackages(rc domain.RootCause, v domain.Vulnerability) bool {
 		}
 	}
 	return false
+}
+
+func matchSymbolRef(s1, s2 string) bool {
+	norm := func(s string) string {
+		s = strings.TrimPrefix(s, "(*")
+		s = strings.TrimPrefix(s, "*")
+		s = strings.ReplaceAll(s, ")*", "")
+		s = strings.ReplaceAll(s, ")", "")
+		s = strings.ReplaceAll(s, "(", "")
+		return s
+	}
+	n1, n2 := norm(s1), norm(s2)
+	return n1 == n2 || strings.HasSuffix(n1, "."+n2) || strings.HasSuffix(n2, "."+n1)
 }

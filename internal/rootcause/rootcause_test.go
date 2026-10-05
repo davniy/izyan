@@ -43,6 +43,35 @@ func TestResolveFromAdvisorySymbols(t *testing.T) {
 	}
 }
 
+func TestResolveNarrowsCoarseAdvisorySymbolsByFix(t *testing.T) {
+	v := depVuln()
+	v.AffectedSymbols = []domain.SymbolRef{
+		{Package: "example.com/dep/vuln", Symbol: "Parse"},
+		{Package: "example.com/dep/vuln", Symbol: "Bytes"},
+		{Package: "example.com/dep/vuln", Symbol: "String"},
+	}
+	p := &fakePatch{out: `diff --git a/vuln/vuln.go b/vuln/vuln.go
+index 1..2 100644
+--- a/vuln/vuln.go
++++ b/vuln/vuln.go
+@@ -5,3 +5,4 @@ func Parse(s string) (string, error) {
+-	return s, nil
++	if s == "" { return "", errors.New("empty") }
++	return s, nil
+`}
+	r := Resolver{Patch: p}
+	m, _, err := r.Resolve(context.Background(), &domain.AnalysisCase{}, v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.RootCauses) != 1 || m.RootCauses[0].Symbol != "Parse" {
+		t.Fatalf("expected RootCauses to narrow to [Parse], got: %+v", m.RootCauses)
+	}
+	if len(m.Alternatives) != 2 {
+		t.Fatalf("expected 2 untouched symbols in Alternatives, got: %+v", m.Alternatives)
+	}
+}
+
 type fakePatch struct {
 	out string
 	err error

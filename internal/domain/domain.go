@@ -199,6 +199,12 @@ type RootCause struct {
 	Role        RootCauseRole `json:"role"`
 	Mechanism   string        `json:"mechanism"`
 	EvidenceIDs []EvidenceID  `json:"evidence_ids,omitempty"`
+	// Absent marks a candidate whose package is proven absent from the
+	// product's build graph (`go list -deps`): the symbol is unresolved in
+	// source because the defect code is not linked in — resolved by
+	// absence, not a verification failure. It is kept in RootCauses so
+	// reachability evaluation can falsify mandatory conditions on it.
+	Absent bool `json:"absent,omitempty"`
 }
 
 type RootCauseModel struct {
@@ -379,12 +385,20 @@ type ExploitModel struct {
 	MandatoryConditions []Condition `json:"mandatory_conditions"`
 	SupportingFactors   []Condition `json:"supporting_factors,omitempty"`
 	// UnresolvedSubjects are advisory-declared sinks that failed source
-	// verification — the modeled conditions cover only the resolved sinks,
-	// so EXPLOITABLE would overclaim completeness. A non-empty list turns
-	// the verdict INCONCLUSIVE with the missing subjects named; a verified
-	// FALSE on the grouped reachability condition still grounds
+	// verification or were resolved by package absence — the modeled
+	// conditions cover only the verified-present sinks, so EXPLOITABLE
+	// would overclaim completeness. A non-empty list turns the verdict
+	// INCONCLUSIVE with the missing subjects named; a verified FALSE on
+	// the grouped reachability condition still grounds
 	// NO_EXPLOIT_PATH_FOUND because it covers every declared symbol.
 	UnresolvedSubjects []SymbolRef `json:"unresolved_subjects,omitempty"`
+	// AbsentSubjects is the subset of UnresolvedSubjects whose package
+	// absence from the build graph is verified by package-list evidence
+	// (RootCause.Absent). Unlike genuinely unmodeled sinks these have no
+	// unexplored exploit shape — the defect code is provably not linked —
+	// so checks that demote on "unmodeled" subjects (e.g. the declared-trust
+	// perimeter demotion) must not count them.
+	AbsentSubjects []SymbolRef `json:"absent_subjects,omitempty"`
 	// LocusSubjects names the defect-locus set L: advisory-declared symbols
 	// whose package membership the locus-package-absent falsifier must
 	// cover (spec §8). The machine never proves a declared symbol is not a
@@ -510,6 +524,12 @@ const (
 	// linked in and cannot execute through any path, including wrappers,
 	// callbacks and dynamic dispatch.
 	FalsifierLocusPackageAbsent = "locus-package-absent"
+	// FalsifierPackageAbsent grounds FALSE for any subject-bearing
+	// condition (reachability, input): every evaluated subject's package
+	// is absent from the product's build graph (`go list -deps`), so no
+	// call path or data flow into the defect code exists. Same premise as
+	// locus-package-absent, applied to non-locus conditions.
+	FalsifierPackageAbsent = "package-absent"
 	// FalsifierLocusFunctionUnreached grounds FALSE for a locus-reachability
 	// condition: locus packages are present in the product's build graph, but
 	// the vulnerable functions have no observed call traces or module chains,

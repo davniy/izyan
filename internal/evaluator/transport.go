@@ -37,6 +37,36 @@ func (ServerTransportInput) Evaluate(cond domain.Condition, c *domain.AnalysisCa
 
 		Producer: "evaluator.ServerTransportInput",
 	}
+	// Subjects whose packages are not linked into the build graph cannot
+	// consume peer input — absence outranks declared-trust (code-level
+	// proof vs operator assertion) and blocks the unexported+peer-driven
+	// TRUE heuristic below from firing on code that is not present.
+	if set, ids, err := packageImportSet(c); err == nil {
+		subjects := append([]domain.SymbolRef{}, cond.Subjects...)
+		if cond.Subject != nil {
+			subjects = append(subjects, *cond.Subject)
+		}
+		if len(subjects) > 0 {
+			allAbsent := true
+			var pkgs []string
+			for _, s := range subjects {
+				if s.Package == "" || set[s.Package] {
+					allAbsent = false
+				} else {
+					pkgs = appendUnique(pkgs, s.Package)
+				}
+			}
+			if allAbsent {
+				claim.Result = domain.ClaimFalse
+				claim.Falsifier = domain.FalsifierPackageAbsent
+				claim.EvidenceIDs = ids
+				claim.Explanation = fmt.Sprintf(
+					"all subject package(s) (%s) are absent from the product's build graph (go list -deps); no transport input can reach defect code that is not linked in",
+					strings.Join(pkgs, ", "))
+				return claim
+			}
+		}
+	}
 	if c.Product.TrustedPeer && wantsPeerInput(cond, c.Vulnerability) {
 		claim.Result = domain.ClaimFalse
 		claim.Falsifier = domain.FalsifierTrustedInfrastructure
@@ -91,7 +121,7 @@ func (ServerTransportInput) Evaluate(cond domain.Condition, c *domain.AnalysisCa
 		// input_source=peer or inferred from remote-input wording.
 		// Usage sites are filtered to the subject-owning modules — a call
 		// into a different linked module is no evidence here either.
-		if subs := reachabilitySubjects(cond, c); subs != nil && allUnexported(subs) &&
+		if subs := linkedOnly(c, reachabilitySubjects(cond, c)); len(subs) > 0 && allUnexported(subs) &&
 			wantsPeerInput(cond, c.Vulnerability) {
 			usages, _ := subjectModuleUsages(c, subs)
 			if len(usages) == 0 {

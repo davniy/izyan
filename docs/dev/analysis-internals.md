@@ -15,7 +15,7 @@ harness, tool audit, экспорты, известные границы.
 | SNAPSHOT_PRODUCT | `go version`, `go.mod` (`GoModDirective`), флаги | `ProductSnapshot` — toolchain, GOOS/GOARCH, `--release-go-version`, `--binary` |
 | RESOLVE_VULNERABILITY | OSV API / `--vuln-file` | `Vulnerability` + алиас-дотягивание GO-* документа |
 | CHECK_AFFECTED | `go list -m all` + `vendor/modules.txt`, `go list -deps ./...`, `x/mod/semver` | `AffectedResult`: module/version/package/build — каждый факт с evidence; multi-module advisory: `SelectedModules` — все linked-модули, pending-entries (модуль в графе, версия нерезолвабельна) проходят package-пробу и попадают в `PendingModules`, а `VersionAffected`/`ResolvedVersion` атрибутятся только к подтверждённо-linked модулю |
-| RESOLVE_ROOT_CAUSE | advisory `affected_symbols` → fix-commit diff → LLM-retry | верифицированные sink-символы (каждый проверен `FindSymbol` в dep source) |
+| RESOLVE_ROOT_CAUSE | advisory `affected_symbols` → fix-commit diff → LLM-retry | верифицированные sink-символы (каждый проверен `FindSymbol` в dep source). Кандидат, чей пакет отсутствует в `go list -deps` evidence, резолвится как `RootCause.Absent` — отсутствие кода дефекта в сборке это факт, а не провал верификации; символ в присутствующем пакете, который не находится, остаётся `Unverified` |
 | BUILD_EXPLOIT_MODEL | `Classify` → pattern из `exploit.Registry` → LLM → generic fallback | `ExploitModel` — класс + mandatory conditions с `Subjects`/`Params` |
 | COLLECT_EVIDENCE | govulncheck + `goanalysis.Index` | `EvidenceGraph`: call paths, data flows, entrypoints, module usages, limitations |
 | EVALUATE_CONDITIONS | evaluators chain | `Claim{TRUE/FALSE/UNKNOWN}` per condition |
@@ -173,9 +173,9 @@ composite-literal ключи матчатся по declaring struct); `sequence=
 
 | Evaluator | Обрабатывает | Логика |
 |---|---|---|
-| `SymbolReachable` | `SYMBOL_REACHABLE` | govulncheck-трейсы → TRUE; `ModuleReachable`-цепочка → TRUE; covered+нет пути+все субъекты в `AffectedSymbols` → FALSE-кандидат; иначе (not_in_db/не запустился/undeclared subjects) → module-usage fallback. Param-ветки: `direction=read` → product-refs из `SymbolRefs` (INFO_LEAK); `sequence=a->b` → все члены пары вызваны (URI_CONFUSION) |
+| `SymbolReachable` | `SYMBOL_REACHABLE` | До трейс-логики — presence split по `go list -deps`: все пакеты субъектов вне графа сборки → FALSE `package-absent`; часть отсутствует → отсутствующие субъекты FALSE-covered, решение по linked-пакетам; список не собран/не декодирован → unknown, не отсутствие. Далее: govulncheck-трейсы → TRUE; `ModuleReachable`-цепочка → TRUE; covered+нет пути+все субъекты в `AffectedSymbols` → FALSE-кандидат; иначе (not_in_db/не запустился/undeclared subjects) → module-usage fallback. Param-ветки: `direction=read` → product-refs из `SymbolRefs` (INFO_LEAK); `sequence=a->b` → все члены пары вызваны (URI_CONFUSION) |
 | `ServerTransportInput` | `ATTACKER_CONTROL`, `INPUT_CONSTRAINT` | server-фреймы уязвимого модуля в трейсе + listener-entrypoints → TRUE; client-side: module usage + unexported subjects + peer-input → TRUE (`input_source=peer` в params или remote-input в тексте); `input_source=arg/config` — сразу `ArgumentOrigin` |
-| `ArgumentOrigin` | `ATTACKER_CONTROL` | `DataFlows`: external origin → TRUE; все non-external → FALSE-кандидат |
+| `ArgumentOrigin` | `ATTACKER_CONTROL` | `DataFlows`: external origin → TRUE; все non-external → FALSE-кандидат. Все пакеты subjects вне графа сборки → FALSE `package-absent` (поток в нелинкованный код невозможен) |
 | `Validation` | `INPUT_CONSTRAINT` | `FindValidations` — guard-выражения до sink |
 | `Presence` | `check=symbol_present` | `SymbolDecls`: subject объявлен в dep source → TRUE; проверен и отсутствует → FALSE-кандидат (INFO_LEAK) |
 | `Exposure` | `check=exposure` | `Exposures`: факты есть → TRUE (перечисление + scope, caveat'ы в limitations); фактов нет или скан не запускался → UNKNOWN — FALSE не выдаётся никогда: отсутствие listener/dial-сайта в коде не доказывает недостижимость (proxy/ingress вне кода) |
@@ -239,6 +239,13 @@ FALSE-кандидат проходит `Verifier` до того, как вер�
 - Параметрические check-условия (`config_flag`/`config_key`/`exposure`/
   `symbol_present`) NV не проверяет subject-escape правилами — их FALSE
   фальсифицируется собственным evidence; вердикт — INSUFFICIENT_SCOPE.
+- `locus-package-absent` и `package-absent` проверяются по persisted
+  `go list -deps` evidence (`verifyLocusAbsent`): все пакеты subjects
+  должны отсутствовать в графе; найденный linked-пакет → CONTRADICTED;
+  недекодируемый/отсутствующий список → INSUFFICIENT_SCOPE; файлы,
+  импортирующие пакеты subjects, но исключённые текущим build-context
+  (теги/GOOS/GOARCH/cgo) → INSUFFICIENT_SCOPE — отсутствие доказано
+  только в границах записанной конфигурации сборки.
 - **Scope-расширение** (после VERIFIED любой стратегией —
   `extendNegativeScope`): `GatedRefs` ищет ссылки на subject в файлах,
   исключённых текущими build tags (`pkg.IgnoredFiles`, без `_test.go`),
@@ -383,6 +390,10 @@ Trust-grounded NEPF (`FalsifierTrustedInfrastructure`) дополнительн�
 гейтится полнотой модели: при operator-asserted основании и непустых
 `UnresolvedSubjects` кластерный профиль понижается до INCONCLUSIVE —
 заявление оператора покрывает только смоделированные условия.
+Из подсчёта исключаются `AbsentSubjects` (⊆ `UnresolvedSubjects`):
+субъекты, чьё отсутствие в графе сборки верифицировано package-list
+evidence (`RootCause.Absent`), не несут «unmodeled exploit shape» —
+их shape опровергнут нелинкованностью дефектного кода.
 Основание `config-origin` (и любое non-perimeter) в `coversAllDeclared`
 не участвует: provenance верифицирован против входов разрешённых
 sink'ов и ничего не говорит о входах неразрешённого субъекта, поэтому

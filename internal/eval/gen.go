@@ -7,12 +7,14 @@
 package eval
 
 import (
+	"archive/tar"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -206,4 +208,97 @@ func sanitizeFileName(s string) string {
 			return '-'
 		}
 	}, s)
+}
+
+// MaterializeRef extracts a repo-type case's pinned git ref into
+// genRoot/wt-<sanitized-id> via `git archive`. Unlike `git worktree` or
+// checkout it never mutates the source repository — no worktree entry,
+// no branch switching. The produced tree carries no .git metadata; the
+// analyzer's commit-derived fields degrade to an honest limitation.
+// A resolved ref+tree signature is cached under .gen-ref-sig so re-runs
+// reuse the extraction.
+func (g Gen) MaterializeRef(ctx context.Context, repoDir, ref, genRoot, name string) (string, error) {
+	dst := filepath.Join(genRoot, "wt-"+sanitizeFileName(name))
+	sig := repoDir + "@" + ref
+	sigPath := filepath.Join(dst, ".gen-ref-sig")
+	if old, err := os.ReadFile(sigPath); err == nil && string(old) == sig && !g.Force {
+		return dst, nil
+	}
+	tmp := dst + ".tmp"
+	if err := os.RemoveAll(tmp); err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(tmp, 0o755); err != nil {
+		return "", err
+	}
+	cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "archive", "--format=tar", ref)
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", err
+	}
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("git archive %s@%s: %w", repoDir, ref, err)
+	}
+	extractErr := extractTarStream(out, tmp)
+	if extractErr != nil {
+		// The child may be blocked writing to a pipe nobody drains —
+		// drain it so Wait() returns instead of deadlocking.
+		_, _ = io.Copy(io.Discard, out)
+	}
+	waitErr := cmd.Wait()
+	if extractErr != nil {
+		return "", extractErr
+	}
+	if waitErr != nil {
+		return "", fmt.Errorf("git archive %s@%s: %w", repoDir, ref, waitErr)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, ".gen-ref-sig"), []byte(sig), 0o644); err != nil {
+		return "", err
+	}
+	if err := os.RemoveAll(dst); err != nil {
+		return "", err
+	}
+	return dst, os.Rename(tmp, dst)
+}
+
+// extractTarStream writes a tar stream to dst, guarding against path
+// traversal (same invariant as the deploy-archive scanner).
+func extractTarStream(r io.Reader, dst string) error {
+	tr := tar.NewReader(r)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		rel := filepath.Clean(hdr.Name)
+		if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+			return fmt.Errorf("unsafe path in archive: %s", hdr.Name)
+		}
+		target := filepath.Join(dst, rel)
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(target, 0o755); err != nil {
+				return err
+			}
+		case tar.TypeReg:
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return err
+			}
+			f, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+			if err != nil {
+				return err
+			}
+			if _, err := io.Copy(f, tr); err != nil {
+				f.Close()
+				return err
+			}
+			if err := f.Close(); err != nil {
+				return err
+			}
+		}
+	}
 }

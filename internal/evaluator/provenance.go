@@ -30,6 +30,28 @@ func (ArgumentOrigin) Evaluate(cond domain.Condition, c *domain.AnalysisCase) do
 
 		Producer: "evaluator.ArgumentOrigin",
 	}
+	// A sink whose package is not linked into the build graph cannot
+	// receive any input — absence falsifies the input condition outright.
+	if set, ids, err := packageImportSet(c); err == nil && len(cond.Subjects) > 0 {
+		allAbsent := true
+		var pkgs []string
+		for _, s := range cond.Subjects {
+			if s.Package == "" || set[s.Package] {
+				allAbsent = false
+			} else {
+				pkgs = appendUnique(pkgs, s.Package)
+			}
+		}
+		if allAbsent {
+			claim.Result = domain.ClaimFalse
+			claim.Falsifier = domain.FalsifierPackageAbsent
+			claim.EvidenceIDs = ids
+			claim.Explanation = fmt.Sprintf(
+				"all subject package(s) (%s) are absent from the product's build graph (go list -deps); no data flow can reach defect code that is not linked in",
+				strings.Join(pkgs, ", "))
+			return claim
+		}
+	}
 	flows := flowsFor(c, cond.ID)
 	if len(flows) == 0 {
 		claim.Limitations = append(claim.Limitations,

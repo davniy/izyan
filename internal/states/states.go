@@ -212,7 +212,7 @@ func (h ResolveRootCause) Run(ctx context.Context, c *domain.AnalysisCase) (work
 		}
 		if h.Verifier != nil {
 			c.RootCause.Limitations = append(c.RootCause.Limitations,
-				h.Verifier.Verify(ctx, c.RootCause, c.Vulnerability)...)
+				h.Verifier.Verify(ctx, c, c.RootCause, c.Vulnerability)...)
 			if c.RootCause.Status != domain.RootCauseResolved {
 				return workflow.Transition{
 					Next:   domain.StateInconclusive,
@@ -237,7 +237,7 @@ func (h ResolveRootCause) Run(ctx context.Context, c *domain.AnalysisCase) (work
 	}
 	if h.Verifier != nil && len(model.RootCauses) > 0 {
 		model.Limitations = append(model.Limitations,
-			h.Verifier.Verify(ctx, model, c.Vulnerability)...)
+			h.Verifier.Verify(ctx, c, model, c.Vulnerability)...)
 	}
 	c.RootCause = model
 	c.EvidenceGraph.ComputeHash()
@@ -251,7 +251,7 @@ func (h ResolveRootCause) Run(ctx context.Context, c *domain.AnalysisCase) (work
 			if err == nil && len(props) > 0 {
 				model.RootCauses = props
 				model.Limitations = append(model.Limitations,
-					h.Verifier.Verify(ctx, model, c.Vulnerability)...)
+					h.Verifier.Verify(ctx, c, model, c.Vulnerability)...)
 				if len(model.RootCauses) > 0 {
 					model.Status = domain.RootCauseResolved
 				}
@@ -1669,25 +1669,38 @@ func (h EvaluateVerdict) Run(_ context.Context, c *domain.AnalysisCase) (workflo
 	// An operator assertion cannot discharge sinks the exploit model
 	// never resolved: a perimeter-rewritten FALSE covers only the modeled
 	// conditions. With unresolved advisory subjects the unmodeled exploit
-	// shape stays unproven — demote to INCONCLUSIVE. Auto-detected
-	// perimeter rests on structural deploy facts and is allowed through.
-	if vCP.Verdict == domain.VerdictNoExploitPathFound && operatorAsserted &&
-		len(model.UnresolvedSubjects) > 0 {
-		demote := false
-		for _, cid := range vCP.ConditionIDs {
-			for i := range claimsCP {
-				if claimsCP[i].ConditionID == cid && rewritten[i] {
-					demote = true
-				}
+	// shape stays unproven — demote to INCONCLUSIVE. Subjects proven
+	// absent from the build graph carry no unexplored exploit shape and
+	// do not trigger the demotion. Auto-detected perimeter rests on
+	// structural deploy facts and is allowed through.
+	if vCP.Verdict == domain.VerdictNoExploitPathFound && operatorAsserted {
+		absent := make(map[domain.SymbolRef]bool, len(model.AbsentSubjects))
+		for _, s := range model.AbsentSubjects {
+			absent[s] = true
+		}
+		var unmodeled []domain.SymbolRef
+		for _, s := range model.UnresolvedSubjects {
+			if !absent[s] {
+				unmodeled = append(unmodeled, s)
 			}
 		}
-		if demote {
-			vCP.Verdict = domain.VerdictInconclusive
-			vCP.Reason = fmt.Sprintf(
-				"cluster-perimeter verdict rests on a declared trust boundary, but %d advisory-declared subject(s) are unresolved: an operator assertion cannot discharge an unmodeled exploit shape",
-				len(model.UnresolvedSubjects))
-			vCP.ConditionIDs = nil
-			vCP.EvidenceIDs = nil
+		if len(unmodeled) > 0 {
+			demote := false
+			for _, cid := range vCP.ConditionIDs {
+				for i := range claimsCP {
+					if claimsCP[i].ConditionID == cid && rewritten[i] {
+						demote = true
+					}
+				}
+			}
+			if demote {
+				vCP.Verdict = domain.VerdictInconclusive
+				vCP.Reason = fmt.Sprintf(
+					"cluster-perimeter verdict rests on a declared trust boundary, but %d advisory-declared subject(s) are unresolved: an operator assertion cannot discharge an unmodeled exploit shape",
+					len(unmodeled))
+				vCP.ConditionIDs = nil
+				vCP.EvidenceIDs = nil
+			}
 		}
 	}
 

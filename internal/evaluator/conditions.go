@@ -65,6 +65,39 @@ func (SymbolReachable) Evaluate(cond domain.Condition, c *domain.AnalysisCase) d
 		return claim
 	}
 
+	// Package absence is the strongest negative basis: a subject whose
+	// package never entered `go list -deps` cannot be reached through any
+	// path — no trace, dispatch, or wrapper can execute code that is not
+	// linked in. Split presence before any trace/module-usage logic so an
+	// absent subject cannot produce a FALSE-positive TRUE (e.g. inferred
+	// reach via a used sibling package) nor drown a proven negative.
+	if set, ids, err := packageImportSet(c); err == nil {
+		var present []domain.SymbolRef
+		var absentPkgs []string
+		for _, s := range symbols {
+			if s.Package != "" && !set[s.Package] {
+				absentPkgs = appendUnique(absentPkgs, s.Package)
+				continue
+			}
+			present = append(present, s)
+		}
+		if len(present) == 0 {
+			claim.Result = domain.ClaimFalse
+			claim.Falsifier = domain.FalsifierPackageAbsent
+			claim.EvidenceIDs = ids
+			claim.Explanation = fmt.Sprintf(
+				"all %d subject package(s) (%s) are absent from the product's build graph (go list -deps); defect code is not linked in",
+				len(symbols), strings.Join(absentPkgs, ", "))
+			return claim
+		}
+		if len(absentPkgs) > 0 {
+			claim.Limitations = append(claim.Limitations, fmt.Sprintf(
+				"%d subject(s) resolved absent from the build graph (%s); reachability decided over linked packages only",
+				len(symbols)-len(present), strings.Join(absentPkgs, ", ")))
+			symbols = present
+		}
+	}
+
 	if !govulncheckRan(c) {
 		claim.Limitations = append(claim.Limitations,
 			"govulncheck did not run or failed; reachability inferred from module-usage evidence only")
@@ -674,6 +707,23 @@ func reachabilitySubjects(cond domain.Condition, c *domain.AnalysisCase) []domai
 	// code, so a trace reaching any of them proves reachability.
 	for _, s := range c.Vulnerability.AffectedSymbols {
 		if !containsSymbol(out, s) {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// linkedOnly drops subjects whose packages are absent from the persisted
+// build-graph evidence. When the package list is missing or undecodable the
+// input is returned unchanged — a measurement failure is never absence.
+func linkedOnly(c *domain.AnalysisCase, subjects []domain.SymbolRef) []domain.SymbolRef {
+	set, _, err := packageImportSet(c)
+	if err != nil {
+		return subjects
+	}
+	out := subjects[:0]
+	for _, s := range subjects {
+		if s.Package == "" || set[s.Package] {
 			out = append(out, s)
 		}
 	}

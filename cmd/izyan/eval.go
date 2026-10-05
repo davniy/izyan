@@ -39,6 +39,7 @@ func runEval(args []string) error {
 	clean := fs.Bool("clean", false, "force re-materialization of generated product modules (wipe .gen)")
 	outMD := fs.String("out", "", "write markdown report to file")
 	outJSON := fs.String("json", "", "write JSON report to file")
+	auditDir := fs.String("audit-dir", "", "write one audit packet per signal-cleared case to this directory (B29 added-value validation)")
 	// Regression runs must be reproducible: LLM proposals are
 	// nondeterministic, so the corpus is deterministic-only by default.
 	withLLM := fs.Bool("with-llm", false, "enable LLM proposals (nondeterministic)")
@@ -247,10 +248,15 @@ func runEval(args []string) error {
 	}
 
 	// Record in original corpus order
+	productDirs := map[string]string{}
 	for _, outcome := range outcomes {
-		rep.Record(outcome.c, outcome.verdict, outcome.reason, outcome.claims, outcome.err)
+		rep.Record(outcome.c, outcome.verdict, outcome.reason, outcome.claims,
+			outcome.falsifier, outcome.groundBasis, outcome.evidenceIDs, outcome.err)
 		if outcome.baseline != "" {
 			rep.RecordBaseline(outcome.baseline)
+		}
+		if outcome.productDir != "" {
+			productDirs[outcome.c.Label()] = outcome.productDir
 		}
 	}
 
@@ -258,9 +264,12 @@ func runEval(args []string) error {
 	fmt.Printf("\ncases=%d errors=%d expect pass=%d fail=%d claims-fail=%d false-safe=%d inconclusive=%d\n",
 		m.Total, m.Errors, m.ExpectPass, m.ExpectFail, m.ClaimsFail, m.FalseSafe, m.Inconclusive)
 	if m.GovulncheckSignals > 0 {
-		fmt.Printf("signal-cleared=%d/%d\n", m.SignalCleared, m.GovulncheckSignals)
+		fmt.Printf("signal-cleared=%d/%d (auto=%d expert=%d)\n",
+			m.SignalCleared, m.GovulncheckSignals, m.SignalClearedAuto, m.SignalClearedExpert)
 		fmt.Printf("reachable-cleared=%d/%d package-level-cleared=%d/%d\n",
 			m.ReachableCleared, m.ReachableSignals, m.PackageLevelCleared, m.PackageLevelSignals)
+		fmt.Printf("cleared by evidence class: deeper=%d echo=%d affectedness=%d\n",
+			m.ClearedDeeper, m.ClearedEcho, m.ClearedAffectedness)
 	}
 	if *outMD != "" {
 		if err := os.WriteFile(*outMD, []byte(rep.Markdown()), 0o644); err != nil {
@@ -271,6 +280,11 @@ func runEval(args []string) error {
 		data, _ := json.MarshalIndent(rep, "", "  ")
 		if err := os.WriteFile(*outJSON, append(data, '\n'), 0o644); err != nil {
 			return err
+		}
+	}
+	if *auditDir != "" {
+		if err := eval.WriteAuditPackets(*auditDir, *corpusPath, genRoot, rep, productDirs); err != nil {
+			return fmt.Errorf("audit packets: %w", err)
 		}
 	}
 	if m.FalseSafe > 0 || m.ExpectFail > 0 || m.ClaimsFail > 0 || m.Errors > 0 {
@@ -331,6 +345,10 @@ type caseOutcome struct {
 	verdict       domain.Verdict
 	reason        string
 	claims        map[string]string
+	falsifier     string
+	groundBasis   string
+	evidenceIDs   []string
+	productDir    string
 	err           error
 	baseline      string
 	duration      time.Duration
@@ -368,6 +386,15 @@ func runCase(ctx context.Context, idx, total int, c eval.Case, o analyzeOpts, ba
 		co.manualRC = append(co.manualRC, rc.RootCause)
 	}
 	co.nonLocusBasis = c.NonLocus
+	if c.TrustedPeer {
+		co.trustedPeer = true
+	}
+	if c.Perimeter != "" {
+		co.perimeterMode = c.Perimeter
+	}
+	if c.DeployManifests != "" {
+		co.deployManifests = c.DeployManifests
+	}
 	var productDir string
 	switch {
 	case c.Product != "" && c.Repo != "":
@@ -387,7 +414,16 @@ func runCase(ctx context.Context, idx, total int, c eval.Case, o analyzeOpts, ba
 		if err != nil {
 			return caseOutcome{idx: idx, c: c, err: err, duration: time.Since(caseStart)}
 		}
-		co.repo = absCase
+		if c.Ref != "" {
+			dir, err := gen.MaterializeRef(ctx, absCase, c.Ref, genRoot, c.Label())
+			if err != nil {
+				return caseOutcome{idx: idx, c: c, err: err, duration: time.Since(caseStart)}
+			}
+			co.repo = dir
+			productDir = dir
+		} else {
+			co.repo = absCase
+		}
 	}
 	if co.repo != o.repo || platformOverride {
 		co.srcIndex = nil
@@ -400,15 +436,32 @@ func runCase(ctx context.Context, idx, total int, c eval.Case, o analyzeOpts, ba
 	cs, err := analyzeCase(ctx, co)
 	var verdict domain.Verdict
 	var reason string
+	var falsifier, groundBasis string
+	var evidenceIDs []string
 	claims := map[string]string{}
 	var topTimingsStr string
 	if cs != nil {
 		if cs.Verdict != nil {
 			verdict = cs.Verdict.Verdict
 			reason = cs.Verdict.Reason
+			groundBasis = cs.Verdict.GroundBasis
 		}
 		for _, cl := range cs.Claims {
 			claims[string(cl.ConditionID)] = string(cl.Result)
+		}
+		// The verdict's grounding claim carries the falsifier that
+		// cleared the case — the evidence class an independent
+		// reviewer needs (B29).
+		if cs.Verdict != nil && len(cs.Verdict.ConditionIDs) > 0 {
+			for _, cl := range cs.Claims {
+				if cl.ConditionID == cs.Verdict.ConditionIDs[0] {
+					falsifier = cl.Falsifier
+					for _, id := range cl.EvidenceIDs {
+						evidenceIDs = append(evidenceIDs, string(id))
+					}
+					break
+				}
+			}
 		}
 		topTimingsStr = topTimings(cs.Workflow.Timings, 3)
 	}
@@ -441,6 +494,10 @@ func runCase(ctx context.Context, idx, total int, c eval.Case, o analyzeOpts, ba
 		verdict:       verdict,
 		reason:        reason,
 		claims:        claims,
+		falsifier:     falsifier,
+		groundBasis:   groundBasis,
+		evidenceIDs:   evidenceIDs,
+		productDir:    productDir,
 		err:           err,
 		baseline:      baseline,
 		duration:      time.Since(caseStart),

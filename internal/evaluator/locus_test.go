@@ -140,3 +140,73 @@ func TestEvalLocusFunctionUnreachedCandidate(t *testing.T) {
 		t.Fatalf("expected falsifier %s, got %s", domain.FalsifierLocusFunctionUnreached, claim.Falsifier)
 	}
 }
+
+// Non-locus reachability: every subject's package absent from the build
+// graph grounds FALSE via package-absent — the same premise as
+// locus-package-absent, applied to ordinary sink subjects.
+func TestEvalReachableAbsentFalsifier(t *testing.T) {
+	cond := domain.Condition{
+		ID: "C-REACH", Kind: domain.ConditionSymbolReachable, Mandatory: true,
+		Subjects: []domain.SymbolRef{
+			{Package: "example.com/lib/internal/xds/server", Symbol: "RouteAndProcess"},
+			{Package: "example.com/lib/xds/httpfilter/rbac", Symbol: "Filter"},
+		},
+	}
+	c := caseWithPackages("example.com/lib", "example.com/prod")
+	claim := (SymbolReachable{}).Evaluate(cond, c)
+	if claim.Result != domain.ClaimFalse || claim.Falsifier != domain.FalsifierPackageAbsent {
+		t.Fatalf("claim=%+v", claim)
+	}
+	if len(claim.EvidenceIDs) != 1 || claim.EvidenceIDs[0] != "EV-PKGS" {
+		t.Fatalf("evidence=%v", claim.EvidenceIDs)
+	}
+}
+
+// Mixed presence: one subject linked, one absent — absence must NOT be
+// declared (the linked subject still needs a real reachability decision).
+func TestEvalReachableMixedPresenceNoAbsentFalsifier(t *testing.T) {
+	cond := domain.Condition{
+		ID: "C-REACH", Kind: domain.ConditionSymbolReachable, Mandatory: true,
+		Subjects: []domain.SymbolRef{
+			{Package: "example.com/lib", Symbol: "Dial"},
+			{Package: "example.com/lib/internal/xds/server", Symbol: "RouteAndProcess"},
+		},
+	}
+	c := caseWithPackages("example.com/lib", "example.com/prod")
+	claim := (SymbolReachable{}).Evaluate(cond, c)
+	if claim.Falsifier == domain.FalsifierPackageAbsent {
+		t.Fatalf("package-absent must not fire while a subject is linked: %+v", claim)
+	}
+}
+
+// No package-list evidence: reachability of absent-package subjects is
+// UNKNOWN, never a package-absent FALSE.
+func TestEvalReachableNoPackageListNotAbsent(t *testing.T) {
+	cond := domain.Condition{
+		ID: "C-REACH", Kind: domain.ConditionSymbolReachable, Mandatory: true,
+		Subjects: []domain.SymbolRef{
+			{Package: "example.com/lib/internal/xds/server", Symbol: "RouteAndProcess"},
+		},
+	}
+	c := &domain.AnalysisCase{EvidenceGraph: domain.EvidenceGraph{}}
+	claim := (SymbolReachable{}).Evaluate(cond, c)
+	if claim.Falsifier == domain.FalsifierPackageAbsent || claim.Result == domain.ClaimFalse {
+		t.Fatalf("missing build graph must not ground absence: %+v", claim)
+	}
+}
+
+// Input into a sink whose package is not linked in cannot exist —
+// package absence falsifies the input condition directly.
+func TestEvalInputAbsentFalsifier(t *testing.T) {
+	cond := domain.Condition{
+		ID: "C-INPUT", Kind: domain.ConditionAttackerControl, Mandatory: true,
+		Subjects: []domain.SymbolRef{
+			{Package: "example.com/lib/internal/xds/server", Symbol: "RouteAndProcess"},
+		},
+	}
+	c := caseWithPackages("example.com/lib", "example.com/prod")
+	claim := (ArgumentOrigin{}).Evaluate(cond, c)
+	if claim.Result != domain.ClaimFalse || claim.Falsifier != domain.FalsifierPackageAbsent {
+		t.Fatalf("claim=%+v", claim)
+	}
+}

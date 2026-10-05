@@ -104,7 +104,7 @@ func (VerdictEvaluator) Evaluate(affected domain.AffectedResult, model domain.Ex
 		}
 		return domain.VerdictResult{
 			Verdict: domain.VerdictInconclusive,
-			Reason: fmt.Sprintf("all modeled mandatory conditions are satisfied, but %d advisory-declared sink(s) failed source resolution (%s): the exploit model is incomplete and cannot ground a positive verdict",
+			Reason: fmt.Sprintf("all modeled mandatory conditions are satisfied, but %d sink candidate(s) are unresolved or proven absent from the build (%s): the exploit model is pruned and cannot ground a positive verdict",
 				len(model.UnresolvedSubjects), strings.Join(names, ", ")),
 		}
 	}
@@ -160,7 +160,8 @@ func coversAllDeclared(claim domain.Claim) bool {
 // the negative unproven — the model cannot claim its exploit shape is
 // covered by an absence it was never checked against.
 func locusCoversUnresolved(falsifier string, cond domain.Condition, model domain.ExploitModel) bool {
-	if falsifier != domain.FalsifierLocusPackageAbsent {
+	if falsifier != domain.FalsifierLocusPackageAbsent &&
+		falsifier != domain.FalsifierPackageAbsent {
 		return false
 	}
 	for _, u := range model.UnresolvedSubjects {

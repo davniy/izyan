@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fedorovmv/izyan/internal/affected"
 	"github.com/fedorovmv/izyan/internal/domain"
 	"github.com/fedorovmv/izyan/internal/fix"
 	"github.com/fedorovmv/izyan/internal/goanalysis"
@@ -137,11 +138,15 @@ type Verifier struct {
 	Source *goanalysis.Index
 }
 
-func (vf Verifier) Verify(ctx context.Context, m *domain.RootCauseModel, v domain.Vulnerability) []string {
+func (vf Verifier) Verify(ctx context.Context, c *domain.AnalysisCase, m *domain.RootCauseModel, v domain.Vulnerability) []string {
 	var limitations []string
 	if vf.Source == nil {
 		return []string{"root-cause verifier has no source index; candidates unverified"}
 	}
+	// The persisted `go list -deps` set is authoritative for package
+	// absence only when it decoded cleanly — a failed or incomplete list
+	// cannot distinguish "not linked" from "not measured".
+	imports, _, impErr := packageImportSet(c)
 	verified := make([]domain.RootCause, 0, len(m.RootCauses))
 	for _, rc := range m.RootCauses {
 		if !inAffectedPackages(rc, v) {
@@ -150,6 +155,17 @@ func (vf Verifier) Verify(ctx context.Context, m *domain.RootCauseModel, v domai
 		}
 		_, err := vf.Source.FindSymbol(ctx, domain.SymbolRef{Package: rc.Package, Symbol: rc.Symbol})
 		if err != nil {
+			// A candidate symbol living in a package the product's build
+			// graph does not link is not a model failure: the defect code
+			// is absent from the build, so its absence is the resolution.
+			if impErr == nil && rc.Package != "" && !imports[rc.Package] {
+				rc.Absent = true
+				verified = append(verified, rc)
+				limitations = append(limitations, fmt.Sprintf(
+					"candidate %s.%s resolved by absence: package %s not in build graph",
+					rc.Package, rc.Symbol, rc.Package))
+				continue
+			}
 			limitations = append(limitations,
 				fmt.Sprintf("candidate %s.%s not found in source: %v", rc.Package, rc.Symbol, err))
 			m.Alternatives = append(m.Alternatives, rc)
@@ -164,6 +180,26 @@ func (vf Verifier) Verify(ctx context.Context, m *domain.RootCauseModel, v domai
 		m.RootCauses = nil
 	}
 	return limitations
+}
+
+// packageImportSet decodes the persisted `go list -deps -json` evidence
+// into the set of import paths the snapshot links. Absence in this set is
+// scoped to the build context the list was produced with.
+func packageImportSet(c *domain.AnalysisCase) (map[string]bool, domain.EvidenceID, error) {
+	if c == nil {
+		return nil, "", fmt.Errorf("no package-list evidence")
+	}
+	for _, e := range c.EvidenceGraph.EvidenceList() {
+		if e.Kind != domain.EvidencePackageList {
+			continue
+		}
+		set, err := affected.PackageImportPaths([]byte(e.Content))
+		if err != nil {
+			return nil, "", fmt.Errorf("cannot decode package list %s: %w", e.ID, err)
+		}
+		return set, e.ID, nil
+	}
+	return nil, "", fmt.Errorf("no go list -deps evidence recorded")
 }
 
 func inAffectedPackages(rc domain.RootCause, v domain.Vulnerability) bool {

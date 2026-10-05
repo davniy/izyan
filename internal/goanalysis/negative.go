@@ -44,7 +44,11 @@ func (v Verifier) VerifyFalse(ctx context.Context, c *domain.AnalysisCase, claim
 	// The locus falsifier is verified against the persisted build-graph
 	// evidence, not the source index — it applies even when no index is
 	// configured, and package absence cannot be escaped by any dispatch.
-	if cond.Params[domain.ParamCheck] == domain.CheckLocus {
+	// The same verification backs package-absent claims on non-locus
+	// conditions: all bound subjects must be missing from `go list -deps`.
+	if cond.Params[domain.ParamCheck] == domain.CheckLocus ||
+		claim.Falsifier == domain.FalsifierLocusPackageAbsent ||
+		claim.Falsifier == domain.FalsifierPackageAbsent {
 		return v.verifyLocusAbsent(c, claim, cond)
 	}
 

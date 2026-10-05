@@ -240,6 +240,102 @@ func TestEvaluateVerdict_OperatorAssertedIncompleteModelDemotes(t *testing.T) {
 	}
 }
 
+func TestEvaluateVerdict_OperatorAssertedAbsentSubjectsNotDemoted(t *testing.T) {
+	// Every unresolved subject is proven absent from the build graph:
+	// absent defect code has no unexplored exploit shape, so the
+	// declared-trust demotion must not fire — the perimeter-rewritten
+	// FALSE still grounds NEPF.
+	subj := domain.SymbolRef{Package: "dep/xds", Symbol: "RouteAndProcess"}
+	c := &domain.AnalysisCase{
+		ID: "CASE-GATE-1B",
+		Vulnerability: domain.Vulnerability{
+			ID:           "CVE-2026-GATE1B",
+			BaseSeverity: "HIGH",
+		},
+		Product: domain.ProductSnapshot{
+			TrustedPeer: true,
+		},
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{
+				{
+					ID:        "C-PEER-INPUT",
+					Kind:      domain.ConditionAttackerControl,
+					Mandatory: true,
+					Params: map[string]string{
+						domain.ParamInputSource: domain.InputPeer,
+					},
+				},
+			},
+			UnresolvedSubjects: []domain.SymbolRef{subj},
+			AbsentSubjects:     []domain.SymbolRef{subj},
+		},
+		Claims: []domain.Claim{
+			{
+				ID:          "CL-01",
+				ConditionID: "C-PEER-INPUT",
+				Result:      domain.ClaimUnknown,
+				Producer:    "test",
+			},
+		},
+		DetectedPerimeter: domain.PerimeterUnknown,
+	}
+
+	h := EvaluateVerdict{Evaluator: evaluator.VerdictEvaluator{}}
+	if _, err := h.Run(context.Background(), c); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if c.Verdict.Verdict != domain.VerdictNoExploitPathFound {
+		t.Fatalf("verdict = %s, want %s", c.Verdict.Verdict, domain.VerdictNoExploitPathFound)
+	}
+}
+
+func TestEvaluateVerdict_OperatorAssertedMixedUnresolvedDemotes(t *testing.T) {
+	// One absent subject + one genuinely unmodeled subject: the demotion
+	// must still fire on the unmodeled remainder.
+	absentSubj := domain.SymbolRef{Package: "dep/xds", Symbol: "RouteAndProcess"}
+	c := &domain.AnalysisCase{
+		ID: "CASE-GATE-1C",
+		Vulnerability: domain.Vulnerability{
+			ID:           "CVE-2026-GATE1C",
+			BaseSeverity: "HIGH",
+		},
+		Product: domain.ProductSnapshot{
+			TrustedPeer: true,
+		},
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{
+				{
+					ID:        "C-PEER-INPUT",
+					Kind:      domain.ConditionAttackerControl,
+					Mandatory: true,
+					Params: map[string]string{
+						domain.ParamInputSource: domain.InputPeer,
+					},
+				},
+			},
+			UnresolvedSubjects: []domain.SymbolRef{absentSubj, {Package: "dep/pkg", Symbol: "Parse"}},
+			AbsentSubjects:     []domain.SymbolRef{absentSubj},
+		},
+		Claims: []domain.Claim{
+			{
+				ID:          "CL-01",
+				ConditionID: "C-PEER-INPUT",
+				Result:      domain.ClaimUnknown,
+				Producer:    "test",
+			},
+		},
+		DetectedPerimeter: domain.PerimeterUnknown,
+	}
+
+	h := EvaluateVerdict{Evaluator: evaluator.VerdictEvaluator{}}
+	if _, err := h.Run(context.Background(), c); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if c.Verdict.Verdict != domain.VerdictInconclusive {
+		t.Fatalf("verdict = %s, want %s", c.Verdict.Verdict, domain.VerdictInconclusive)
+	}
+}
+
 func TestEvaluateVerdict_OperatorAssertedCompleteModelStaysNEPF(t *testing.T) {
 	c := &domain.AnalysisCase{
 		ID: "CASE-GATE-2",

@@ -112,7 +112,7 @@ func TestVerifierDropsUnknown(t *testing.T) {
 			{Package: "example.com/dep/vuln", Symbol: "Nope", Role: domain.RootCauseSink},
 		},
 	}
-	lim := vf.Verify(context.Background(), m, depVuln())
+	lim := vf.Verify(context.Background(), nil, m, depVuln())
 	if len(m.RootCauses) != 1 || m.RootCauses[0].Symbol != "Parse" {
 		t.Fatalf("root causes=%+v lim=%v", m.RootCauses, lim)
 	}
@@ -136,7 +136,7 @@ func TestVerifierOutOfScopeNotUnverified(t *testing.T) {
 			{Package: "example.com/dep/other", Symbol: "Fn", Role: domain.RootCauseSink},
 		},
 	}
-	vf.Verify(context.Background(), m, depVuln())
+	vf.Verify(context.Background(), nil, m, depVuln())
 	if len(m.Unverified) != 0 {
 		t.Fatalf("unverified=%+v — out-of-scope drop is not a verification failure", m.Unverified)
 	}
@@ -152,8 +152,93 @@ func TestVerifierRejectsForeignPackage(t *testing.T) {
 			{Package: "example.com/dep/other", Symbol: "Fn", Role: domain.RootCauseSink},
 		},
 	}
-	vf.Verify(context.Background(), m, v)
+	vf.Verify(context.Background(), nil, m, v)
 	if m.Status != domain.RootCauseAmbiguous {
 		t.Fatalf("status=%s want AMBIGUOUS (all candidates rejected)", m.Status)
+	}
+}
+
+// A candidate whose package never entered the product's build graph is
+// resolved by absence — the "not found in source" failure is the symptom,
+// not the verdict. It must stay in RootCauses flagged Absent so locus and
+// reachability evaluation can ground falsifiers on it.
+func TestVerifierMarksAbsentPackage(t *testing.T) {
+	abs, _ := filepath.Abs(filepath.Join("..", "..", "testdata", "constprod"))
+	vf := Verifier{Source: &goanalysis.Index{Dir: abs}}
+	v := domain.Vulnerability{ID: "GO-TEST-ABS"} // no affected-package constraint
+	m := &domain.RootCauseModel{
+		Status: domain.RootCauseResolved,
+		RootCauses: []domain.RootCause{
+			{Package: "example.com/dep/vuln", Symbol: "Parse", Role: domain.RootCauseSink},
+			{Package: "example.com/dep/vuln", Symbol: "Nope", Role: domain.RootCauseSink},
+			{Package: "example.com/dep/xds", Symbol: "RouteAndProcess", Role: domain.RootCauseSink},
+		},
+	}
+	c := &domain.AnalysisCase{EvidenceGraph: domain.EvidenceGraph{}}
+	c.EvidenceGraph.Evidence = append(c.EvidenceGraph.Evidence, domain.Evidence{
+		ID: "EV-PKGS", Kind: domain.EvidencePackageList,
+		Content: `{"ImportPath":"example.com/constprod"}{"ImportPath":"example.com/dep/vuln"}`,
+	})
+	vf.Verify(context.Background(), c, m, v)
+	if m.Status != domain.RootCauseResolved {
+		t.Fatalf("status=%s", m.Status)
+	}
+	var found bool
+	for _, rc := range m.RootCauses {
+		if rc.Symbol == "RouteAndProcess" {
+			found = true
+			if !rc.Absent {
+				t.Fatalf("xds candidate must be flagged Absent: %+v", rc)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("absent-package candidate dropped from RootCauses: %+v", m.RootCauses)
+	}
+	if len(m.Unverified) != 1 || m.Unverified[0].Symbol != "Nope" {
+		t.Fatalf("unverified=%+v — present-package miss stays a verification gap", m.Unverified)
+	}
+}
+
+// Without package-list evidence absence is unknown: the same candidate
+// stays a verification failure, never a silent negative.
+func TestVerifierAbsentNeedsPackageList(t *testing.T) {
+	abs, _ := filepath.Abs(filepath.Join("..", "..", "testdata", "constprod"))
+	vf := Verifier{Source: &goanalysis.Index{Dir: abs}}
+	v := domain.Vulnerability{ID: "GO-TEST-ABS"}
+	m := &domain.RootCauseModel{
+		Status: domain.RootCauseResolved,
+		RootCauses: []domain.RootCause{
+			{Package: "example.com/dep/xds", Symbol: "RouteAndProcess", Role: domain.RootCauseSink},
+		},
+	}
+	c := &domain.AnalysisCase{EvidenceGraph: domain.EvidenceGraph{}}
+	vf.Verify(context.Background(), c, m, v)
+	if len(m.Unverified) != 1 {
+		t.Fatalf("unverified=%+v — no build graph, no absence", m.Unverified)
+	}
+	if m.Status != domain.RootCauseAmbiguous {
+		t.Fatalf("status=%s want AMBIGUOUS", m.Status)
+	}
+}
+
+// A corrupt package list proves nothing: candidate stays unverified.
+func TestVerifierAbsentCorruptPackageList(t *testing.T) {
+	abs, _ := filepath.Abs(filepath.Join("..", "..", "testdata", "constprod"))
+	vf := Verifier{Source: &goanalysis.Index{Dir: abs}}
+	v := domain.Vulnerability{ID: "GO-TEST-ABS"}
+	m := &domain.RootCauseModel{
+		Status: domain.RootCauseResolved,
+		RootCauses: []domain.RootCause{
+			{Package: "example.com/dep/xds", Symbol: "RouteAndProcess", Role: domain.RootCauseSink},
+		},
+	}
+	c := &domain.AnalysisCase{EvidenceGraph: domain.EvidenceGraph{}}
+	c.EvidenceGraph.Evidence = append(c.EvidenceGraph.Evidence, domain.Evidence{
+		ID: "EV-PKGS", Kind: domain.EvidencePackageList, Content: `{garbage`,
+	})
+	vf.Verify(context.Background(), c, m, v)
+	if len(m.Unverified) != 1 {
+		t.Fatalf("unverified=%+v — corrupt list is not absence evidence", m.Unverified)
 	}
 }

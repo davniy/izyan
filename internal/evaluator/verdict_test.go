@@ -227,3 +227,49 @@ func TestVerdictNoModelNotExploitable(t *testing.T) {
 		t.Fatal("empty exploit model produced EXPLOITABLE")
 	}
 }
+
+// The generic package-absent falsifier covers unresolved subjects the same
+// way the locus variant does: every unresolved symbol must be among the
+// condition subjects the verification proved absent from the build graph.
+func TestVerdictNepfAllowedForPackageAbsentCoveringUnresolved(t *testing.T) {
+	sub := domain.SymbolRef{Package: "example.com/dep/internal/xds", Symbol: "RouteAndProcess"}
+	model := domain.ExploitModel{
+		MandatoryConditions: []domain.Condition{{
+			ID: "C-REACH", Kind: domain.ConditionSymbolReachable,
+			Subjects: []domain.SymbolRef{sub},
+		}},
+		UnresolvedSubjects: []domain.SymbolRef{sub},
+	}
+	claims := []domain.Claim{{
+		ConditionID: "C-REACH",
+		Result:      domain.ClaimFalse,
+		Falsifier:   domain.FalsifierPackageAbsent,
+		NegativeVerification: &domain.NegativeVerification{
+			Status: domain.NegativeVerified,
+		},
+	}}
+	got := VerdictEvaluator{}.Evaluate(affectedAllTrue(), model, claims)
+	if got.Verdict != domain.VerdictNoExploitPathFound {
+		t.Fatalf("got %s, want NO_EXPLOIT_PATH_FOUND", got.Verdict)
+	}
+}
+
+// A positive verdict cannot rest on a pruned candidate set: an
+// absence-resolved sink joins UnresolvedSubjects, so all-TRUE conditions
+// yield INCONCLUSIVE, not EXPLOITABLE.
+func TestVerdictExploitableBlockedByAbsentSubject(t *testing.T) {
+	model := domain.ExploitModel{
+		MandatoryConditions: []domain.Condition{{ID: "C1"}, {ID: "C2"}},
+		UnresolvedSubjects: []domain.SymbolRef{
+			{Package: "example.com/dep/xds", Symbol: "RouteAndProcess"},
+		},
+	}
+	claims := []domain.Claim{
+		{ConditionID: "C1", Result: domain.ClaimTrue},
+		{ConditionID: "C2", Result: domain.ClaimTrue},
+	}
+	got := VerdictEvaluator{}.Evaluate(affectedAllTrue(), model, claims)
+	if got.Verdict != domain.VerdictInconclusive {
+		t.Fatalf("got %s, want INCONCLUSIVE — pruned candidate set cannot ground EXPLOITABLE", got.Verdict)
+	}
+}

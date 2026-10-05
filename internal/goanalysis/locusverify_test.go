@@ -331,3 +331,45 @@ func TestVerifyLocusFunctionUnreached_MethodInInterface(t *testing.T) {
 		t.Fatalf("expected NegativeInsufficientScope for interface method, got %+v", verified.NegativeVerification)
 	}
 }
+
+// The generic package-absent falsifier on a non-locus condition is backed
+// by the same build-graph verification.
+func TestVerifyPackageAbsentVerified(t *testing.T) {
+	cond := domain.Condition{
+		ID: "C-REACH", Kind: domain.ConditionSymbolReachable, Mandatory: true,
+		Subjects: []domain.SymbolRef{
+			{Package: "example.com/lib/internal/xds/server", Symbol: "RouteAndProcess"},
+		},
+	}
+	claim := domain.Claim{
+		ID: "CL-C-REACH", ConditionID: "C-REACH",
+		Result: domain.ClaimFalse, Falsifier: domain.FalsifierPackageAbsent,
+	}
+	c := locusTestCase("example.com/prod", "example.com/lib")
+	out := (Verifier{}).VerifyFalse(context.Background(), c, claim, cond)
+	if out.NegativeVerification == nil ||
+		out.NegativeVerification.Status != domain.NegativeVerified {
+		t.Fatalf("nv=%+v", out.NegativeVerification)
+	}
+}
+
+// A linked subject package contradicts package-absent just as it does the
+// locus variant — FALSE is demoted.
+func TestVerifyPackageAbsentContradicted(t *testing.T) {
+	cond := domain.Condition{
+		ID: "C-REACH", Kind: domain.ConditionSymbolReachable, Mandatory: true,
+		Subjects: []domain.SymbolRef{
+			{Package: "example.com/lib/internal/xds/server", Symbol: "RouteAndProcess"},
+		},
+	}
+	claim := domain.Claim{
+		ID: "CL-C-REACH", ConditionID: "C-REACH",
+		Result: domain.ClaimFalse, Falsifier: domain.FalsifierPackageAbsent,
+	}
+	c := locusTestCase("example.com/lib/internal/xds/server")
+	out := (Verifier{}).VerifyFalse(context.Background(), c, claim, cond)
+	if out.NegativeVerification == nil ||
+		out.NegativeVerification.Status != domain.NegativeContradicted {
+		t.Fatalf("nv=%+v", out.NegativeVerification)
+	}
+}

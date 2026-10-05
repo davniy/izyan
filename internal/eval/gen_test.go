@@ -3,6 +3,7 @@ package eval_test
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -186,5 +187,104 @@ func TestMaterializeCachesIdenticalModule(t *testing.T) {
 	}
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
 		t.Fatalf("expected marker file to be wiped with Force: true")
+	}
+}
+
+// initGitRepo creates a git repo with one committed file and a tag, and
+// returns its path. Skips when git is unavailable.
+func initGitRepo(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Skipf("git %v: %v (%s)", args, err, out)
+		}
+	}
+	run("init", "-q")
+	run("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init", "--allow-empty")
+	if err := os.WriteFile(filepath.Join(dir, "hello.txt"), []byte("hi"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "sub", "go.mod"), []byte("module m\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", ".")
+	run("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "files")
+	run("tag", "v1")
+	return dir
+}
+
+func TestMaterializeRefExtractsRefTree(t *testing.T) {
+	repo := initGitRepo(t)
+	root := t.TempDir()
+	gen := eval.Gen{}
+	dir, err := gen.MaterializeRef(context.Background(), repo, "v1", filepath.Join(root, ".gen"), "demo")
+	if err != nil {
+		t.Fatalf("MaterializeRef: %v", err)
+	}
+	for _, f := range []string{"hello.txt", filepath.Join("sub", "go.mod"), ".gen-ref-sig"} {
+		if _, err := os.Stat(filepath.Join(dir, f)); err != nil {
+			t.Fatalf("expected %s in extracted tree: %v", f, err)
+		}
+	}
+	// no .git metadata leaks into the snapshot
+	if _, err := os.Stat(filepath.Join(dir, ".git")); !os.IsNotExist(err) {
+		t.Fatal(".git should not be extracted")
+	}
+	// source repo checkout untouched: HEAD has no uncommitted changes marker
+	// (we assert the extracted file came from the ref, not the worktree, by
+	// modifying the worktree file and re-extracting with Force)
+	if err := os.WriteFile(filepath.Join(repo, "hello.txt"), []byte("dirty"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gen.Force = true
+	dir, err = gen.MaterializeRef(context.Background(), repo, "v1", filepath.Join(root, ".gen"), "demo")
+	if err != nil {
+		t.Fatalf("forced MaterializeRef: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(dir, "hello.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "hi" {
+		t.Fatalf("expected ref content %q, got %q", "hi", got)
+	}
+}
+
+func TestMaterializeRefCachesSig(t *testing.T) {
+	repo := initGitRepo(t)
+	root := t.TempDir()
+	gen := eval.Gen{}
+	dir, err := gen.MaterializeRef(context.Background(), repo, "v1", filepath.Join(root, ".gen"), "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(dir, "marker.txt")
+	if err := os.WriteFile(marker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dir2, err := gen.MaterializeRef(context.Background(), repo, "v1", filepath.Join(root, ".gen"), "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dir2 != dir {
+		t.Fatalf("dir changed: %s vs %s", dir, dir2)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatal("cached extraction should preserve marker")
+	}
+}
+
+func TestMaterializeRefBadRef(t *testing.T) {
+	repo := initGitRepo(t)
+	gen := eval.Gen{}
+	if _, err := gen.MaterializeRef(context.Background(), repo, "nonexistent-ref", t.TempDir(), "demo"); err == nil {
+		t.Fatal("expected error for unknown ref")
 	}
 }

@@ -21,6 +21,11 @@ type Case struct {
 	Vuln     string `json:"vuln"`
 	VulnFile string `json:"vuln_file,omitempty"`
 	Repo     string `json:"repo,omitempty"`
+	// Ref pins a repo-type case to a git ref (tag/branch/commit): the
+	// harness materializes the tree via `git archive` into .gen so the
+	// source repo's checkout is never touched. Used when a product
+	// version maps to a component release ref rather than a checkout.
+	Ref string `json:"ref,omitempty"`
 	// Product names a directory of committed product sources (e.g.
 	// "products/yaml-http" under eval/); combined with Module+Deps the
 	// harness materializes a buildable module under <corpus>/.gen/<id> —
@@ -50,6 +55,19 @@ type Case struct {
 	GOOS      string   `json:"goos,omitempty"`
 	GOARCH    string   `json:"goarch,omitempty"`
 	BuildTags []string `json:"build_tags,omitempty"`
+	// TrustedPeer declares the case's deployment runs strictly with
+	// trusted peers (--trusted-peer equivalent, per-case). It is an
+	// operator assertion — recorded as declared-trust ground basis, never
+	// code-level proof.
+	TrustedPeer bool `json:"trusted_peer,omitempty"`
+	// Perimeter sets the deployment perimeter context for this case
+	// (auto|cluster|public — same values as --perimeter).
+	Perimeter string `json:"perimeter,omitempty"`
+	// DeployManifests points at deployment manifests for this case —
+	// comma-separated directories or .tgz/.tar.gz/.zip archives, same
+	// contract as --deploy-manifests. Manifests ground perimeter and
+	// exposure facts for deployment-dependent falsifiers.
+	DeployManifests string `json:"deploy_manifests,omitempty"`
 	// Expect lists acceptable verdicts; empty means informational only
 	// (the case still counts toward distribution metrics).
 	Expect []string `json:"expect,omitempty"`
@@ -116,6 +134,21 @@ type Result struct {
 	// advisory on the case's repository: reachable / package-level /
 	// silent / not-in-db / error. Empty when no baseline ran.
 	Baseline string `json:"govulncheck_baseline,omitempty"`
+	// ExpertAssisted marks cases whose safe verdict depended on input
+	// the machine cannot derive from the advisory: expert non_locus
+	// decisions or manually supplied root causes. Auto vs expert
+	// cleared counts are reported separately — govulncheck receives
+	// no expert input, so only the auto count is a like-for-like
+	// comparison.
+	ExpertAssisted bool `json:"expert_assisted,omitempty"`
+	// Falsifier / GroundBasis identify the grounding claim of a safe
+	// verdict — the evidence class that cleared the signal
+	// (see clearedKind).
+	Falsifier   string `json:"falsifier,omitempty"`
+	GroundBasis string `json:"ground_basis,omitempty"`
+	// EvidenceIDs of the grounding claim — pointers an independent
+	// reviewer can check in the persisted case.
+	EvidenceIDs []string `json:"evidence_ids,omitempty"`
 }
 
 // Metrics is the aggregate evaluation report — the numbers the spec's
@@ -138,6 +171,16 @@ type Metrics struct {
 	ReachableCleared    int `json:"reachable_cleared,omitempty"`
 	PackageLevelSignals int `json:"package_level_signals,omitempty"`
 	PackageLevelCleared int `json:"package_level_cleared,omitempty"`
+	// SignalClearedAuto/Expert split cleared signals by whether the
+	// verdict needed expert input (non_locus/root_causes). Only the
+	// auto count compares like-for-like with govulncheck.
+	SignalClearedAuto   int `json:"signal_cleared_auto,omitempty"`
+	SignalClearedExpert int `json:"signal_cleared_expert,omitempty"`
+	// ClearedDeeper/Echo/Affectedness split cleared signals by the
+	// evidence class that grounded the safe verdict.
+	ClearedDeeper       int `json:"cleared_deeper,omitempty"`
+	ClearedEcho         int `json:"cleared_echo,omitempty"`
+	ClearedAffectedness int `json:"cleared_affectedness,omitempty"`
 	// ClaimsFail counts cases whose per-condition claim assertions did not
 	// hold — a finer regression signal than verdicts alone.
 	ClaimsFail int `json:"claims_fail"`
@@ -154,9 +197,56 @@ var safeVerdicts = map[domain.Verdict]bool{
 	domain.VerdictNoExploitPathFound: true,
 }
 
-// Record folds one finished case into the report.
-func (r *Report) Record(c Case, verdict domain.Verdict, reason string, claims map[string]string, runErr error) {
-	res := Result{Case: c, Claims: claims}
+// ClearedKind classifies the evidence class that cleared a govulncheck
+// signal — the honest measure of added value.
+const (
+	// ClearedKindDeeper: proof outside govulncheck's contract —
+	// locus absence/unreachability, constant/generated input,
+	// config gating, snapshot facts, trust boundary, loopback scope.
+	ClearedKindDeeper = "deeper"
+	// ClearedKindEcho: a falsifier reproducing govulncheck's own
+	// reachability contract under a different invocation — silence,
+	// no module usage, or our own call-graph proof that no declared
+	// exported subject is called. Valuable but not new evidence.
+	ClearedKindEcho = "echo"
+	// ClearedKindAffectedness: NOT_AFFECTED by the deterministic
+	// affectedness chain on a signaled case (baseline disagrees with
+	// the product's resolved dependency graph).
+	ClearedKindAffectedness = "affectedness"
+)
+
+// echoFalsifiers reproduce govulncheck's own reachability analysis
+// rather than adding a new class of proof.
+var echoFalsifiers = map[string]bool{
+	domain.FalsifierGovulncheckSilence:       true,
+	domain.FalsifierNoModuleUsage:            true,
+	domain.FalsifierUnreachedExportedSubject: true,
+}
+
+// clearedKind maps a cleared result to its evidence class.
+func clearedKind(verdict string, falsifier string) string {
+	if verdict == string(domain.VerdictNotAffected) {
+		return ClearedKindAffectedness
+	}
+	if echoFalsifiers[falsifier] {
+		return ClearedKindEcho
+	}
+	return ClearedKindDeeper
+}
+
+// Record folds one finished case into the report. falsifier and
+// groundBasis identify the grounding claim of a safe verdict (empty
+// for NOT_AFFECTED and non-safe verdicts); evidenceIDs point at the
+// claim's evidence for independent review.
+func (r *Report) Record(c Case, verdict domain.Verdict, reason string, claims map[string]string, falsifier, groundBasis string, evidenceIDs []string, runErr error) {
+	res := Result{
+		Case:           c,
+		Claims:         claims,
+		ExpertAssisted: len(c.NonLocus) > 0 || len(c.RootCauses) > 0,
+		Falsifier:      falsifier,
+		GroundBasis:    groundBasis,
+		EvidenceIDs:    evidenceIDs,
+	}
 	if runErr != nil {
 		res.Err = runErr.Error()
 		r.Metrics.Errors++
@@ -227,6 +317,19 @@ func (r *Report) RecordBaseline(baseline string) {
 	if !res.FalseSafe && res.Err == "" &&
 		(res.Verdict == string(domain.VerdictNotAffected) || res.Verdict == string(domain.VerdictNoExploitPathFound)) {
 		r.Metrics.SignalCleared++
+		if res.ExpertAssisted {
+			r.Metrics.SignalClearedExpert++
+		} else {
+			r.Metrics.SignalClearedAuto++
+		}
+		switch clearedKind(res.Verdict, res.Falsifier) {
+		case ClearedKindEcho:
+			r.Metrics.ClearedEcho++
+		case ClearedKindAffectedness:
+			r.Metrics.ClearedAffectedness++
+		default:
+			r.Metrics.ClearedDeeper++
+		}
 		if baseline == BaselineReachable {
 			r.Metrics.ReachableCleared++
 		} else {
@@ -247,6 +350,12 @@ func (r Report) Markdown() string {
 		fmt.Fprintf(&b, "reachable cleared: %d/%d | package-level cleared: %d/%d\n\n",
 			r.Metrics.ReachableCleared, r.Metrics.ReachableSignals,
 			r.Metrics.PackageLevelCleared, r.Metrics.PackageLevelSignals)
+		if r.Metrics.SignalCleared > 0 {
+			fmt.Fprintf(&b, "cleared auto (no expert input): %d | cleared expert-assisted: %d\n\n",
+				r.Metrics.SignalClearedAuto, r.Metrics.SignalClearedExpert)
+			fmt.Fprintf(&b, "cleared by evidence class — deeper: %d | echo (govulncheck-contract): %d | affectedness: %d\n\n",
+				r.Metrics.ClearedDeeper, r.Metrics.ClearedEcho, r.Metrics.ClearedAffectedness)
+		}
 	}
 	if r.Metrics.ClaimsFail > 0 {
 		fmt.Fprintf(&b, "claim mismatches: %d\n\n", r.Metrics.ClaimsFail)
@@ -259,7 +368,7 @@ func (r Report) Markdown() string {
 		sort.Strings(vs)
 		fmt.Fprintf(&b, "verdicts: %s\n\n", strings.Join(vs, " "))
 	}
-	b.WriteString("| case | verdict | expect | claims | govulncheck | note |\n|---|---|---|---|---|---|\n")
+	b.WriteString("| case | verdict | expect | claims | govulncheck | falsifier | note |\n|---|---|---|---|---|---|---|\n")
 	for _, res := range r.Results {
 		v := res.Verdict
 		if res.Err != "" {
@@ -291,7 +400,17 @@ func (r Report) Markdown() string {
 		} else if res.Err != "" {
 			note = res.Err
 		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s |\n", res.Case.Label(), v, exp, cl, gv, note)
+		fals := res.Falsifier
+		if res.GroundBasis != "" {
+			fals += "(" + res.GroundBasis + ")"
+		}
+		if res.ExpertAssisted {
+			fals += "*"
+		}
+		if fals == "" {
+			fals = "-"
+		}
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s |\n", res.Case.Label(), v, exp, cl, gv, fals, note)
 	}
 	return b.String()
 }

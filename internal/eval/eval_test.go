@@ -2,6 +2,8 @@ package eval_test
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -10,7 +12,7 @@ import (
 )
 
 func record(r *eval.Report, c eval.Case, verdict domain.Verdict) {
-	r.Record(c, verdict, "", nil, nil)
+	r.Record(c, verdict, "", nil, "", "", nil, nil)
 }
 
 func TestReportFalseSafe(t *testing.T) {
@@ -69,7 +71,7 @@ func TestReportSignalClearedCountsOnlySafeVerdictsAgainstGovulncheckSignals(t *t
 		{"module", domain.VerdictNotAffected, "module-level", []string{"NOT_AFFECTED"}},
 		{"unsafe", domain.VerdictNoExploitPathFound, eval.BaselineReachable, []string{"EXPLOITABLE"}},
 	} {
-		r.Record(eval.Case{ID: tc.id, Expect: tc.expect}, tc.verdict, "", nil, nil)
+		r.Record(eval.Case{ID: tc.id, Expect: tc.expect}, tc.verdict, "", nil, "", "", nil, nil)
 		r.RecordBaseline(tc.baseline)
 	}
 	if r.Metrics.GovulncheckSignals != 3 || r.Metrics.SignalCleared != 1 {
@@ -89,7 +91,7 @@ func TestReportClaimsAssert(t *testing.T) {
 		Claims: map[string]string{"C-REACH": "TRUE", "C-INPUT": "TRUE"},
 	}, domain.VerdictExploitable, "", map[string]string{
 		"C-REACH": "TRUE", "C-INPUT": "TRUE",
-	}, nil)
+	}, "", "", nil, nil)
 	if r.Metrics.ClaimsFail != 0 {
 		t.Fatalf("claims_fail=%d want 0", r.Metrics.ClaimsFail)
 	}
@@ -98,7 +100,7 @@ func TestReportClaimsAssert(t *testing.T) {
 		Claims: map[string]string{"C-EXPOSED": "FALSE"},
 	}, domain.VerdictNoExploitPathFound, "", map[string]string{
 		"C-EXPOSED": "TRUE",
-	}, nil)
+	}, "", "", nil, nil)
 	if r.Metrics.ClaimsFail != 1 {
 		t.Fatalf("claims_fail=%d want 1", r.Metrics.ClaimsFail)
 	}
@@ -140,5 +142,90 @@ func TestMarkdownRenders(t *testing.T) {
 	md := r.Markdown()
 	if !strings.Contains(md, "false-safe: 1") || !strings.Contains(md, "FALSE-SAFE") {
 		t.Fatalf("markdown missing false-safe markers:\n%s", md)
+	}
+}
+
+func TestReportClearedSplits(t *testing.T) {
+	var r eval.Report
+	// auto + deeper: locus falsifier, no expert input
+	r.Record(eval.Case{ID: "deep", Expect: []string{"NO_EXPLOIT_PATH_FOUND"}},
+		domain.VerdictNoExploitPathFound, "", nil,
+		domain.FalsifierLocusFunctionUnreached, "", nil, nil)
+	r.RecordBaseline(eval.BaselineReachable)
+	// expert + deeper: non_locus makes it assisted
+	r.Record(eval.Case{ID: "expert",
+		Expect:   []string{"NO_EXPLOIT_PATH_FOUND"},
+		NonLocus: []domain.LocusDecision{{Basis: "test"}},
+	}, domain.VerdictNoExploitPathFound, "", nil,
+		domain.FalsifierLocusPackageAbsent, "", nil, nil)
+	r.RecordBaseline(eval.BaselinePackageLevel)
+	// auto + echo: govulncheck-silence reproduces its own contract
+	r.Record(eval.Case{ID: "echo", Expect: []string{"NO_EXPLOIT_PATH_FOUND"}},
+		domain.VerdictNoExploitPathFound, "", nil,
+		domain.FalsifierGovulncheckSilence, "", nil, nil)
+	r.RecordBaseline(eval.BaselinePackageLevel)
+	// auto + affectedness
+	r.Record(eval.Case{ID: "aff", Expect: []string{"NOT_AFFECTED"}},
+		domain.VerdictNotAffected, "", nil, "", "", nil, nil)
+	r.RecordBaseline(eval.BaselineReachable)
+
+	m := r.Metrics
+	if m.SignalCleared != 4 || m.SignalClearedAuto != 3 || m.SignalClearedExpert != 1 {
+		t.Fatalf("auto/expert split=%+v; want 4 total, 3 auto, 1 expert", m)
+	}
+	if m.ClearedDeeper != 2 || m.ClearedEcho != 1 || m.ClearedAffectedness != 1 {
+		t.Fatalf("evidence-class split=%+v; want 2 deeper, 1 echo, 1 affectedness", m)
+	}
+	md := r.Markdown()
+	for _, want := range []string{"cleared auto", "deeper: 2", "locus-function-unreached"} {
+		if !strings.Contains(md, want) {
+			t.Fatalf("markdown missing %q:\n%s", want, md)
+		}
+	}
+}
+
+func TestWriteAuditPackets_OnlySignalCleared(t *testing.T) {
+	dir := t.TempDir()
+	var r eval.Report
+	r.Record(eval.Case{ID: "cleared-case", Vuln: "GO-X", Expect: []string{"NO_EXPLOIT_PATH_FOUND"}},
+		domain.VerdictNoExploitPathFound, "", nil,
+		domain.FalsifierConstantOrGeneratedInput, "", []string{"EV-1"}, nil)
+	r.RecordBaseline(eval.BaselineReachable)
+	r.Record(eval.Case{ID: "loud-case", Vuln: "GO-Y", Expect: []string{"EXPLOITABLE"}},
+		domain.VerdictExploitable, "", nil, "", "", nil, nil)
+	r.RecordBaseline(eval.BaselineReachable)
+
+	if err := eval.WriteAuditPackets(dir, "eval/corpus-real.json", "eval/.gen", r,
+		map[string]string{"cleared-case": "eval/.gen/cleared-case"}); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "cleared-case.md" {
+		t.Fatalf("audit dir=%v; want exactly cleared-case.md", entries)
+	}
+	data, _ := os.ReadFile(filepath.Join(dir, "cleared-case.md"))
+	md := string(data)
+	for _, want := range []string{"constant-or-generated-input", "EV-1", "govulncheck -mode source", "deeper"} {
+		if !strings.Contains(md, want) {
+			t.Fatalf("audit packet missing %q:\n%s", want, md)
+		}
+	}
+}
+
+// Deployment context fields on a case parse from JSON — the batch harness
+// propagates them into analyzeOpts the same way CLI flags do.
+func TestCaseDeployFields(t *testing.T) {
+	var c eval.Corpus
+	raw := `{"cases":[{"vuln":"GO-TEST","repo":"/r","trusted_peer":true,
+		"perimeter":"cluster","deploy_manifests":"/m1,/m2"}]}`
+	if err := json.Unmarshal([]byte(raw), &c); err != nil {
+		t.Fatal(err)
+	}
+	got := c.Cases[0]
+	if !got.TrustedPeer || got.Perimeter != "cluster" || got.DeployManifests != "/m1,/m2" {
+		t.Fatalf("case=%+v", got)
 	}
 }

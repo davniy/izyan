@@ -1,0 +1,33 @@
+{
+ "comment": "Example mapping config for eval/gen_reviewed_corpus.py. The real config is private and lives outside the repo (point REVIEWED_MAP at it). All values below are synthetic.",
+ "product_version_field": "summary",
+ "product_version_regex": "([\\d]+\\.[\\d.]+(?:-[a-zA-Z0-9.]+)?)\\s*$",
+ "skip_packages": ["non-go-package-name"],
+ "fields": {
+  "component": "component_field_code",
+  "package": "package_field_code",
+  "package_version": "package_version_field_code",
+  "vuln_ids": "vuln_ids_field_code",
+  "rationale": "rationale_field_code"
+ },
+ "components": {
+  "COMP-A": {
+   "repo": "/abs/path/to/component-a-repo",
+   "refs": {
+    "1.0.0": "1.0.0",
+    "1.0.2": "1.0.0"
+   },
+   "default": "1.0.0",
+   "eval_overrides": {
+    "perimeter": "cluster",
+    "deploy_manifests": "/abs/path/to/deploy-manifests"
+   }
+  },
+  "COMP-B": {
+   "repo": "/abs/path/to/component-b-repo",
+   "refs": {
+    "3.2.0": "3.2.0-build1"
+   }
+  }
+ }
+}

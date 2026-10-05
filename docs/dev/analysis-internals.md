@@ -374,13 +374,21 @@ duration_ms, error. Реализация — `internal/toolaudit`: рекорд�
 | INCONCLUSIVE | under_investigation | action_statement = reason |
 
 Продукт — `pkg:golang/<module>@<analyzed commit>`; уязвимая зависимость —
-subcomponent `pkg:golang/<module>@<resolved_version>`. CycloneDX не
-экспортируется.
+subcomponent `pkg:golang/<module>@<resolved_version>`. Рядом пишется и
+CycloneDX-экспорт (`cyclonedx.json`): trust-grounded NEPF маппится в
+`protected_at_perimeter` / `protected_by_mitigating_control`
+(`config-origin`), code-grounded — в `code_not_reachable`.
 
 Trust-grounded NEPF (`FalsifierTrustedInfrastructure`) дополнительно
 гейтится полнотой модели: при operator-asserted основании и непустых
 `UnresolvedSubjects` кластерный профиль понижается до INCONCLUSIVE —
 заявление оператора покрывает только смоделированные условия.
+Основание `config-origin` (и любое non-perimeter) в `coversAllDeclared`
+не участвует: provenance верифицирован против входов разрешённых
+sink'ов и ничего не говорит о входах неразрешённого субъекта, поэтому
+на неполной модели такой falsifier NEPF не обосновывает — как и
+`constant-input`. Покрывают неполную модель только sink-агностичные
+основания `declared-trust`/`auto-perimeter` (первое — с демоцией выше).
 
 ## 12c. Knowledge base — семантика экосистемы как данные
 

@@ -593,10 +593,10 @@ func (h CollectEvidence) runExposure(ctx context.Context, c *domain.AnalysisCase
 		c.EvidenceGraph.AddEvidence(domain.Evidence{
 			ID:      "EV-PERIMETER-CLUSTER",
 			Kind:    domain.EvidenceConfiguration,
-			Quality: domain.QualityDeterministic,
+			Quality: domain.QualityStructural,
 			Source:  "perimeter classifier: cluster-internal",
 			Tool:    "exposure.ClassifyPerimeter",
-			Content: fmt.Sprintf("cluster isolation verified: %s", c.PerimeterRationale),
+			Content: fmt.Sprintf("cluster-internal topology inferred from attributed manifests/listeners: %s", c.PerimeterRationale),
 		})
 	}
 }

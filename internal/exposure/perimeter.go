@@ -27,14 +27,16 @@ const (
 // cluster-internal perimeter, is exposed publicly, or is unknown.
 //
 // Attribution: productNames identifies the analyzed product (module
-// basename, binary name, repo basename). Deployment facts carry an Owner
-// — a manifest resource can only ground this product's perimeter when the
-// owner matches: a foreign service's ClusterIP must not scope our
-// inbound reachability, and its Ingress must not mark us public.
-// Unattributed deploy facts (templated/missing names) neither count as
-// cluster evidence nor as public evidence — they are unexplained inbound
-// surfaces that hold the perimeter at unknown. With no productNames
-// supplied, deploy facts count as before (unattributed = accepted).
+// basename, binary name, repo basename). Deployment facts carry an
+// Owner — a manifest resource grounds this product's perimeter only when
+// its owner matches the product name *exactly*: a foreign or same-prefix
+// sibling's ClusterIP must not scope our inbound reachability, and its
+// Ingress must not mark us public. Unattributed deploy facts
+// (templated/missing names) and prefix-matched siblings neither count as
+// cluster evidence nor as public evidence — external-routing objects
+// among them veto a cluster reading and hold the perimeter at unknown.
+// With no productNames supplied, deploy facts count as before
+// (unattributed = accepted).
 //
 // Conservative direction: public evidence wins over everything; unknown or
 // unresolved inbound surfaces block a cluster-internal conclusion unless a
@@ -50,9 +52,6 @@ func ClassifyPerimeter(facts []domain.ExposureFact, productNames []string) (stri
 
 	for _, f := range facts {
 		if len(productNames) > 0 && isDeployFact(f) {
-			if f.Owner != "" && !matchesProduct(f.Owner, productNames) {
-				continue // foreign service's surface
-			}
 			if f.Owner == "" {
 				// An unattributed external-routing object may front our
 				// ClusterIP service — that is exactly what Ingress is for.
@@ -61,6 +60,19 @@ func ClassifyPerimeter(facts []domain.ExposureFact, productNames []string) (stri
 				// weight either way.
 				if isPublic, _ := checkPublic(f); isPublic {
 					unattributedPublic = appendUnique(unattributedPublic, describeFact(f))
+				}
+				continue
+			}
+			if !exactMatchProduct(f.Owner, productNames) {
+				// Foreign or same-prefix sibling resource ("myapp-db" for
+				// product "myapp"): its ClusterIP must not ground our
+				// isolation — sibling services routinely share the
+				// product-name prefix. A prefix-matched external-routing
+				// object cannot be proven to front us either (ingress
+				// backends are not parsed), so it vetoes a cluster
+				// reading instead of establishing public exposure.
+				if isPublic, _ := checkPublic(f); isPublic && prefixMatchProduct(f.Owner, productNames) {
+					unattributedPublic = appendUnique(unattributedPublic, describeFact(f)+" (sibling resource "+f.Owner+")")
 				}
 				continue
 			}
@@ -123,18 +135,34 @@ func isDeployFact(f domain.ExposureFact) bool {
 	return f.Kind == "deployment" || f.Kind == "auth-middleware"
 }
 
-// matchesProduct reports whether a manifest owner names the analyzed
-// product: exact match, or the product name as a prefix at a separator
-// boundary ("myapp-svc" for product "myapp"). Suffix matching would
-// over-credit shared prefixes across sibling services.
-func matchesProduct(owner string, productNames []string) bool {
+// exactMatchProduct reports whether a manifest owner names the analyzed
+// product exactly (case-insensitive). Only an exact-named resource may
+// ground this product's cluster isolation: same-prefix siblings like
+// "myapp-db" are routine in deployment bundles and their ClusterIP says
+// nothing about our inbound reachability.
+func exactMatchProduct(owner string, productNames []string) bool {
+	owner = strings.ToLower(strings.TrimSpace(owner))
+	for _, n := range productNames {
+		if owner == strings.ToLower(strings.TrimSpace(n)) && owner != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// prefixMatchProduct reports whether the owner begins with a product
+// name at a separator boundary ("myapp-svc" for product "myapp").
+// A prefix match marks a *sibling* resource: it can veto a cluster
+// reading when it is external-routing, but never establishes our
+// isolation nor our public exposure.
+func prefixMatchProduct(owner string, productNames []string) bool {
 	owner = strings.ToLower(strings.TrimSpace(owner))
 	for _, n := range productNames {
 		n = strings.ToLower(strings.TrimSpace(n))
 		if n == "" {
 			continue
 		}
-		if owner == n || strings.HasPrefix(owner, n+"-") || strings.HasPrefix(owner, n+".") {
+		if strings.HasPrefix(owner, n+"-") || strings.HasPrefix(owner, n+".") {
 			return true
 		}
 	}

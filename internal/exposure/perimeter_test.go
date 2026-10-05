@@ -204,3 +204,96 @@ func TestClassifyPerimeter_IPv6Loopback(t *testing.T) {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterClusterInternal, scope, rationale)
 	}
 }
+
+func TestClassifyPerimeter_OutboundDialOnlyIsUnknown(t *testing.T) {
+	// A configured outbound dial proves nothing about inbound exposure or
+	// peer topology — an env-sourced endpoint can point anywhere.
+	facts := []domain.ExposureFact{
+		{
+			CallSite:      domain.CallSite{File: "internal/client/queue.go", Line: 20},
+			Direction:     "outbound",
+			Kind:          "dial",
+			Target:        "client.DialTLS",
+			AddressSource: "env:AMQP_URL",
+			Scope:         domain.ScopeConfigured,
+		},
+	}
+
+	scope, _ := ClassifyPerimeter(facts)
+	if scope != domain.PerimeterUnknown {
+		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
+	}
+}
+
+func TestClassifyPerimeter_MeshOnlyIsUnknown(t *testing.T) {
+	facts := []domain.ExposureFact{
+		{
+			CallSite:  domain.CallSite{File: "deploy/authz.yaml", Line: 4},
+			Direction: "inbound",
+			Kind:      "auth-middleware",
+			Target:    "istio:AuthorizationPolicy",
+			Scope:     domain.ScopeLoopback,
+		},
+	}
+
+	scope, _ := ClassifyPerimeter(facts)
+	if scope != domain.PerimeterUnknown {
+		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
+	}
+}
+
+func TestClassifyPerimeter_UnresolvedListenerBlocksListenerTier(t *testing.T) {
+	// Without deployment manifests an unresolved listener address cannot be
+	// bounded — loopback siblings do not rescue the cluster reading.
+	facts := []domain.ExposureFact{
+		{
+			CallSite:  domain.CallSite{File: "cmd/server/main.go", Line: 30},
+			Direction: "inbound",
+			Kind:      "listener",
+			Target:    "net.Listen",
+			Address:   "127.0.0.1:8080",
+			Scope:     domain.ScopeLoopback,
+		},
+		{
+			CallSite:      domain.CallSite{File: "cmd/server/main.go", Line: 41},
+			Direction:     "inbound",
+			Kind:          "listener",
+			Target:        "net.Listen",
+			AddressSource: "env:METRICS_ADDR",
+			Scope:         domain.ScopeUnknown,
+		},
+	}
+
+	scope, _ := ClassifyPerimeter(facts)
+	if scope != domain.PerimeterUnknown {
+		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
+	}
+}
+
+func TestClassifyPerimeter_UnresolvedListenerBoundedByClusterIP(t *testing.T) {
+	// A declared ClusterIP service authoritatively scopes inbound
+	// reachability; an unresolved listener address does not veto it.
+	facts := []domain.ExposureFact{
+		{
+			CallSite:  domain.CallSite{File: "deploy/service.yaml", Line: 5},
+			Direction: "inbound",
+			Kind:      "deployment",
+			Target:    "k8s:Service:ClusterIP",
+			Address:   "ClusterIP",
+			Scope:     domain.ScopeLoopback,
+		},
+		{
+			CallSite:      domain.CallSite{File: "cmd/server/main.go", Line: 41},
+			Direction:     "inbound",
+			Kind:          "listener",
+			Target:        "net.Listen",
+			AddressSource: "env:METRICS_ADDR",
+			Scope:         domain.ScopeUnknown,
+		},
+	}
+
+	scope, rationale := ClassifyPerimeter(facts)
+	if scope != domain.PerimeterClusterInternal {
+		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterClusterInternal, scope, rationale)
+	}
+}

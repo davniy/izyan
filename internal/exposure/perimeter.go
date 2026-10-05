@@ -7,23 +7,51 @@ import (
 	"github.com/fedorovmv/izyan/internal/domain"
 )
 
-// ClassifyPerimeter analyzes resolved exposure facts from code and deployment manifests
-// to determine whether the product operates strictly in a cluster-internal perimeter,
-// is exposed publicly, or is unknown.
+// clusterTier ranks cluster-isolation evidence. tierDeploy is structural:
+// a deployment manifest scopes inbound reachability regardless of the
+// process's own bind address. tierListener is structural only when every
+// observed listener is loopback/unix — a product with no reachable inbound
+// surface confines its input plane to the cluster. tierCorroborating
+// (mesh objects, auth middleware, configured outbound dials) supports a
+// cluster reading but never establishes it alone: a configured endpoint
+// can point anywhere, and an Istio policy's rules are not interpreted.
+const (
+	tierNone = iota
+	tierCorroborating
+	tierListener
+	tierDeploy
+)
+
+// ClassifyPerimeter analyzes resolved exposure facts from code and deployment
+// manifests to determine whether the product operates strictly in a
+// cluster-internal perimeter, is exposed publicly, or is unknown.
+//
+// Conservative direction: public evidence wins over everything; unknown or
+// unresolved inbound surfaces block a cluster-internal conclusion unless a
+// deployment manifest authoritatively scopes the workload (ClusterIP). An
+// absent manifest is never evidence of isolation.
 func ClassifyPerimeter(facts []domain.ExposureFact) (string, string) {
 	if len(facts) == 0 {
 		return domain.PerimeterUnknown, "no deployment exposure facts resolved; defaulting to zero-trust"
 	}
 
-	var publicReasons []string
-	var clusterReasons []string
+	var publicReasons, clusterReasons, unexplained []string
+	maxTier := tierNone
 
 	for _, f := range facts {
 		if isPublic, reason := checkPublic(f); isPublic {
 			publicReasons = appendUnique(publicReasons, reason)
+			continue
 		}
-		if isCluster, reason := checkCluster(f); isCluster {
+		if tier, reason := checkCluster(f); tier > tierNone {
 			clusterReasons = appendUnique(clusterReasons, reason)
+			if tier > maxTier {
+				maxTier = tier
+			}
+			continue
+		}
+		if isInboundSurface(f) {
+			unexplained = appendUnique(unexplained, describeFact(f))
 		}
 	}
 
@@ -31,11 +59,48 @@ func ClassifyPerimeter(facts []domain.ExposureFact) (string, string) {
 		return domain.PerimeterPublic, "public exposure detected: " + strings.Join(publicReasons, "; ")
 	}
 
-	if len(clusterReasons) > 0 {
-		return domain.PerimeterClusterInternal, "cluster-internal perimeter: " + strings.Join(clusterReasons, ", ") + "; no public ingress found"
+	switch maxTier {
+	case tierDeploy:
+		rationale := "cluster-internal perimeter: " + strings.Join(clusterReasons, ", ") + "; no public ingress found"
+		if len(unexplained) > 0 {
+			rationale += "; unresolved inbound surfaces bounded by declared service scope: " + strings.Join(unexplained, "; ")
+		}
+		return domain.PerimeterClusterInternal, rationale
+	case tierListener:
+		if len(unexplained) == 0 {
+			return domain.PerimeterClusterInternal, "cluster-internal perimeter: " + strings.Join(clusterReasons, ", ") + "; no public ingress found"
+		}
+		return domain.PerimeterUnknown, "loopback/unix listeners present but inbound exposure unresolved: " + strings.Join(unexplained, "; ")
+	default:
+		if len(unexplained) > 0 {
+			return domain.PerimeterUnknown, "unresolved inbound exposure: " + strings.Join(unexplained, "; ")
+		}
+		return domain.PerimeterUnknown, "no structural cluster-isolation evidence (ClusterIP service or loopback/unix-only listeners); defaulting to zero-trust"
 	}
+}
 
-	return domain.PerimeterUnknown, "unresolved exposure perimeter: no conclusive exposure indicators found"
+// isInboundSurface reports whether the fact describes an inbound network
+// surface whose classification matters — listeners and manifest-declared
+// objects. Corroborating kinds (auth middleware) never block a verdict.
+func isInboundSurface(f domain.ExposureFact) bool {
+	return f.Direction == "inbound" && (f.Kind == "listener" || f.Kind == "deployment")
+}
+
+func describeFact(f domain.ExposureFact) string {
+	d := f.Target
+	if d == "" {
+		d = f.Kind
+	}
+	if f.Address != "" {
+		d += " " + f.Address
+	}
+	if d == "" {
+		d = f.AddressSource
+	}
+	if d == "" {
+		d = "unresolved inbound surface"
+	}
+	return strings.TrimSpace(d)
 }
 
 func checkPublic(f domain.ExposureFact) (bool, string) {
@@ -96,17 +161,21 @@ func checkPublic(f domain.ExposureFact) (bool, string) {
 	return false, ""
 }
 
-func checkCluster(f domain.ExposureFact) (bool, string) {
-	// 1. K8s Service: ClusterIP
+// checkCluster classifies a fact as cluster-isolation evidence and returns
+// its tier. Only tierDeploy and tierListener can establish a
+// cluster-internal perimeter; corroborating facts never do.
+func checkCluster(f domain.ExposureFact) (int, string) {
+	// 1. K8s Service: ClusterIP — the manifest scopes reachability.
 	if strings.Contains(f.Target, "ClusterIP") || strings.Contains(f.Address, "ClusterIP") {
-		return true, "service ClusterIP"
+		return tierDeploy, "service ClusterIP"
 	}
 	if f.Kind == "k8s:Service" && (f.Scope == domain.ScopeClusterInternal || f.Scope == domain.ScopeLoopback || f.Address == "ClusterIP") {
-		return true, "service ClusterIP"
+		return tierDeploy, "service ClusterIP"
 	}
 
-	// 2. Listeners: loopback, unix, 127.0.0.1, localhost, ::1
-	if f.Direction != "outbound" {
+	// 2. Loopback/unix-bound inbound surfaces: code listeners and
+	// manifest-declared binds (e.g. compose "127.0.0.1:8080:80").
+	if isInboundSurface(f) {
 		if f.Scope == domain.ScopeLoopback || f.Scope == domain.ScopeUnix ||
 			strings.Contains(f.Address, "127.0.0.1") || strings.Contains(f.Address, "localhost") ||
 			strings.Contains(f.Address, "::1") || strings.Contains(f.Address, "[::1]") ||
@@ -115,11 +184,12 @@ func checkCluster(f domain.ExposureFact) (bool, string) {
 			if addr == "" {
 				addr = f.Scope
 			}
-			return true, fmt.Sprintf("listener %s", addr)
+			return tierListener, fmt.Sprintf("listener %s", addr)
 		}
 	}
 
-	// 3. Mesh objects
+	// 3. Mesh objects — corroborating: presence implies a mesh, but the
+	// policy's rules are not evaluated.
 	if f.Kind == "istio:AuthorizationPolicy" || f.Target == "istio:AuthorizationPolicy" ||
 		f.Kind == "istio:RequestAuthentication" || f.Target == "istio:RequestAuthentication" ||
 		f.Kind == "istio:VirtualService" || f.Target == "istio:VirtualService" {
@@ -127,22 +197,28 @@ func checkCluster(f domain.ExposureFact) (bool, string) {
 		if name == "" {
 			name = f.Kind
 		}
-		return true, fmt.Sprintf("mesh %s", name)
+		return tierCorroborating, fmt.Sprintf("mesh %s", name)
 	}
 
-	// 4. Outbound configured dials
+	// 4. Outbound configured dials — corroborating: the endpoint is
+	// operator-configured, which says nothing about its topology.
 	if (f.Direction == "outbound" || f.Kind == "dial") && f.Scope == domain.ScopeConfigured {
 		target := f.Target
 		if target == "" {
 			target = f.AddressSource
 		}
 		if target != "" {
-			return true, fmt.Sprintf("configured dial %s", target)
+			return tierCorroborating, fmt.Sprintf("configured dial %s", target)
 		}
-		return true, "configured outbound dial"
+		return tierCorroborating, "configured outbound dial"
 	}
 
-	return false, ""
+	// 5. Auth middleware wiring — corroborating deployment hint.
+	if f.Kind == "auth-middleware" {
+		return tierCorroborating, "auth middleware"
+	}
+
+	return tierNone, ""
 }
 
 func isMeshFact(f domain.ExposureFact) bool {

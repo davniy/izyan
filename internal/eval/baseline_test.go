@@ -10,8 +10,8 @@ import (
 
 type baselineRunner struct{ raw string }
 
-func (r baselineRunner) RunGovulncheck(context.Context, string, domain.ProductSnapshot) ([]byte, error) {
-	return []byte(r.raw), nil
+func (r baselineRunner) RunGovulncheck(context.Context, string, domain.ProductSnapshot) ([]byte, string, error) {
+	return []byte(r.raw), "./...", nil
 }
 
 func TestBaselineSeparatesModulePackageAndReachableFindings(t *testing.T) {

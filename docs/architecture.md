@@ -14,7 +14,8 @@ flowchart TD
         direction LR
         Adv["Advisory & Ticket<br>(OSV / JSON / --ticket)"]
         Snap["Snapshot продукта<br>(Go repo / --binary / Go SDK)"]
-        Cfg["Параметры запуска<br>(--llm-intake, --cve-analysis)"]
+        Dep["Манифесты развёртывания<br>(Helm / K8s / Compose / --deploy-manifests)"]
+        Cfg["Параметры запуска<br>(--perimeter, --cve-analysis)"]
     end
 
     subgraph Architecture ["Архитектура Izyan"]
@@ -28,11 +29,11 @@ flowchart TD
             end
             subgraph Phase2 ["2. Доказательства и факты"]
                 direction LR
-                S4["Сбор фактов<br>(AST, SSA, Provenance)"] --> S5["Оценка условий<br>(Claims Evaluators)"] --> S6["Safety Gates<br>(Negative Check)"]
+                S4["Сбор фактов<br>(AST, SSA, Provenance)"] --> S4b["Периметр и манифесты<br>(internal/exposure, .tgz/.zip)"] --> S5["Оценка условий<br>(Claims Evaluators)"] --> S6["Safety Gates<br>(Negative Check)"]
             end
             subgraph Phase3 ["3. Аудит и вердикт"]
                 direction LR
-                S7["Ревью и ремонт<br>(Review & Repair)"] --> S8["Вычисление вердикта<br>(NOT_AFFECTED / NO_PATH)"] --> S9["Генерация отчёта<br>(Report & VEX)"]
+                S7["Ревью и ремонт<br>(Review & Repair)"] --> S8["Вычисление вердикта<br>(Dual-Track Matrix: Zero Trust vs Mesh)"] --> S9["Генерация отчёта<br>(Report & VEX)"]
             end
             Phase1 --> Phase2 --> Phase3
         end
@@ -49,8 +50,9 @@ flowchart TD
 
     subgraph Outputs ["Выходные артефакты"]
         direction LR
-        RepMD["report.md (RU) & report.en.md (EN)"]
+        RepMD["report.md с матрицей периметров (RU & EN)"]
         RepJSON["report.json (Аудит-досье)"]
+        CaseJSON["case.json с массивом profiles"]
         VEX["openvex.json & cyclonedx.json (VEX)"]
     end
 
@@ -68,9 +70,10 @@ flowchart TD
 ```
 
 ### Входы:
-* **Advisory & Ticket**: документ уязвимости из OSV API (`--vuln`), локальный OSV JSON (`--vuln-file`) или обобщенный тикет трекера задач (`--ticket`);
-* **Снимок продукта**: путь к Go-репозиторию (`--repo`), опционально собранный бинарник релиза (`--binary` для извлечения `build info`), версия тулчейна (`--release-go-version`), флаги сборки (`--build-tags`, `--goos`, `--goarch`);
-* **Параметры управления**: режим AI-исследователя (`--cve-analysis`), семантическое извлечение тикета (`--llm-intake`), флаг fail-fast (`--strict-llm`), отключение LLM (`--deterministic-only`), экспертный базис локуса (`--non-locus-basis`, `--accept-locus-proposals`), разрешение выполнения бинарников репозитория (`--allow-exec`), лимиты памяти (`--mem-limit`).
+* **Advisory & Ticket**: документ уязвимости из OSV API (`--vuln`), локальный OSV JSON (`--vuln-file`) или тикет трекера задач (`--ticket`), включая вложенные конверты (Jira / Tracker nested envelope с атрибутами `unit` и `result_text` / `rationale`);
+* **Снимок продукта**: путь к Go-репозиторию (`--repo`), опционально собранный бинарник релиза (`--binary` для извлечения `build info`), версия тулчейна (`--release-go-version` или директива в `go.mod`), флаги сборки (`--build-tags`, `--goos`, `--goarch`);
+* **Манифесты развёртывания**: путь к каталогу, внешнему GitOps-репозиторию или архиву чарта (`.tgz`, `.tar.gz`, `.zip`) через `--deploy-manifests`, с автообнаружением в каталогах `deploy/`, `helm/`, `deployments/`;
+* **Параметры управления**: режим целевого периметра (`--perimeter auto|cluster|public`), режим AI-исследователя (`--cve-analysis`), семантическое извлечение тикета (`--llm-intake`), флаг fail-fast (`--strict-llm`), отключение LLM (`--deterministic-only`), экспертный базис локуса (`--non-locus-basis`, `--accept-locus-proposals`), разрешение выполнения бинарников репозитория (`--allow-exec`), лимиты памяти (`--mem-limit`).
 
 ---
 
@@ -248,7 +251,56 @@ flowchart TD
 
 ---
 
-## 6. Масштабируемость и защита от OOM (Memory Management)
+## 6. Двухконтурная оценка угроз (Dual-Track Perimeter) и подсистема exposure
+
+Подсистема `internal/exposure` отвечает за анализ сетевой топологии развёртывания приложения и автоматическую параллельную двухконтурную оценку без необходимости ручного подбора параметров оператором.
+
+### 6.1. Сканирование манифестов и защита от Zip Slip
+* **Универсальный сканер (`ScanDeployWithOptions`)**: извлекает сетевые манифесты из локальных каталогов (`deploy/`, `helm/`, `k8s/`, `manifests/`), внешних каталогов (`--deploy-manifests`), соседних GitOps-репозиториев (`<repo>-deploy`, `<repo>-helm`) и упакованных архивов Helm-чартов (`.tgz`, `.tar.gz`, `.zip`).
+* **Защита от Zip Slip (Directory Traversal)**: потоковая проверка канонических путей файлов внутри архивов предотвращает чтение и запись за пределами изолированной временной песочницы.
+
+### 6.2. Классификация сетевого периметра (`ClassifyPerimeter`)
+Детерминированное сопоставление собранных фактов экспозиции (`domain.ExposureFact`):
+* **`cluster` (закрытый кластерный контур)**: все Service имеют тип `ClusterIP`, сетевые слушатели привязаны к `127.0.0.1` / `localhost` / `unix`, используются политики Istio `AuthorizationPolicy` / `RequestAuthentication`, внешние шлюзы `Ingress`, `LoadBalancer`, `NodePort` отсутствуют.
+* **`public` (публичный контур)**: обнаружены внешние `Ingress`, `Gateway`, `LoadBalancer`, `NodePort` или проброшенные порты `compose:published-port` на интерфейсах `0.0.0.0`.
+* **`unknown`**: манифесты развёртывания не обнаружены.
+
+### 6.3. Двухконтурный движок оценки (Dual-Track Assessment Engine)
+
+```mermaid
+flowchart TD
+    subgraph ExposureSubsystem ["Подсистема internal/exposure"]
+        Manifests["Манифесты развёртывания<br>(Helm / K8s / Compose / .tgz / .zip)"] --> Scan["ScanDeployWithOptions<br><i>(Zip Slip Protection)</i>"]
+        Scan --> Classify["ClassifyPerimeter"]
+        Classify --> Perim{"Периметр"}
+        Perim -->|ClusterIP / mTLS| PCluster["cluster"]
+        Perim -->|Ingress / NodePort| PPublic["public"]
+        Perim -->|Не обнаружено| PUnknown["unknown"]
+    end
+
+    subgraph DualTrackEngine ["Двухконтурный расчет (EvaluateVerdict)"]
+        TrackZT["Профиль 1: Zero Trust<br>(Hostile Peer / untrusted input)"]
+        TrackCP["Профиль 2: Cluster Perimeter<br>(FalsifierTrustedInfrastructure)"]
+
+        PCluster --> SelectTarget
+        PPublic --> SelectTarget
+        PUnknown --> SelectTarget
+
+        SelectTarget{"Выбор целевого профиля<br>(--perimeter auto|cluster|public)"} -->|cluster| TargetCP["Целевой: Cluster Perimeter<br>Вердикт: NO_EXPLOIT_PATH_FOUND (DISMISSED)"]
+        SelectTarget -->|public / unknown| TargetZT["Целевой: Zero Trust<br>Вердикт: INCONCLUSIVE (P2)"]
+    end
+
+    subgraph ReportOutput ["Отчётность"]
+        TargetCP --> Matrix["Матрица периметров угроз в report.md"]
+        TargetZT --> Matrix
+        TrackZT --> Profiles["case.json (profiles[])"]
+        TrackCP --> Profiles
+    end
+```
+
+---
+
+## 7. Масштабируемость и защита от OOM (Memory Management)
 
 Для стабильной работы на масштабных кодовых базах со сложными транзитивными зависимостями (`grpc`, `go-getter`, `crypto`) реализованы механизмы контроля ресурсов:
 
@@ -260,11 +312,12 @@ flowchart TD
 
 ---
 
-## 7. Модель данных (Domain Model)
+## 8. Модель данных (Domain Model)
 
 Ключевые сущности ядра ([`internal/domain`](../internal/domain/)):
 
-* **`AnalysisCase`**: агрегат всего анализа (метаданные уязвимости, снимок продукта, граф доказательств, список утверждений, история ревью, итоговый вердикт и аудит вызовов инструментов);
+* **`AnalysisCase`**: агрегат всего анализа (метаданные уязвимости, снимок продукта, граф доказательств, список утверждений, история ревью, итоговый вердикт, профили периметров `Profiles` и аудит вызовов инструментов);
+* **`ThreatProfile`**: профиль модели угроз (`zero_trust` или `cluster_perimeter`) с отдельным вердиктом, приоритетом триажа и обоснованием;
 * **`EvidenceGraph`**: направленный граф доказательств, где каждый узел несет криптографический хеш факта, источник его происхождения (`provenance`) и уровень надежности;
 * **`Claim`**: формальное утверждение об обязательности и истинности условия эксплуатации (`ConditionID`, `State`: TRUE / FALSE / UNKNOWN, `Falsifier`, результат `NegativeVerification`, список `Limitations`);
 * **`Hypothesis`**: след работы планировщика `GAP_ANALYSIS` (какая гипотеза проверялась и к какому результату привела);
@@ -272,7 +325,7 @@ flowchart TD
 
 ---
 
-## 8. Безопасность окружения и изоляция
+## 9. Безопасность окружения и изоляция
 
 * **Exec Gate (`--allow-exec`)**: по умолчанию анализатор работает строго статически и не выполняет код из анализируемого репозитория. Запуск сборок и тестов (`go build`, `go test`) разрешен только при явном указании флага `--allow-exec`.
 * **Аудируемость вызовов**: любой запуск дочерних процессов протоколируется в `tool_executions` со сверкой контрольных сумм при повторных прогонах.

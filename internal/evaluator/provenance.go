@@ -173,12 +173,14 @@ func (ArgumentOrigin) Evaluate(cond domain.Condition, c *domain.AnalysisCase) do
 			claim.Result = domain.ClaimFalse
 			claim.Falsifier = domain.FalsifierTrustedInfrastructure
 			if allConfig {
+				claim.FalsifierBasis = domain.BasisConfigOrigin
 				claim.Explanation = fmt.Sprintf("all %d call site(s) consume local configuration files from host environment (trusted infrastructure)", deployDependent)
 				claim.NegativeVerification = &domain.NegativeVerification{
 					Status: domain.NegativeVerified,
 					Notes:  "local host configuration files are treated as trusted infrastructure environment",
 				}
 			} else {
+				claim.FalsifierBasis = domain.BasisDeclaredTrust
 				claim.Explanation = fmt.Sprintf("all %d call site(s) receive config/service-provided input from trusted internal deployment infrastructure (--trusted-peer)", deployDependent)
 				claim.NegativeVerification = &domain.NegativeVerification{
 					Status: domain.NegativeVerified,

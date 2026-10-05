@@ -40,6 +40,7 @@ func (ServerTransportInput) Evaluate(cond domain.Condition, c *domain.AnalysisCa
 	if c.Product.TrustedPeer && wantsPeerInput(cond, c.Vulnerability) {
 		claim.Result = domain.ClaimFalse
 		claim.Falsifier = domain.FalsifierTrustedInfrastructure
+		claim.FalsifierBasis = domain.BasisDeclaredTrust
 		claim.Explanation = "deployment infrastructure declared trusted peer communication (--trusted-peer): network traffic and remote peers/brokers are authenticated and trusted"
 		claim.NegativeVerification = &domain.NegativeVerification{
 			Status: domain.NegativeVerified,
@@ -116,6 +117,7 @@ func (ServerTransportInput) Evaluate(cond domain.Condition, c *domain.AnalysisCa
 	if c.Product.TrustedPeer {
 		claim.Result = domain.ClaimFalse
 		claim.Falsifier = domain.FalsifierTrustedInfrastructure
+		claim.FalsifierBasis = domain.BasisDeclaredTrust
 		claim.EvidenceIDs = evIDs
 		claim.Explanation = fmt.Sprintf(
 			"reachable server transport (%s) in trusted infrastructure (--trusted-peer): inbound clients are authenticated and trusted",

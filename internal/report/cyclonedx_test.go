@@ -78,3 +78,35 @@ func TestCycloneDXWrite(t *testing.T) {
 		}
 	}
 }
+
+func TestCycloneDXTrustGroundedJustification(t *testing.T) {
+	cases := []struct {
+		basis string
+		want  string
+	}{
+		{domain.BasisDeclaredTrust, "protected_at_perimeter"},
+		{domain.BasisAutoPerimeter, "protected_at_perimeter"},
+		{domain.BasisConfigOrigin, "protected_by_mitigating_control"},
+	}
+	for _, tc := range cases {
+		c := cdxCase(domain.VerdictNoExploitPathFound)
+		c.Verdict.GroundBasis = tc.basis
+		b, err := CycloneDX(c)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.basis, err)
+		}
+		var doc struct {
+			Vulnerabilities []struct {
+				Analysis struct {
+					Justification string `json:"justification"`
+				} `json:"analysis"`
+			} `json:"vulnerabilities"`
+		}
+		if err := json.Unmarshal(b, &doc); err != nil {
+			t.Fatalf("%s: invalid json: %v", tc.basis, err)
+		}
+		if got := doc.Vulnerabilities[0].Analysis.Justification; got != tc.want {
+			t.Errorf("basis %s: justification=%s want %s", tc.basis, got, tc.want)
+		}
+	}
+}

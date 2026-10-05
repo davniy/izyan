@@ -80,6 +80,13 @@ func OpenVEX(c *domain.AnalysisCase) ([]byte, error) {
 		st.Status = "not_affected"
 		st.Justification = "vulnerable_code_not_in_execute_path"
 		st.ImpactStatement = reason
+		if c.Verdict.GroundBasis != "" {
+			// A trust-grounded negative is an assumption about the
+			// deployment boundary, not a proof about the code — the
+			// justification vocabulary has an exact entry for it.
+			st.Justification = "vulnerable_code_cannot_be_controlled_by_adversary"
+			st.ImpactStatement = reason + " (" + groundBasisText(c.Verdict.GroundBasis) + ")"
+		}
 	default:
 		st.Status = "under_investigation"
 		st.ActionStatement = "analysis inconclusive — manual review required"
@@ -96,6 +103,22 @@ func OpenVEX(c *domain.AnalysisCase) ([]byte, error) {
 		Statements: []vexStatement{st},
 	}
 	return json.MarshalIndent(doc, "", "  ")
+}
+
+// groundBasisText renders the trust basis of a NEPF verdict for VEX
+// consumers: declared assertions, detected perimeters and config-origin
+// provenance must not read as code-proven unreachability.
+func groundBasisText(basis string) string {
+	switch basis {
+	case domain.BasisDeclaredTrust:
+		return "rests on a declared deployment trust boundary (--trusted-peer or --perimeter), not on code-level verification"
+	case domain.BasisAutoPerimeter:
+		return "rests on an auto-detected cluster-internal perimeter from deployment manifests"
+	case domain.BasisConfigOrigin:
+		return "rests on traced inputs resolving to local host configuration"
+	default:
+		return "rests on a deployment trust assumption"
+	}
 }
 
 func notAffectedJustification(c *domain.AnalysisCase) string {

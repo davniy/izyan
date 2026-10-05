@@ -135,6 +135,10 @@ func TestRunExposure_DeployScanAndPerimeterClassification(t *testing.T) {
 	if err := os.MkdirAll(k8sDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"),
+		[]byte("module example.com/internal-service\n\ngo 1.22\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	svcYaml := `apiVersion: v1
 kind: Service
 metadata:
@@ -185,5 +189,140 @@ func TestRunExposure_PerimeterOverride(t *testing.T) {
 	wantRationale := "perimeter overridden by configuration: " + domain.PerimeterPublic
 	if c.PerimeterRationale != wantRationale {
 		t.Errorf("PerimeterRationale = %q, want %q", c.PerimeterRationale, wantRationale)
+	}
+}
+
+func TestEvaluateVerdict_OperatorAssertedIncompleteModelDemotes(t *testing.T) {
+	// --trusted-peer rewrites the peer-input claim, but the exploit model
+	// leaves an advisory-declared sink unresolved: the operator's
+	// assertion cannot discharge an exploit shape we never modeled.
+	c := &domain.AnalysisCase{
+		ID: "CASE-GATE-1",
+		Vulnerability: domain.Vulnerability{
+			ID:           "CVE-2026-GATE1",
+			BaseSeverity: "HIGH",
+		},
+		Product: domain.ProductSnapshot{
+			TrustedPeer: true,
+		},
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{
+				{
+					ID:        "C-PEER-INPUT",
+					Kind:      domain.ConditionAttackerControl,
+					Mandatory: true,
+					Params: map[string]string{
+						domain.ParamInputSource: domain.InputPeer,
+					},
+				},
+			},
+			UnresolvedSubjects: []domain.SymbolRef{
+				{Package: "dep/pkg", Symbol: "Parse"},
+			},
+		},
+		Claims: []domain.Claim{
+			{
+				ID:          "CL-01",
+				ConditionID: "C-PEER-INPUT",
+				Result:      domain.ClaimUnknown,
+				Producer:    "test",
+			},
+		},
+		DetectedPerimeter: domain.PerimeterUnknown,
+	}
+
+	h := EvaluateVerdict{Evaluator: evaluator.VerdictEvaluator{}}
+	if _, err := h.Run(context.Background(), c); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if c.Verdict.Verdict != domain.VerdictInconclusive {
+		t.Fatalf("verdict = %s, want %s", c.Verdict.Verdict, domain.VerdictInconclusive)
+	}
+}
+
+func TestEvaluateVerdict_OperatorAssertedCompleteModelStaysNEPF(t *testing.T) {
+	c := &domain.AnalysisCase{
+		ID: "CASE-GATE-2",
+		Vulnerability: domain.Vulnerability{
+			ID:           "CVE-2026-GATE2",
+			BaseSeverity: "HIGH",
+		},
+		Product: domain.ProductSnapshot{
+			TrustedPeer: true,
+		},
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{
+				{
+					ID:        "C-PEER-INPUT",
+					Kind:      domain.ConditionAttackerControl,
+					Mandatory: true,
+					Params: map[string]string{
+						domain.ParamInputSource: domain.InputPeer,
+					},
+				},
+			},
+		},
+		Claims: []domain.Claim{
+			{
+				ID:          "CL-01",
+				ConditionID: "C-PEER-INPUT",
+				Result:      domain.ClaimUnknown,
+				Producer:    "test",
+			},
+		},
+		DetectedPerimeter: domain.PerimeterUnknown,
+	}
+
+	h := EvaluateVerdict{Evaluator: evaluator.VerdictEvaluator{}}
+	if _, err := h.Run(context.Background(), c); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if c.Verdict.Verdict != domain.VerdictNoExploitPathFound {
+		t.Fatalf("verdict = %s, want %s", c.Verdict.Verdict, domain.VerdictNoExploitPathFound)
+	}
+	if c.Verdict.GroundBasis != domain.BasisDeclaredTrust {
+		t.Errorf("GroundBasis = %q, want %q", c.Verdict.GroundBasis, domain.BasisDeclaredTrust)
+	}
+}
+
+func TestEvaluateVerdict_AutoDetectedPerimeterGroundBasis(t *testing.T) {
+	c := &domain.AnalysisCase{
+		ID: "CASE-GATE-3",
+		Vulnerability: domain.Vulnerability{
+			ID:           "CVE-2026-GATE3",
+			BaseSeverity: "HIGH",
+		},
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{
+				{
+					ID:        "C-PEER-INPUT",
+					Kind:      domain.ConditionAttackerControl,
+					Mandatory: true,
+					Params: map[string]string{
+						domain.ParamInputSource: domain.InputPeer,
+					},
+				},
+			},
+		},
+		Claims: []domain.Claim{
+			{
+				ID:          "CL-01",
+				ConditionID: "C-PEER-INPUT",
+				Result:      domain.ClaimUnknown,
+				Producer:    "test",
+			},
+		},
+		DetectedPerimeter: domain.PerimeterClusterInternal,
+	}
+
+	h := EvaluateVerdict{Evaluator: evaluator.VerdictEvaluator{}}
+	if _, err := h.Run(context.Background(), c); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if c.Verdict.Verdict != domain.VerdictNoExploitPathFound {
+		t.Fatalf("verdict = %s, want %s", c.Verdict.Verdict, domain.VerdictNoExploitPathFound)
+	}
+	if c.Verdict.GroundBasis != domain.BasisAutoPerimeter {
+		t.Errorf("GroundBasis = %q, want %q", c.Verdict.GroundBasis, domain.BasisAutoPerimeter)
 	}
 }

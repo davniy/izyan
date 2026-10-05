@@ -26,19 +26,45 @@ const (
 // manifests to determine whether the product operates strictly in a
 // cluster-internal perimeter, is exposed publicly, or is unknown.
 //
+// Attribution: productNames identifies the analyzed product (module
+// basename, binary name, repo basename). Deployment facts carry an Owner
+// — a manifest resource can only ground this product's perimeter when the
+// owner matches: a foreign service's ClusterIP must not scope our
+// inbound reachability, and its Ingress must not mark us public.
+// Unattributed deploy facts (templated/missing names) neither count as
+// cluster evidence nor as public evidence — they are unexplained inbound
+// surfaces that hold the perimeter at unknown. With no productNames
+// supplied, deploy facts count as before (unattributed = accepted).
+//
 // Conservative direction: public evidence wins over everything; unknown or
 // unresolved inbound surfaces block a cluster-internal conclusion unless a
 // deployment manifest authoritatively scopes the workload (ClusterIP). An
 // absent manifest is never evidence of isolation.
-func ClassifyPerimeter(facts []domain.ExposureFact) (string, string) {
+func ClassifyPerimeter(facts []domain.ExposureFact, productNames []string) (string, string) {
 	if len(facts) == 0 {
 		return domain.PerimeterUnknown, "no deployment exposure facts resolved; defaulting to zero-trust"
 	}
 
-	var publicReasons, clusterReasons, unexplained []string
+	var publicReasons, clusterReasons, unexplained, unattributedPublic []string
 	maxTier := tierNone
 
 	for _, f := range facts {
+		if len(productNames) > 0 && isDeployFact(f) {
+			if f.Owner != "" && !matchesProduct(f.Owner, productNames) {
+				continue // foreign service's surface
+			}
+			if f.Owner == "" {
+				// An unattributed external-routing object may front our
+				// ClusterIP service — that is exactly what Ingress is for.
+				// It cannot prove public exposure, but it vetoes a
+				// cluster-internal reading. Non-routing facts carry no
+				// weight either way.
+				if isPublic, _ := checkPublic(f); isPublic {
+					unattributedPublic = appendUnique(unattributedPublic, describeFact(f))
+				}
+				continue
+			}
+		}
 		if isPublic, reason := checkPublic(f); isPublic {
 			publicReasons = appendUnique(publicReasons, reason)
 			continue
@@ -61,19 +87,24 @@ func ClassifyPerimeter(facts []domain.ExposureFact) (string, string) {
 
 	switch maxTier {
 	case tierDeploy:
+		if len(unattributedPublic) > 0 {
+			return domain.PerimeterUnknown, "unattributed external-routing manifests may front the service: " + strings.Join(unattributedPublic, "; ")
+		}
 		rationale := "cluster-internal perimeter: " + strings.Join(clusterReasons, ", ") + "; no public ingress found"
 		if len(unexplained) > 0 {
 			rationale += "; unresolved inbound surfaces bounded by declared service scope: " + strings.Join(unexplained, "; ")
 		}
 		return domain.PerimeterClusterInternal, rationale
 	case tierListener:
-		if len(unexplained) == 0 {
+		if len(unexplained) == 0 && len(unattributedPublic) == 0 {
 			return domain.PerimeterClusterInternal, "cluster-internal perimeter: " + strings.Join(clusterReasons, ", ") + "; no public ingress found"
 		}
-		return domain.PerimeterUnknown, "loopback/unix listeners present but inbound exposure unresolved: " + strings.Join(unexplained, "; ")
+		blockers := append(append([]string{}, unexplained...), unattributedPublic...)
+		return domain.PerimeterUnknown, "loopback/unix listeners present but inbound exposure unresolved: " + strings.Join(blockers, "; ")
 	default:
-		if len(unexplained) > 0 {
-			return domain.PerimeterUnknown, "unresolved inbound exposure: " + strings.Join(unexplained, "; ")
+		blockers := append(append([]string{}, unexplained...), unattributedPublic...)
+		if len(blockers) > 0 {
+			return domain.PerimeterUnknown, "unresolved inbound exposure: " + strings.Join(blockers, "; ")
 		}
 		return domain.PerimeterUnknown, "no structural cluster-isolation evidence (ClusterIP service or loopback/unix-only listeners); defaulting to zero-trust"
 	}
@@ -84,6 +115,30 @@ func ClassifyPerimeter(facts []domain.ExposureFact) (string, string) {
 // objects. Corroborating kinds (auth middleware) never block a verdict.
 func isInboundSurface(f domain.ExposureFact) bool {
 	return f.Direction == "inbound" && (f.Kind == "listener" || f.Kind == "deployment")
+}
+
+// isDeployFact reports whether the fact was emitted by a deployment
+// manifest scan rather than the product's own code.
+func isDeployFact(f domain.ExposureFact) bool {
+	return f.Kind == "deployment" || f.Kind == "auth-middleware"
+}
+
+// matchesProduct reports whether a manifest owner names the analyzed
+// product: exact match, or the product name as a prefix at a separator
+// boundary ("myapp-svc" for product "myapp"). Suffix matching would
+// over-credit shared prefixes across sibling services.
+func matchesProduct(owner string, productNames []string) bool {
+	owner = strings.ToLower(strings.TrimSpace(owner))
+	for _, n := range productNames {
+		n = strings.ToLower(strings.TrimSpace(n))
+		if n == "" {
+			continue
+		}
+		if owner == n || strings.HasPrefix(owner, n+"-") || strings.HasPrefix(owner, n+".") {
+			return true
+		}
+	}
+	return false
 }
 
 func describeFact(f domain.ExposureFact) string {

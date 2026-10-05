@@ -369,12 +369,18 @@ duration_ms, error. Реализация — `internal/toolaudit`: рекорд�
 |---|---|---|
 | EXPLOITABLE | affected | — (impact = reason) |
 | NOT_AFFECTED | not_affected | `component_not_present` (модуль/билд) или `vulnerable_code_not_present` (версия/пакет) |
-| NO_EXPLOIT_PATH_FOUND | not_affected | `vulnerable_code_not_in_execute_path` — только после прошедшей negative-верификации |
+| NO_EXPLOIT_PATH_FOUND (code-grounded) | not_affected | `vulnerable_code_not_in_execute_path` — только после прошедшей negative-верификации |
+| NO_EXPLOIT_PATH_FOUND (trust-grounded) | not_affected | `vulnerable_code_cannot_be_controlled_by_adversary` + `verdict.ground_basis` в impact: `declared-trust` (operator assertion), `auto-perimeter` (детектированная изоляция), `config-origin` (входы → конфигурация хоста) |
 | INCONCLUSIVE | under_investigation | action_statement = reason |
 
 Продукт — `pkg:golang/<module>@<analyzed commit>`; уязвимая зависимость —
 subcomponent `pkg:golang/<module>@<resolved_version>`. CycloneDX не
 экспортируется.
+
+Trust-grounded NEPF (`FalsifierTrustedInfrastructure`) дополнительно
+гейтится полнотой модели: при operator-asserted основании и непустых
+`UnresolvedSubjects` кластерный профиль понижается до INCONCLUSIVE —
+заявление оператора покрывает только смоделированные условия.
 
 ## 12c. Knowledge base — семантика экосистемы как данные
 

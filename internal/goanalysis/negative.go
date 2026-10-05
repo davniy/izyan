@@ -299,6 +299,9 @@ func (v Verifier) extendNegativeScope(ctx context.Context, c *domain.AnalysisCas
 			continue
 		}
 		if len(disp) > 0 {
+			if v.Source != nil && !v.Source.IsReceiverTypeInstantiated(subj) {
+				continue
+			}
 			addSites("InterfaceDispatchSites", disp)
 			nv.Status = domain.NegativeInsufficientScope
 			nv.Notes += fmt.Sprintf(" %d interface-dispatched call site(s) may invoke %s.%s — the concrete implementation behind an interface is not resolved;",

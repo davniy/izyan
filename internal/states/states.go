@@ -7,6 +7,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -407,8 +409,13 @@ func (h CollectEvidence) runGovulncheck(ctx context.Context, c *domain.AnalysisC
 		command = "govulncheck -json -mode binary " + pattern
 	}
 	if c.Product.BinaryPath == "" && pattern != "./..." {
-		c.EvidenceGraph.AddToolLimitation(fmt.Sprintf(
-			"govulncheck ran on narrowed scope %s after ./... failed; packages outside the pattern were not analyzed", pattern))
+		if pattern == "./cmd/..." && AllMainsInCmd(c.Product.Repository) {
+			// All production entry points (package main) reside in cmd/;
+			// govulncheck on ./cmd/... traces all production binaries and their dependencies.
+		} else {
+			c.EvidenceGraph.AddToolLimitation(fmt.Sprintf(
+				"govulncheck ran on narrowed scope %s after ./... failed; packages outside the pattern were not analyzed", pattern))
+		}
 	}
 	evID := c.EvidenceGraph.AddEvidence(domain.Evidence{
 		Kind:        domain.EvidenceGovulncheck,
@@ -463,6 +470,60 @@ func isStdlibModule(module string) bool {
 		first = module[:i]
 	}
 	return !strings.Contains(first, ".")
+}
+
+// AllMainsInCmd checks whether all non-test `package main` source files in repoDir reside
+// within a `cmd/` directory. When true, running govulncheck on `./cmd/...` covers all
+// executable entry points and their full transitive call graphs in the repository.
+func AllMainsInCmd(repoDir string) bool {
+	if repoDir == "" {
+		return false
+	}
+	cmdStat, err := os.Stat(filepath.Join(repoDir, "cmd"))
+	if err != nil || !cmdStat.IsDir() {
+		return false
+	}
+	fset := token.NewFileSet()
+	hasAnyMainInCmd := false
+	allInCmd := true
+
+	_ = filepath.Walk(repoDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || !allInCmd {
+			return nil
+		}
+		if info.IsDir() {
+			name := info.Name()
+			if strings.HasPrefix(name, ".") || name == "vendor" || name == "testdata" || name == "node_modules" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		rel, rerr := filepath.Rel(repoDir, path)
+		if rerr != nil {
+			return nil
+		}
+		cleanRel := filepath.ToSlash(rel)
+		inCmd := strings.HasPrefix(cleanRel, "cmd/") || cleanRel == "cmd"
+
+		fileAst, perr := parser.ParseFile(fset, path, nil, parser.PackageClauseOnly)
+		if perr != nil {
+			return nil
+		}
+		if fileAst.Name != nil && fileAst.Name.Name == "main" {
+			if inCmd {
+				hasAnyMainInCmd = true
+			} else {
+				allInCmd = false
+				return filepath.SkipDir
+			}
+		}
+		return nil
+	})
+
+	return allInCmd && hasAnyMainInCmd
 }
 
 // runListenerScan records product functions that open network listeners or

@@ -374,10 +374,12 @@ func (v Verifier) verifyLocusFunctionUnreached(ctx context.Context, c *domain.An
 			// Interface dispatch sites.
 			disp, derr := v.Source.InterfaceDispatchSites(ctx, subj)
 			if derr == nil && len(disp) > 0 {
-				nv.Status = domain.NegativeInsufficientScope
-				nv.Notes = fmt.Sprintf("%d вызов(ов) через интерфейс могут вызывать %s.%s; конкретная реализация не определена",
-					len(disp), subj.Package, subj.Symbol)
-				return setNeg(claim, nv)
+				if v.Source == nil || v.Source.IsReceiverTypeInstantiated(subj) {
+					nv.Status = domain.NegativeInsufficientScope
+					nv.Notes = fmt.Sprintf("%d вызов(ов) через интерфейс могут вызывать %s.%s; конкретная реализация не определена",
+						len(disp), subj.Package, subj.Symbol)
+					return setNeg(claim, nv)
+				}
 			}
 
 			// Build-tag excluded files.

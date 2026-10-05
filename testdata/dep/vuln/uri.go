@@ -22,3 +22,9 @@ func ParseURI(s string) (URI, error) {
 	}
 	return URI{Raw: s}, nil
 }
+
+// SafeFormatter is another Stringer implementation in the dependency that is
+// never instantiated anywhere in ifaceprod.
+type SafeFormatter struct{}
+
+func (s SafeFormatter) String() string { return "safe" }

@@ -2439,3 +2439,48 @@ func TestActResearchCVE_ProfileVerifiedAdoptsProposals(t *testing.T) {
 		t.Errorf("expected SemanticReview to be present and passed")
 	}
 }
+
+func TestAllMainsInCmd(t *testing.T) {
+	// Case 1: All mains in cmd/
+	dir1 := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir1, "cmd", "server"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir1, "internal", "logic"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir1, "cmd", "server", "main.go"), []byte("package main\nfunc main() {}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir1, "internal", "logic", "logic.go"), []byte("package logic\nfunc Run() {}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// A _test.go with package main outside cmd/ should be ignored
+	if err := os.WriteFile(filepath.Join(dir1, "internal", "logic", "logic_test.go"), []byte("package main\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if !states.AllMainsInCmd(dir1) {
+		t.Errorf("expected AllMainsInCmd to be true for dir1")
+	}
+
+	// Case 2: Main outside cmd/
+	dir2 := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir2, "cmd", "server"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir2, "cmd", "server", "main.go"), []byte("package main\nfunc main() {}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir2, "root_main.go"), []byte("package main\nfunc main() {}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if states.AllMainsInCmd(dir2) {
+		t.Errorf("expected AllMainsInCmd to be false for dir2 with root_main.go")
+	}
+
+	// Case 3: No cmd directory
+	dir3 := t.TempDir()
+	if states.AllMainsInCmd(dir3) {
+		t.Errorf("expected AllMainsInCmd to be false for dir3 without cmd/ directory")
+	}
+}

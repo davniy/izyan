@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/fedorovmv/izyan/internal/affected"
 	"github.com/fedorovmv/izyan/internal/cveanalysis"
@@ -237,6 +238,15 @@ func (h ResolveRootCause) Run(ctx context.Context, c *domain.AnalysisCase) (work
 	if err != nil {
 		return workflow.Transition{}, fmt.Errorf("root cause resolve: %w", err)
 	}
+	// LLM-proposed candidates carry a Proposal ref; the controller owns
+	// the identity and drops any verification records claiming it — the
+	// verifier below regenerates them from deterministic checks.
+	for i := range model.RootCauses {
+		if model.RootCauses[i].Proposal != nil {
+			model.RootCauses[i].EnsureProposal(c.Vulnerability.ID)
+			c.DiscardProposalVerifications(*model.RootCauses[i].Proposal)
+		}
+	}
 	for _, e := range evs {
 		c.EvidenceGraph.AddEvidence(e)
 	}
@@ -254,6 +264,10 @@ func (h ResolveRootCause) Run(ctx context.Context, c *domain.AnalysisCase) (work
 			props, lims, err := p.Propose(ctx, c, c.Vulnerability)
 			model.Limitations = append(model.Limitations, lims...)
 			if err == nil && len(props) > 0 {
+				for i := range props {
+					props[i].EnsureProposal(c.Vulnerability.ID)
+					c.DiscardProposalVerifications(*props[i].Proposal)
+				}
 				model.RootCauses = props
 				model.Limitations = append(model.Limitations,
 					h.Verifier.Verify(ctx, c, model, c.Vulnerability)...)
@@ -281,6 +295,22 @@ func (h ResolveRootCause) Run(ctx context.Context, c *domain.AnalysisCase) (work
 					Reason: fmt.Sprintf("strict-llm: cve analysis failed: %v", err),
 				}, nil
 			}
+		}
+		// Verify the displayed proposal assertions against the source
+		// index before leaving RESOLVE_ROOT_CAUSE — a nil index records
+		// honest UNKNOWNs, never fabricated absence.
+		var source *goanalysis.Index
+		if h.Verifier != nil {
+			source = h.Verifier.Source
+		}
+		if err := cveanalysis.VerifySites(ctx, c, source); err != nil {
+			if c.StrictLLM {
+				return workflow.Transition{
+					Next:   domain.StateFailed,
+					Reason: fmt.Sprintf("strict-llm: proposal site verification failed: %v", err),
+				}, nil
+			}
+			c.EvidenceGraph.AddLimitation("proposal site verification failed: " + err.Error())
 		}
 	}
 	return workflow.Transition{Next: domain.StateBuildExploitModel, Reason: "root cause resolved from advisory/fix evidence"}, nil
@@ -389,6 +419,10 @@ func (h CollectEvidence) Run(ctx context.Context, c *domain.AnalysisCase) (workf
 				c.Product.GoVersion, c.Product.GoModDirective))
 		}
 	}
+	// Proposal assertions re-derived against the evidence collected above:
+	// reachability records are only meaningful once module usage and call
+	// paths have been persisted.
+	cveanalysis.AttributeChecks(c)
 	c.EvidenceGraph.ComputeHash()
 	return workflow.Transition{Next: domain.StateEvaluateConditions, Reason: "deterministic evidence collection complete"}, nil
 }
@@ -1888,6 +1922,13 @@ type BuildReport struct {
 	// Prior is the previous stored run of the same vuln/repo pair; when
 	// set, its tool_executions hashes are diffed against this run's.
 	Prior *domain.AnalysisCase
+	// Translator, when set, renders externally sourced prose into Russian
+	// for report.md. nil = no translation (original English text is quoted).
+	Translator interface {
+		Translate(ctx context.Context, text string) (string, error)
+	}
+	// TranslateToRussian gates translation to the RU human report.
+	TranslateToRussian bool
 }
 
 // diffToolExecutions records the reproducibility-diff between a prior
@@ -1924,6 +1965,9 @@ func (h BuildReport) Run(ctx context.Context, c *domain.AnalysisCase) (workflow.
 	if c.ContextualRisk == nil && c.Verdict != nil {
 		cRisk := risk.Assess(c.Vulnerability, c, *c.Verdict)
 		c.ContextualRisk = &cRisk
+	}
+	if h.TranslateToRussian && h.Translator != nil {
+		h.localizeReportText(ctx, c)
 	}
 	if err := report.Write(h.Dir, c); err != nil {
 		return workflow.Transition{}, fmt.Errorf("build report: %w", err)
@@ -1963,6 +2007,107 @@ func dbKnowsAdvisory(ctx context.Context, base string, v domain.Vulnerability) b
 		}
 	}
 	return false
+}
+
+// containsCyrillic reports whether s already holds Russian text — such
+// strings are quoted verbatim instead of spending LLM calls on them.
+func containsCyrillic(s string) bool {
+	for _, r := range s {
+		if unicode.Is(unicode.Cyrillic, r) {
+			return true
+		}
+	}
+	return false
+}
+
+// localizeReportText fills c.Localization by translating advisory prose and
+// LLM-authored text for the Russian human report. Failures are recorded as
+// Localization.Limitations and never abort report building.
+func (h BuildReport) localizeReportText(ctx context.Context, c *domain.AnalysisCase) {
+	loc := &domain.Localization{}
+	if m, ok := h.Translator.(interface{ ModelName() string }); ok {
+		loc.Model = m.ModelName()
+	}
+	cache := map[string]string{}
+	failed := map[string]bool{}
+	tr := func(kind, src string) (string, bool) {
+		if v, ok := cache[src]; ok {
+			return v, true
+		}
+		if failed[src] {
+			return "", false
+		}
+		out, err := h.Translator.Translate(ctx, src)
+		if err != nil {
+			failed[src] = true
+			loc.Limitations = append(loc.Limitations,
+				fmt.Sprintf("translation failed for %s: %v", kind, err))
+			return "", false
+		}
+		c.IncLLMCalls()
+		cache[src] = out
+		return out, true
+	}
+	textRU := map[string]string{}
+	for _, item := range []struct {
+		kind string
+		src  string
+		dst  *string
+	}{
+		{"advisory summary", c.Vulnerability.Summary, &loc.SummaryRU},
+		{"advisory description", c.Vulnerability.Description, &loc.DescriptionRU},
+	} {
+		if item.src == "" || containsCyrillic(item.src) {
+			continue
+		}
+		if out, ok := tr(item.kind, item.src); ok {
+			*item.dst = out
+		}
+	}
+	var extras []struct {
+		kind string
+		src  string
+	}
+	if c.CVEAnalysis != nil {
+		for _, m := range c.CVEAnalysis.Mechanisms {
+			extras = append(extras, struct {
+				kind string
+				src  string
+			}{"mechanism summary", m.Summary})
+		}
+	}
+	if c.SemanticReview != nil {
+		for _, f := range c.SemanticReview.Findings {
+			extras = append(extras, struct {
+				kind string
+				src  string
+			}{"semantic review finding", f})
+		}
+	}
+	if c.StrategyPlan != nil && c.StrategyPlan.SelectedStrategy != "" {
+		extras = append(extras, struct {
+			kind string
+			src  string
+		}{"strategy plan", c.StrategyPlan.SelectedStrategy})
+	}
+	if c.Exploit != nil && c.Exploit.Impact != "" {
+		extras = append(extras, struct {
+			kind string
+			src  string
+		}{"recorded impact", c.Exploit.Impact})
+	}
+	for _, item := range extras {
+		if item.src == "" || containsCyrillic(item.src) {
+			continue
+		}
+		if out, ok := tr(item.kind, item.src); ok {
+			textRU[item.src] = out
+		}
+	}
+	if len(textRU) > 0 {
+		loc.TextRU = textRU
+	}
+	c.Localization = loc
 }
 
 func orUnknown(s string) string {

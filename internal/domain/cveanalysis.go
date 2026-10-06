@@ -74,11 +74,16 @@ type CVEAnalysisProposal struct {
 }
 
 // SemanticReview is the result of independent mechanism review.
+// Passed is the reviewer's opinion — an LLM verdict, never a
+// deterministic proof of the mechanism.
 type SemanticReview struct {
 	Passed      bool         `json:"passed"`
 	Reviewer    string       `json:"reviewer"`
 	Findings    []string     `json:"findings,omitempty"`
 	EvidenceIDs []EvidenceID `json:"evidence_ids,omitempty"`
+	// Proposal binds the review to the exact proposal revision it
+	// audited; assigned by the controller, never taken from LLM output.
+	Proposal *ProposalRef `json:"proposal,omitempty"`
 }
 
 // StrategyPlan documents the planned verification strategy.
@@ -94,6 +99,69 @@ type HumanRemainderItem struct {
 	Obligation  string `json:"obligation"`
 	Question    string `json:"question"`
 	EvidenceRef string `json:"evidence_ref,omitempty"`
+	// Proposal binds the obligation to the proposal revision whose
+	// assertion it audits; Subject is the normalized symbol when the raw
+	// site text could be resolved to a package+symbol pair.
+	Proposal *ProposalRef `json:"proposal,omitempty"`
+	Subject  *SymbolRef   `json:"subject,omitempty"`
+}
+
+// ProposalSource identifies which stage produced a proposal.
+type ProposalSource string
+
+const (
+	ProposalSourceCVEResearch ProposalSource = "CVE_RESEARCH"
+	ProposalSourceRootCause   ProposalSource = "ROOT_CAUSE"
+)
+
+// ProposalRef binds a verification, review or obligation to the exact
+// proposal revision it was produced against. The controller assigns the
+// identity — an LLM-supplied id/revision/binding is never authoritative.
+type ProposalRef struct {
+	Source      ProposalSource `json:"source"`
+	ID          string         `json:"id"`
+	Revision    int            `json:"revision"`
+	MechanismID string         `json:"mechanism_id,omitempty"`
+}
+
+// ProposalAssertion names what the proposal claims about a site or the
+// whole mechanism: that the mechanism describes the defect (MECHANISM),
+// that a site is where the defect executes (FAULTING_SITE), or that a
+// site only supports the path (AUXILIARY_SITE).
+type ProposalAssertion string
+
+const (
+	AssertionMechanism     ProposalAssertion = "MECHANISM"
+	AssertionFaultingSite  ProposalAssertion = "FAULTING_SITE"
+	AssertionAuxiliarySite ProposalAssertion = "AUXILIARY_SITE"
+)
+
+// ProposalCheckKind names the deterministic check applied to an
+// assertion. SITE_ROLE and MECHANISM have no checker in this
+// architecture — records for them exist to state that honestly.
+type ProposalCheckKind string
+
+const (
+	CheckSymbolExists     ProposalCheckKind = "SYMBOL_EXISTS"
+	CheckProductReachable ProposalCheckKind = "PRODUCT_REACHABLE"
+	CheckSiteRole         ProposalCheckKind = "SITE_ROLE"
+	CheckMechanism        ProposalCheckKind = "MECHANISM"
+)
+
+// ProposalVerification is the persisted outcome of one deterministic
+// check against one assertion of one proposal revision. Result is
+// scoped to THIS check: a TRUE SYMBOL_EXISTS does not vouch for the
+// site's faulting/auxiliary role, and UNKNOWN always carries a Detail
+// saying why the check could not conclude.
+type ProposalVerification struct {
+	Proposal    ProposalRef       `json:"proposal"`
+	SiteText    string            `json:"site_text,omitempty"`
+	Subject     *SymbolRef        `json:"subject,omitempty"`
+	Assertion   ProposalAssertion `json:"assertion"`
+	Check       ProposalCheckKind `json:"check"`
+	Result      ClaimResult       `json:"result"`
+	Detail      string            `json:"detail,omitempty"`
+	EvidenceIDs []EvidenceID      `json:"evidence_ids,omitempty"`
 }
 
 // ProductExposureFacts captures observed facts about constructor and package linkage.

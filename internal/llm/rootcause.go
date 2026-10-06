@@ -111,7 +111,12 @@ func (r *RootCauseResolver) Propose(ctx context.Context, c *domain.AnalysisCase,
 			Package:   p.Package,
 			Symbol:    normalizeSymbol(p.Package, p.Symbol),
 			Role:      domain.RootCauseSink,
-			Mechanism: "llm-proposed: " + p.Mechanism,
+			Mechanism: p.Mechanism,
+			Proposal: &domain.ProposalRef{
+				Source:   domain.ProposalSourceRootCause,
+				ID:       "ROOTCAUSE-" + v.ID,
+				Revision: 1,
+			},
 		})
 	}
 	return out, lims, nil

@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"strconv"
 	"strings"
 
 	"golang.org/x/mod/semver"
@@ -184,19 +184,20 @@ func Markdown(c *domain.AnalysisCase, lang ...string) string {
 	ensureTriageAssessment(c)
 	populateUpgradeCompatibility(c)
 	isRU := isRussian(lang...)
+	p := newReportPaths(c)
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "# %s — %s\n\n", c.Vulnerability.ID, essenceTitle(c, isRU))
+	fmt.Fprintf(&b, "# %s — %s\n\n", c.Vulnerability.ID, p.text(essenceTitle(c, isRU)))
 	writeCaseMetadata(&b, c, isRU)
 
-	renderExecutiveVerdict(&b, c, isRU)
-	renderVulnerabilityEssence(&b, c, isRU)
-	renderProductExploitPath(&b, c, isRU)
-	renderConfirmedFacts(&b, c, isRU)
-	renderUnknowns(&b, c, isRU)
-	renderTriageDecision(&b, c, isRU)
-	renderRemediation(&b, c, isRU)
-	renderAIUsage(&b, c, isRU)
+	renderExecutiveVerdict(&b, c, p, isRU)
+	renderVulnerabilityEssence(&b, c, p, isRU)
+	renderProductExploitPath(&b, c, p, isRU)
+	renderConfirmedFacts(&b, c, p, isRU)
+	renderUnknowns(&b, c, p, isRU)
+	renderTriageDecision(&b, c, p, isRU)
+	renderRemediation(&b, c, p, isRU)
+	renderAIUsage(&b, c, p, isRU)
 	renderAuditLink(&b, c, isRU)
 
 	return b.String()
@@ -211,7 +212,7 @@ func writeCaseMetadata(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 		{"Тикет", "Ticket", c.TicketID},
 		{"Компонент", "Component", c.TicketComponent},
 		{"Релиз", "Release", c.TicketRelease},
-		{"Репозиторий", "Repository", c.Product.Repository},
+		{"Репозиторий", "Repository", reportRepositoryName(c.Product.Repository)},
 		{"Коммит", "Commit", c.Product.Commit},
 	}
 	for _, f := range fields {
@@ -245,10 +246,19 @@ func essenceTitle(c *domain.AnalysisCase, isRU bool) string {
 		}
 		return strings.TrimRight(s, ". ")
 	}
+	if s := localizedAdvisory(c, "summary", isRU); s != "" {
+		if t := short(s); t != "" {
+			return t
+		}
+	}
 	if s := short(c.Vulnerability.Summary); s != "" {
 		return s
 	}
-	if s := short(c.Vulnerability.Description); s != "" {
+	if d := localizedAdvisory(c, "description", isRU); d != "" {
+		if s := short(d); s != "" {
+			return s
+		}
+	} else if s := short(c.Vulnerability.Description); s != "" {
 		return s
 	}
 	if c.RootCause != nil && c.RootCause.Status == domain.RootCauseResolved {
@@ -296,19 +306,38 @@ func verdictTitle(v domain.Verdict, isRU bool) string {
 	return string(v)
 }
 
+// advisorySeveritySupplied reports whether the advisory/scanner record
+// itself carried a severity value — an analyzer-synthesized or unlabeled
+// baseline (empty source, or the SourceAnalyzerDefault marker the risk
+// layer stamps on defaults) is not an advisory assessment.
+func advisorySeveritySupplied(c *domain.AnalysisCase) bool {
+	if c.Vulnerability.BaseSeverity == "" {
+		return false
+	}
+	src := c.Vulnerability.SeveritySource
+	return src != "" && src != domain.SourceAnalyzerDefault
+}
+
+func advisoryScoreSupplied(c *domain.AnalysisCase) bool {
+	if c.Vulnerability.BaseScore <= 0 {
+		return false
+	}
+	src := c.Vulnerability.ScoreSource
+	return src != "" && src != domain.SourceAnalyzerDefault
+}
+
+// baseSeverityText renders the baseline severity for the human report.
+// When the advisory supplied no assessment the value is an honest
+// "not supplied" — a synthesized analyzer baseline is never presented as
+// an advisory rating.
 func baseSeverityText(c *domain.AnalysisCase, isRU bool) string {
 	sev, score := "", 0.0
-	if c.ContextualRisk != nil {
-		sev = c.ContextualRisk.BaseSeverity
-		score = c.ContextualRisk.BaseScore
+	if advisorySeveritySupplied(c) {
+		sev = strings.ToUpper(strings.TrimSpace(c.Vulnerability.BaseSeverity))
 	}
-	if sev == "" {
-		sev = c.Vulnerability.BaseSeverity
-	}
-	if score <= 0 {
+	if advisoryScoreSupplied(c) {
 		score = c.Vulnerability.BaseScore
 	}
-	sev = strings.ToUpper(strings.TrimSpace(sev))
 	if sev == "" {
 		if isRU {
 			sev = "не указана"
@@ -326,7 +355,11 @@ func baseSeverityText(c *domain.AnalysisCase, isRU bool) string {
 }
 
 func severitySource(c *domain.AnalysisCase) string {
-	if c.ContextualRisk != nil && c.ContextualRisk.SeveritySource != "" {
+	if !advisorySeveritySupplied(c) {
+		return ""
+	}
+	if c.ContextualRisk != nil && c.ContextualRisk.SeveritySource != "" &&
+		c.ContextualRisk.SeveritySource != domain.SourceAnalyzerDefault {
 		return c.ContextualRisk.SeveritySource
 	}
 	if c.Vulnerability.SeveritySource != "" {
@@ -339,7 +372,11 @@ func severitySource(c *domain.AnalysisCase) string {
 }
 
 func scoreSource(c *domain.AnalysisCase) string {
-	if c.ContextualRisk != nil && c.ContextualRisk.ScoreSource != "" {
+	if !advisoryScoreSupplied(c) {
+		return ""
+	}
+	if c.ContextualRisk != nil && c.ContextualRisk.ScoreSource != "" &&
+		c.ContextualRisk.ScoreSource != domain.SourceAnalyzerDefault {
 		return c.ContextualRisk.ScoreSource
 	}
 	if c.Vulnerability.ScoreSource != "" {
@@ -351,8 +388,23 @@ func scoreSource(c *domain.AnalysisCase) string {
 	return "Scanner input"
 }
 
-func sourceText(c *domain.AnalysisCase) string {
+// sourceText renders the assessment provenance line. When neither value
+// came from the advisory the displayed source is the analyzer's own
+// default — never an advisory label like "OSV".
+func sourceText(c *domain.AnalysisCase, isRU bool) string {
+	if !advisorySeveritySupplied(c) && !advisoryScoreSupplied(c) {
+		if isRU {
+			return "умолчание анализатора (advisory оценку не сообщил)"
+		}
+		return "analyzer default (advisory supplied no assessment)"
+	}
 	sev, score := severitySource(c), scoreSource(c)
+	if sev == "" {
+		sev = score
+	}
+	if score == "" {
+		score = sev
+	}
 	if sev == score {
 		return sev
 	}
@@ -364,6 +416,37 @@ func priorityText(p domain.TriagePriority, isRU bool) string {
 		return "—"
 	}
 	return formatTriagePriority(p, isRU)
+}
+
+// dispositionSuffix renders the short human qualifier appended to the
+// executive priority line, e.g. " — без изменения" / " — unchanged".
+func dispositionSuffix(c *domain.AnalysisCase, isRU bool) string {
+	if c.ContextualRisk == nil {
+		return ""
+	}
+	switch c.ContextualRisk.TriageDisposition {
+	case domain.TriageUnchanged:
+		if isRU {
+			return " — без изменения"
+		}
+		return " — unchanged"
+	case domain.TriageLowered:
+		if isRU {
+			return " — приоритет снижен"
+		}
+		return " — priority lowered"
+	case domain.TriageDismissed:
+		if isRU {
+			return " — finding можно закрыть"
+		}
+		return " — the finding can be closed"
+	case domain.TriageInconclusive:
+		if isRU {
+			return " — требуется дополнительная проверка"
+		}
+		return " — additional verification required"
+	}
+	return ""
 }
 
 func effectiveBasePriority(c *domain.AnalysisCase) domain.TriagePriority {
@@ -487,7 +570,7 @@ func conditionHumanDesc(cond domain.Condition, isRU bool) string {
 // verdict-dependent phrase, base severity with provenance, effective
 // priority and a short triage reason. Internal statuses, contextual score
 // and SLA stay in the audit report.
-func renderExecutiveVerdict(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderExecutiveVerdict(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	v := domain.Verdict("")
 	if c.Verdict != nil {
 		v = c.Verdict.Verdict
@@ -534,28 +617,54 @@ func renderExecutiveVerdict(b *strings.Builder, c *domain.AnalysisCase, isRU boo
 
 	if isRU {
 		fmt.Fprintf(b, "**Исходная критичность:** %s\n", baseSeverityText(c, true))
-		fmt.Fprintf(b, "**Источник оценки:** %s\n", sourceText(c))
+		fmt.Fprintf(b, "**Источник оценки:** %s\n", sourceText(c, true))
 	} else {
 		fmt.Fprintf(b, "**Baseline severity:** %s\n", baseSeverityText(c, false))
-		fmt.Fprintf(b, "**Assessment source:** %s\n", sourceText(c))
+		fmt.Fprintf(b, "**Assessment source:** %s\n", sourceText(c, false))
 	}
 	if c.ContextualRisk != nil {
+		suffix := dispositionSuffix(c, isRU)
 		if isRU {
-			fmt.Fprintf(b, "**Приоритет:** %s\n", priorityText(c.ContextualRisk.Priority, true))
+			fmt.Fprintf(b, "**Приоритет:** %s%s\n\n", priorityText(c.ContextualRisk.Priority, true), suffix)
 		} else {
-			fmt.Fprintf(b, "**Priority:** %s\n", priorityText(c.ContextualRisk.Priority, false))
+			fmt.Fprintf(b, "**Priority:** %s%s\n\n", priorityText(c.ContextualRisk.Priority, false), suffix)
 		}
-		if c.ContextualRisk.AdjustmentReason != "" {
-			fmt.Fprintf(b, "\n> %s\n", c.ContextualRisk.AdjustmentReason)
+		switch c.ContextualRisk.TriageDisposition {
+		case domain.TriageUnchanged:
+			if isRU {
+				b.WriteString("Контекстный анализ не выявил оснований для снижения исходной оценки.\n\n")
+			} else {
+				b.WriteString("The contextual analysis found no grounds to lower the baseline assessment.\n\n")
+			}
+		case domain.TriageLowered:
+			if isRU {
+				b.WriteString("Подтверждённый контекст развёртывания позволяет снизить исходный приоритет; подробности — в разделе «Оценка и приоритет».\n\n")
+			} else {
+				b.WriteString("The confirmed deployment context allows lowering the baseline priority; see the \u201cAssessment and priority\u201d section.\n\n")
+			}
+		case domain.TriageDismissed:
+			if isRU {
+				b.WriteString("Приоритет устранения снят: уязвимость неприменима к проверенному снимку.\n\n")
+			} else {
+				b.WriteString("The remediation priority is dismissed: the vulnerability does not apply to the verified snapshot.\n\n")
+			}
+		case domain.TriageInconclusive:
+			if isRU {
+				b.WriteString("Исходный приоритет сохранён — требуется дополнительная проверка.\n\n")
+			} else {
+				b.WriteString("The baseline priority is retained — additional verification is required.\n\n")
+			}
 		}
 	}
-	b.WriteString("\n")
+	if c.ContextualRisk == nil {
+		b.WriteString("\n")
+	}
 
 	if c.Verdict != nil && c.Verdict.Reason != "" && !internalIDRe.MatchString(c.Verdict.Reason) {
 		if isRU {
-			fmt.Fprintf(b, "> %s\n\n", localizeVerdictReason(c.Verdict.Reason, true))
+			fmt.Fprintf(b, "> %s\n\n", localizeVerdictReason(p.text(c.Verdict.Reason), true))
 		} else {
-			fmt.Fprintf(b, "> %s\n\n", c.Verdict.Reason)
+			fmt.Fprintf(b, "> %s\n\n", p.text(c.Verdict.Reason))
 		}
 	}
 }
@@ -575,9 +684,9 @@ func notAffectedCause(c *domain.AnalysisCase, isRU bool) string {
 			return fmt.Sprintf("module `%s` is not part of the product dependency graph (`go list -m all`)", mod)
 		case a.VersionAffected == domain.ClaimFalse:
 			if isRU {
-				return fmt.Sprintf("разрешённая версия `%s %s` находится вне уязвимого диапазона", mod, ver)
+				return fmt.Sprintf("используемая версия `%s %s` находится вне уязвимого диапазона версий", mod, ver)
 			}
-			return fmt.Sprintf("resolved version `%s %s` is outside the affected range", mod, ver)
+			return fmt.Sprintf("the version in use `%s %s` is outside the affected version range", mod, ver)
 		case a.PackagePresent == domain.ClaimFalse:
 			if isRU {
 				return "уязвимые пакеты не входят в транзитивное замыкание сборки (`go list -deps`) — код не скомпилирован в продукт"
@@ -628,6 +737,35 @@ func falsifiedConditionDesc(c *domain.AnalysisCase, isRU bool) string {
 	return "a mandatory exploit condition was proven false"
 }
 
+// localizedText returns the Russian rendering of an externally sourced
+// string when a translation is available for the RU report; otherwise the
+// original text is returned unchanged. Translation never replaces the
+// authoritative source — it is presentation only.
+func localizedText(c *domain.AnalysisCase, original string, isRU bool) string {
+	if !isRU || original == "" || c.Localization == nil {
+		return original
+	}
+	if t := c.Localization.TextRU[original]; t != "" {
+		return t
+	}
+	return original
+}
+
+// localizedAdvisory returns the Russian rendering of the advisory
+// summary/description when translation is available, else the original.
+func localizedAdvisory(c *domain.AnalysisCase, kind string, isRU bool) string {
+	if !isRU || c.Localization == nil {
+		return ""
+	}
+	switch kind {
+	case "summary":
+		return c.Localization.SummaryRU
+	case "description":
+		return c.Localization.DescriptionRU
+	}
+	return ""
+}
+
 // pickMechanism selects the best available defect-mechanism description and
 // records its provenance: "rootcause" (deterministically resolved),
 // "advisory" (external advisory text), "ai" (unconfirmed LLM proposal) or
@@ -639,20 +777,30 @@ func pickMechanism(c *domain.AnalysisCase, isRU bool) (text, source string) {
 			if rc.Absent || rc.Mechanism == "" || strings.Contains(strings.ToLower(rc.Mechanism), "advisory") {
 				continue
 			}
-			parts = append(parts, fmt.Sprintf("%s (`%s.%s`)", rootCauseMechanism(rc.Mechanism, isRU), rc.Package, rc.Symbol))
+			mech := rootCauseMechanism(rc.Mechanism, isRU)
+			if t := localizedText(c, rc.Mechanism, isRU); t != rc.Mechanism {
+				mech = t
+			}
+			parts = append(parts, fmt.Sprintf("%s (`%s.%s`)", mech, rc.Package, rc.Symbol))
 		}
 		if len(parts) > 0 {
 			return strings.Join(parts, "; "), "rootcause"
 		}
 	}
+	if d := localizedAdvisory(c, "description", isRU); d != "" {
+		return firstParagraph(d), "advisory"
+	}
 	if d := firstParagraph(c.Vulnerability.Description); d != "" {
 		return d, "advisory"
+	}
+	if s := localizedAdvisory(c, "summary", isRU); s != "" {
+		return firstTextLine(s), "advisory"
 	}
 	if s := firstTextLine(c.Vulnerability.Summary); s != "" {
 		return s, "advisory"
 	}
 	if c.CVEAnalysis != nil && len(c.CVEAnalysis.Mechanisms) > 0 && c.CVEAnalysis.Mechanisms[0].Summary != "" {
-		return c.CVEAnalysis.Mechanisms[0].Summary, "ai"
+		return localizedText(c, c.CVEAnalysis.Mechanisms[0].Summary, isRU), "ai"
 	}
 	if c.RootCause != nil {
 		for _, rc := range c.RootCause.RootCauses {
@@ -674,8 +822,9 @@ func pickMechanism(c *domain.AnalysisCase, isRU bool) (text, source string) {
 // defectDescription returns the best available human description of the
 // defect mechanism; unconfirmed sources (advisory text, LLM proposals) are
 // marked with their provenance, and a missing mechanism is explicit.
-func defectDescription(c *domain.AnalysisCase, isRU bool) string {
+func defectDescription(c *domain.AnalysisCase, p reportPaths, isRU bool) string {
 	text, src := pickMechanism(c, isRU)
+	text = p.text(text)
 	switch src {
 	case "advisory":
 		if isRU {
@@ -719,14 +868,14 @@ func sinkSymbols(c *domain.AnalysisCase) []domain.SymbolRef {
 // renderVulnerabilityEssence explains the defect mechanism, the vulnerable
 // operation and the recorded impact. It never invents panic/DoS/RCE/leak
 // statements — impact is only what the case recorded.
-func renderVulnerabilityEssence(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderVulnerabilityEssence(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	if isRU {
 		b.WriteString("## В чём уязвимость\n\n")
 	} else {
 		b.WriteString("## Vulnerability overview\n\n")
 	}
 
-	fmt.Fprintf(b, "%s\n\n", defectDescription(c, isRU))
+	fmt.Fprintf(b, "%s\n\n", defectDescription(c, p, isRU))
 
 	if syms := sinkSymbols(c); len(syms) > 0 {
 		var names []string
@@ -742,7 +891,7 @@ func renderVulnerabilityEssence(b *strings.Builder, c *domain.AnalysisCase, isRU
 
 	impact := ""
 	if c.Exploit != nil {
-		impact = c.Exploit.Impact
+		impact = p.text(localizedText(c, c.Exploit.Impact, isRU))
 	}
 	if impact != "" {
 		if isRU {
@@ -752,15 +901,20 @@ func renderVulnerabilityEssence(b *strings.Builder, c *domain.AnalysisCase, isRU
 		}
 	}
 
-	class := strings.Join(c.Vulnerability.CWE, ", ")
-	if class == "" && c.Exploit != nil {
-		class = c.Exploit.Class
-	}
-	if class != "" {
+	// CWE codes are advisory metadata and stay as recorded; the inferred
+	// exploit class is an internal enum — it renders as a localized human
+	// label here, while the raw value remains in audit/JSON.
+	if class := strings.Join(c.Vulnerability.CWE, ", "); class != "" {
 		if isRU {
 			fmt.Fprintf(b, "- **Класс дефекта:** `%s`\n", class)
 		} else {
 			fmt.Fprintf(b, "- **Defect class:** `%s`\n", class)
+		}
+	} else if c.Exploit != nil && c.Exploit.Class != "" {
+		if isRU {
+			fmt.Fprintf(b, "- **Класс дефекта:** %s\n", exploitClassLabel(c.Exploit.Class, true))
+		} else {
+			fmt.Fprintf(b, "- **Defect class:** %s\n", exploitClassLabel(c.Exploit.Class, false))
 		}
 	}
 	b.WriteString("\n")
@@ -770,7 +924,7 @@ func renderVulnerabilityEssence(b *strings.Builder, c *domain.AnalysisCase, isRU
 // not apply — to this product: the verified applicability facts, then the
 // proven chain (data flows with proven origin, real call paths), the real
 // falsifier for negative verdicts, or explicit uncertainty.
-func renderProductExploitPath(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderProductExploitPath(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	if isRU {
 		b.WriteString("## Почему она применима / не применима к этому продукту\n\n")
 	} else {
@@ -789,7 +943,7 @@ func renderProductExploitPath(b *strings.Builder, c *domain.AnalysisCase, isRU b
 	case domain.VerdictNoExploitPathFound:
 		writeFalsifierLines(b, c, isRU)
 	case domain.VerdictExploitable, domain.VerdictInconclusive:
-		writeExploitChain(b, c, isRU)
+		writeExploitChain(b, c, p, isRU)
 	default:
 		if isRU {
 			b.WriteString("Оценка применимости и пути эксплуатации не завершена (вердикт не вынесен).\n\n")
@@ -850,37 +1004,41 @@ func applicabilitySentence(c *domain.AnalysisCase, isRU bool) string {
 	return "Vulnerability applicability is unresolved: some checks did not complete."
 }
 
-// writeExploitChain prints the verified chain evidence: data flows whose
-// origin is proven non-UNKNOWN and payload proven, plus real call paths
-// (static reachability of a symbol — not the whole attacker-controlled
-// flow). Unproven flows are named as unproven, never asserted.
-func writeExploitChain(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+// writeExploitChain prints the verified chain evidence at its recorded
+// scope: confirmed external-input flows (argument-scoped), the dependency
+// reachability the call paths prove, and unproven flows named at their
+// exact scope — never combined into a fabricated end-to-end payload proof.
+// Confirmed flows and call-path reachability are distinct facts: showing
+// one never suppresses the other.
+func writeExploitChain(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	claims := claimByCondition(c)
+	usage := moduleUsageIndex(c)
 
 	var confirmed []string
 	var unproven []string
 	for _, f := range c.EvidenceGraph.DataFlows {
-		sink := f.Sink.Callee
-		if sink == "" {
-			sink = f.Sink.Function
+		// Receiver/object traces (Arg <= -2) stay in the audit: they do
+		// not describe a payload argument and would read as contradictions
+		// beside the argument-scoped facts.
+		if f.Arg < -1 {
+			continue
 		}
-		sinkRef := fmt.Sprintf("`%s`", sink)
-		if f.Sink.File != "" {
-			sinkRef = fmt.Sprintf("`%s` (%s:%d)", sink, f.Sink.File, f.Sink.Line)
-		}
-		src := f.Source.Callee
-		if src == "" {
-			src = f.Source.Function
-		}
-		srcRef := fmt.Sprintf("`%s`", src)
-		if f.Source.File != "" {
-			srcRef = fmt.Sprintf("`%s` (%s:%d)", src, f.Source.File, f.Source.Line)
-		}
+		sinkRef := flowPointRef(c, p, f.Sink, usage)
+		srcRef := flowPointRef(c, p, f.Source, usage)
 		if f.PayloadUnproven || f.Origin == "" || f.Origin == domain.OriginUnknown {
-			if isRU {
-				unproven = append(unproven, fmt.Sprintf("обнаружен поток данных к %s из %s, но внешнее происхождение входа не доказано", sinkRef, srcRef))
-			} else {
-				unproven = append(unproven, fmt.Sprintf("a data flow to %s from %s was found, but external origin of the input is not proven", sinkRef, srcRef))
+			switch {
+			case f.Arg >= 0:
+				if isRU {
+					unproven = append(unproven, fmt.Sprintf("обнаружен поток данных к аргументу %d в %s, но его внешнее происхождение не доказано", f.Arg, sinkRef))
+				} else {
+					unproven = append(unproven, fmt.Sprintf("a data flow reaches argument %d of %s, but the external origin of that value is not proven", f.Arg, sinkRef))
+				}
+			default:
+				if isRU {
+					unproven = append(unproven, fmt.Sprintf("обнаружен поток данных к %s из %s, но внешнее происхождение входа не доказано", sinkRef, srcRef))
+				} else {
+					unproven = append(unproven, fmt.Sprintf("a data flow to %s from %s was found, but the external origin of the input is not proven", sinkRef, srcRef))
+				}
 			}
 			continue
 		}
@@ -906,24 +1064,32 @@ func writeExploitChain(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 				tx = fmt.Sprintf(" via %s", strings.Join(names, ", "))
 			}
 		}
+		// Scope the confirmed fact to exactly what was recorded: the
+		// sink's argument position when the trace carried one.
 		if isRU {
-			if srcRef == sinkRef {
+			switch {
+			case f.Arg >= 0:
+				confirmed = append(confirmed, fmt.Sprintf("внешние данные поступают в аргумент %d в %s%s", f.Arg, sinkRef, tx))
+			case srcRef == sinkRef:
 				confirmed = append(confirmed, fmt.Sprintf("внешние данные обрабатываются в %s%s", sinkRef, tx))
-			} else {
+			default:
 				confirmed = append(confirmed, fmt.Sprintf("данные из %s достигают %s%s", srcRef, sinkRef, tx))
 			}
 		} else {
-			if srcRef == sinkRef {
+			switch {
+			case f.Arg >= 0:
+				confirmed = append(confirmed, fmt.Sprintf("external input reaches argument %d in %s%s", f.Arg, sinkRef, tx))
+			case srcRef == sinkRef:
 				confirmed = append(confirmed, fmt.Sprintf("external data is processed in %s%s", sinkRef, tx))
-			} else {
+			default:
 				confirmed = append(confirmed, fmt.Sprintf("data from %s reaches %s%s", srcRef, sinkRef, tx))
 			}
 		}
 	}
 	confirmed = dedupeStrings(confirmed)
 	unproven = dedupeStrings(unproven)
-	if len(confirmed) > 2 {
-		confirmed = confirmed[:2]
+	if len(confirmed) > 3 {
+		confirmed = confirmed[:3]
 	}
 	if len(unproven) > 2 {
 		unproven = unproven[:2]
@@ -945,8 +1111,7 @@ func writeExploitChain(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 		}
 	}
 
-	switch {
-	case len(confirmed) > 0:
+	if len(confirmed) > 0 {
 		if isRU {
 			b.WriteString("Подтверждённая обработка внешних данных (в пределах статического анализа):\n")
 		} else {
@@ -955,7 +1120,8 @@ func writeExploitChain(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 		for _, s := range confirmed {
 			fmt.Fprintf(b, "- %s;\n", s)
 		}
-	case len(paths) > 0:
+	}
+	if len(paths) > 0 {
 		if isRU {
 			b.WriteString("Статический анализ подтвердил достижимость уязвимого символа (путь вызова доказывает достижимость, но не всю цепочку передачи внешних данных):\n")
 		} else {
@@ -967,13 +1133,15 @@ func writeExploitChain(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 			}
 			fmt.Fprintf(b, "- %s\n", callPathLine(cp, isRU))
 		}
-	case missingCall:
+	}
+	if missingCall {
 		if isRU {
 			b.WriteString("- Дефект — пропущенная обязательная проверка: проверено, что она отсутствует на активном пути исполнения.\n")
 		} else {
 			b.WriteString("- The defect is an omitted mandatory check: verified absent on an active execution pipeline.\n")
 		}
-	default:
+	}
+	if len(confirmed) == 0 && len(paths) == 0 && !missingCall {
 		if isRU {
 			b.WriteString("Сквозная подтверждённая цепочка от внешнего ввода к дефектной операции не построена.\n")
 		} else {
@@ -984,6 +1152,54 @@ func writeExploitChain(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 		fmt.Fprintf(b, "- %s.\n", s)
 	}
 	b.WriteString("\n")
+}
+
+// moduleUsageIndex maps a recorded call site (file:line) to the module
+// usage entry produced there, so a data-flow sink location can be named
+// by the operation actually invoked (e.g. yaml.Unmarshal) rather than
+// only by the enclosing product function.
+func moduleUsageIndex(c *domain.AnalysisCase) map[string]domain.CallSite {
+	idx := make(map[string]domain.CallSite, len(c.EvidenceGraph.ModuleUsages))
+	for _, mu := range c.EvidenceGraph.ModuleUsages {
+		if mu.File == "" || mu.Line <= 0 || mu.Callee == "" {
+			continue
+		}
+		key := canonicalPath(mu.File).clean + "\x00" + strconv.Itoa(mu.Line)
+		if _, ok := idx[key]; !ok {
+			idx[key] = mu
+		}
+	}
+	return idx
+}
+
+// flowCallee returns the invoked operation at a flow point: the recorded
+// Callee, or the module usage observed at that exact site. CallSite.
+// ModuleOwner is never consulted for the location of the enclosing file.
+func flowCallee(cs domain.CallSite, usage map[string]domain.CallSite) string {
+	if cs.Callee != "" {
+		return cs.Callee
+	}
+	if cs.File == "" || cs.Line <= 0 {
+		return ""
+	}
+	if mu, ok := usage[canonicalPath(cs.File).clean+"\x00"+strconv.Itoa(cs.Line)]; ok {
+		return mu.Callee
+	}
+	return ""
+}
+
+// flowPointRef renders a data-flow endpoint: the invoked operation when
+// known, else the enclosing function, plus its report-policy location.
+func flowPointRef(c *domain.AnalysisCase, p reportPaths, cs domain.CallSite, usage map[string]domain.CallSite) string {
+	name := flowCallee(cs, usage)
+	if name == "" {
+		name = cs.Function
+	}
+	loc := p.location(cs.File, cs.Package, cs.Line).Text
+	if loc == "" {
+		return fmt.Sprintf("`%s`", name)
+	}
+	return fmt.Sprintf("`%s` (`%s`)", name, loc)
 }
 
 func callPathLine(cp domain.CallPath, isRU bool) string {
@@ -1127,7 +1343,7 @@ func writeFalsifierLines(b *strings.Builder, c *domain.AnalysisCase, isRU bool) 
 
 // renderConfirmedFacts lists only real TRUE / verified-FALSE results in
 // human form — never claim/evidence ids, producers or raw enum values.
-func renderConfirmedFacts(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderConfirmedFacts(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	if isRU {
 		b.WriteString("## Что подтверждено\n\n")
 	} else {
@@ -1153,8 +1369,8 @@ func renderConfirmedFacts(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 		switch {
 		case a.ModulePresent == domain.ClaimTrue && ver != "":
 			add(
-				fmt.Sprintf("уязвимый модуль `%s` входит в зависимости (разрешённая версия `%s`)", mod, ver),
-				fmt.Sprintf("the affected module `%s` is a product dependency (resolved version `%s`)", mod, ver))
+				fmt.Sprintf("в сборке используется модуль `%s` версии `%s`", mod, ver),
+				fmt.Sprintf("the build uses `%s` version `%s`", mod, ver))
 		case a.ModulePresent == domain.ClaimTrue:
 			add(
 				fmt.Sprintf("уязвимый модуль `%s` входит в зависимости продукта", mod),
@@ -1172,12 +1388,12 @@ func renderConfirmedFacts(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 			switch {
 			case a.VersionAffected == domain.ClaimTrue:
 				add(
-					fmt.Sprintf("разрешённая версия `%s` входит в уязвимый диапазон", ver),
-					fmt.Sprintf("resolved version `%s` is inside the affected range", ver))
+					fmt.Sprintf("версия `%s` модуля `%s` входит в уязвимый диапазон версий", ver, mod),
+					fmt.Sprintf("version `%s` of `%s` falls inside the affected version range", ver, mod))
 			case a.VersionAffected == domain.ClaimFalse:
 				add(
-					fmt.Sprintf("разрешённая версия `%s` находится вне уязвимого диапазона", ver),
-					fmt.Sprintf("resolved version `%s` is outside the affected range", ver))
+					fmt.Sprintf("версия `%s` модуля `%s` находится вне уязвимого диапазона версий", ver, mod),
+					fmt.Sprintf("version `%s` of `%s` is outside the affected version range", ver, mod))
 			}
 		}
 		switch {
@@ -1189,8 +1405,8 @@ func renderConfirmedFacts(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 			checked := strings.Join(a.CheckedPackages, "`, `")
 			if checked == "" {
 				var paths []string
-				for _, p := range c.Vulnerability.AffectedPackages {
-					paths = append(paths, p.Path)
+				for _, pkg := range c.Vulnerability.AffectedPackages {
+					paths = append(paths, pkg.Path)
 				}
 				checked = strings.Join(paths, "`, `")
 			}
@@ -1221,9 +1437,18 @@ func renderConfirmedFacts(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 		for _, s := range syms {
 			names = append(names, fmt.Sprintf("`%s.%s`", s.Package, s.Symbol))
 		}
-		add(
-			fmt.Sprintf("точка дефекта локализована в исходниках зависимости: %s", strings.Join(names, ", ")),
-			fmt.Sprintf("the defect site is localized in the dependency source: %s", strings.Join(names, ", ")))
+		if subjectPresenceProven(c, syms) {
+			add(
+				fmt.Sprintf("точка дефекта локализована в исходниках зависимости: %s", strings.Join(names, ", ")),
+				fmt.Sprintf("the defect site is localized in the dependency source: %s", strings.Join(names, ", ")))
+		} else {
+			// Resolved only against advisory-listed names: no persisted
+			// presence check, so these are declared affected entry points —
+			// not an independently localized defect site.
+			add(
+				fmt.Sprintf("указанные в advisory уязвимые функции относятся к зависимости: %s", strings.Join(names, ", ")),
+				fmt.Sprintf("the advisory-listed vulnerable functions belong to the dependency: %s", strings.Join(names, ", ")))
+		}
 	}
 
 	if n := len(c.EvidenceGraph.CallPaths); n > 0 {
@@ -1258,17 +1483,14 @@ func renderConfirmedFacts(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 	}
 
 	flows := 0
+	usage := moduleUsageIndex(c)
 	for _, f := range c.EvidenceGraph.DataFlows {
-		if f.PayloadUnproven || !externalOrigin(f.Origin) {
+		if f.PayloadUnproven || !externalOrigin(f.Origin) || f.Arg < -1 {
 			continue
 		}
-		sink := f.Sink.Callee
-		if sink == "" {
-			sink = f.Sink.Function
-		}
 		add(
-			fmt.Sprintf("внешние входные данные достигают `%s`", sink),
-			fmt.Sprintf("externally controlled input reaches `%s`", sink))
+			fmt.Sprintf("внешние входные данные достигают %s", flowPointRef(c, p, f.Sink, usage)),
+			fmt.Sprintf("externally controlled input reaches %s", flowPointRef(c, p, f.Sink, usage)))
 		flows++
 		if flows >= 2 {
 			break
@@ -1280,10 +1502,7 @@ func renderConfirmedFacts(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 		if f.Direction != "inbound" || f.Kind != "listener" {
 			continue
 		}
-		loc := f.File
-		if f.Line > 0 {
-			loc = fmt.Sprintf("%s:%d", loc, f.Line)
-		}
+		loc := p.location(f.File, "", f.Line).Text
 		if f.Address != "" {
 			add(
 				fmt.Sprintf("приложение создаёт входящий слушатель `%s` через `%s` (`%s`)", f.Address, f.Target, loc),
@@ -1355,11 +1574,47 @@ func renderConfirmedFacts(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 	b.WriteString("\n")
 }
 
+// subjectPresenceProven reports whether at least one listed sink symbol
+// has a persisted presence check proving its declaration exists in the
+// dependency source — a SymbolDecls entry or a TRUE claim for a
+// symbol_present condition. Advisory listing alone does not qualify.
+func subjectPresenceProven(c *domain.AnalysisCase, syms []domain.SymbolRef) bool {
+	for _, s := range syms {
+		if site, checked := c.EvidenceGraph.SymbolDeclFor(s.Package + "." + s.Symbol); checked && site != nil {
+			return true
+		}
+	}
+	claims := claimByCondition(c)
+	for _, cond := range allConditions(c) {
+		if cond.Params[domain.ParamCheck] != domain.CheckSymbolPresent {
+			continue
+		}
+		for _, s := range syms {
+			matched := false
+			for _, subj := range cond.Subjects {
+				if subj == s {
+					matched = true
+				}
+			}
+			if cond.Subject != nil && *cond.Subject == s {
+				matched = true
+			}
+			if !matched {
+				continue
+			}
+			if cl, ok := claims[cond.ID]; ok && cl.Result == domain.ClaimTrue {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // renderUnknowns lists the concrete unresolved factors of this analysis and
 // the explicit trust basis when a result depends on deployment assumptions,
 // then the "what could change the assessment" block (never alternative
 // verdicts).
-func renderUnknowns(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderUnknowns(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	if isRU {
 		b.WriteString("## Что не удалось подтвердить\n\n")
 	} else {
@@ -1367,6 +1622,7 @@ func renderUnknowns(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 	}
 
 	claims := claimByCondition(c)
+	usage := moduleUsageIndex(c)
 	var unknowns []string
 	add := func(ru, en string) {
 		msg := ru
@@ -1429,18 +1685,28 @@ func renderUnknowns(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 		}
 	}
 
+	// Unmodeled security-relevant transformations are a recorded analysis
+	// boundary: the traced value passed through them but their effect on
+	// the payload was never modeled — neither a mitigation nor evidence
+	// the flaw still triggers.
+	if names := unmodeledTransformNames(c); len(names) > 0 {
+		joined := "`" + strings.Join(names, "`, `") + "`"
+		add(
+			fmt.Sprintf("на трассируемом пути встречаются преобразования данных, влияющие на безопасность, но не смоделированные как проверки: %s — их влияние на достижимость дефекта не оценено", joined),
+			fmt.Sprintf("security-relevant data transformations on the traced path are not modeled as checks: %s — their effect on reaching the defect is unassessed", joined))
+	}
+
 	unproven := 0
 	for _, f := range c.EvidenceGraph.DataFlows {
 		if !f.PayloadUnproven && f.Origin != "" && f.Origin != domain.OriginUnknown {
 			continue
 		}
-		sink := f.Sink.Callee
-		if sink == "" {
-			sink = f.Sink.Function
+		if f.Arg < -1 {
+			continue // receiver/output provenance stays in the audit
 		}
 		add(
-			fmt.Sprintf("поток данных к `%s` обнаружен, но внешнее происхождение полезной нагрузки не доказано", sink),
-			fmt.Sprintf("a data flow to `%s` was found, but the external origin of the payload is not proven", sink))
+			fmt.Sprintf("поток данных к %s обнаружен, но внешнее происхождение полезной нагрузки не доказано", flowPointRef(c, p, f.Sink, usage)),
+			fmt.Sprintf("a data flow to %s was found, but the external origin of the payload is not proven", flowPointRef(c, p, f.Sink, usage)))
 		unproven++
 		if unproven >= 3 {
 			break
@@ -1501,8 +1767,9 @@ func renderUnknowns(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 
 	if c.Justification != nil {
 		for _, rem := range c.Justification.HumanRemainder {
-			if rem.Question != "" && !internalIDRe.MatchString(rem.Question) {
-				add(rem.Question, rem.Question)
+			text := humanRemainderText(rem, isRU)
+			if text != "" && !internalIDRe.MatchString(text) {
+				add(p.text(text), p.text(text))
 			}
 		}
 	}
@@ -1525,6 +1792,31 @@ func renderUnknowns(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 	}
 
 	renderAssessmentChanges(b, c, isRU)
+}
+
+// unmodeledTransformNames collects the security-relevant transformations
+// that persisted claim limitations recorded as "not modeled as guards" —
+// the boundary wording is generated here; only the callee list is reused.
+func unmodeledTransformNames(c *domain.AnalysisCase) []string {
+	var names []string
+	for _, cl := range c.Claims {
+		for _, lim := range cl.Limitations {
+			idx := strings.Index(lim, "not modeled as guards")
+			if idx < 0 {
+				continue
+			}
+			colon := strings.Index(lim[idx:], ":")
+			if colon < 0 {
+				continue
+			}
+			for _, n := range strings.Split(lim[idx+colon+1:], ",") {
+				if n = strings.TrimSpace(n); n != "" {
+					names = append(names, n)
+				}
+			}
+		}
+	}
+	return dedupeStrings(names)
 }
 
 // groundBasisRationale makes the trust basis of a NEPF verdict explicit in
@@ -1617,7 +1909,7 @@ func renderAssessmentChanges(b *strings.Builder, c *domain.AnalysisCase, isRU bo
 // renderTriageDecision renders base severity/source, baseline priority,
 // effective priority and the human disposition. Internal statuses, SLA and
 // contextual score stay in the audit report.
-func renderTriageDecision(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderTriageDecision(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	if isRU {
 		b.WriteString("## Оценка и приоритет\n\n")
 	} else {
@@ -1636,12 +1928,12 @@ func renderTriageDecision(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 
 	if isRU {
 		fmt.Fprintf(b, "- **Исходная критичность:** %s\n", baseSeverityText(c, true))
-		fmt.Fprintf(b, "- **Источник оценки:** %s\n", sourceText(c))
+		fmt.Fprintf(b, "- **Источник оценки:** %s\n", sourceText(c, true))
 		fmt.Fprintf(b, "- **Исходный приоритет:** %s\n", priorityText(effectiveBasePriority(c), true))
 		fmt.Fprintf(b, "- **Итоговый приоритет:** %s\n", priorityText(r.Priority, true))
 	} else {
 		fmt.Fprintf(b, "- **Baseline severity:** %s\n", baseSeverityText(c, false))
-		fmt.Fprintf(b, "- **Assessment source:** %s\n", sourceText(c))
+		fmt.Fprintf(b, "- **Assessment source:** %s\n", sourceText(c, false))
 		fmt.Fprintf(b, "- **Baseline priority:** %s\n", priorityText(effectiveBasePriority(c), false))
 		fmt.Fprintf(b, "- **Effective priority:** %s\n", priorityText(r.Priority, false))
 	}
@@ -1694,7 +1986,7 @@ func renderTriageDecision(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 			b.WriteString("### Why the priority was lowered\n\n")
 		}
 		if r.AdjustmentReason != "" {
-			fmt.Fprintf(b, "- %s\n", r.AdjustmentReason)
+			fmt.Fprintf(b, "- %s\n", p.text(r.AdjustmentReason))
 		}
 		if isRU {
 			b.WriteString("- Снижение действительно для подтверждённых условий текущей среды; при изменении развёртывания требуется повторный триаж.\n\n")
@@ -1707,7 +1999,7 @@ func renderTriageDecision(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 // renderRemediation renders a short actionable fix recommendation per
 // verdict. The H2 is always present; compensating controls are never
 // presented as a fix.
-func renderRemediation(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderRemediation(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	if isRU {
 		b.WriteString("## Рекомендация по исправлению\n\n")
 	} else {
@@ -1718,7 +2010,7 @@ func renderRemediation(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 	if c.Verdict != nil {
 		v = c.Verdict.Verdict
 	}
-	rem := remediation(c, isRU)
+	rem := p.text(remediation(c, isRU))
 
 	switch v {
 	case domain.VerdictNotAffected:
@@ -1798,7 +2090,7 @@ func llmUsed(c *domain.AnalysisCase) bool {
 // performed, which conclusions were proposed/accepted/rejected and what was
 // deterministically verified. An LLM conclusion alone never grounds a
 // negative verdict.
-func renderAIUsage(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAIUsage(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	if isRU {
 		b.WriteString("## Использование AI\n\n")
 	} else {
@@ -1815,41 +2107,43 @@ func renderAIUsage(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 	}
 
 	usage := c.UsageSnapshot()
+
+	// 1. What the LLM was asked to do.
 	if isRU {
-		b.WriteString("**Задачи, переданные LLM:**\n")
+		b.WriteString("**Что делала LLM:**\n")
 	} else {
-		b.WriteString("**Tasks delegated to the LLM:**\n")
+		b.WriteString("**What the LLM did:**\n")
 	}
 	wrote := false
 	if c.CVEAnalysis != nil {
 		wrote = true
 		if isRU {
-			b.WriteString("- исследование механизма уязвимости по advisory и исправляющему коммиту\n")
+			b.WriteString("- исследовала механизм уязвимости по advisory и исправляющему коммиту\n")
 		} else {
-			b.WriteString("- vulnerability mechanism research against the advisory and the fix commit\n")
+			b.WriteString("- researched the vulnerability mechanism against the advisory and the fix commit\n")
 		}
 	}
 	if c.StrategyPlan != nil {
 		wrote = true
 		if isRU {
-			fmt.Fprintf(b, "- планирование стратегии проверки (`%s`)\n", c.StrategyPlan.SelectedStrategy)
+			fmt.Fprintf(b, "- предложила план проверки (`%s`)\n", p.text(localizedText(c, c.StrategyPlan.SelectedStrategy, isRU)))
 		} else {
-			fmt.Fprintf(b, "- verification strategy planning (`%s`)\n", c.StrategyPlan.SelectedStrategy)
+			fmt.Fprintf(b, "- proposed a verification plan (`%s`)\n", p.text(c.StrategyPlan.SelectedStrategy))
 		}
 	}
 	if c.SemanticReview != nil {
 		wrote = true
 		if isRU {
-			b.WriteString("- независимое семантическое ревью механизма\n")
+			b.WriteString("- независимо рецензировала предложенный механизм\n")
 		} else {
-			b.WriteString("- independent semantic review of the mechanism\n")
+			b.WriteString("- independently reviewed the proposed mechanism\n")
 		}
 	}
 	if usage.LLMCalls > 0 && !wrote {
 		if isRU {
-			fmt.Fprintf(b, "- зарегистрировано LLM-вызовов: %d — привязанные артефакты анализа в кейсе не сохранены, состав задач не восстановить\n", usage.LLMCalls)
+			fmt.Fprintf(b, "- зарегистрировано LLM-вызовов: %d, но привязанные артефакты анализа в кейсе не сохранены — состав задач не восстановить\n", usage.LLMCalls)
 		} else {
-			fmt.Fprintf(b, "- %d LLM call(s) recorded — no attributed analysis artifacts are persisted in the case, the task breakdown cannot be reconstructed\n", usage.LLMCalls)
+			fmt.Fprintf(b, "- %d LLM call(s) recorded, but no attributed analysis artifacts are persisted in the case — the task breakdown cannot be reconstructed\n", usage.LLMCalls)
 		}
 	} else if usage.LLMCalls > 0 {
 		if isRU {
@@ -1860,154 +2154,288 @@ func renderAIUsage(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 	}
 	b.WriteString("\n")
 
+	// 2. What the LLM proposed (its own artifacts only).
 	if isRU {
-		b.WriteString("**Предложенные выводы:**\n")
+		b.WriteString("**Что предложила LLM:**\n")
 	} else {
-		b.WriteString("**Proposed conclusions:**\n")
+		b.WriteString("**What the LLM proposed:**\n")
 	}
 	wrote = false
 	if c.CVEAnalysis != nil {
 		for _, m := range c.CVEAnalysis.Mechanisms {
+			if m.Summary == "" {
+				continue
+			}
 			wrote = true
-			conf := c.CVEAnalysis.Confidence
-			if conf == "" {
-				conf = "—"
-			}
-			if isRU {
-				fmt.Fprintf(b, "- %s (уверенность предложения: %s)\n", m.Summary, conf)
-			} else {
-				fmt.Fprintf(b, "- %s (proposal confidence: %s)\n", m.Summary, conf)
-			}
+			fmt.Fprintf(b, "- %s\n", p.text(localizedText(c, m.Summary, isRU)))
 		}
 	}
 	if c.SemanticReview != nil {
 		for _, f := range c.SemanticReview.Findings {
 			wrote = true
-			fmt.Fprintf(b, "- %s\n", f)
+			fmt.Fprintf(b, "- %s\n", p.text(localizedText(c, f, isRU)))
 		}
 	}
 	if !wrote {
 		if isRU {
-			b.WriteString("- не зафиксировано\n")
+			b.WriteString("- содержательных предложений не зафиксировано\n")
 		} else {
-			b.WriteString("- none recorded\n")
+			b.WriteString("- no substantive proposals recorded\n")
 		}
 	}
 	b.WriteString("\n")
 
+	// 3. Per-mechanism disposition: for each proposal assertion, what the
+	// deterministic layer confirmed, refuted, or could not check.
+	// Adoption (a site entering the model) is separate from proof.
 	if isRU {
-		b.WriteString("**Принятые выводы:**\n")
+		b.WriteString("**Что подтвердил или опроверг код по предложениям LLM:**\n")
 	} else {
-		b.WriteString("**Accepted conclusions:**\n")
+		b.WriteString("**What the code confirmed or refuted about the LLM proposals:**\n")
 	}
-	wrote = false
-	accepted := map[domain.SymbolRef]bool{}
-	for _, d := range c.NonLocusBasis {
-		if d.Authority == "accepted-machine-proposal" {
-			accepted[d.Symbol] = true
-		}
-	}
-	if c.Exploit != nil {
-		for _, d := range c.Exploit.NonLocusBasis {
-			if d.Authority == "accepted-machine-proposal" {
-				accepted[d.Symbol] = true
-			}
-		}
-	}
-	sortedAccepted := make([]domain.SymbolRef, 0, len(accepted))
-	for s := range accepted {
-		sortedAccepted = append(sortedAccepted, s)
-	}
-	sort.Slice(sortedAccepted, func(i, j int) bool {
-		if sortedAccepted[i].Package != sortedAccepted[j].Package {
-			return sortedAccepted[i].Package < sortedAccepted[j].Package
-		}
-		return sortedAccepted[i].Symbol < sortedAccepted[j].Symbol
-	})
-	for _, s := range sortedAccepted {
-		wrote = true
+	if len(c.ProposalVerifications) == 0 {
 		if isRU {
-			fmt.Fprintf(b, "- исключение `%s.%s` из локуса дефекта принято как решение эксперта\n", s.Package, s.Symbol)
+			b.WriteString("- результаты проверки предложений не сохранены в этом кейсе (кейс без новой схемы атрибуции)\n")
 		} else {
-			fmt.Fprintf(b, "- exclusion of `%s.%s` from the defect locus accepted as an expert decision\n", s.Package, s.Symbol)
+			b.WriteString("- per-proposal check results were not persisted in this case (no attribution records)\n")
 		}
-	}
-	if !wrote {
-		if isRU {
-			b.WriteString("- нет (совпадение текста LLM с итоговым вердиктом не является принятием)\n")
-		} else {
-			b.WriteString("- none (LLM text matching the final verdict is not adoption)\n")
+		b.WriteString("\n")
+	} else {
+		for _, m := range mechanismDispositions(c, isRU) {
+			fmt.Fprintf(b, "- %s\n", p.text(m))
 		}
+		b.WriteString("\n")
 	}
-	b.WriteString("\n")
 
+	// 4. Model adoption of LLM candidates (membership, not proof).
 	if isRU {
-		b.WriteString("**Отклонённые / неподтверждённые:**\n")
+		b.WriteString("**Что из предложенного LLM принято в модель:**\n")
 	} else {
-		b.WriteString("**Rejected / unconfirmed:**\n")
+		b.WriteString("**Adopted into the model:**\n")
 	}
 	wrote = false
-	if c.Exploit != nil {
-		for _, d := range c.Exploit.ProposedNonLocus {
-			if accepted[d.Symbol] {
+	seenAdopted := map[string]bool{}
+	if c.RootCause != nil {
+		rootCauses := append(append([]domain.RootCause{}, c.RootCause.RootCauses...), c.RootCause.Alternatives...)
+		for _, rc := range rootCauses {
+			if rc.Proposal == nil || rc.Proposal.Source != domain.ProposalSourceRootCause {
 				continue
 			}
+			key := rc.Package + "." + rc.Symbol
+			if seenAdopted[key] {
+				continue
+			}
+			seenAdopted[key] = true
 			wrote = true
 			if isRU {
-				fmt.Fprintf(b, "- предложение исключить `%s.%s` не подтверждено экспертом\n", d.Symbol.Package, d.Symbol.Symbol)
+				fmt.Fprintf(b, "- кандидат `%s.%s` принят в модель\n", rc.Package, rc.Symbol)
 			} else {
-				fmt.Fprintf(b, "- the proposal to exclude `%s.%s` was not confirmed by an expert\n", d.Symbol.Package, d.Symbol.Symbol)
+				fmt.Fprintf(b, "- candidate `%s.%s` adopted into the model\n", rc.Package, rc.Symbol)
 			}
-		}
-	}
-	if c.SemanticReview != nil && !c.SemanticReview.Passed {
-		wrote = true
-		if isRU {
-			b.WriteString("- семантическое ревью механизма не пройдено\n")
-		} else {
-			b.WriteString("- semantic review of the mechanism did not pass\n")
 		}
 	}
 	if !wrote {
 		if isRU {
-			b.WriteString("- не зафиксировано\n")
+			b.WriteString("- нет: ни одно предложение LLM не было принято в модель\n")
 		} else {
-			b.WriteString("- none recorded\n")
+			b.WriteString("- none: no LLM proposal was adopted into the model\n")
+		}
+	}
+	b.WriteString("\n")
+
+	// 5. LLM opinions and non-results (never deterministic evidence).
+	if isRU {
+		b.WriteString("**Мнение LLM и несостоявшиеся результаты:**\n")
+	} else {
+		b.WriteString("**LLM opinions and unusable results:**\n")
+	}
+	wrote = false
+	if c.SemanticReview != nil {
+		wrote = true
+		if c.SemanticReview.Passed {
+			if isRU {
+				b.WriteString("- семантическая рецензия LLM: возражений к предложенному механизму не сообщила (это мнение LLM, не детерминированное доказательство)\n")
+			} else {
+				b.WriteString("- LLM semantic review reported no objection to the proposed mechanism (an LLM opinion, not deterministic proof)\n")
+			}
+		} else {
+			if isRU {
+				b.WriteString("- семантическая рецензия LLM: предложенный механизм не прошёл рецензию\n")
+			} else {
+				b.WriteString("- LLM semantic review: the proposed mechanism did not pass review\n")
+			}
+		}
+	}
+	if c.StrategyPlan != nil {
+		wrote = true
+		if isRU {
+			b.WriteString("- план проверки LLM — предложение, а не выполненные проверки\n")
+		} else {
+			b.WriteString("- the LLM verification plan is a proposal, not executed checks\n")
+		}
+	}
+	if c.Localization != nil && c.Localization.Model != "" {
+		wrote = true
+		if isRU {
+			fmt.Fprintf(b, "- перевод прозы на русский выполнен моделью `%s` (только представление, факты не менялись)\n", c.Localization.Model)
+		} else {
+			fmt.Fprintf(b, "- Russian prose translation was performed by model `%s` (presentation only, no facts changed)\n", c.Localization.Model)
+		}
+	}
+	if !wrote {
+		if isRU {
+			b.WriteString("- нет\n")
+		} else {
+			b.WriteString("- none\n")
 		}
 	}
 	b.WriteString("\n")
 
 	if isRU {
-		b.WriteString("**Подтверждено детерминированными проверками:**\n")
+		b.WriteString("LLM-выводы — это гипотезы: они не заменяют детерминированные доказательства и не являются основанием отрицательного вердикта сами по себе.\n\n")
 	} else {
-		b.WriteString("**Deterministically verified:**\n")
+		b.WriteString("LLM conclusions are hypotheses: they do not replace deterministic evidence and never ground a negative verdict by themselves.\n\n")
 	}
-	confirmed := 0
-	for _, cl := range c.Claims {
-		if cl.Result == domain.ClaimTrue {
-			confirmed++
-		}
-	}
-	if confirmed > 0 {
-		if isRU {
-			fmt.Fprintf(b, "- %d условий подтверждено детерминистическими проверками (см. «Что подтверждено»); статус верификации или высокая уверенность предложения сами по себе детерминистического подтверждения не дают\n", confirmed)
-		} else {
-			fmt.Fprintf(b, "- %d condition(s) confirmed by deterministic checks (see \"Confirmed facts\"); a verification mark or high proposal confidence alone does not confer deterministic status\n", confirmed)
-		}
-	} else {
-		if isRU {
-			b.WriteString("- нет; ни один вывод LLM сам по себе не является детерминистическим подтверждением\n")
-		} else {
-			b.WriteString("- none; no LLM conclusion is by itself a deterministic confirmation\n")
-		}
-	}
-	b.WriteString("\n")
 
 	if isRU {
 		b.WriteString("Ни один отрицательный вердикт не основан только на выводе LLM.\n\n")
 	} else {
 		b.WriteString("No negative verdict is based solely on an LLM conclusion.\n\n")
 	}
+}
+
+// mechanismDispositions renders, per proposal mechanism, one human line
+// stating exactly what each deterministic check established: symbol
+// existence, product reachability, and which assertions have no checker
+// (semantic role / whole mechanism). It uses only persisted
+// ProposalVerification records — it never invents an outcome, and it never
+// prints a raw English Detail into the Russian report.
+func mechanismDispositions(c *domain.AnalysisCase, isRU bool) []string {
+	type acc struct {
+		existsTrue, existsFalse  []string
+		reachTrue, reachFalse    []string
+		roleUnknown, mechUnknown []string
+	}
+	order := []string{}
+	byMech := map[string]*acc{}
+	subjectName := func(rec domain.ProposalVerification, backtick bool) string {
+		name := rec.SiteText
+		if rec.Subject != nil {
+			name = rec.Subject.Package + "." + rec.Subject.Symbol
+		}
+		if backtick && name != "" {
+			return "`" + name + "`"
+		}
+		return name
+	}
+	for _, rec := range c.ProposalVerifications {
+		key := rec.Proposal.ID + "#" + rec.Proposal.MechanismID
+		if _, ok := byMech[key]; !ok {
+			byMech[key] = &acc{}
+			order = append(order, key)
+		}
+		a := byMech[key]
+		name := subjectName(rec, true)
+		switch rec.Check {
+		case domain.CheckSymbolExists:
+			if rec.Result == domain.ClaimTrue {
+				a.existsTrue = append(a.existsTrue, name)
+			} else {
+				// FALSE (typed absence) and UNKNOWN (unresolvable text) both
+				// mean existence was not established — keep them apart only
+				// via wording, never as a confirmed fact.
+				a.existsFalse = append(a.existsFalse, name)
+			}
+		case domain.CheckProductReachable:
+			if rec.Result == domain.ClaimTrue {
+				a.reachTrue = append(a.reachTrue, name)
+			} else {
+				a.reachFalse = append(a.reachFalse, name)
+			}
+		case domain.CheckSiteRole:
+			if rec.Result == domain.ClaimUnknown {
+				a.roleUnknown = append(a.roleUnknown, name)
+			}
+		case domain.CheckMechanism:
+			if rec.Result == domain.ClaimUnknown {
+				a.mechUnknown = append(a.mechUnknown, "")
+			}
+		}
+	}
+
+	var out []string
+	for _, key := range order {
+		a := byMech[key]
+		var parts []string
+		add := func(ru, en string) {
+			if isRU {
+				parts = append(parts, ru)
+			} else {
+				parts = append(parts, en)
+			}
+		}
+		uniq := func(in []string) []string { return dedupeStrings(in) }
+		if v := uniq(a.existsTrue); len(v) > 0 {
+			add("объявления функций найдены в исходниках зависимости: "+strings.Join(v, ", "),
+				"function declarations found in the dependency source: "+strings.Join(v, ", "))
+		}
+		if v := uniq(a.existsFalse); len(v) > 0 {
+			add("объявления не найдены или не разрешены по исходникам: "+strings.Join(v, ", "),
+				"declarations not found or not resolvable in the source: "+strings.Join(v, ", "))
+		}
+		if v := uniq(a.reachTrue); len(v) > 0 {
+			add("сохранённый статический путь вызова достигает: "+strings.Join(v, ", "),
+				"a persisted static call path reaches: "+strings.Join(v, ", "))
+		}
+		if v := uniq(a.reachFalse); len(v) > 0 {
+			add("достижимость не доказана для: "+strings.Join(v, ", "),
+				"reachability not established for: "+strings.Join(v, ", "))
+		}
+		if v := uniq(a.roleUnknown); len(v) > 0 {
+			add(fmt.Sprintf("семантическая роль (выполняет ли функция дефектную операцию или только передаёт данные) не проверена автоматически: %s — наличие и достижимость функции роль не доказывают", strings.Join(v, ", ")),
+				fmt.Sprintf("semantic role (does the function execute the defect or only forward data) was not checked automatically: %s — existence and reachability do not prove the role", strings.Join(v, ", ")))
+		}
+		if len(a.mechUnknown) > 0 {
+			add("сам механизм дефекта не подтверждён и не опровергнут детерминированно (нет соответствующей проверки)",
+				"the defect mechanism itself was neither confirmed nor refuted deterministically (no such checker)")
+		}
+		if len(parts) == 0 {
+			continue
+		}
+		id := key
+		if i := strings.IndexByte(key, '#'); i >= 0 {
+			id = key[i+1:]
+		}
+		if id == "" {
+			id = key
+		}
+		out = append(out, fmt.Sprintf("`%s`: %s", id, strings.Join(parts, "; ")))
+	}
+	if len(out) == 0 {
+		if isRU {
+			out = append(out, "ни одна проверка предложений не дала результата")
+		} else {
+			out = append(out, "no proposal check produced a result")
+		}
+	}
+	return out
+}
+
+// humanRemainderText renders a human-readable obligation. Typed auxiliary
+// site obligations get a deterministic RU/EN template (the persisted
+// Question may be RU-only); other legacy questions are preserved verbatim.
+func humanRemainderText(rem domain.HumanRemainderItem, isRU bool) string {
+	if rem.Obligation == "verify_auxiliary_symbol" {
+		name := rem.Question
+		if rem.Subject != nil {
+			name = fmt.Sprintf("`%s.%s`", rem.Subject.Package, rem.Subject.Symbol)
+		}
+		if isRU {
+			return fmt.Sprintf("LLM предположила, что %s — вспомогательная функция. По исходникам уязвимой версии и исправляющему патчу определите роль функции: выполняет ли она дефектную операцию или только передаёт данные другой функции. До такой проверки исключать её из набора потенциально дефектных функций нельзя.", name)
+		}
+		return fmt.Sprintf("The LLM proposed that %s is an auxiliary (non-faulting) function. Using the vulnerable version's sources and the fix patch, determine its role: does it execute the defective operation, or only forward data to another function? Until that check, it must not be excluded from the set of potentially faulting functions.", name)
+	}
+	return rem.Question
 }
 
 // renderAuditLink points to the technical audit file and the machine
@@ -2029,6 +2457,7 @@ func TrackerRationale(c *domain.AnalysisCase, lang ...string) string {
 	ensureTriageAssessment(c)
 	populateUpgradeCompatibility(c)
 	isRU := isRussian(lang...)
+	p := newReportPaths(c)
 	var b strings.Builder
 
 	v := domain.Verdict("")
@@ -2069,8 +2498,7 @@ func TrackerRationale(c *domain.AnalysisCase, lang ...string) string {
 			b.WriteString("The vulnerability analysis did not complete (verdict not available).\n\n")
 		}
 	}
-
-	fmt.Fprintf(&b, "%s — %s\n\n", c.Vulnerability.ID, defectDescription(c, isRU))
+	fmt.Fprintf(&b, "%s — %s\n\n", c.Vulnerability.ID, defectDescription(c, p, isRU))
 
 	if r := c.ContextualRisk; r != nil && c.Verdict != nil {
 		if isRU {
@@ -2082,7 +2510,7 @@ func TrackerRationale(c *domain.AnalysisCase, lang ...string) string {
 		}
 	}
 
-	if rem := remediation(c, isRU); rem != "" && v != domain.VerdictNotAffected {
+	if rem := p.text(remediation(c, isRU)); rem != "" && v != domain.VerdictNotAffected {
 		fmt.Fprintf(&b, "%s\n\n", rem)
 	}
 
@@ -2092,9 +2520,9 @@ func TrackerRationale(c *domain.AnalysisCase, lang ...string) string {
 	if c.Justification != nil {
 		if c.Justification.TechnicalMechanism != "" && !internalIDRe.MatchString(c.Justification.TechnicalMechanism) {
 			if isRU {
-				fmt.Fprintf(&b, "**Архитектурный контекст уязвимости:**\n%s\n", c.Justification.TechnicalMechanism)
+				fmt.Fprintf(&b, "**Архитектурный контекст уязвимости:**\n%s\n", p.text(c.Justification.TechnicalMechanism))
 			} else {
-				fmt.Fprintf(&b, "**Vulnerability architectural context:**\n%s\n", c.Justification.TechnicalMechanism)
+				fmt.Fprintf(&b, "**Vulnerability architectural context:**\n%s\n", p.text(c.Justification.TechnicalMechanism))
 			}
 		}
 		if len(c.Justification.HumanRemainder) > 0 {
@@ -2104,10 +2532,11 @@ func TrackerRationale(c *domain.AnalysisCase, lang ...string) string {
 				b.WriteString("\n**Open questions for expert confirmation:**\n")
 			}
 			for _, rem := range c.Justification.HumanRemainder {
-				if rem.Question == "" || internalIDRe.MatchString(rem.Question) {
+				text := humanRemainderText(rem, isRU)
+				if text == "" || internalIDRe.MatchString(text) {
 					continue
 				}
-				fmt.Fprintf(&b, "- %s\n", rem.Question)
+				fmt.Fprintf(&b, "- %s\n", p.text(text))
 			}
 		}
 	}
@@ -2309,27 +2738,23 @@ func formatSeverityBadge(sev string) string {
 	}
 }
 
+// formatTriagePriority renders the priority tier as a bare queue label.
+// Human reports must not carry remediation timelines or SLA wording.
 func formatTriagePriority(p domain.TriagePriority, isRU bool) string {
 	switch p {
 	case domain.PriorityP0:
-		return "**P0 (Blocker)**"
+		return "**P0**"
 	case domain.PriorityP1:
-		return "**P1 (Critical)**"
+		return "**P1**"
 	case domain.PriorityP2:
-		if isRU {
-			return "**P2 (Плановый спринт)**"
-		}
-		return "**P2 (Scheduled Sprint)**"
+		return "**P2**"
 	case domain.PriorityP3:
-		if isRU {
-			return "**P3 (Низкий приоритет)**"
-		}
-		return "**P3 (Low Priority)**"
+		return "**P3**"
 	case domain.PriorityDismissed:
 		if isRU {
-			return "**DISMISSED (Снято)**"
+			return "**снят**"
 		}
-		return "**DISMISSED (No Action)**"
+		return "**dismissed**"
 	default:
 		return "**" + string(p) + "**"
 	}
@@ -2394,6 +2819,63 @@ func localizePerimeterRationale(rationale string, isRU bool) string {
 	res = strings.ReplaceAll(res, "; unresolved inbound surfaces bounded by declared service scope: ", "; неразрешённые входящие интерфейсы ограничены областью сервиса: ")
 	res = strings.ReplaceAll(res, "inbound listener ", "входящий слушатель ")
 	return res
+}
+
+// exploitClassLabel renders the inferred exploit class as a localized human
+// label in the human report; the raw enum stays in audit/JSON. Unknown
+// classes fall back to a localized "unclassified" phrase rather than the
+// internal token.
+func exploitClassLabel(class string, isRU bool) string {
+	if isRU {
+		if s, ok := exploitClassRU[class]; ok {
+			return s
+		}
+		return "класс не установлен (" + class + ")"
+	}
+	if s, ok := exploitClassEN[class]; ok {
+		return s
+	}
+	return "class not established (" + class + ")"
+}
+
+var exploitClassRU = map[string]string{
+	"WIRE_PARSER":         "обработчик формата (парсер)",
+	"OOB_WRITE":           "запись вне границ буфера",
+	"INTEGER_OVERFLOW":    "целочисленное переполнение",
+	"RESOURCE_EXHAUSTION": "истощение ресурсов",
+	"NIL_DEREF":           "разыменование nil-указателя",
+	"PATH_TRAVERSAL":      "обход пути (path traversal)",
+	"INJECTION":           "инъекция",
+	"DESERIALIZATION":     "десериализация",
+	"INFO_LEAK":           "утечка информации",
+	"SSRF":                "SSRF (серверный запрос от имени сервера)",
+	"AUTH_BYPASS":         "обход аутентификации",
+	"XXE":                 "XXE (внешние сущности XML)",
+	"REDOS":               "ReDoS (отказ в обслуживании через регулярное выражение)",
+	"RACE":                "состояние гонки",
+	"URI_CONFUSION":       "неоднозначная обработка URI",
+	"CONFIG_INJECTION":    "инъекция конфигурации",
+	"CRYPTO_DOWNGRADE":    "понижение криптографической защиты",
+}
+
+var exploitClassEN = map[string]string{
+	"WIRE_PARSER":         "wire-format parser flaw",
+	"OOB_WRITE":           "out-of-bounds write",
+	"INTEGER_OVERFLOW":    "integer overflow",
+	"RESOURCE_EXHAUSTION": "resource exhaustion",
+	"NIL_DEREF":           "nil dereference",
+	"PATH_TRAVERSAL":      "path traversal",
+	"INJECTION":           "injection",
+	"DESERIALIZATION":     "deserialization",
+	"INFO_LEAK":           "information leak",
+	"SSRF":                "SSRF (server-side request forgery)",
+	"AUTH_BYPASS":         "authentication bypass",
+	"XXE":                 "XXE (XML external entity)",
+	"REDOS":               "ReDoS (regular-expression denial of service)",
+	"RACE":                "race condition",
+	"URI_CONFUSION":       "URI confusion",
+	"CONFIG_INJECTION":    "configuration injection",
+	"CRYPTO_DOWNGRADE":    "cryptographic downgrade",
 }
 
 func sanitizeTableString(s string, maxLen int) string {

@@ -76,8 +76,10 @@ type Vulnerability struct {
 	BaseSeverity    string           `json:"base_severity,omitempty"`
 	BaseScore       float64          `json:"base_score,omitempty"`
 	// SeveritySource / ScoreSource record where BaseSeverity and BaseScore
-	// came from ("OSV", "GHSA", "NVD", "Scanner input", ...). Empty means
-	// the origin is unknown and presentation must not claim one.
+	// came from ("OSV", "GHSA", "NVD", "Scanner input", SourceAnalyzerDefault,
+	// ...). Empty means the origin is unknown and presentation must not
+	// claim one; SourceAnalyzerDefault marks values the analyzer itself
+	// synthesized because the advisory did not supply them.
 	SeveritySource string            `json:"severity_source,omitempty"`
 	ScoreSource    string            `json:"score_source,omitempty"`
 	CWE            []string          `json:"cwe,omitempty"`
@@ -103,6 +105,13 @@ type SymbolRef struct {
 	Package string `json:"package"`
 	Symbol  string `json:"symbol"`
 }
+
+// SourceAnalyzerDefault marks a severity/score synthesized by the
+// analyzer (score defaulted from severity or vice versa, or the policy
+// baseline when the advisory supplied neither). It is deliberately not
+// an advisory source: presentation must label it as the analyzer's
+// assumption, never as e.g. "OSV".
+const SourceAnalyzerDefault = "analyzer default"
 
 type Reference struct {
 	Type string `json:"type,omitempty"`
@@ -206,12 +215,35 @@ type RootCause struct {
 	Role        RootCauseRole `json:"role"`
 	Mechanism   string        `json:"mechanism"`
 	EvidenceIDs []EvidenceID  `json:"evidence_ids,omitempty"`
+	// Proposal is set when the candidate was proposed by an LLM producer;
+	// nil marks candidates derived from advisory data or the fix patch.
+	// Attribution lives here — not in a Mechanism string prefix.
+	Proposal *ProposalRef `json:"proposal,omitempty"`
 	// Absent marks a candidate whose package is proven absent from the
 	// product's build graph (`go list -deps`): the symbol is unresolved in
 	// source because the defect code is not linked in — resolved by
 	// absence, not a verification failure. It is kept in RootCauses so
 	// reachability evaluation can falsify mandatory conditions on it.
 	Absent bool `json:"absent,omitempty"`
+}
+
+// EnsureProposal stamps a canonical ROOT_CAUSE proposal reference onto an
+// LLM-proposed candidate. The controller owns the identity: an empty or
+// non-ROOT_CAUSE source is replaced, a missing id becomes
+// "ROOTCAUSE-<advisory>" and a missing revision becomes 1.
+func (r *RootCause) EnsureProposal(vulnID string) {
+	if r.Proposal == nil {
+		r.Proposal = &ProposalRef{Source: ProposalSourceRootCause}
+	}
+	if r.Proposal.Source != ProposalSourceRootCause {
+		r.Proposal.Source = ProposalSourceRootCause
+	}
+	if r.Proposal.ID == "" {
+		r.Proposal.ID = "ROOTCAUSE-" + vulnID
+	}
+	if r.Proposal.Revision <= 0 {
+		r.Proposal.Revision = 1
+	}
 }
 
 type RootCauseModel struct {
@@ -1364,6 +1396,21 @@ type WorkflowStatus struct {
 	Usage   AnalysisUsage      `json:"usage"`
 }
 
+// Localization carries presentation-language renderings of externally
+// sourced prose (advisory summary/description, LLM mechanism summaries,
+// semantic-review findings). It is produced only when a translation
+// adapter is available; the original text remains the authoritative
+// source and is never replaced.
+type Localization struct {
+	SummaryRU     string `json:"summary_ru,omitempty"`
+	DescriptionRU string `json:"description_ru,omitempty"`
+	// TextRU maps an original source string to its Russian rendering
+	// (mechanism summaries, semantic-review findings).
+	TextRU      map[string]string `json:"text_ru,omitempty"`
+	Model       string            `json:"model,omitempty"`
+	Limitations []string          `json:"limitations,omitempty"`
+}
+
 type AnalysisCase struct {
 	// mu guards Usage counters when condition evaluators or scan workers
 	// touch the case concurrently. JSON ignores unexported fields.
@@ -1403,16 +1450,25 @@ type AnalysisCase struct {
 	Workflow  WorkflowStatus `json:"workflow"`
 
 	// CVE Analysis Slice A artifacts:
-	CVEAnalysisProfile AnalysisProfile        `json:"cve_analysis_profile,omitempty"`
-	CVEAnalysisBundle  *CVESourceBundle       `json:"cve_analysis_bundle,omitempty"`
-	CVEAnalysis        *CVEAnalysisProposal   `json:"cve_analysis,omitempty"`
-	StrategyPlan       *StrategyPlan          `json:"strategy_plan,omitempty"`
-	SemanticReview     *SemanticReview        `json:"semantic_review,omitempty"`
+	CVEAnalysisProfile AnalysisProfile      `json:"cve_analysis_profile,omitempty"`
+	CVEAnalysisBundle  *CVESourceBundle     `json:"cve_analysis_bundle,omitempty"`
+	CVEAnalysis        *CVEAnalysisProposal `json:"cve_analysis,omitempty"`
+	StrategyPlan       *StrategyPlan        `json:"strategy_plan,omitempty"`
+	SemanticReview     *SemanticReview      `json:"semantic_review,omitempty"`
+	// Localization holds optional Russian renderings of externally
+	// sourced prose for the human report; populated only when a
+	// translation adapter ran during BUILD_REPORT.
+	Localization       *Localization          `json:"localization,omitempty"`
 	Justification      *AnalysisJustification `json:"justification,omitempty"`
 	ContextualRisk     *ContextualRisk        `json:"contextual_risk,omitempty"`
 	DetectedPerimeter  string                 `json:"detected_perimeter,omitempty"`
 	PerimeterRationale string                 `json:"perimeter_rationale,omitempty"`
 	Profiles           []ProfileVerdict       `json:"profiles,omitempty"`
+	// ProposalVerifications persists deterministic check outcomes per
+	// displayed proposal assertion (symbol exists / reachable / role /
+	// mechanism), keyed by proposal identity — an LLM proposal's fate is
+	// read from these records, never inferred from membership or prose.
+	ProposalVerifications []ProposalVerification `json:"proposal_verifications,omitempty"`
 }
 
 // AddHypothesis appends a hypothesis with an assigned H-id.
@@ -1424,6 +1480,68 @@ func (c *AnalysisCase) AddHypothesis(h Hypothesis) HypothesisID {
 	}
 	c.Hypotheses = append(c.Hypotheses, h)
 	return h.ID
+}
+
+// proposalSubjectKey is the identity of the checked subject inside a
+// verification record: the normalized symbol when present, else the raw
+// site text so an unresolvable reference still has a stable key.
+func proposalSubjectKey(v ProposalVerification) string {
+	if v.Subject != nil {
+		return v.Subject.Package + "." + v.Subject.Symbol
+	}
+	return v.SiteText
+}
+
+// sameVerificationKey reports whether two records describe the same
+// check on the same assertion of the same proposal revision.
+func sameVerificationKey(a, b ProposalVerification) bool {
+	return a.Proposal == b.Proposal &&
+		a.Assertion == b.Assertion &&
+		a.Check == b.Check &&
+		proposalSubjectKey(a) == proposalSubjectKey(b)
+}
+
+// UpsertProposalVerification replaces the record with rec's key or
+// appends it — repeated verification runs stay idempotent and keep the
+// emission order deterministic. Records under a different proposal
+// revision are never touched: they are the audit trail of the older
+// proposal text.
+func (c *AnalysisCase) UpsertProposalVerification(rec ProposalVerification) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i := range c.ProposalVerifications {
+		if sameVerificationKey(c.ProposalVerifications[i], rec) {
+			c.ProposalVerifications[i] = rec
+			return
+		}
+	}
+	c.ProposalVerifications = append(c.ProposalVerifications, rec)
+}
+
+// DiscardProposalVerifications drops every record bound to ref's
+// proposal identity — when ref.MechanismID is set, only that
+// mechanism's records. The controller calls it at proposal bind time so
+// verification records claiming the new revision are always regenerated
+// by deterministic checks; records of older revisions stay in the slice
+// as audit history.
+func (c *AnalysisCase) DiscardProposalVerifications(ref ProposalRef) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	kept := c.ProposalVerifications[:0]
+	for _, rec := range c.ProposalVerifications {
+		same := rec.Proposal.Source == ref.Source &&
+			rec.Proposal.ID == ref.ID &&
+			rec.Proposal.Revision == ref.Revision &&
+			(ref.MechanismID == "" || rec.Proposal.MechanismID == ref.MechanismID)
+		if !same {
+			kept = append(kept, rec)
+		}
+	}
+	// Nil out the tail so dropped subjects aren't retained by the array.
+	for i := len(kept); i < len(c.ProposalVerifications); i++ {
+		c.ProposalVerifications[i] = ProposalVerification{}
+	}
+	c.ProposalVerifications = kept
 }
 
 // Usage counter helpers — the only safe writers under parallelism.

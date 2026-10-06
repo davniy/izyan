@@ -200,6 +200,57 @@ func TestVerifierMarksAbsentPackage(t *testing.T) {
 	}
 }
 
+// An LLM-proposed candidate keeps its typed proposal reference wherever
+// it lands, and the verifier persists the actual SYMBOL_EXISTS check
+// result against that reference — found, typed-absent and out-of-scope.
+func TestVerifierRecordsProposalVerification(t *testing.T) {
+	abs, err := filepath.Abs(filepath.Join("..", "..", "testdata", "constprod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	vf := Verifier{Source: &goanalysis.Index{Dir: abs}}
+	prop := domain.ProposalRef{Source: domain.ProposalSourceRootCause, ID: "ROOTCAUSE-GO-TEST-1", Revision: 1}
+	prop2 := prop
+	m := &domain.RootCauseModel{
+		Status: domain.RootCauseResolved,
+		RootCauses: []domain.RootCause{
+			{Package: "example.com/dep/vuln", Symbol: "Parse", Role: domain.RootCauseSink, Proposal: &prop},
+			{Package: "example.com/dep/vuln", Symbol: "Nope", Role: domain.RootCauseSink, Proposal: &prop2},
+		},
+	}
+	c := &domain.AnalysisCase{Vulnerability: depVuln()}
+	vf.Verify(context.Background(), c, m, depVuln())
+
+	recs := map[string]domain.ProposalVerification{}
+	for _, r := range c.ProposalVerifications {
+		if r.Proposal != prop {
+			t.Fatalf("verification must bind to the candidate's proposal: %+v", r)
+		}
+		if r.Check != domain.CheckSymbolExists || r.Assertion != domain.AssertionFaultingSite {
+			t.Fatalf("expected SYMBOL_EXISTS on FAULTING_SITE: %+v", r)
+		}
+		recs[r.Subject.Symbol] = r
+	}
+	if recs["Parse"].Result != domain.ClaimTrue || len(recs["Parse"].EvidenceIDs) == 0 {
+		t.Fatalf("found candidate needs TRUE + evidence: %+v", recs["Parse"])
+	}
+	if recs["Nope"].Result != domain.ClaimFalse {
+		t.Fatalf("typed absent candidate needs FALSE: %+v", recs["Nope"])
+	}
+	// The failed proposal lands in Unverified with its reference intact.
+	if len(m.Unverified) != 1 || m.Unverified[0].Proposal == nil {
+		t.Fatalf("unverified candidate must retain proposal ref: %+v", m.Unverified)
+	}
+
+	// EnsureProposal repairs a bare LLM proposal ref.
+	bare := domain.RootCause{Proposal: &domain.ProposalRef{}}
+	bare.EnsureProposal("GO-TEST-1")
+	if bare.Proposal.Source != domain.ProposalSourceRootCause ||
+		bare.Proposal.ID != "ROOTCAUSE-GO-TEST-1" || bare.Proposal.Revision != 1 {
+		t.Fatalf("bare proposal not normalized: %+v", bare.Proposal)
+	}
+}
+
 // Without package-list evidence absence is unknown: the same candidate
 // stays a verification failure, never a silent negative.
 func TestVerifierAbsentNeedsPackageList(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/fedorovmv/izyan/internal/affected"
+	"github.com/fedorovmv/izyan/internal/cveanalysis"
 	"github.com/fedorovmv/izyan/internal/domain"
 	"github.com/fedorovmv/izyan/internal/fix"
 	"github.com/fedorovmv/izyan/internal/goanalysis"
@@ -172,16 +173,37 @@ func (vf Verifier) Verify(ctx context.Context, c *domain.AnalysisCase, m *domain
 	imports, _, impErr := packageImportSet(c)
 	verified := make([]domain.RootCause, 0, len(m.RootCauses))
 	for _, rc := range m.RootCauses {
+		record := func(res domain.ClaimResult, detail string, evID domain.EvidenceID) {
+			if c == nil || rc.Proposal == nil {
+				return
+			}
+			rec := domain.ProposalVerification{
+				Proposal:  *rc.Proposal,
+				SiteText:  rc.Package + " " + rc.Symbol,
+				Subject:   &domain.SymbolRef{Package: rc.Package, Symbol: rc.Symbol},
+				Assertion: domain.AssertionFaultingSite,
+				Check:     domain.CheckSymbolExists,
+				Result:    res,
+				Detail:    detail,
+			}
+			if evID != "" {
+				rec.EvidenceIDs = []domain.EvidenceID{evID}
+			}
+			c.UpsertProposalVerification(rec)
+		}
 		if !inAffectedPackages(rc, v) {
+			record(domain.ClaimUnknown, "candidate is outside the advisory's affected packages; existence not checked", "")
 			m.Alternatives = append(m.Alternatives, rc)
 			continue
 		}
-		_, err := vf.Source.FindSymbol(ctx, domain.SymbolRef{Package: rc.Package, Symbol: rc.Symbol})
-		if err != nil {
+		subj := domain.SymbolRef{Package: rc.Package, Symbol: rc.Symbol}
+		res, detail, evID := cveanalysis.CheckSymbolExists(ctx, c, vf.Source, subj)
+		record(res, detail, evID)
+		if res != domain.ClaimTrue {
 			// A candidate symbol living in a package the product's build
 			// graph does not link is not a model failure: the defect code
 			// is absent from the build, so its absence is the resolution.
-			if impErr == nil && rc.Package != "" && !imports[rc.Package] {
+			if res == domain.ClaimFalse && impErr == nil && rc.Package != "" && !imports[rc.Package] {
 				rc.Absent = true
 				verified = append(verified, rc)
 				limitations = append(limitations, fmt.Sprintf(
@@ -190,7 +212,7 @@ func (vf Verifier) Verify(ctx context.Context, c *domain.AnalysisCase, m *domain
 				continue
 			}
 			limitations = append(limitations,
-				fmt.Sprintf("candidate %s.%s not found in source: %v", rc.Package, rc.Symbol, err))
+				fmt.Sprintf("candidate %s.%s not found in source: %s", rc.Package, rc.Symbol, detail))
 			m.Alternatives = append(m.Alternatives, rc)
 			m.Unverified = append(m.Unverified, rc)
 			continue

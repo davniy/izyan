@@ -38,8 +38,10 @@ func minimalCase() *domain.AnalysisCase {
 			AffectedPackages: []domain.AffectedPackage{
 				{Path: "example.com/mod/vulnpkg"},
 			},
-			BaseSeverity: "HIGH",
-			BaseScore:    7.5,
+			BaseSeverity:   "HIGH",
+			BaseScore:      7.5,
+			SeveritySource: "OSV",
+			ScoreSource:    "OSV",
 		},
 		Product: domain.ProductSnapshot{
 			Repository: "example.com/product",
@@ -685,7 +687,7 @@ func TestReportTriageDecision(t *testing.T) {
 		if !strings.Contains(md, "HIGH") || !strings.Contains(md, "7.5") {
 			t.Fatalf("missing baseline severity:\n%s", md)
 		}
-		if !strings.Contains(md, "**P1 (Critical)**") {
+		if !strings.Contains(md, "**P1**") {
 			t.Fatalf("missing baseline/effective priority:\n%s", md)
 		}
 		if !strings.Contains(md, "без изменения") {
@@ -783,7 +785,7 @@ func TestReportTriageDecision(t *testing.T) {
 		if !strings.Contains(md, "требуется дополнительная проверка; исходный приоритет сохранён") {
 			t.Fatalf("missing inconclusive wording:\n%s", md)
 		}
-		if !strings.Contains(md, "**P1 (Critical)**") {
+		if !strings.Contains(md, "**P1**") {
 			t.Fatalf("inconclusive must retain baseline priority:\n%s", md)
 		}
 	})
@@ -882,13 +884,13 @@ func TestAIUsageSection(t *testing.T) {
 		c.SemanticReview = &domain.SemanticReview{Passed: true, Reviewer: "llm"}
 		md := Markdown(c, "ru")
 		for _, want := range []string{
-			"Задачи, переданные LLM",
-			"Предложенные выводы",
-			"Принятые выводы",
-			"Отклонённые / неподтверждённые",
-			"Подтверждено детерминированными проверками",
+			"Что делала LLM",
+			"Что предложила LLM",
+			"Что подтвердил или опроверг код по предложениям LLM",
+			"Что из предложенного LLM принято в модель",
+			"Мнение LLM и несостоявшиеся результаты",
 			"bounds check missing",
-			"Ни один отрицательный вердикт не основан только на выводе LLM.",
+			"LLM-выводы — это гипотезы",
 		} {
 			if !strings.Contains(md, want) {
 				t.Fatalf("AI section missing %q:\n%s", want, md)
@@ -900,36 +902,72 @@ func TestAIUsageSection(t *testing.T) {
 func TestAIUsageProposalOutcomes(t *testing.T) {
 	c := minimalCase()
 	c.Workflow.Usage.LLMCalls = 4
-	c.Exploit = &domain.ExploitModel{
-		LocusSubjects: []domain.SymbolRef{symRef("example.com/mod/vulnpkg", "Parse")},
-		ProposedNonLocus: []domain.LocusDecision{
-			{Symbol: symRef("example.com/mod/vulnpkg", "Parse"), Authority: "machine-proposal", Basis: "enabler"},
-			{Symbol: symRef("example.com/mod/vulnpkg", "Helper"), Authority: "machine-proposal", Basis: "enabler"},
-		},
+	c.CVEAnalysis = &domain.CVEAnalysisProposal{
+		ID:       "PROP-1",
+		Revision: 1,
+		Mechanisms: []domain.DefectMechanism{{
+			ID: "M-1", Summary: "recursive parse without depth limit",
+			FaultingSites:  []string{"example.com/mod/vulnpkg Parse"},
+			AuxiliarySites: []string{"example.com/mod/vulnpkg Helper"},
+		}},
 	}
-	c.NonLocusBasis = []domain.LocusDecision{
-		{Symbol: symRef("example.com/mod/vulnpkg", "Helper"), Authority: "accepted-machine-proposal", Basis: "confirmed safe"},
+	subj := domain.SymbolRef{Package: "example.com/mod/vulnpkg", Symbol: "Parse"}
+	aux := domain.SymbolRef{Package: "example.com/mod/vulnpkg", Symbol: "Helper"}
+	c.ProposalVerifications = []domain.ProposalVerification{
+		{Proposal: domain.ProposalRef{Source: domain.ProposalSourceCVEResearch, ID: "PROP-1", Revision: 1, MechanismID: "M-1"},
+			Subject: &subj, Assertion: domain.AssertionFaultingSite, Check: domain.CheckSymbolExists, Result: domain.ClaimTrue},
+		{Proposal: domain.ProposalRef{Source: domain.ProposalSourceCVEResearch, ID: "PROP-1", Revision: 1, MechanismID: "M-1"},
+			Subject: &aux, Assertion: domain.AssertionAuxiliarySite, Check: domain.CheckSymbolExists, Result: domain.ClaimFalse},
+		{Proposal: domain.ProposalRef{Source: domain.ProposalSourceCVEResearch, ID: "PROP-1", Revision: 1, MechanismID: "M-1"},
+			Subject: &aux, Assertion: domain.AssertionAuxiliarySite, Check: domain.CheckSiteRole, Result: domain.ClaimUnknown,
+			Detail: "semantic role requires manual review"},
+	}
+	// LLM root-cause candidate adopted into the model via typed provenance.
+	c.RootCause = &domain.RootCauseModel{
+		Status: domain.RootCauseResolved,
+		RootCauses: []domain.RootCause{{
+			Package: "example.com/mod/vulnpkg", Symbol: "Parse", Role: domain.RootCauseSink,
+			Mechanism: "llm-proposed: recursive parse",
+			Proposal:  &domain.ProposalRef{Source: domain.ProposalSourceRootCause, ID: "RC-1", Revision: 1},
+		}},
 	}
 	md := Markdown(c, "ru")
-	if !strings.Contains(md, "исключение `example.com/mod/vulnpkg.Helper` из локуса дефекта принято") {
-		t.Fatalf("accepted proposal not listed:\n%s", md)
+	if !strings.Contains(md, "объявления функций найдены в исходниках зависимости") ||
+		!strings.Contains(md, "`example.com/mod/vulnpkg.Parse`") {
+		t.Fatalf("existence-true assertion not shown:\n%s", md)
 	}
-	if !strings.Contains(md, "предложение исключить `example.com/mod/vulnpkg.Parse` не подтверждено экспертом") {
-		t.Fatalf("unconfirmed proposal not listed:\n%s", md)
+	if !strings.Contains(md, "объявления не найдены или не разрешены по исходникам") ||
+		!strings.Contains(md, "`example.com/mod/vulnpkg.Helper`") {
+		t.Fatalf("existence-false assertion not shown:\n%s", md)
 	}
-	// The accepted proposal must not also appear in the rejected block.
-	rej := strings.Index(md, "Отклонённые / неподтверждённые")
-	det := strings.Index(md, "Подтверждено детерминированными проверками")
-	if rej < 0 || det < 0 {
-		t.Fatalf("missing outcome sections:\n%s", md)
+	if !strings.Contains(md, "семантическая роль") || !strings.Contains(md, "не проверена автоматически") {
+		t.Fatalf("unchecked semantic role not shown:\n%s", md)
 	}
-	if strings.Contains(md[rej:det], "Helper`") {
-		t.Fatalf("accepted proposal must not appear in the rejected block:\n%s", md[rej:det])
+	if !strings.Contains(md, "кандидат `example.com/mod/vulnpkg.Parse` принят в модель") {
+		t.Fatalf("typed adoption not shown:\n%s", md)
+	}
+	// A materialised record must never yield an unconditional "none".
+	if strings.Contains(md, "результаты проверки предложений не сохранены") {
+		t.Fatalf("materialised records misreported as absent:\n%s", md)
+	}
+	// The persisted English Detail must not leak into the Russian report.
+	if strings.Contains(md, "semantic role requires manual review") {
+		t.Fatalf("raw English Detail leaked into RU report:\n%s", md)
 	}
 	en := Markdown(c, "en")
-	if !strings.Contains(en, "accepted as an expert decision") ||
-		!strings.Contains(en, "was not confirmed by an expert") {
-		t.Fatalf("EN outcome wording missing:\n%s", en)
+	if !strings.Contains(en, "function declarations found in the dependency source") ||
+		!strings.Contains(en, "semantic role") {
+		t.Fatalf("EN disposition wording missing:\n%s", en)
+	}
+
+	// Legacy case without attribution records: the section must say so, not
+	// invent outcomes.
+	legacy := minimalCase()
+	legacy.Workflow.Usage.LLMCalls = 2
+	legacy.CVEAnalysis = &domain.CVEAnalysisProposal{ID: "P", Mechanisms: []domain.DefectMechanism{{ID: "M-1", Summary: "x"}}}
+	lm := Markdown(legacy, "ru")
+	if !strings.Contains(lm, "результаты проверки предложений не сохранены") {
+		t.Fatalf("legacy case must state attribution is absent:\n%s", lm)
 	}
 }
 
@@ -1073,8 +1111,8 @@ func TestProductExploitPathEvidenceBounded(t *testing.T) {
 			},
 		}
 		md := Markdown(c, "ru")
-		if !strings.Contains(md, "внешнее происхождение входа не доказано") {
-			t.Fatalf("unproven flow must be labelled:\n%s", md)
+		if !strings.Contains(md, "аргументу 0") || !strings.Contains(md, "внешнее происхождение не доказано") {
+			t.Fatalf("unproven flow must be labelled at its recorded scope:\n%s", md)
 		}
 		if strings.Contains(md, "Подтверждённая цепочка") {
 			t.Fatalf("unproven flow must not be counted as confirmed:\n%s", md)
@@ -1153,10 +1191,18 @@ func TestSeverityProvenance(t *testing.T) {
 	if !strings.Contains(en, "NVD / Vulners") {
 		t.Fatalf("EN provenance missing:\n%s", en)
 	}
+	// A severity/score without an advisory source is not advisory-supplied:
+	// the report must show «не указана» and attribute the synthesized
+	// baseline to the analyzer default, never to the advisory.
 	c2 := minimalCase()
+	c2.Vulnerability.SeveritySource = ""
+	c2.Vulnerability.ScoreSource = ""
 	md2 := Markdown(c2, "ru")
-	if !strings.Contains(md2, "Scanner input") {
-		t.Fatalf("missing default source label:\n%s", md2)
+	if !strings.Contains(md2, "не указана") || !strings.Contains(md2, "умолчание анализатора") {
+		t.Fatalf("missing not-supplied/analyzer-default label:\n%s", md2)
+	}
+	if strings.Contains(md2, "OSV") {
+		t.Fatalf("unsourced baseline must not carry the OSV label:\n%s", md2)
 	}
 	aud := AuditMarkdown(c, "ru")
 	if !strings.Contains(aud, "severity_source") || !strings.Contains(aud, "NVD") {
@@ -1845,5 +1891,124 @@ func TestLocalizeVerdictReason(t *testing.T) {
 		if got != tt.wanted {
 			t.Errorf("localizeVerdictReason(%q, %v) =\n%q\nwant:\n%q", tt.input, tt.isRU, got, tt.wanted)
 		}
+	}
+}
+
+// absPathCase mirrors the review demo: an absolute checkout, one dependency
+// in the module cache and a call/data-flow site recorded with host paths —
+// the human/audit reports must render only attributed locations.
+func absPathCase() *domain.AnalysisCase {
+	c := minimalCase()
+	c.Product.Repository = "/Users/dev/ws/demo"
+	c.Vulnerability.Module = "gopkg.in/yaml.v2"
+	c.EvidenceGraph = domain.EvidenceGraph{
+		Evidence: []domain.Evidence{
+			{ID: "EV-MOD-1", Kind: domain.EvidenceModuleGraph, Content: `{"Path":"example.com/demo","Main":true,"Dir":"/Users/dev/ws/demo"}
+{"Path":"gopkg.in/yaml.v2","Version":"v2.2.2","Dir":"/Users/dev/go/pkg/mod/gopkg.in/yaml.v2@v2.2.2"}
+`},
+			{ID: "EV-FLOW-1", Kind: domain.EvidenceDataFlow, Source: "provenance", File: "/Users/dev/ws/demo/main.go", StartLine: 39, Content: "flow"},
+		},
+		ModuleUsages: []domain.CallSite{
+			{File: "/Users/dev/ws/demo/main.go", Line: 39, Function: "main.load", Callee: "yaml.Unmarshal", ModuleOwner: "gopkg.in/yaml.v2"},
+		},
+		DataFlows: []domain.DataFlow{
+			{
+				ConditionID: "C-INPUT",
+				Source:      domain.CallSite{File: "/Users/dev/ws/demo/main.go", Line: 30, Function: "main.load"},
+				Sink:        domain.CallSite{File: "/Users/dev/ws/demo/main.go", Line: 39, Function: "main.load", Callee: "yaml.Unmarshal"},
+				Arg:         0,
+				Origin:      domain.OriginExternalUntrusted,
+			},
+		},
+		CallPaths: []domain.CallPath{{
+			ConditionID: "C-REACH",
+			Frames: []domain.CallSite{
+				{File: "/Users/dev/ws/demo/main.go", Line: 10, Function: "main", Package: "example.com/demo"},
+				{File: "/Users/dev/go/pkg/mod/gopkg.in/yaml.v2@v2.2.2/decode.go", Line: 268, Function: "unmarshal", Package: "gopkg.in/yaml.v2"},
+			},
+		}},
+	}
+	c.Claims = []domain.Claim{{ID: "CL-1", ConditionID: "C-INPUT", Result: domain.ClaimTrue}}
+	c.Exploit = &domain.ExploitModel{
+		Class:               "RESOURCE_EXHAUSTION",
+		Impact:              "denial of service",
+		RootCauses:          []domain.SymbolRef{{Package: "gopkg.in/yaml.v2", Symbol: "decoder.unmarshal"}},
+		MandatoryConditions: []domain.Condition{{ID: "C-INPUT", Kind: domain.ConditionAttackerControl, Mandatory: true}},
+	}
+	return c
+}
+
+func TestMarkdownNoHostPaths(t *testing.T) {
+	c := absPathCase()
+	for _, doc := range []string{Markdown(c, "ru"), Markdown(c, "en"), AuditMarkdown(c, "ru"), AuditMarkdown(c, "en")} {
+		if strings.Contains(doc, "/Users/dev") {
+			t.Fatalf("host checkout prefix leaked into report:\n%s", doc)
+		}
+		if strings.Contains(doc, "pkg/mod/gopkg.in") {
+			t.Fatalf("module-cache path leaked into report:\n%s", doc)
+		}
+	}
+	ru := Markdown(c, "ru")
+	for _, want := range []string{
+		"Репозиторий: `demo`",
+		"`yaml.Unmarshal` (`main.go:39`)",
+		"истощение ресурсов",
+	} {
+		if !strings.Contains(ru, want) {
+			t.Fatalf("RU report missing %q:\n%s", want, ru)
+		}
+	}
+	en := Markdown(c, "en")
+	if !strings.Contains(en, "resource exhaustion") {
+		t.Fatalf("EN report missing localized class label:\n%s", en)
+	}
+	aud := AuditMarkdown(c, "ru")
+	for _, want := range []string{"main.go:39", "gopkg.in/yaml.v2@v2.2.2/decode.go:268", "EV-FLOW-1", "EV-MOD-1"} {
+		if !strings.Contains(aud, want) {
+			t.Fatalf("audit missing %q:\n%s", want, aud)
+		}
+	}
+}
+
+func TestSeverityNotSuppliedLabelsAnalyzerDefault(t *testing.T) {
+	c := minimalCase()
+	c.Vulnerability.BaseSeverity = "MEDIUM"
+	c.Vulnerability.BaseScore = 5.0
+	c.Vulnerability.SeveritySource = ""
+	c.Vulnerability.ScoreSource = ""
+
+	ru := Markdown(c, "ru")
+	if strings.Contains(ru, "OSV") && strings.Contains(ru, "Источник оценки:** OSV") {
+		t.Fatalf("analyzer-synthesized baseline presented as OSV:\n%s", ru)
+	}
+	if !strings.Contains(ru, "не указана") {
+		t.Fatalf("RU report missing «не указана» severity:\n%s", ru)
+	}
+	if !strings.Contains(ru, "умолчание анализатора") {
+		t.Fatalf("RU report missing analyzer-default source label:\n%s", ru)
+	}
+	en := Markdown(c, "en")
+	if !strings.Contains(en, "not supplied") || !strings.Contains(en, "analyzer default") {
+		t.Fatalf("EN report missing not-supplied/analyzer-default labels:\n%s", en)
+	}
+}
+
+func TestConfirmedFactsPresenceGated(t *testing.T) {
+	c := minimalCase()
+	// No persisted presence check: advisory-listed functions only.
+	ru := Markdown(c, "ru")
+	if strings.Contains(ru, "точка дефекта локализована") {
+		t.Fatalf("defect-site claim without persisted presence check:\n%s", ru)
+	}
+	if !strings.Contains(ru, "указанные в advisory уязвимые функции") {
+		t.Fatalf("missing advisory-declared fallback:\n%s", ru)
+	}
+	// With a persisted symbol decl the localized-site wording is allowed.
+	c.EvidenceGraph.SymbolDecls = map[string]*domain.CallSite{
+		"example.com/mod/vulnpkg.Parse": {File: "parse.go", Line: 12},
+	}
+	ru = Markdown(c, "ru")
+	if !strings.Contains(ru, "точка дефекта локализована") {
+		t.Fatalf("presence check not honored:\n%s", ru)
 	}
 }

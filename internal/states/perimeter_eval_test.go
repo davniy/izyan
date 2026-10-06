@@ -521,3 +521,115 @@ func TestEvaluateVerdict_ConfigOriginCompleteModelStaysNEPF(t *testing.T) {
 		t.Errorf("GroundBasis = %q, want %q", c.Verdict.GroundBasis, domain.BasisConfigOrigin)
 	}
 }
+
+func TestEvaluateVerdict_OutboundConfigOriginBasis(t *testing.T) {
+	c := &domain.AnalysisCase{
+		ID: "CASE-DUAL-TRACK-CONFIG-ORIGIN",
+		Vulnerability: domain.Vulnerability{
+			ID:           "CVE-2026-TEST3",
+			Module:       "example.com/netmod",
+			BaseSeverity: "HIGH",
+			BaseScore:    8.5,
+		},
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{
+				{
+					ID:        "C-PEER-INPUT",
+					Kind:      domain.ConditionAttackerControl,
+					Mandatory: true,
+					Params: map[string]string{
+						domain.ParamInputSource: domain.InputPeer,
+					},
+					Description: "peer controlled input",
+				},
+			},
+		},
+		Claims: []domain.Claim{
+			{
+				ID:          "CL-01",
+				ConditionID: "C-PEER-INPUT",
+				Result:      domain.ClaimUnknown,
+				Producer:    "test",
+			},
+		},
+		DetectedPerimeter: domain.PerimeterClusterInternal,
+	}
+	c.EvidenceGraph.AddExposure(domain.ExposureFact{
+		Direction: "outbound",
+		Kind:      "dial",
+		Target:    "example.com/netmod.Dial",
+		Scope:     domain.ScopeConfigured,
+	})
+
+	h := EvaluateVerdict{Evaluator: evaluator.VerdictEvaluator{}}
+	_, err := h.Run(context.Background(), c)
+	if err != nil {
+		t.Fatalf("EvaluateVerdict.Run returned error: %v", err)
+	}
+
+	if c.Verdict == nil || c.Verdict.Verdict != domain.VerdictNoExploitPathFound {
+		t.Fatalf("c.Verdict = %v, want %s", c.Verdict, domain.VerdictNoExploitPathFound)
+	}
+	if c.Verdict.GroundBasis != domain.BasisConfigOrigin {
+		t.Errorf("c.Verdict.GroundBasis = %q, want %q", c.Verdict.GroundBasis, domain.BasisConfigOrigin)
+	}
+}
+
+func TestEvaluateVerdict_OutboundMixedScopeStaysAutoPerimeter(t *testing.T) {
+	c := &domain.AnalysisCase{
+		ID: "CASE-DUAL-TRACK-MIXED-SCOPE",
+		Vulnerability: domain.Vulnerability{
+			ID:           "CVE-2026-TEST4",
+			Module:       "example.com/netmod",
+			BaseSeverity: "HIGH",
+			BaseScore:    8.5,
+		},
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{
+				{
+					ID:        "C-PEER-INPUT",
+					Kind:      domain.ConditionAttackerControl,
+					Mandatory: true,
+					Params: map[string]string{
+						domain.ParamInputSource: domain.InputPeer,
+					},
+					Description: "peer controlled input",
+				},
+			},
+		},
+		Claims: []domain.Claim{
+			{
+				ID:          "CL-01",
+				ConditionID: "C-PEER-INPUT",
+				Result:      domain.ClaimUnknown,
+				Producer:    "test",
+			},
+		},
+		DetectedPerimeter: domain.PerimeterClusterInternal,
+	}
+	c.EvidenceGraph.AddExposure(domain.ExposureFact{
+		Direction: "outbound",
+		Kind:      "dial",
+		Target:    "example.com/netmod.Dial",
+		Scope:     domain.ScopeConfigured,
+	})
+	c.EvidenceGraph.AddExposure(domain.ExposureFact{
+		Direction: "outbound",
+		Kind:      "dial",
+		Target:    "example.com/netmod.Connect",
+		Scope:     domain.ScopeUnknown,
+	})
+
+	h := EvaluateVerdict{Evaluator: evaluator.VerdictEvaluator{}}
+	_, err := h.Run(context.Background(), c)
+	if err != nil {
+		t.Fatalf("EvaluateVerdict.Run returned error: %v", err)
+	}
+
+	if c.Verdict == nil || c.Verdict.Verdict != domain.VerdictNoExploitPathFound {
+		t.Fatalf("c.Verdict = %v, want %s", c.Verdict, domain.VerdictNoExploitPathFound)
+	}
+	if c.Verdict.GroundBasis != domain.BasisAutoPerimeter {
+		t.Errorf("c.Verdict.GroundBasis = %q, want %q (mixed scopes should remain auto-perimeter)", c.Verdict.GroundBasis, domain.BasisAutoPerimeter)
+	}
+}

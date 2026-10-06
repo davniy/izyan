@@ -1734,11 +1734,23 @@ func (h EvaluateVerdict) Run(_ context.Context, c *domain.AnalysisCase) (workflo
 			if cl.Falsifier == "" {
 				cl.Falsifier = domain.FalsifierTrustedInfrastructure
 			}
-			if cl.Falsifier == domain.FalsifierTrustedInfrastructure && cl.FalsifierBasis == "" {
-				cl.FalsifierBasis = profileBasis
+			if cl.Falsifier == domain.FalsifierTrustedInfrastructure {
+				if evaluator.HasConfigOriginOutbound(c, c.Vulnerability.Module) {
+					cl.FalsifierBasis = domain.BasisConfigOrigin
+					cl.NegativeVerification = &domain.NegativeVerification{
+						Status: domain.NegativeVerified,
+						Notes:  "outbound destination endpoints are statically configured or loaded from trusted configuration (config-origin)",
+					}
+				} else if cl.FalsifierBasis == "" {
+					cl.FalsifierBasis = profileBasis
+				}
 			}
 			if cl.Explanation == "" {
-				cl.Explanation = "FALSE is decided by trusted cluster infrastructure / perimeter"
+				if cl.FalsifierBasis == domain.BasisConfigOrigin {
+					cl.Explanation = "outbound destination endpoints are statically configured or loaded from trusted configuration (config-origin)"
+				} else {
+					cl.Explanation = "FALSE is decided by trusted cluster infrastructure / perimeter"
+				}
 			}
 			if cl.NegativeVerification == nil {
 				cl.NegativeVerification = &domain.NegativeVerification{

@@ -76,6 +76,13 @@ func (ServerTransportInput) Evaluate(cond domain.Condition, c *domain.AnalysisCa
 			Status: domain.NegativeVerified,
 			Notes:  "deployment infrastructure declared trusted peer communication (--trusted-peer)",
 		}
+		if HasConfigOriginOutbound(c, c.Vulnerability.Module) {
+			claim.FalsifierBasis = domain.BasisConfigOrigin
+			claim.NegativeVerification = &domain.NegativeVerification{
+				Status: domain.NegativeVerified,
+				Notes:  "outbound destination endpoints are statically configured or loaded from trusted configuration (config-origin)",
+			}
+		}
 		return claim
 	}
 	module := c.Vulnerability.Module
@@ -369,4 +376,24 @@ func matchesModule(s, module string) bool {
 		return false
 	}
 	return s == module || strings.HasPrefix(s, module+"/") || strings.HasPrefix(s, module+".")
+}
+
+// HasConfigOriginOutbound reports whether outbound exposure facts targeting module exist
+// in the analysis case and all of them have ScopeConfigured or ScopeStatic.
+func HasConfigOriginOutbound(c *domain.AnalysisCase, module string) bool {
+	if c == nil {
+		return false
+	}
+	var count int
+	for _, f := range c.EvidenceGraph.ExposuresList() {
+		if (f.Direction == "outbound" || f.Kind == "dial") && f.Direction != "inbound" {
+			if module == "" || isTargetingModule(f.Target, f.Callee, f.Package, f.ModuleOwner, module) {
+				count++
+				if f.Scope != domain.ScopeConfigured && f.Scope != domain.ScopeStatic {
+					return false
+				}
+			}
+		}
+	}
+	return count > 0
 }

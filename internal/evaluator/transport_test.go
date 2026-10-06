@@ -248,3 +248,118 @@ func TestServerTransportInputRoleMatching_ClientWithCallPathNonDial(t *testing.T
 		t.Fatalf("unexpected falsification: call path reaching module package should be recognized as outbound transport")
 	}
 }
+
+func TestServerTransportInput_ConfiguredOutboundBasisConfigOrigin(t *testing.T) {
+	c := &domain.AnalysisCase{
+		Vulnerability: domain.Vulnerability{
+			Module: "example.com/netmod",
+		},
+		Product: domain.ProductSnapshot{
+			TrustedPeer: true,
+		},
+	}
+	c.EvidenceGraph.AddExposure(domain.ExposureFact{
+		Direction: "outbound",
+		Kind:      "dial",
+		Target:    "example.com/netmod.Dial",
+		Scope:     domain.ScopeConfigured,
+	})
+
+	cond := domain.Condition{
+		ID:   "C-PEER-INPUT",
+		Kind: domain.ConditionAttackerControl,
+		Params: map[string]string{
+			domain.ParamInputSource: domain.InputPeer,
+		},
+	}
+
+	claim := ServerTransportInput{}.Evaluate(cond, c)
+	if claim.Result != domain.ClaimFalse {
+		t.Fatalf("got result %s, want FALSE", claim.Result)
+	}
+	if claim.Falsifier != domain.FalsifierTrustedInfrastructure {
+		t.Fatalf("got falsifier %q, want %q", claim.Falsifier, domain.FalsifierTrustedInfrastructure)
+	}
+	if claim.FalsifierBasis != domain.BasisConfigOrigin {
+		t.Fatalf("got basis %q, want %q", claim.FalsifierBasis, domain.BasisConfigOrigin)
+	}
+	if claim.NegativeVerification == nil || claim.NegativeVerification.Status != domain.NegativeVerified {
+		t.Fatalf("expected negative verification VERIFIED, got %+v", claim.NegativeVerification)
+	}
+	wantNotes := "outbound destination endpoints are statically configured or loaded from trusted configuration (config-origin)"
+	if claim.NegativeVerification.Notes != wantNotes {
+		t.Fatalf("got notes %q, want %q", claim.NegativeVerification.Notes, wantNotes)
+	}
+}
+
+func TestServerTransportInput_StaticOutboundBasisConfigOrigin(t *testing.T) {
+	c := &domain.AnalysisCase{
+		Vulnerability: domain.Vulnerability{
+			Module: "example.com/netmod",
+		},
+		Product: domain.ProductSnapshot{
+			TrustedPeer: true,
+		},
+	}
+	c.EvidenceGraph.AddExposure(domain.ExposureFact{
+		Direction: "outbound",
+		Kind:      "dial",
+		Target:    "example.com/netmod.Dial",
+		Scope:     domain.ScopeStatic,
+	})
+
+	cond := domain.Condition{
+		ID:   "C-PEER-INPUT",
+		Kind: domain.ConditionAttackerControl,
+		Params: map[string]string{
+			domain.ParamInputSource: domain.InputPeer,
+		},
+	}
+
+	claim := ServerTransportInput{}.Evaluate(cond, c)
+	if claim.Result != domain.ClaimFalse {
+		t.Fatalf("got result %s, want FALSE", claim.Result)
+	}
+	if claim.FalsifierBasis != domain.BasisConfigOrigin {
+		t.Fatalf("got basis %q, want %q", claim.FalsifierBasis, domain.BasisConfigOrigin)
+	}
+}
+
+func TestServerTransportInput_MixedScopeOutboundStaysDeclaredTrust(t *testing.T) {
+	c := &domain.AnalysisCase{
+		Vulnerability: domain.Vulnerability{
+			Module: "example.com/netmod",
+		},
+		Product: domain.ProductSnapshot{
+			TrustedPeer: true,
+		},
+	}
+	c.EvidenceGraph.AddExposure(domain.ExposureFact{
+		Direction: "outbound",
+		Kind:      "dial",
+		Target:    "example.com/netmod.Dial",
+		Scope:     domain.ScopeConfigured,
+	})
+	c.EvidenceGraph.AddExposure(domain.ExposureFact{
+		Direction: "outbound",
+		Kind:      "dial",
+		Target:    "example.com/netmod.Connect",
+		Scope:     domain.ScopeUnknown,
+	})
+
+	cond := domain.Condition{
+		ID:   "C-PEER-INPUT",
+		Kind: domain.ConditionAttackerControl,
+		Params: map[string]string{
+			domain.ParamInputSource: domain.InputPeer,
+		},
+	}
+
+	claim := ServerTransportInput{}.Evaluate(cond, c)
+	if claim.Result != domain.ClaimFalse {
+		t.Fatalf("got result %s, want FALSE", claim.Result)
+	}
+	if claim.FalsifierBasis != domain.BasisDeclaredTrust {
+		t.Fatalf("got basis %q, want %q (mixed scopes should not ground config-origin)", claim.FalsifierBasis, domain.BasisDeclaredTrust)
+	}
+}

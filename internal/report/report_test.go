@@ -603,7 +603,7 @@ func TestMarkdownLocalizationRU(t *testing.T) {
 			"| Проверенные пакеты |",
 			"| Идентификаторы доказательств (Evidence IDs) |",
 			"### Статус условий эксплуатации (Claims)",
-			"| Условие | Результат | Верификация | Доказательства |",
+			"| Условие | Результат | Обоснование | Верификация | Доказательства |",
 			"Пакет отсутствует в сборке / ПОДТВЕРЖДЕНО",
 			"### Точки входа (Exposure Facts)",
 			"Входящий слушатель через `net/http.ListenAndServe`",
@@ -675,7 +675,7 @@ func TestMarkdownLocalizationEN(t *testing.T) {
 		"| package present |",
 		"| static call analysis (govulncheck) |",
 		"### Claims Status",
-		"| condition | result | verification | evidence |",
+		"| condition | result | explanation | verification | evidence |",
 		"locus-package-absent / VERIFIED",
 		"### Exposure Facts",
 		"`inbound`",
@@ -915,14 +915,16 @@ func TestReportClarityAndProvenance(t *testing.T) {
 		"Граф пакетов сборки (`go list -deps`): проверка фактического включения скомпилированных пакетов в бинарный файл.",
 		"Анализ графа вызовов (`govulncheck`): поиск статических путей вызова от приложения к функциям из advisory (проверка достижимости символов).",
 		"Анализ точек входа (AST): инспекция конструкторов и инициализации сервисов в коде проекта.",
-		"🤖 **Семантический анализ LLM (AI-исследование):**",
-		"Архитектурный анализ уязвимости: исследование патча и разделение функций из advisory на сайт сбоя (дефектный локус) и вспомогательные функции (диспетчеры).",
-		"Семантическое рецензирование: валидация логики работы компонентов и проверка условий эксплуатации.",
+		"Анализ сетевого периметра и манифестов: инспекция сетевых слушателей и манифестов развёртывания (K8s/Helm).",
 	}
 	for _, phrase := range expectedProvenancePhrases {
 		if !strings.Contains(md, phrase) {
 			t.Errorf("provenance breakdown missing expected phrase: %q", phrase)
 		}
+	}
+
+	if strings.Contains(md, "🤖 **Семантический анализ LLM (AI-исследование):**") {
+		t.Errorf("Russian report should not contain generic AI marketing boilerplate, got:\n%s", md)
 	}
 
 	if strings.Contains(md, "non_locus") {
@@ -1294,7 +1296,7 @@ func TestReportMarkdown_DualTrackPerimeterMatrix_RU(t *testing.T) {
 	if !strings.Contains(md, "Действий не требуется: уязвимость закрыта сетевым периметром.") {
 		t.Errorf("expected dismissed action recommendation in RU report:\n%s", md)
 	}
-	if !strings.Contains(md, "Высокий приоритет: устранение в течение 7 дней.") {
+	if !strings.Contains(md, "Высокий приоритет: требуется плановое устранение или аудит компенсирующих мер защиты.") {
 		t.Errorf("expected P1 action recommendation in RU report:\n%s", md)
 	}
 
@@ -1363,7 +1365,7 @@ func TestReportMarkdown_DualTrackPerimeterMatrix_EN(t *testing.T) {
 	if !strings.Contains(md, "No remediation required: vulnerability neutralized by network perimeter.") {
 		t.Errorf("expected dismissed action recommendation in EN report:\n%s", md)
 	}
-	if !strings.Contains(md, "High priority: remediation within 7 days.") {
+	if !strings.Contains(md, "High priority: planned remediation or compensating controls audit required.") {
 		t.Errorf("expected P1 action recommendation in EN report:\n%s", md)
 	}
 
@@ -1731,10 +1733,127 @@ func TestReportRussianLocalizationNoEnglishLeaks(t *testing.T) {
 		t.Errorf("missing localized exposure metadata (литерал, все интерфейсы) in Russian report:\n%s", md)
 	}
 
-	if strings.Contains(md, "24h (Immediate remediation required)") {
-		t.Errorf("found unlocalized SLA '24h (Immediate remediation required)' in Russian report:\n%s", md)
+	if strings.Contains(md, "24h (Immediate remediation required)") || strings.Contains(md, "24 часа (требуется немедленное устранение)") {
+		t.Errorf("found SLA string in Russian report:\n%s", md)
 	}
-	if !strings.Contains(md, "24 часа (требуется немедленное устранение)") {
-		t.Errorf("missing localized SLA '24 часа (требуется немедленное устранение)' in Russian report:\n%s", md)
+	if strings.Contains(md, "Рекомендуемый SLA") || strings.Contains(md, "Recommended SLA") {
+		t.Errorf("found SLA row in Triage table:\n%s", md)
+	}
+}
+
+func TestReportMarkdown_EvidenceRegisterAndNoSLA(t *testing.T) {
+	c := &domain.AnalysisCase{
+		ID: "GO-2022-0603-evidence-test",
+		Vulnerability: domain.Vulnerability{
+			ID:           "GO-2022-0603",
+			Module:       "gopkg.in/yaml.v3",
+			BaseSeverity: "MEDIUM",
+			BaseScore:    5.0,
+		},
+		Product: domain.ProductSnapshot{
+			Repository: "example.com/myapp",
+			Commit:     "1234567890ab",
+			GoVersion:  "go1.26.1",
+			GOOS:       "linux",
+			GOARCH:     "amd64",
+		},
+		Verdict: &domain.VerdictResult{
+			Verdict: domain.VerdictExploitable,
+			Reason:  "all mandatory exploit conditions are satisfied",
+		},
+		Claims: []domain.Claim{
+			{
+				ConditionID: "C-REACH",
+				Result:      domain.ClaimTrue,
+				EvidenceIDs: []domain.EvidenceID{"EV-006"},
+				Explanation: "govulncheck produced call path(s) to the affected symbol(s)",
+			},
+			{
+				ConditionID: "C-PEER-INPUT",
+				Result:      domain.ClaimTrue,
+				EvidenceIDs: []domain.EvidenceID{"EV-008"},
+				Explanation: "1 call site(s) receive externally controlled input",
+			},
+		},
+		EvidenceGraph: domain.EvidenceGraph{
+			Evidence: []domain.Evidence{
+				{
+					ID:      "EV-006",
+					Kind:    domain.EvidenceGovulncheck,
+					Tool:    "govulncheck",
+					Command: "govulncheck -json -mode source ./...",
+					Content: "call path json",
+				},
+				{
+					ID:        "EV-008",
+					Kind:      domain.EvidenceSourceSnippet,
+					File:      "main.go",
+					StartLine: 42,
+					Content:   "yaml.Unmarshal(body, &p)",
+				},
+			},
+			CallPaths: []domain.CallPath{
+				{
+					EvidenceID: "EV-006",
+					Frames: []domain.CallSite{
+						{Function: "main.main", File: "main.go", Line: 20},
+						{Function: "gopkg.in/yaml.v3.Unmarshal", File: "yaml.go", Line: 90},
+					},
+				},
+			},
+		},
+		ContextualRisk: &domain.ContextualRisk{
+			BaseSeverity:    "MEDIUM",
+			BaseScore:       5.0,
+			ContextualLevel: domain.RiskLevelMedium,
+			ContextualScore: 5.0,
+			Priority:        domain.PriorityP0,
+			Status:          domain.RiskStatusAssessed,
+			SLA:             "Immediate (Blocker)",
+		},
+	}
+
+	mdRU := Markdown(c, "ru")
+
+	// 1. Evidence Register is rendered with details
+	if !strings.Contains(mdRU, "### Реестр доказательств (Evidence Register)") {
+		t.Fatalf("expected Evidence Register heading in RU markdown:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "| `EV-006` | Анализ вызовов (govulncheck) |") {
+		t.Errorf("expected EV-006 in Evidence Register:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "Трасса вызова (2 кадров): `main.main` → ... → `gopkg.in/yaml.v3.Unmarshal`") {
+		t.Errorf("expected call path details for EV-006 in Evidence Register:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "| `EV-008` | Исходный код (AST) | `main.go:42` | Фрагмент кода: `yaml.Unmarshal(body, &p)` |") {
+		t.Errorf("expected EV-008 source snippet in Evidence Register:\n%s", mdRU)
+	}
+
+	// 2. Claims table includes explanation column and localized text
+	if !strings.Contains(mdRU, "Трасса вызовов govulncheck достигает уязвимых символов библиотеки") {
+		t.Errorf("expected localized C-REACH explanation in Claims table:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "точек вызова принимают входные данные извне") {
+		t.Errorf("expected localized C-PEER-INPUT explanation in Claims table:\n%s", mdRU)
+	}
+
+	// 3. No SLA rows or company SLA timing strings anywhere
+	if strings.Contains(mdRU, "Рекомендуемый SLA") || strings.Contains(mdRU, "Recommended SLA") {
+		t.Errorf("found SLA row in report:\n%s", mdRU)
+	}
+	if strings.Contains(mdRU, "24h") || strings.Contains(mdRU, "7 days") || strings.Contains(mdRU, "30 days") {
+		t.Errorf("found SLA duration strings in report:\n%s", mdRU)
+	}
+
+	// 4. In English report
+	mdEN := Markdown(c, "en")
+	if !strings.Contains(mdEN, "### Evidence Register") {
+		t.Fatalf("expected Evidence Register heading in EN markdown:\n%s", mdEN)
+	}
+	if !strings.Contains(mdEN, "| `EV-006` | Call Graph (govulncheck) |") {
+		t.Errorf("expected EV-006 in EN Evidence Register:\n%s", mdEN)
+	}
+	if strings.Contains(mdEN, "Recommended SLA") {
+		t.Errorf("found Recommended SLA row in EN report:\n%s", mdEN)
 	}
 }

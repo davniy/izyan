@@ -94,11 +94,48 @@ func TestAssess_Exploitable_PublicUnauth_BlockerP0(t *testing.T) {
 	if res.ContextualScore != 10.0 {
 		t.Fatalf("expected score 10.0, got %v", res.ContextualScore)
 	}
-	if res.SLA != "24h (Immediate remediation required)" {
-		t.Fatalf("expected 24h SLA, got %q", res.SLA)
+	if res.SLA != "Immediate (Blocker)" {
+		t.Fatalf("expected Immediate (Blocker) SLA, got %q", res.SLA)
 	}
 	if res.Factors.Exposure != "PUBLIC" {
 		t.Fatalf("expected Exposure PUBLIC, got %s", res.Factors.Exposure)
+	}
+}
+
+func TestAssess_Exploitable_MediumBase_SeverityNotElevated(t *testing.T) {
+	v := domain.Vulnerability{
+		ID:           "CVE-2022-0603",
+		BaseSeverity: "MEDIUM",
+		BaseScore:    5.0,
+	}
+	c := &domain.AnalysisCase{
+		EvidenceGraph: domain.EvidenceGraph{
+			Exposures: []domain.ExposureFact{
+				{
+					Direction: "inbound",
+					Kind:      "listener",
+					Target:    "net/http.ListenAndServe",
+					Address:   ":8080",
+					Scope:     domain.ScopeAllInterfaces,
+				},
+			},
+		},
+	}
+	vr := domain.VerdictResult{
+		Verdict: domain.VerdictExploitable,
+		Reason:  "all mandatory exploit conditions are satisfied",
+	}
+
+	res := Assess(v, c, vr)
+	if res.Priority != domain.PriorityP0 {
+		t.Fatalf("expected PriorityP0, got %s", res.Priority)
+	}
+	// Crucial invariant: severity level and score must NOT be inflated beyond base!
+	if res.ContextualLevel != domain.RiskLevelMedium {
+		t.Fatalf("expected RiskLevelMedium, got %s (must not be elevated to CRITICAL)", res.ContextualLevel)
+	}
+	if res.ContextualScore != 5.0 {
+		t.Fatalf("expected score 5.0, got %v (must not be elevated to 10.0)", res.ContextualScore)
 	}
 }
 
@@ -147,8 +184,8 @@ func TestAssess_Exploitable_PublicAuth_P1(t *testing.T) {
 	if res.ContextualScore != 7.5 {
 		t.Fatalf("expected score 7.5, got %v", res.ContextualScore)
 	}
-	if res.SLA != "7 days" {
-		t.Fatalf("expected 7 days SLA, got %q", res.SLA)
+	if res.SLA != "High Priority" {
+		t.Fatalf("expected High Priority SLA, got %q", res.SLA)
 	}
 	if res.Factors.Authentication != "REQUIRED" {
 		t.Fatalf("expected Authentication REQUIRED, got %s", res.Factors.Authentication)
@@ -186,11 +223,11 @@ func TestAssess_Exploitable_InternalLoopback_P2(t *testing.T) {
 	if res.ContextualLevel != domain.RiskLevelMedium {
 		t.Fatalf("expected RiskLevelMedium, got %s", res.ContextualLevel)
 	}
-	if res.ContextualScore != 4.5 {
-		t.Fatalf("expected score 4.5, got %v", res.ContextualScore)
+	if res.ContextualScore != 5.0 {
+		t.Fatalf("expected score 5.0, got %v", res.ContextualScore)
 	}
-	if res.SLA != "Sprint (30 days)" {
-		t.Fatalf("expected Sprint (30 days) SLA, got %q", res.SLA)
+	if res.SLA != "Scheduled" {
+		t.Fatalf("expected Scheduled SLA, got %q", res.SLA)
 	}
 	if res.Factors.Exposure != "INTERNAL" {
 		t.Fatalf("expected Exposure INTERNAL, got %s", res.Factors.Exposure)
@@ -237,14 +274,14 @@ func TestAssess_Inconclusive_CriticalBase_P1Provisional(t *testing.T) {
 	if res.Priority != domain.PriorityP1 {
 		t.Fatalf("expected PriorityP1, got %s", res.Priority)
 	}
-	if res.ContextualLevel != domain.RiskLevelHigh {
-		t.Fatalf("expected RiskLevelHigh, got %s", res.ContextualLevel)
+	if res.ContextualLevel != domain.RiskLevelCritical {
+		t.Fatalf("expected RiskLevelCritical, got %s", res.ContextualLevel)
 	}
 	if res.Status != domain.RiskStatusProvisional {
 		t.Fatalf("expected RiskStatusProvisional, got %s", res.Status)
 	}
-	if res.SLA != "7 days (Manual triage required)" {
-		t.Fatalf("expected 7 days triage SLA, got %q", res.SLA)
+	if res.SLA != "Manual Triage" {
+		t.Fatalf("expected Manual Triage SLA, got %q", res.SLA)
 	}
 }
 
@@ -267,8 +304,8 @@ func TestAssess_Inconclusive_MediumBase_P2(t *testing.T) {
 	if res.ContextualLevel != domain.RiskLevelMedium {
 		t.Fatalf("expected RiskLevelMedium, got %s", res.ContextualLevel)
 	}
-	if res.SLA != "Sprint (30 days)" {
-		t.Fatalf("expected Sprint (30 days) SLA, got %q", res.SLA)
+	if res.SLA != "Manual Triage" {
+		t.Fatalf("expected Manual Triage SLA, got %q", res.SLA)
 	}
 }
 

@@ -698,10 +698,10 @@ func printCase(c *domain.AnalysisCase, caseDir string, lang ...string) {
 		fmt.Printf("verdict: %s\nreason: %s\n", c.Verdict.Verdict, c.Verdict.Reason)
 	}
 	if c.ContextualRisk != nil {
-		fmt.Printf("priority: %s (Contextual: %s, Score: %.1f, SLA: %s)\n",
-			c.ContextualRisk.Priority, c.ContextualRisk.ContextualLevel, c.ContextualRisk.ContextualScore, c.ContextualRisk.SLA)
-		if c.ContextualRisk.AdjustmentReason != "" {
-			fmt.Printf("triage_reason: %s\n", c.ContextualRisk.AdjustmentReason)
+		r := c.ContextualRisk
+		fmt.Printf("priority: %s (base: %s, disposition: %s)\n", r.Priority, r.BasePriority, r.TriageDisposition)
+		if r.AdjustmentReason != "" {
+			fmt.Printf("triage_reason: %s\n", r.AdjustmentReason)
 		}
 	}
 	if len(c.Profiles) > 0 {
@@ -726,11 +726,14 @@ func printCase(c *domain.AnalysisCase, caseDir string, lang ...string) {
 			strings.Join(parts, " "), total, c.Workflow.Usage.LLMCalls)
 	}
 	repName := "report.md"
+	auditName := "report.audit.md"
 	if !isRU {
 		repName = "report.en.md"
+		auditName = "report.audit.en.md"
 	}
 	fmt.Printf("report: %s\n", filepath.Join(caseDir, string(c.ID), repName))
-	if r := report.TrackerRationale(c); r != "" {
+	fmt.Printf("audit: %s\n", filepath.Join(caseDir, string(c.ID), auditName))
+	if r := report.TrackerRationale(c, lang...); r != "" {
 		if isRU {
 			fmt.Printf("\n--- Резюме ---\n%s\n--------------\n", r)
 		} else {

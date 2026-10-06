@@ -74,7 +74,7 @@ LLM используется для семантических задач: ан�
 - deterministic Verdict Engine;
 - автономный исследовательский AI-слой (`--cve-analysis assist|verified`);
 - планирование и применение обновлений зависимостей (`remediate --apply [--run-tests] [--worktree]`);
-- отчётность: двуязычные отчёты по принципу Inverted Pyramid (`report.md` RU с разделом `## Резюме` для Jira/GitLab, `report.en.md` EN) + экспорт в стандарты VEX (**OpenVEX**, **CycloneDX VEX**) и `report.json`.
+- отчётность: двуязычные отчёты (`report.md` RU и `report.en.md` EN — короткий человекочитаемый отчёт с разделом `## Результат` для Jira/GitLab; `report.audit.md` / `report.audit.en.md` — технический аудит) + экспорт в стандарты VEX (**OpenVEX**, **CycloneDX VEX**) и `report.json`.
 
 Не входят в MVP:
 

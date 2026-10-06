@@ -22,7 +22,8 @@ EVALUATE_VERDICT / REVIEW, до финализации отчёта. Advisory в
 
 ```
 case (post-review) → llm.Advisor → llm_assessment.json
-                                   + `## LLM assessment` в report.md
+                                   + сырой assessment в report.audit.md
+                                     (в report.md — только раздел `## Использование AI`)
 ```
 
 Не меняет: EvidenceGraph authoritative-часть, claims, verdict,
@@ -75,8 +76,9 @@ MaxLLMCalls/таймаут; on-budget-exhausted → частичный assessmen
 ## Фазы
 
 1. Schema `llm_assessment.json` + `llm.Advisor` (subjects + estimate)
-   + секция в report.md; кейс без UNKNOWN — пустой assessment.
-2. Divergence-findings `ADV-*`, подсветка в report.md.
+   + секция в `report.audit.md`; кейс без UNKNOWN — пустой assessment.
+2. Divergence-findings `ADV-*`, подсветка в `report.audit.md` + краткая
+   пометка в разделе `## Использование AI` человекочитаемого `report.md`.
 3. Eval: agreement метрика; связка с B16 (confirmed semantics →
    hypothesis input для GAP_ANALYSIS).
 

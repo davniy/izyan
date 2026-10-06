@@ -9,6 +9,13 @@ import (
 
 // Assess evaluates the contextual risk and assigns a triage priority tier
 // based on nominal severity and concrete product execution context.
+//
+// Contextual analysis can only preserve, lower or dismiss the baseline: the
+// returned priority is never more urgent than BasePriority, the level is
+// never more severe than the baseline level and ContextualScore never
+// exceeds BaseScore. Every result records the baseline it was clamped
+// against (BasePriority) and what actually happened to it
+// (TriageDisposition).
 func Assess(v domain.Vulnerability, c *domain.AnalysisCase, vr domain.VerdictResult) domain.ContextualRisk {
 	baseSev := strings.ToUpper(strings.TrimSpace(v.BaseSeverity))
 	baseScore := v.BaseScore
@@ -19,140 +26,92 @@ func Assess(v domain.Vulnerability, c *domain.AnalysisCase, vr domain.VerdictRes
 		baseSev = defaultSeverityForScore(baseScore)
 	}
 
-	exposure := detectExposure(c)
-	authn := detectAuthentication(c)
+	baseLevel := nominalLevel(baseSev, baseScore)
+	basePrio := NominalPriority(baseSev, baseScore)
+	exposure, surfaces := classifyExposure(c)
 
-	factors := domain.RiskFactors{
-		Verdict:        string(vr.Verdict),
-		Exposure:       exposure,
-		Authentication: authn,
-		PayloadControl: "UNKNOWN",
-		BlastRadius:    "UNKNOWN",
+	// Baseline result: the advisory's own severity/score/priority and the
+	// unchanged disposition. Every verdict below is a candidate applied on
+	// top of it and clamped back under it in the single finalization path.
+	res := domain.ContextualRisk{
+		Status:            domain.RiskStatusAssessed,
+		BaseSeverity:      baseSev,
+		BaseScore:         baseScore,
+		BasePriority:      basePrio,
+		TriageDisposition: domain.TriageUnchanged,
+		ContextualLevel:   baseLevel,
+		ContextualScore:   baseScore,
+		Priority:          basePrio,
+		SeveritySource:    v.SeveritySource,
+		ScoreSource:       v.ScoreSource,
+		Factors: domain.RiskFactors{
+			Verdict:        string(vr.Verdict),
+			Exposure:       exposure,
+			Authentication: detectAuthentication(c),
+			PayloadControl: "UNKNOWN",
+			BlastRadius:    "UNKNOWN",
+		},
 	}
 
-	nomPrio := NominalPriority(baseSev, baseScore)
-
-	// Rule 1: Dismissed (NOT_AFFECTED or NO_EXPLOIT_PATH_FOUND)
-	if vr.Verdict == domain.VerdictNotAffected {
-		return domain.ContextualRisk{
-			Status:           domain.RiskStatusNotApplicable,
-			BaseSeverity:     baseSev,
-			BaseScore:        baseScore,
-			ContextualLevel:  domain.RiskLevelNone,
-			ContextualScore:  0.0,
-			Priority:         domain.PriorityDismissed,
-			SLA:              "None",
-			AdjustmentReason: "Уязвимый модуль не слинкован в бинарный граф сборки продукта (go list -deps). Эксплуатация физически невозможна. Блокировка сборки снята.",
-			Factors:          factors,
+	// Candidate per verdict. lowerCandidate marks the only candidate that
+	// may lower the priority: a proven loopback/unix isolation of every
+	// inbound listener.
+	candLevel, candScore, candPrio := baseLevel, baseScore, basePrio
+	lowerCandidate := false
+	switch {
+	case vr.Verdict == domain.VerdictNotAffected:
+		res.Status = domain.RiskStatusNotApplicable
+		res.TriageDisposition = domain.TriageDismissed
+		candLevel, candScore, candPrio = domain.RiskLevelNone, 0, domain.PriorityDismissed
+		res.AdjustmentReason = "Вердикт NOT_AFFECTED: уязвимость неприменима к продукту по проверенным фактам; приоритет устранения снят."
+	case vr.Verdict == domain.VerdictNoExploitPathFound:
+		res.TriageDisposition = domain.TriageDismissed
+		candLevel, candScore, candPrio = domain.RiskLevelNone, 0, domain.PriorityDismissed
+		res.AdjustmentReason = "Вердикт NO_EXPLOIT_PATH_FOUND: обязательное условие эксплуатации опровергнуто проверенным falsifier с negative verification; приоритет устранения снят."
+	case vr.Verdict == domain.VerdictExploitable:
+		if surfaces.provenLoopbackOnly() {
+			candScore = baseScore * 0.5
+			candLevel = defaultRiskLevelForScore(candScore)
+			candPrio = DowngradePriority(DowngradePriority(basePrio))
+			lowerCandidate = true
+		} else {
+			res.AdjustmentReason = "Вердикт EXPLOITABLE: путь эксплуатации подтверждён, доказанных компенсирующих мер не зафиксировано; исходная оценка сохранена без усиления."
 		}
+	case vr.Verdict == domain.VerdictInconclusive, vr.Verdict == "":
+		res.Status = domain.RiskStatusProvisional
+		res.TriageDisposition = domain.TriageInconclusive
+		res.AdjustmentReason = "Условия эксплуатации не подтверждены и не опровергнуты; требуется дополнительная проверка, исходные оценка и приоритет сохранены."
+	default:
+		res.Status = domain.RiskStatusProvisional
+		res.TriageDisposition = domain.TriageInconclusive
+		res.AdjustmentReason = "Финальный вердикт недоступен или неизвестен; исходные оценка и приоритет сохранены, требуется дополнительная проверка."
 	}
 
-	if vr.Verdict == domain.VerdictNoExploitPathFound {
-		return domain.ContextualRisk{
-			Status:           domain.RiskStatusAssessed,
-			BaseSeverity:     baseSev,
-			BaseScore:        baseScore,
-			ContextualLevel:  domain.RiskLevelNone,
-			ContextualScore:  0.0,
-			Priority:         domain.PriorityDismissed,
-			SLA:              "None",
-			AdjustmentReason: "Обязательное условие эксплуатации опровергнуто детерминированной верификацией. Уязвимый путь вызова отсутствует. Блокировка сборки снята.",
-			Factors:          factors,
+	// Finalization: clamp the candidate back under the baseline.
+	res.ContextualLevel = clampSeverity(candLevel, baseLevel)
+	res.ContextualScore = clampScore(candScore, baseScore)
+	res.Priority = clampPriority(candPrio, basePrio)
+	if lowerCandidate {
+		// LOWERED describes an actual priority change, not a score change:
+		// under P3 saturation the priority is preserved and the disposition
+		// stays UNCHANGED.
+		if res.Priority != basePrio {
+			res.TriageDisposition = domain.TriageLowered
+			res.AdjustmentReason = "Понижение приоритета: подтверждено структурно, что все входящие слушатели привязаны только к loopback/unix-сокетам и иных доступных inbound-поверхностей нет."
+		} else {
+			res.TriageDisposition = domain.TriageUnchanged
+			res.AdjustmentReason = "Подтверждено loopback/unix-ограничение входящего доступа; приоритет уже минимальный и дополнительно не снижается."
 		}
 	}
-
-	// Rule 5: Inconclusive / Provisional
-	if vr.Verdict == domain.VerdictInconclusive {
-		prio := nomPrio
-		if prio == domain.PriorityP0 {
-			prio = domain.PriorityP1
-		}
-		lvl := defaultRiskLevelForScore(baseScore)
-		if baseSev != "" {
-			lvl = domain.RiskLevel(baseSev)
-		}
-		return domain.ContextualRisk{
-			Status:           domain.RiskStatusProvisional,
-			BaseSeverity:     baseSev,
-			BaseScore:        baseScore,
-			ContextualLevel:  lvl,
-			ContextualScore:  baseScore,
-			Priority:         prio,
-			SLA:              "Manual Triage",
-			AdjustmentReason: "Условия эксплуатации не подтверждены и не опровергнуты; требуется ручной триаж входных данных и конфигурации.",
-			Factors:          factors,
-		}
+	switch res.TriageDisposition {
+	case domain.TriageInconclusive:
+		res.SLA = "Manual Triage"
+	case domain.TriageDismissed:
+		res.SLA = "None"
+	default:
+		res.SLA = slaForPriority(res.Priority)
 	}
-
-	// If verdict is EXPLOITABLE
-	if vr.Verdict == domain.VerdictExploitable {
-		// Rule 2: Unmitigated (PUBLIC exposure without required authentication)
-		// Strict invariant: neither score nor priority can escalate above baseline (nomPrio).
-		// A Medium vulnerability without mitigations remains Medium / P2.
-		if exposure == "PUBLIC" && authn != "REQUIRED" {
-			level := defaultRiskLevelForScore(baseScore)
-			if baseSev != "" {
-				level = domain.RiskLevel(baseSev)
-			}
-			sla := slaForPriority(nomPrio)
-			return domain.ContextualRisk{
-				Status:           domain.RiskStatusAssessed,
-				BaseSeverity:     baseSev,
-				BaseScore:        baseScore,
-				ContextualLevel:  level,
-				ContextualScore:  baseScore,
-				Priority:         nomPrio,
-				SLA:              sla,
-				AdjustmentReason: "Компенсационные меры в кодовой базе не обнаружены; базовая оценка CVSS подтверждена. Повышение критичности не производится.",
-				Factors:          factors,
-			}
-		}
-
-		// Rule 3: Mitigated by Authentication (PUBLIC exposure with authentication REQUIRED)
-		if exposure == "PUBLIC" && authn == "REQUIRED" {
-			score := math.Round(baseScore*0.75*10) / 10
-			prio := DowngradePriority(nomPrio)
-			return domain.ContextualRisk{
-				Status:           domain.RiskStatusAssessed,
-				BaseSeverity:     baseSev,
-				BaseScore:        baseScore,
-				ContextualLevel:  defaultRiskLevelForScore(score),
-				ContextualScore:  score,
-				Priority:         prio,
-				SLA:              slaForPriority(prio),
-				AdjustmentReason: "Снижение оценки: уязвимость достижима извне, но защищена предварительной аутентификацией/шлюзом (эксплуатация требует валидных учетных данных).",
-				Factors:          factors,
-			}
-		}
-
-		// Rule 4: Mitigated by Network Boundary (INTERNAL loopback or NONE)
-		score := math.Round(baseScore*0.5*10) / 10
-		prio := DowngradePriority(DowngradePriority(nomPrio))
-		return domain.ContextualRisk{
-			Status:           domain.RiskStatusAssessed,
-			BaseSeverity:     baseSev,
-			BaseScore:        baseScore,
-			ContextualLevel:  defaultRiskLevelForScore(score),
-			ContextualScore:  score,
-			Priority:         prio,
-			SLA:              slaForPriority(prio),
-			AdjustmentReason: "Снижение оценки: сетевой доступ из внешней сети отсутствует (слушатель привязан к локальному интерфейсу 127.0.0.1 либо сетевые слушатели отсутствуют).",
-			Factors:          factors,
-		}
-	}
-
-	// Fallback for any other verdict
-	return domain.ContextualRisk{
-		Status:           domain.RiskStatusAssessed,
-		BaseSeverity:     baseSev,
-		BaseScore:        baseScore,
-		ContextualLevel:  defaultRiskLevelForScore(baseScore),
-		ContextualScore:  baseScore,
-		Priority:         nomPrio,
-		SLA:              slaForPriority(nomPrio),
-		AdjustmentReason: "Автоматическая оценка риска завершена.",
-		Factors:          factors,
-	}
+	return res
 }
 
 func slaForPriority(p domain.TriagePriority) string {
@@ -163,8 +122,10 @@ func slaForPriority(p domain.TriagePriority) string {
 		return "High Priority"
 	case domain.PriorityP2:
 		return "Scheduled"
-	default:
+	case domain.PriorityP3:
 		return "Low Priority"
+	default:
+		return "None"
 	}
 }
 
@@ -186,7 +147,9 @@ func NominalPriority(baseSev string, baseScore float64) domain.TriagePriority {
 	}
 }
 
-// DowngradePriority lowers a triage priority tier by one level when mitigating controls are active.
+// DowngradePriority lowers a triage priority tier by one level when
+// mitigating controls are proven. Lowering saturates at P3 and never turns
+// an unranked input into DISMISSED.
 func DowngradePriority(p domain.TriagePriority) domain.TriagePriority {
 	switch p {
 	case domain.PriorityP0:
@@ -195,88 +158,219 @@ func DowngradePriority(p domain.TriagePriority) domain.TriagePriority {
 		return domain.PriorityP2
 	case domain.PriorityP2:
 		return domain.PriorityP3
-	default:
+	case domain.PriorityP3:
+		return domain.PriorityP3
+	case domain.PriorityDismissed:
 		return domain.PriorityDismissed
+	default:
+		return p
 	}
 }
 
-func detectExposure(c *domain.AnalysisCase) string {
+// inboundSurfaces inventories resolved inbound listener surfaces: loopback
+// (ScopeLoopback/ScopeUnix, provably local), public (reachable beyond the
+// host) and unresolved (no sufficient resolved scope fact).
+type inboundSurfaces struct {
+	listeners  int
+	loopback   int
+	public     int
+	unresolved int
+}
+
+// provenLoopbackOnly reports whether every structural inbound listener is a
+// proven loopback/unix bind — the only exposure shape that may lower the
+// priority. A single public or unresolved listener among them means no
+// isolation, so one loopback surface is never enough.
+func (s inboundSurfaces) provenLoopbackOnly() bool {
+	return s.listeners > 0 && s.loopback == s.listeners
+}
+
+// classifyExposure resolves the exposure factor and the inbound surface
+// inventory. Only ScopeLoopback/ScopeUnix listeners count as proven-local:
+// ScopeClusterInternal, a trusted-peer/product perimeter or a hypothetical
+// profile is not a physical loopback bind. Free-text evidence may
+// conservatively mark public exposure but never a proven control — loopback
+// prose is not isolation.
+func classifyExposure(c *domain.AnalysisCase) (string, inboundSurfaces) {
+	var s inboundSurfaces
 	if c == nil {
-		return "NONE"
+		return "NONE", s
 	}
-
-	var hasPublic, hasInternal bool
-
-	// 1. Check Exposures in EvidenceGraph
-	facts := c.EvidenceGraph.ExposuresList()
-	for _, f := range facts {
-		if f.Direction == "inbound" && f.Kind == "listener" {
-			switch f.Scope {
-			case domain.ScopeAllInterfaces, domain.ScopeHostSpecific:
-				hasPublic = true
-			case domain.ScopeLoopback, domain.ScopeUnix:
-				hasInternal = true
-			default:
-				if strings.Contains(f.Address, "0.0.0.0") || strings.HasPrefix(f.Address, ":") {
-					hasPublic = true
-				} else if strings.Contains(f.Address, "127.0.0.1") || strings.Contains(f.Address, "localhost") {
-					hasInternal = true
-				}
+	for _, f := range c.EvidenceGraph.ExposuresList() {
+		// Inbound surfaces: resolved listener binds (goanalysis) and
+		// deploy-manifest declared inbound surfaces. "dial" is outbound and
+		// "auth-middleware" is wiring — not a surface of its own.
+		if f.Direction != "inbound" || (f.Kind != "listener" && f.Kind != "deployment") {
+			continue
+		}
+		s.listeners++
+		switch f.Scope {
+		case domain.ScopeLoopback, domain.ScopeUnix:
+			// Only a structural listener bind is a physical loopback/unix
+			// surface — a deploy-declared ClusterIP/loopback scope is a
+			// hypothetical deployment isolation, not a proven control, so
+			// it counts as unresolved, never as isolation evidence.
+			if f.Kind == "listener" {
+				s.loopback++
+			} else {
+				s.unresolved++
+			}
+		case domain.ScopeAllInterfaces, domain.ScopeHostSpecific:
+			s.public++
+		default:
+			if publicLooking(f.Address) {
+				s.public++
+			} else {
+				s.unresolved++
 			}
 		}
 	}
-
-	// 2. Check Evidences in EvidenceGraph
 	for _, ev := range c.EvidenceGraph.EvidenceList() {
+		if ev.Kind != domain.EvidenceEntrypoint && !strings.Contains(ev.Source, "exposure") && !strings.Contains(ev.Source, "listener") {
+			continue
+		}
 		content := strings.ToLower(ev.Content)
-		if ev.Kind == domain.EvidenceEntrypoint || strings.Contains(ev.Source, "exposure") || strings.Contains(ev.Source, "listener") {
-			if strings.Contains(content, "0.0.0.0") || strings.Contains(content, "all-interfaces") {
-				hasPublic = true
-			} else if strings.Contains(content, "127.0.0.1") || strings.Contains(content, "localhost") || strings.Contains(content, "loopback") {
-				hasInternal = true
-			}
+		if strings.Contains(content, "0.0.0.0") || strings.Contains(content, "all-interfaces") {
+			s.public++
 		}
 	}
-
-	if hasPublic {
-		return "PUBLIC"
+	switch {
+	case s.public > 0:
+		return "PUBLIC", s
+	case s.provenLoopbackOnly():
+		return "INTERNAL", s
+	default:
+		return "NONE", s
 	}
-	if hasInternal {
-		return "INTERNAL"
-	}
-	return "NONE"
 }
 
+// publicLooking reports whether an unclassified listener address is
+// conservatively public: a wildcard bind or a decimal-prefixed wildcard
+// port. Anything else stays unresolved, never a proven loopback control.
+func publicLooking(addr string) bool {
+	addr = strings.TrimSpace(addr)
+	return strings.Contains(addr, "0.0.0.0") || strings.HasPrefix(addr, ":")
+}
+
+// detectAuthentication reports observed inbound authentication wiring. The
+// value is informational and never lowers the priority: middleware matched
+// by name and position does not prove per-route coverage, and per-handler,
+// gateway or deployment auth is outside this scan. An unproven absence is
+// UNKNOWN, not NONE as proven absence.
 func detectAuthentication(c *domain.AnalysisCase) string {
 	if c == nil {
-		return "NONE"
+		return "UNKNOWN"
 	}
-
-	// 1. Check Claims for authentication condition
-	for _, cl := range c.Claims {
-		cid := string(cl.ConditionID)
-		if cl.Result == domain.ClaimTrue {
-			if cid == "C-AUTH" || strings.Contains(strings.ToLower(cid), "auth") {
-				return "REQUIRED"
-			}
-		}
-	}
-
-	// 2. Check Exposure facts for auth-middleware
 	for _, f := range c.EvidenceGraph.ExposuresList() {
 		if f.Direction == "inbound" && f.Kind == "auth-middleware" {
 			return "REQUIRED"
 		}
 	}
+	return "UNKNOWN"
+}
 
-	// 3. Check Evidence for auth-middleware
-	for _, ev := range c.EvidenceGraph.EvidenceList() {
-		if strings.Contains(strings.ToLower(ev.Content), "auth") && strings.Contains(strings.ToLower(ev.Content), "middleware") {
-			return "REQUIRED"
-		}
+// normalizeSeverity canonicalizes severity aliases used across scanners.
+func normalizeSeverity(sev string) string {
+	sev = strings.ToUpper(strings.TrimSpace(sev))
+	switch sev {
+	case "BLOCKER":
+		return "CRITICAL"
+	case "MODERATE":
+		return "MEDIUM"
+	default:
+		return sev
 	}
+}
 
-	return "NONE"
+// nominalLevel is the baseline contextual level implied by the advisory
+// severity (aliases resolved), falling back to the score bucket when the
+// severity is not a ranked name.
+func nominalLevel(baseSev string, baseScore float64) domain.RiskLevel {
+	switch normalizeSeverity(baseSev) {
+	case "CRITICAL":
+		return domain.RiskLevelCritical
+	case "HIGH":
+		return domain.RiskLevelHigh
+	case "MEDIUM":
+		return domain.RiskLevelMedium
+	case "LOW":
+		return domain.RiskLevelLow
+	case "NONE":
+		return domain.RiskLevelNone
+	default:
+		return defaultRiskLevelForScore(baseScore)
+	}
+}
+
+// priorityRank orders triage priorities by urgency (lower = more urgent);
+// ok=false for values outside the triage scale.
+func priorityRank(p domain.TriagePriority) (int, bool) {
+	switch p {
+	case domain.PriorityP0:
+		return 0, true
+	case domain.PriorityP1:
+		return 1, true
+	case domain.PriorityP2:
+		return 2, true
+	case domain.PriorityP3:
+		return 3, true
+	case domain.PriorityDismissed:
+		return 4, true
+	default:
+		return 0, false
+	}
+}
+
+// clampPriority returns candidate unless it is more urgent than base or not
+// a triage priority at all.
+func clampPriority(candidate, base domain.TriagePriority) domain.TriagePriority {
+	cr, okCandidate := priorityRank(candidate)
+	br, okBase := priorityRank(base)
+	if !okBase || !okCandidate || cr < br {
+		return base
+	}
+	return candidate
+}
+
+// severityRank orders risk levels by severity (lower = less severe), with
+// BLOCKER and MODERATE resolved to their canonical levels. UNKNOWN is
+// unranked — never treated as CRITICAL.
+func severityRank(l domain.RiskLevel) (int, bool) {
+	switch normalizeSeverity(string(l)) {
+	case "NONE":
+		return 0, true
+	case "LOW":
+		return 1, true
+	case "MEDIUM":
+		return 2, true
+	case "HIGH":
+		return 3, true
+	case "CRITICAL":
+		return 4, true
+	default:
+		return 0, false
+	}
+}
+
+// clampSeverity returns candidate unless it is more severe than base or not
+// a ranked level.
+func clampSeverity(candidate, base domain.RiskLevel) domain.RiskLevel {
+	cr, okCandidate := severityRank(candidate)
+	br, okBase := severityRank(base)
+	if !okBase || !okCandidate || cr > br {
+		return base
+	}
+	return candidate
+}
+
+// clampScore rounds the candidate to one decimal and caps it at the base
+// score.
+func clampScore(candidate, base float64) float64 {
+	score := math.Round(candidate*10) / 10
+	if score > base {
+		return base
+	}
+	return score
 }
 
 func defaultScoreForSeverity(sev string) float64 {

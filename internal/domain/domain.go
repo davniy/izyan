@@ -70,15 +70,20 @@ type Vulnerability struct {
 	// same fix). Each entry holds the module path with its own version
 	// ranges, packages and symbols; the resolver picks the entry matching
 	// the product's dependency graph and narrows the vulnerability to it.
-	AffectedModules []AffectedModule  `json:"affected_modules,omitempty"`
-	Summary         string            `json:"summary,omitempty"`
-	Description     string            `json:"description,omitempty"`
-	BaseSeverity    string            `json:"base_severity,omitempty"`
-	BaseScore       float64           `json:"base_score,omitempty"`
-	CWE             []string          `json:"cwe,omitempty"`
-	Modified        string            `json:"modified,omitempty"`
-	References      []Reference       `json:"references,omitempty"`
-	Provenance      map[string]string `json:"provenance,omitempty"`
+	AffectedModules []AffectedModule `json:"affected_modules,omitempty"`
+	Summary         string           `json:"summary,omitempty"`
+	Description     string           `json:"description,omitempty"`
+	BaseSeverity    string           `json:"base_severity,omitempty"`
+	BaseScore       float64          `json:"base_score,omitempty"`
+	// SeveritySource / ScoreSource record where BaseSeverity and BaseScore
+	// came from ("OSV", "GHSA", "NVD", "Scanner input", ...). Empty means
+	// the origin is unknown and presentation must not claim one.
+	SeveritySource string            `json:"severity_source,omitempty"`
+	ScoreSource    string            `json:"score_source,omitempty"`
+	CWE            []string          `json:"cwe,omitempty"`
+	Modified       string            `json:"modified,omitempty"`
+	References     []Reference       `json:"references,omitempty"`
+	Provenance     map[string]string `json:"provenance,omitempty"`
 }
 
 type VersionRange struct {
@@ -1255,6 +1260,18 @@ const (
 	PriorityDismissed TriagePriority = "DISMISSED" // No action / False alarm (SLA: None)
 )
 
+// TriageDisposition is what contextual analysis actually did to the
+// advisory's baseline rating: preserved it, lowered the remediation
+// priority, dismissed the finding, or could not decide.
+type TriageDisposition string
+
+const (
+	TriageUnchanged    TriageDisposition = "UNCHANGED"
+	TriageLowered      TriageDisposition = "LOWERED"
+	TriageDismissed    TriageDisposition = "DISMISSED"
+	TriageInconclusive TriageDisposition = "INCONCLUSIVE"
+)
+
 type ContextualRiskStatus string
 
 const (
@@ -1274,6 +1291,14 @@ type ContextualRisk struct {
 	SLA              string               `json:"sla,omitempty"`
 	AdjustmentReason string               `json:"adjustment_reason"`
 	Factors          RiskFactors          `json:"factors"`
+	// TriageDisposition records what contextual analysis did to the
+	// advisory baseline; BasePriority is that baseline priority (Priority
+	// is the effective one); SeveritySource/ScoreSource mirror the
+	// advisory's provenance for presentation.
+	TriageDisposition TriageDisposition `json:"triage_disposition,omitempty"`
+	BasePriority      TriagePriority    `json:"base_priority,omitempty"`
+	SeveritySource    string            `json:"severity_source,omitempty"`
+	ScoreSource       string            `json:"score_source,omitempty"`
 }
 
 type RiskFactors struct {

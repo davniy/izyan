@@ -30,6 +30,8 @@ func Assess(v domain.Vulnerability, c *domain.AnalysisCase, vr domain.VerdictRes
 		BlastRadius:    "UNKNOWN",
 	}
 
+	nomPrio := NominalPriority(baseSev, baseScore)
+
 	// Rule 1: Dismissed (NOT_AFFECTED or NO_EXPLOIT_PATH_FOUND)
 	if vr.Verdict == domain.VerdictNotAffected {
 		return domain.ContextualRisk{
@@ -61,13 +63,13 @@ func Assess(v domain.Vulnerability, c *domain.AnalysisCase, vr domain.VerdictRes
 
 	// Rule 5: Inconclusive / Provisional
 	if vr.Verdict == domain.VerdictInconclusive {
-		prio := domain.PriorityP2
+		prio := nomPrio
+		if prio == domain.PriorityP0 {
+			prio = domain.PriorityP1
+		}
 		lvl := defaultRiskLevelForScore(baseScore)
 		if baseSev != "" {
 			lvl = domain.RiskLevel(baseSev)
-		}
-		if baseScore >= 9.0 || baseSev == "CRITICAL" || baseSev == "BLOCKER" {
-			prio = domain.PriorityP1
 		}
 		return domain.ContextualRisk{
 			Status:           domain.RiskStatusProvisional,
@@ -84,54 +86,57 @@ func Assess(v domain.Vulnerability, c *domain.AnalysisCase, vr domain.VerdictRes
 
 	// If verdict is EXPLOITABLE
 	if vr.Verdict == domain.VerdictExploitable {
-		// Rule 2: Blocker P0 (PUBLIC exposure without required authentication)
-		// Contextual score never inflates above baseScore (a Medium DoS remains Medium severity,
-		// but receives P0 blocker priority in queue due to unmitigated public exposure).
+		// Rule 2: Unmitigated (PUBLIC exposure without required authentication)
+		// Strict invariant: neither score nor priority can escalate above baseline (nomPrio).
+		// A Medium vulnerability without mitigations remains Medium / P2.
 		if exposure == "PUBLIC" && authn != "REQUIRED" {
 			level := defaultRiskLevelForScore(baseScore)
 			if baseSev != "" {
 				level = domain.RiskLevel(baseSev)
 			}
+			sla := slaForPriority(nomPrio)
 			return domain.ContextualRisk{
 				Status:           domain.RiskStatusAssessed,
 				BaseSeverity:     baseSev,
 				BaseScore:        baseScore,
 				ContextualLevel:  level,
 				ContextualScore:  baseScore,
-				Priority:         domain.PriorityP0,
-				SLA:              "Immediate (Blocker)",
-				AdjustmentReason: "Сетевой слушатель привязан ко всем интерфейсам (0.0.0.0). В репозитории не обнаружены манифесты изоляции (ClusterIP / Service Mesh / Ingress), поэтому по модели нулевого доверия (Zero-Trust) точка входа рассматривается как внешняя. Если сервис изолирован внутри кластера за Service Mesh (Istio mTLS / AuthorizationPolicy) или закрытым периметром, предоставьте манифесты развёртывания (--deploy-manifests) или укажите целевой периметр (--perimeter cluster) для переоценки.",
+				Priority:         nomPrio,
+				SLA:              sla,
+				AdjustmentReason: "Компенсационные меры в кодовой базе не обнаружены; базовая оценка CVSS подтверждена. Повышение критичности не производится.",
 				Factors:          factors,
 			}
 		}
 
-		// Rule 3: P1 High (PUBLIC exposure with authentication REQUIRED)
+		// Rule 3: Mitigated by Authentication (PUBLIC exposure with authentication REQUIRED)
 		if exposure == "PUBLIC" && authn == "REQUIRED" {
 			score := math.Round(baseScore*0.75*10) / 10
+			prio := DowngradePriority(nomPrio)
 			return domain.ContextualRisk{
 				Status:           domain.RiskStatusAssessed,
 				BaseSeverity:     baseSev,
 				BaseScore:        baseScore,
 				ContextualLevel:  defaultRiskLevelForScore(score),
 				ContextualScore:  score,
-				Priority:         domain.PriorityP1,
-				SLA:              "High Priority",
-				AdjustmentReason: "Уязвимость достижима извне, но защищена предварительной аутентификацией/шлюзом (эксплуатация требует валидных учетных данных). Контекстная критичность снижена наличием контроля доступа.",
+				Priority:         prio,
+				SLA:              slaForPriority(prio),
+				AdjustmentReason: "Снижение оценки: уязвимость достижима извне, но защищена предварительной аутентификацией/шлюзом (эксплуатация требует валидных учетных данных).",
 				Factors:          factors,
 			}
 		}
 
-		// Rule 4: P2 Medium (INTERNAL loopback or NONE)
+		// Rule 4: Mitigated by Network Boundary (INTERNAL loopback or NONE)
 		score := math.Round(baseScore*0.5*10) / 10
+		prio := DowngradePriority(DowngradePriority(nomPrio))
 		return domain.ContextualRisk{
 			Status:           domain.RiskStatusAssessed,
 			BaseSeverity:     baseSev,
 			BaseScore:        baseScore,
 			ContextualLevel:  defaultRiskLevelForScore(score),
 			ContextualScore:  score,
-			Priority:         domain.PriorityP2,
-			SLA:              "Scheduled",
-			AdjustmentReason: "Сетевой доступ из внешней сети отсутствует (слушатель привязан к локальному интерфейсу 127.0.0.1 либо сетевые слушатели отсутствуют). Уязвимость переведена в плановый релизный цикл.",
+			Priority:         prio,
+			SLA:              slaForPriority(prio),
+			AdjustmentReason: "Снижение оценки: сетевой доступ из внешней сети отсутствует (слушатель привязан к локальному интерфейсу 127.0.0.1 либо сетевые слушатели отсутствуют).",
 			Factors:          factors,
 		}
 	}
@@ -143,10 +148,55 @@ func Assess(v domain.Vulnerability, c *domain.AnalysisCase, vr domain.VerdictRes
 		BaseScore:        baseScore,
 		ContextualLevel:  defaultRiskLevelForScore(baseScore),
 		ContextualScore:  baseScore,
-		Priority:         domain.PriorityP2,
-		SLA:              "Scheduled",
-		AdjustmentReason: "Автоматическая переоценка риска завершена.",
+		Priority:         nomPrio,
+		SLA:              slaForPriority(nomPrio),
+		AdjustmentReason: "Автоматическая оценка риска завершена.",
 		Factors:          factors,
+	}
+}
+
+func slaForPriority(p domain.TriagePriority) string {
+	switch p {
+	case domain.PriorityP0:
+		return "Immediate (Blocker)"
+	case domain.PriorityP1:
+		return "High Priority"
+	case domain.PriorityP2:
+		return "Scheduled"
+	default:
+		return "Low Priority"
+	}
+}
+
+// NominalPriority derives the baseline triage priority from CVSS score / base severity.
+// Priority can NEVER be escalated above this nominal priority.
+func NominalPriority(baseSev string, baseScore float64) domain.TriagePriority {
+	sev := strings.ToUpper(strings.TrimSpace(baseSev))
+	switch {
+	case sev == "CRITICAL" || sev == "BLOCKER" || baseScore >= 9.0:
+		return domain.PriorityP0
+	case sev == "HIGH" || baseScore >= 7.0:
+		return domain.PriorityP1
+	case sev == "MEDIUM" || sev == "MODERATE" || baseScore >= 4.0:
+		return domain.PriorityP2
+	case sev == "LOW" || baseScore > 0:
+		return domain.PriorityP3
+	default:
+		return domain.PriorityP2
+	}
+}
+
+// DowngradePriority lowers a triage priority tier by one level when mitigating controls are active.
+func DowngradePriority(p domain.TriagePriority) domain.TriagePriority {
+	switch p {
+	case domain.PriorityP0:
+		return domain.PriorityP1
+	case domain.PriorityP1:
+		return domain.PriorityP2
+	case domain.PriorityP2:
+		return domain.PriorityP3
+	default:
+		return domain.PriorityDismissed
 	}
 }
 

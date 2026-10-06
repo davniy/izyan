@@ -20,6 +20,7 @@ import (
 // Write stores report.json, report.md, openvex.json and cyclonedx.json
 // inside dir.
 func Write(dir string, c *domain.AnalysisCase) error {
+	populateUpgradeCompatibility(c)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -365,6 +366,7 @@ func hasMissingCall(c *domain.AnalysisCase) bool {
 }
 
 func Markdown(c *domain.AnalysisCase, lang ...string) string {
+	populateUpgradeCompatibility(c)
 	isRU := isRussian(lang...)
 	var b strings.Builder
 	if isRU {
@@ -1514,6 +1516,42 @@ func FixTarget(c *domain.AnalysisCase) (module, version string, ok bool) {
 	return mod, best, true
 }
 
+// FixCompatibility checks whether upgrading from resolved to fixed version
+// is a drop-in minor/patch replacement or requires a major version bump.
+func FixCompatibility(resolved, fixed string) (dropIn bool, majorBump bool, ok bool) {
+	r := normalizeSemver(resolved)
+	f := normalizeSemver(fixed)
+	if r == "" || f == "" {
+		return false, false, false
+	}
+	majR := semver.Major(r)
+	majF := semver.Major(f)
+	if majF == majR {
+		return true, false, true
+	}
+	return false, true, true
+}
+
+func populateUpgradeCompatibility(c *domain.AnalysisCase) {
+	if c == nil || c.Affected == nil {
+		return
+	}
+	_, fixed, ok := FixTarget(c)
+	if !ok || fixed == "" {
+		c.Affected.UpgradeDropIn = false
+		c.Affected.UpgradeMajorBump = false
+		return
+	}
+	dropIn, majorBump, compOk := FixCompatibility(c.Affected.ResolvedVersion, fixed)
+	if compOk {
+		c.Affected.UpgradeDropIn = dropIn
+		c.Affected.UpgradeMajorBump = majorBump
+	} else {
+		c.Affected.UpgradeDropIn = false
+		c.Affected.UpgradeMajorBump = false
+	}
+}
+
 // remediation renders a deterministic fix recommendation: the smallest
 // fixed version above the resolved one, plus the go command to apply it.
 // Empty when the component is not affected or no fix is published.
@@ -1523,6 +1561,7 @@ func remediation(c *domain.AnalysisCase, langRU ...bool) string {
 	if !ok {
 		return ""
 	}
+	populateUpgradeCompatibility(c)
 	resolved := c.Affected.ResolvedVersion
 	if best == "" {
 		if isRU {
@@ -1532,12 +1571,31 @@ func remediation(c *domain.AnalysisCase, langRU ...bool) string {
 		return fmt.Sprintf("No fixed version published for `%s` (current: `%s`). "+
 			"Consider pinning an unaffected release or vendoring a patch.", mod, resolved)
 	}
-	if isRU {
-		return fmt.Sprintf("Обновите зависимость `%s` с `%s` до `%s`:\n\n```\ngo get %s@%s\ngo mod tidy\n```",
-			mod, resolved, best, mod, best)
+
+	var notice string
+	if c.Affected != nil {
+		if c.Affected.UpgradeDropIn {
+			if isRU {
+				notice = " (совместимо по SemVer: minor/patch, без изменения импортов)"
+			} else {
+				notice = " (SemVer drop-in: minor/patch, no import path changes)"
+			}
+		} else if c.Affected.UpgradeMajorBump {
+			maj := semver.Major(normalizeSemver(best))
+			if isRU {
+				notice = fmt.Sprintf(" (Внимание: смена мажорной версии %s, требуются обновление путей импорта и адаптация API)", maj)
+			} else {
+				notice = fmt.Sprintf(" (Notice: major version bump to %s, import path changes and API adaptation required)", maj)
+			}
+		}
 	}
-	return fmt.Sprintf("Update `%s` from `%s` to `%s`:\n\n```\ngo get %s@%s\ngo mod tidy\n```",
-		mod, resolved, best, mod, best)
+
+	if isRU {
+		return fmt.Sprintf("Обновите зависимость `%s` с `%s` до `%s`%s:\n\n```\ngo get %s@%s\ngo mod tidy\n```",
+			mod, resolved, best, notice, mod, best)
+	}
+	return fmt.Sprintf("Update `%s` from `%s` to `%s`%s:\n\n```\ngo get %s@%s\ngo mod tidy\n```",
+		mod, resolved, best, notice, mod, best)
 }
 
 // normalizeSemver maps "1.2.3"/"v1.2.3" onto canonical semver for compare.

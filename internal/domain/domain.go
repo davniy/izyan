@@ -130,13 +130,15 @@ type ReplaceDirective struct {
 }
 
 type AffectedResult struct {
-	ModulePresent   ClaimResult  `json:"module_present"`
-	ResolvedVersion string       `json:"resolved_version,omitempty"`
-	VersionAffected ClaimResult  `json:"version_affected"`
-	PackagePresent  ClaimResult  `json:"package_present"`
-	BuildRelevant   ClaimResult  `json:"build_relevant"`
-	EvidenceIDs     []EvidenceID `json:"evidence_ids,omitempty"`
-	Limitations     []string     `json:"limitations,omitempty"`
+	ModulePresent    ClaimResult  `json:"module_present"`
+	ResolvedVersion  string       `json:"resolved_version,omitempty"`
+	VersionAffected  ClaimResult  `json:"version_affected"`
+	PackagePresent   ClaimResult  `json:"package_present"`
+	BuildRelevant    ClaimResult  `json:"build_relevant"`
+	EvidenceIDs      []EvidenceID `json:"evidence_ids,omitempty"`
+	Limitations      []string     `json:"limitations,omitempty"`
+	UpgradeDropIn    bool         `json:"upgrade_drop_in,omitempty"`
+	UpgradeMajorBump bool         `json:"upgrade_major_bump,omitempty"`
 	// SelectedModule is the affected-entry module the product was
 	// resolved against (multi-module advisories carry alternatives —
 	// e.g. stdlib + golang.org/x/sys — and only the entry matching the

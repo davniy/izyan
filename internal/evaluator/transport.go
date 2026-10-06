@@ -78,6 +78,7 @@ func (ServerTransportInput) Evaluate(cond domain.Condition, c *domain.AnalysisCa
 		}
 		if HasConfigOriginOutbound(c, c.Vulnerability.Module) {
 			claim.FalsifierBasis = domain.BasisConfigOrigin
+			claim.Explanation = "outbound destination endpoints are statically configured or loaded from trusted configuration: remote backends are operator-managed"
 			claim.NegativeVerification = &domain.NegativeVerification{
 				Status: domain.NegativeVerified,
 				Notes:  "outbound destination endpoints are statically configured or loaded from trusted configuration (config-origin)",

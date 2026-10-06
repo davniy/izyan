@@ -363,6 +363,14 @@ type ExposureFact struct {
 	Owner string `json:"owner,omitempty"`
 }
 
+// Special argument indices for Condition.ArgIndex and DataFlow.Arg:
+const (
+	// ArgAll indicates whole-arg provenance covering all call arguments.
+	ArgAll = -1
+	// ArgReceiver indicates the method receiver expression (sel.X).
+	ArgReceiver = -2
+)
+
 type Condition struct {
 	ID                ConditionID       `json:"id"`
 	Kind              ConditionKind     `json:"kind"`

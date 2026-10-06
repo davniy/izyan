@@ -6,7 +6,7 @@
     "builtin",
     "upstream"
   ],
-  "data_version": "2026-09-30",
+  "data_version": "2026-10-06",
   "source_funcs": {
     "os.Getenv": "CONFIGURATION",
     "os.ReadFile": "CONFIGURATION",
@@ -42,7 +42,9 @@
     "net/url.ParseQuery": 0,
     "regexp.MustCompile": 0,
     "regexp.Compile": 0,
-    "errors.New": 0
+    "errors.New": 0,
+    "github.com/antchfx/xpath.Compile": 0,
+    "github.com/antchfx/xpath.MustCompile": 0
   },
   "args_merge_funcs": {
     "errors.Join": true,

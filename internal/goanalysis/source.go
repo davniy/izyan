@@ -107,6 +107,9 @@ type Index struct {
 	instSet      map[string]bool
 	instDisabled bool
 	instGen      int
+	// prodInstSet/prodInstDisabled memoize instantiatedNamed across product packages only.
+	prodInstSet      map[string]bool
+	prodInstDisabled bool
 	// coneBusy marks modules whose depCone is currently being computed —
 	// cone checks inside the computation (dispatch narrowing looks at
 	// field writes, which consult the cone) degrade to permissive instead
@@ -3095,8 +3098,20 @@ func (ix *Index) instantiated() (map[string]bool, bool) {
 	return set, !disabled
 }
 
+// productInstantiated returns the memoized instantiation set over product
+// packages only; narrow=false when dynamic materialization was seen in
+// product packages.
+func (ix *Index) productInstantiated() (map[string]bool, bool) {
+	if ix.prodInstSet != nil {
+		return ix.prodInstSet, !ix.prodInstDisabled
+	}
+	set, disabled := instantiatedNamed(ix.pkgs)
+	ix.prodInstSet, ix.prodInstDisabled = set, disabled
+	return set, !disabled
+}
+
 // IsReceiverTypeInstantiated reports whether the receiver type of ref (if ref
-// is a method) is known to be instantiated in the analyzed code.
+// is a method) is known to be instantiated in the product code.
 // Standalone functions (no receiver type) conservatively return true.
 func (ix *Index) IsReceiverTypeInstantiated(ref domain.SymbolRef) bool {
 	if ix == nil {
@@ -3114,7 +3129,7 @@ func (ix *Index) IsReceiverTypeInstantiated(ref domain.SymbolRef) bool {
 	if err := ix.load(ix.ctxOr(nil)); err != nil {
 		return true
 	}
-	inst, _ := ix.instantiated()
+	inst, _ := ix.productInstantiated()
 	if inst == nil {
 		return true
 	}

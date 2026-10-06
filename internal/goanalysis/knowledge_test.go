@@ -60,7 +60,7 @@ func TestDefaultKnowledgeEmbedded(t *testing.T) {
 // that contributed.
 func TestKnowledgeProvenance(t *testing.T) {
 	base := DefaultKnowledge()
-	if !slices.Contains(base.Sources, "builtin@2026-09-30") {
+	if !slices.Contains(base.Sources, "builtin@2026-10-06") {
 		t.Fatalf("sources=%v", base.Sources)
 	}
 	d1 := base.Digest()

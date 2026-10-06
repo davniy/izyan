@@ -143,7 +143,7 @@ func (t Tools) Call(ctx context.Context, c *domain.AnalysisCase, name string, ar
 		var flows []domain.DataFlow
 		var evs []domain.Evidence
 		var err error
-		if a.ArgIndex < 0 {
+		if a.ArgIndex < 0 && a.ArgIndex != domain.ArgReceiver {
 			flows, evs, err = t.Source.TraceAllArguments(ctx, site)
 		} else {
 			var f domain.DataFlow
@@ -182,7 +182,7 @@ func (t Tools) Call(ctx context.Context, c *domain.AnalysisCase, name string, ar
 		var vals []domain.Validation
 		var evs []domain.Evidence
 		var err error
-		if a.ArgIndex < 0 {
+		if a.ArgIndex < 0 && a.ArgIndex != domain.ArgReceiver {
 			vals, evs, err = t.Source.FindAllValidations(ctx,
 				domain.CallSite{File: a.File, Line: a.Line, Column: a.Column})
 		} else {

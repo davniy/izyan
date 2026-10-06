@@ -189,7 +189,7 @@ func (v Verifier) VerifyFalse(ctx context.Context, c *domain.AnalysisCase, claim
 				// syntactic write-site scans — but reflect.Set works only on
 				// *exported* fields; when every covered field is unexported
 				// this marker cannot invalidate the coverage.
-				if claim.Falsifier == domain.FalsifierGuards && !hasExportedCoveredField(c, claim) {
+				if claim.Falsifier != domain.FalsifierGuards || !hasExportedCoveredField(c, claim) {
 					continue
 				}
 				if !dynSeen[m.Kind] {
@@ -203,6 +203,9 @@ func (v Verifier) VerifyFalse(ctx context.Context, c *domain.AnalysisCase, claim
 				// materialized raw pointer whose aliased writes cannot be
 				// traced — can write *any* field, including unexported ones,
 				// so it weakens guard coverage unconditionally.
+				if claim.Falsifier != domain.FalsifierGuards {
+					continue
+				}
 				if !dynSeen[m.Kind] {
 					dynSeen[m.Kind] = true
 					nv.Limitations = append(nv.Limitations,
@@ -586,7 +589,7 @@ func (v Verifier) verifyInputFalse(ctx context.Context, c *domain.AnalysisCase, 
 			var flows []domain.DataFlow
 			var evs []domain.Evidence
 			var err error
-			if argIndex < 0 {
+			if argIndex < 0 && argIndex != domain.ArgReceiver {
 				flows, evs, err = v.Source.TraceAllArgumentsBound(ctx, site, verifyHops)
 			} else {
 				var f domain.DataFlow

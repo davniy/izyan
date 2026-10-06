@@ -28,3 +28,11 @@ func ParseURI(s string) (URI, error) {
 type SafeFormatter struct{}
 
 func (s SafeFormatter) String() string { return "safe" }
+
+// DepInternalFormatter implements fmt.Stringer and is instantiated inside the
+// dependency itself, but NEVER in product packages.
+type DepInternalFormatter struct{}
+
+func (d DepInternalFormatter) String() string { return "dep-internal" }
+
+var _ = &DepInternalFormatter{}

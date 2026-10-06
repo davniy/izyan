@@ -77,6 +77,7 @@ func (VerdictEvaluator) Evaluate(affected domain.AffectedResult, model domain.Ex
 				// input/constraint/pair falsifiers bind just the resolved
 				// subjects.
 				if len(model.UnresolvedSubjects) > 0 &&
+					!allUnresolvedAbsent(model) &&
 					!coversAllDeclared(claim) &&
 					!locusCoversUnresolved(claim.Falsifier, condition, model) {
 					continue
@@ -168,6 +169,29 @@ func coversAllDeclared(claim domain.Claim) bool {
 // or symbol not declared in the linked dependency version, model.AbsentSubjects)
 // has no executable form in the snapshot and cannot be reached through any path,
 // so the unreached verification over all present sinks covers the advisory.
+// allUnresolvedAbsent reports whether every unresolved subject in the exploit
+// model is proven absent from the linked build graph (model.AbsentSubjects).
+// When this holds, the exploit model is complete for all code present in the
+// snapshot, so verified falsifiers over the modeled sinks are safe to ground NEPF.
+func allUnresolvedAbsent(model domain.ExploitModel) bool {
+	if len(model.UnresolvedSubjects) == 0 {
+		return true
+	}
+	if len(model.AbsentSubjects) == 0 {
+		return false
+	}
+	absent := make(map[domain.SymbolRef]bool, len(model.AbsentSubjects))
+	for _, s := range model.AbsentSubjects {
+		absent[s] = true
+	}
+	for _, u := range model.UnresolvedSubjects {
+		if !absent[u] {
+			return false
+		}
+	}
+	return true
+}
+
 func locusCoversUnresolved(falsifier string, cond domain.Condition, model domain.ExploitModel) bool {
 	if falsifier != domain.FalsifierLocusPackageAbsent &&
 		falsifier != domain.FalsifierPackageAbsent &&

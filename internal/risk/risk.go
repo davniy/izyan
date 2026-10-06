@@ -19,11 +19,18 @@ import (
 func Assess(v domain.Vulnerability, c *domain.AnalysisCase, vr domain.VerdictResult) domain.ContextualRisk {
 	baseSev := strings.ToUpper(strings.TrimSpace(v.BaseSeverity))
 	baseScore := v.BaseScore
+	sevSrc, scoreSrc := v.SeveritySource, v.ScoreSource
 	if baseScore <= 0 {
 		baseScore = defaultScoreForSeverity(baseSev)
+		if baseScore > 0 {
+			scoreSrc = domain.SourceAnalyzerDefault
+		}
 	}
 	if baseSev == "" {
 		baseSev = defaultSeverityForScore(baseScore)
+		if baseSev != "" {
+			sevSrc = domain.SourceAnalyzerDefault
+		}
 	}
 
 	baseLevel := nominalLevel(baseSev, baseScore)
@@ -33,6 +40,8 @@ func Assess(v domain.Vulnerability, c *domain.AnalysisCase, vr domain.VerdictRes
 	// Baseline result: the advisory's own severity/score/priority and the
 	// unchanged disposition. Every verdict below is a candidate applied on
 	// top of it and clamped back under it in the single finalization path.
+	// A value the advisory never supplied keeps the analyzer-default label
+	// — a synthesized MEDIUM/5.0 is never presented as an OSV assessment.
 	res := domain.ContextualRisk{
 		Status:            domain.RiskStatusAssessed,
 		BaseSeverity:      baseSev,
@@ -42,8 +51,8 @@ func Assess(v domain.Vulnerability, c *domain.AnalysisCase, vr domain.VerdictRes
 		ContextualLevel:   baseLevel,
 		ContextualScore:   baseScore,
 		Priority:          basePrio,
-		SeveritySource:    v.SeveritySource,
-		ScoreSource:       v.ScoreSource,
+		SeveritySource:    sevSrc,
+		ScoreSource:       scoreSrc,
 		Factors: domain.RiskFactors{
 			Verdict:        string(vr.Verdict),
 			Exposure:       exposure,

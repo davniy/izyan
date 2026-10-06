@@ -149,3 +149,128 @@ func TestVulnerabilitySeveritySourceJSON(t *testing.T) {
 		t.Fatalf("provenance lost in round-trip: %+v", back)
 	}
 }
+
+func TestProposalVerificationJSONRoundTrip(t *testing.T) {
+	subj := domain.SymbolRef{Package: "gopkg.in/yaml.v2", Symbol: "decoder.unmarshal"}
+	c := domain.AnalysisCase{
+		ProposalVerifications: []domain.ProposalVerification{{
+			Proposal: domain.ProposalRef{
+				Source:      domain.ProposalSourceCVEResearch,
+				ID:          "PROP-GO-1",
+				Revision:    2,
+				MechanismID: "M-1",
+			},
+			SiteText:    "gopkg.in/yaml.v2 decoder.unmarshal",
+			Subject:     &subj,
+			Assertion:   domain.AssertionFaultingSite,
+			Check:       domain.CheckSymbolExists,
+			Result:      domain.ClaimTrue,
+			Detail:      "declared at decode.go:10",
+			EvidenceIDs: []domain.EvidenceID{"EV-001"},
+		}},
+	}
+	data, err := json.Marshal(&c)
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+	var back domain.AnalysisCase
+	if err := json.Unmarshal(data, &back); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if len(back.ProposalVerifications) != 1 {
+		t.Fatalf("verifications lost: %+v", back.ProposalVerifications)
+	}
+	got := back.ProposalVerifications[0]
+	if got.Proposal != c.ProposalVerifications[0].Proposal ||
+		got.Subject == nil || *got.Subject != subj ||
+		got.Check != domain.CheckSymbolExists || got.Result != domain.ClaimTrue {
+		t.Fatalf("round-trip mismatch: %+v", got)
+	}
+}
+
+func TestProposalFieldsOmitted(t *testing.T) {
+	// Optional provenance fields must not appear on legacy-shaped values.
+	data, err := json.Marshal(domain.AnalysisCase{})
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+	var keys map[string]any
+	if err := json.Unmarshal(data, &keys); err != nil {
+		t.Fatalf("invalid json: %v", err)
+	}
+	if _, present := keys["proposal_verifications"]; present {
+		t.Error("proposal_verifications emitted when empty")
+	}
+
+	data, err = json.Marshal(domain.HumanRemainderItem{Obligation: "o", Question: "q"})
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+	if err := json.Unmarshal(data, &keys); err != nil {
+		t.Fatalf("invalid json: %v", err)
+	}
+	for _, k := range []string{"proposal", "subject"} {
+		if _, present := keys[k]; present {
+			t.Errorf("remainder %q emitted when nil", k)
+		}
+	}
+
+	for _, raw := range []string{
+		mustMarshal(t, domain.RootCause{Package: "p", Symbol: "s"}),
+		mustMarshal(t, domain.SemanticReview{Passed: true, Reviewer: "r"}),
+	} {
+		if err := json.Unmarshal([]byte(raw), &keys); err != nil {
+			t.Fatalf("invalid json: %v", err)
+		}
+		if _, present := keys["proposal"]; present {
+			t.Errorf("proposal emitted when nil: %s", raw)
+		}
+	}
+}
+
+func mustMarshal(t *testing.T, v any) string {
+	t.Helper()
+	data, err := json.Marshal(v)
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+	return string(data)
+}
+
+func TestProposalVerificationUpsertIdempotent(t *testing.T) {
+	var c domain.AnalysisCase
+	ref := domain.ProposalRef{Source: domain.ProposalSourceCVEResearch, ID: "P", Revision: 1, MechanismID: "M-1"}
+	subj := domain.SymbolRef{Package: "p", Symbol: "S"}
+	rec := domain.ProposalVerification{
+		Proposal: ref, Subject: &subj, Assertion: domain.AssertionFaultingSite,
+		Check: domain.CheckSymbolExists, Result: domain.ClaimTrue, Detail: "ok",
+	}
+	c.UpsertProposalVerification(rec)
+	c.UpsertProposalVerification(rec)
+	if len(c.ProposalVerifications) != 1 {
+		t.Fatalf("upsert duplicated record: %+v", c.ProposalVerifications)
+	}
+	// Same key, new result: updates in place.
+	rec.Result = domain.ClaimFalse
+	rec.Detail = "absent"
+	c.UpsertProposalVerification(rec)
+	if len(c.ProposalVerifications) != 1 || c.ProposalVerifications[0].Result != domain.ClaimFalse {
+		t.Fatalf("upsert did not update in place: %+v", c.ProposalVerifications)
+	}
+	// Different check on same subject is a separate record.
+	other := rec
+	other.Check = domain.CheckProductReachable
+	c.UpsertProposalVerification(other)
+	if len(c.ProposalVerifications) != 2 {
+		t.Fatalf("distinct check collapsed: %+v", c.ProposalVerifications)
+	}
+	// Older revision is audit history — discarding the bound revision
+	// must not touch it.
+	old := rec
+	old.Proposal.Revision = 0
+	c.UpsertProposalVerification(old)
+	c.DiscardProposalVerifications(domain.ProposalRef{Source: ref.Source, ID: ref.ID, Revision: 1})
+	if len(c.ProposalVerifications) != 1 || c.ProposalVerifications[0].Proposal.Revision != 0 {
+		t.Fatalf("discard removed audit history: %+v", c.ProposalVerifications)
+	}
+}

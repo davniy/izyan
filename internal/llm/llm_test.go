@@ -53,6 +53,16 @@ func TestRootCauseResolverFallsBackToLLM(t *testing.T) {
 	if c.Workflow.Usage.LLMCalls != 1 {
 		t.Fatalf("llm calls=%d", c.Workflow.Usage.LLMCalls)
 	}
+
+	// The proposal attribution is typed, not a mechanism-string prefix.
+	rc := m.RootCauses[0]
+	if rc.Proposal == nil || rc.Proposal.Source != domain.ProposalSourceRootCause ||
+		rc.Proposal.ID != "ROOTCAUSE-X" {
+		t.Fatalf("candidate must carry a ROOT_CAUSE proposal ref: %+v", rc.Proposal)
+	}
+	if strings.HasPrefix(rc.Mechanism, "llm-proposed:") {
+		t.Fatalf("attribution must not live in the mechanism string: %q", rc.Mechanism)
+	}
 }
 
 func TestRootCauseResolverKeepsDeterministicResult(t *testing.T) {
@@ -210,6 +220,9 @@ func TestAgentResolvesClaimWithTools(t *testing.T) {
 	}
 	if len(cl.EvidenceIDs) == 0 {
 		t.Fatal("claim must cite evidence")
+	}
+	if cl.Producer != "llm.ClaimEvaluator" {
+		t.Fatalf("llm claim must label its producer: %q", cl.Producer)
 	}
 	if *calls != 2 {
 		t.Fatalf("calls=%d", *calls)

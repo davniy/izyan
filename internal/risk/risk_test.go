@@ -687,6 +687,34 @@ func TestAssess_SeverityProvenance(t *testing.T) {
 	}
 }
 
+// A severity-less advisory (e.g. GO-2021-0061) gets a synthesized
+// MEDIUM/5.0 baseline — labeled as the analyzer's default, never as an
+// OSV-supplied assessment.
+func TestAssess_SeverityLessAdvisoryIsAnalyzerDefault(t *testing.T) {
+	// Mirrors a parsed severity-less OSV entry: a parser default score
+	// derived from an OSV severity is already marked, but a fully empty
+	// pair must never acquire an OSV label downstream.
+	v := domain.Vulnerability{ID: "GO-2021-0061"}
+	res := Assess(v, &domain.AnalysisCase{}, domain.VerdictResult{Verdict: domain.VerdictExploitable})
+	if res.SeveritySource == "OSV" || res.ScoreSource == "OSV" {
+		t.Fatalf("synthesized baseline must not claim OSV provenance: %q/%q", res.SeveritySource, res.ScoreSource)
+	}
+	if res.SeveritySource != domain.SourceAnalyzerDefault || res.ScoreSource != domain.SourceAnalyzerDefault {
+		t.Fatalf("synthesized baseline must be labeled analyzer default: %q/%q", res.SeveritySource, res.ScoreSource)
+	}
+	if res.BaseSeverity != "MEDIUM" || res.BaseScore != 5.0 {
+		t.Fatalf("expected synthesized MEDIUM/5.0 policy baseline, got %q/%v", res.BaseSeverity, res.BaseScore)
+	}
+
+	// Supplied severity + derived score: only the derived half is an
+	// analyzer default.
+	v2 := domain.Vulnerability{ID: "X", BaseSeverity: "HIGH", SeveritySource: "OSV"}
+	res2 := Assess(v2, &domain.AnalysisCase{}, domain.VerdictResult{Verdict: domain.VerdictInconclusive})
+	if res2.SeveritySource != "OSV" || res2.ScoreSource != domain.SourceAnalyzerDefault {
+		t.Fatalf("derived score must be analyzer default: %q/%q", res2.SeveritySource, res2.ScoreSource)
+	}
+}
+
 func caseWithExposure(facts ...domain.ExposureFact) *domain.AnalysisCase {
 	c := &domain.AnalysisCase{}
 	for _, f := range facts {

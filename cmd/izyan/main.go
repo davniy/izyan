@@ -639,6 +639,13 @@ func analyzeCase(ctx context.Context, o analyzeOpts) (*domain.AnalysisCase, erro
 			"llm configured but LLM_ENABLED is off")
 	}
 
+	buildReport := states.BuildReport{Dir: filepath.Join(o.caseDir, string(caseID)),
+		Tracker: tracker.FileSink{Dir: filepath.Join(o.caseDir, string(caseID))},
+		Prior:   prior}
+	if llmCfg.Enabled && !o.detOnly && o.lang == "ru" && llmClient != nil {
+		buildReport.Translator = llm.Translator{Client: llmClient}
+		buildReport.TranslateToRussian = true
+	}
 	snapOpts, err := buildSnapshotOptions(o)
 	if err != nil {
 		return nil, err
@@ -673,9 +680,7 @@ func analyzeCase(ctx context.Context, o analyzeOpts) (*domain.AnalysisCase, erro
 		states.Review{Reviewer: reviewers, Evaluator: evaluator.VerdictEvaluator{}},
 		states.RepairAnalysis{},
 		states.EvaluateVerdict{Evaluator: evaluator.VerdictEvaluator{}},
-		states.BuildReport{Dir: filepath.Join(o.caseDir, string(caseID)),
-			Tracker: tracker.FileSink{Dir: filepath.Join(o.caseDir, string(caseID))},
-			Prior:   prior},
+		buildReport,
 	)
 
 	if err := engine.Run(ctx, c); err != nil {

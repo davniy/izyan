@@ -2,7 +2,6 @@ package report
 
 import (
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -18,39 +17,39 @@ func AuditMarkdown(c *domain.AnalysisCase, lang ...string) string {
 	ensureTriageAssessment(c)
 	populateUpgradeCompatibility(c)
 	isRU := isRussian(lang...)
+	p := newReportPaths(c)
 	var b strings.Builder
-
 	if isRU {
 		fmt.Fprintf(&b, "# %s — технический аудит\n\n", c.Vulnerability.ID)
 	} else {
 		fmt.Fprintf(&b, "# %s — technical audit\n\n", c.Vulnerability.ID)
 	}
-	writeAuditMetadata(&b, c, isRU)
+	writeAuditMetadata(&b, c, p, isRU)
 
-	renderAuditAssessment(&b, c, isRU)
+	renderAuditAssessment(&b, c, p, isRU)
 	renderAuditMethodology(&b, isRU)
 	renderAuditAffected(&b, c, isRU)
 	renderGovulncheckComparison(&b, c, isRU)
-	renderAuditExploitModel(&b, c, isRU)
-	renderAuditClaims(&b, c, isRU)
-	renderAuditEvidence(&b, c, isRU)
-	renderAuditExposures(&b, c, isRU)
-	renderAuditDataFlows(&b, c, isRU)
-	renderAuditClosures(&b, c, isRU)
-	renderAuditTools(&b, c, isRU)
-	renderAuditRuntime(&b, c, isRU)
-	renderAuditBuildTest(&b, c, isRU)
-	renderAuditReviews(&b, c, isRU)
-	renderAuditHypotheses(&b, c, isRU)
-	renderAuditAIArtifacts(&b, c, isRU)
-	renderAuditMachineAssessment(&b, c, isRU)
-	renderAuditProfiles(&b, c, isRU)
-	renderAuditLimitations(&b, c, isRU)
+	renderAuditExploitModel(&b, c, p, isRU)
+	renderAuditClaims(&b, c, p, isRU)
+	renderAuditEvidence(&b, c, p, isRU)
+	renderAuditExposures(&b, c, p, isRU)
+	renderAuditDataFlows(&b, c, p, isRU)
+	renderAuditClosures(&b, c, p, isRU)
+	renderAuditTools(&b, c, p, isRU)
+	renderAuditRuntime(&b, c, p, isRU)
+	renderAuditBuildTest(&b, c, p, isRU)
+	renderAuditReviews(&b, c, p, isRU)
+	renderAuditHypotheses(&b, c, p, isRU)
+	renderAuditAIArtifacts(&b, c, p, isRU)
+	renderAuditMachineAssessment(&b, c, p, isRU)
+	renderAuditProfiles(&b, c, p, isRU)
+	renderAuditLimitations(&b, c, p, isRU)
 
 	return b.String()
 }
 
-func writeAuditMetadata(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func writeAuditMetadata(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	writeCaseMetadata(b, c, isRU)
 	if env := formatEnv(c, isRU); env != "" {
 		if isRU {
@@ -67,17 +66,21 @@ func writeAuditMetadata(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 		}
 	}
 	if len(c.Product.DeployManifests) > 0 {
+		var dm []string
+		for _, d := range c.Product.DeployManifests {
+			dm = append(dm, p.text(d))
+		}
 		if isRU {
-			fmt.Fprintf(b, "- Deployment-манифесты: `%s`\n", strings.Join(c.Product.DeployManifests, "`, `"))
+			fmt.Fprintf(b, "- Deployment-манифесты: `%s`\n", strings.Join(dm, "`, `"))
 		} else {
-			fmt.Fprintf(b, "- Deployment manifests: `%s`\n", strings.Join(c.Product.DeployManifests, "`, `"))
+			fmt.Fprintf(b, "- Deployment manifests: `%s`\n", strings.Join(dm, "`, `"))
 		}
 	}
 	if c.Product.DeployArchive != "" {
 		if isRU {
-			fmt.Fprintf(b, "- Архив манифестов: `%s`\n", c.Product.DeployArchive)
+			fmt.Fprintf(b, "- Архив манифестов: `%s`\n", p.text(c.Product.DeployArchive))
 		} else {
-			fmt.Fprintf(b, "- Manifest archive: `%s`\n", c.Product.DeployArchive)
+			fmt.Fprintf(b, "- Manifest archive: `%s`\n", p.text(c.Product.DeployArchive))
 		}
 	}
 	if c.Product.PerimeterOverride != "" {
@@ -129,7 +132,7 @@ func writeAuditMetadata(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 
 // renderAuditAssessment prints the verdict verbatim and the full internal
 // triage parameters — everything the human report intentionally omits.
-func renderAuditAssessment(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAuditAssessment(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	if c.Verdict == nil && c.ContextualRisk == nil {
 		return
 	}
@@ -141,10 +144,10 @@ func renderAuditAssessment(b *strings.Builder, c *domain.AnalysisCase, isRU bool
 	if c.Verdict != nil {
 		if isRU {
 			fmt.Fprintf(b, "- **Вердикт:** `%s`\n", c.Verdict.Verdict)
-			fmt.Fprintf(b, "- **Причина (сырая):** %s\n", c.Verdict.Reason)
+			fmt.Fprintf(b, "- **Причина (сырая):** %s\n", p.text(c.Verdict.Reason))
 		} else {
 			fmt.Fprintf(b, "- **Verdict:** `%s`\n", c.Verdict.Verdict)
-			fmt.Fprintf(b, "- **Reason (raw):** %s\n", c.Verdict.Reason)
+			fmt.Fprintf(b, "- **Reason (raw):** %s\n", p.text(c.Verdict.Reason))
 		}
 		if len(c.Verdict.ConditionIDs) > 0 {
 			var ids []string
@@ -178,7 +181,7 @@ func renderAuditAssessment(b *strings.Builder, c *domain.AnalysisCase, isRU bool
 			if v == "" {
 				return
 			}
-			fmt.Fprintf(b, "| `%s` | %s |\n", k, sanitizeTableString(v, 200))
+			fmt.Fprintf(b, "| `%s` | %s |\n", k, sanitizeTableString(p.text(v), 200))
 		}
 		row("status", string(r.Status))
 		row("base_severity", r.BaseSeverity)
@@ -297,7 +300,7 @@ func renderAuditAffected(b *strings.Builder, c *domain.AnalysisCase, isRU bool) 
 // alternatives, unverified and absent candidates), conditions with params,
 // locus subjects, expert non-locus decisions, machine proposals and
 // annotations, unresolved/absent subjects and validation records.
-func renderAuditExploitModel(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAuditExploitModel(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	if c.RootCause == nil && c.Exploit == nil && len(c.EvidenceGraph.Validations) == 0 {
 		return
 	}
@@ -418,7 +421,7 @@ func renderAuditExploitModel(b *strings.Builder, c *domain.AnalysisCase, isRU bo
 		for _, v := range vals {
 			covers := ""
 			if v.Covers != nil {
-				covers = fmt.Sprintf("%s:%d", v.Covers.File, v.Covers.Line)
+				covers = p.location(v.Covers.File, "", v.Covers.Line).Text
 			}
 			bounds := ""
 			if v.BoundLow != nil || v.BoundHigh != nil {
@@ -431,8 +434,9 @@ func renderAuditExploitModel(b *strings.Builder, c *domain.AnalysisCase, isRU bo
 				}
 				bounds = fmt.Sprintf("[%s, %s]", lo, hi)
 			}
-			fmt.Fprintf(b, "| `%s:%d` | %s | %d | %v | %v | %s | %s |\n",
-				v.File, v.Line, sanitizeTableString(v.Property, 60), v.Arg, v.Guard, v.Conditional, covers, bounds)
+			fmt.Fprintf(b, "| `%s` | %s | %d | %v | %v | `%s` | %s |\n",
+				p.location(v.File, "", v.Line).Text,
+				sanitizeTableString(v.Property, 60), v.Arg, v.Guard, v.Conditional, covers, bounds)
 		}
 		b.WriteString("\n")
 	}
@@ -490,7 +494,7 @@ func writeLocusDecisions(b *strings.Builder, ds []domain.LocusDecision, titleRU,
 // renderAuditClaims prints every claim with id, producer, result, falsifier,
 // falsifier basis, negative-verification internals, limitations and
 // evidence ids. VERIFIED (demoted) history is preserved.
-func renderAuditClaims(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAuditClaims(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	if len(c.Claims) == 0 {
 		return
 	}
@@ -534,7 +538,7 @@ func renderAuditClaims(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 		}
 		fmt.Fprintf(b, "| `%s` | `%s` | %s | %s | %s | %s | %s | %s | %s |\n",
 			id, cl.ConditionID, producer, localizeClaimResult(cl.Result, isRU),
-			falsifier, fbasis, sanitizeTableString(expl, 140), verif, evs)
+			falsifier, fbasis, sanitizeTableString(p.text(expl), 140), verif, evs)
 	}
 	b.WriteString("\n")
 
@@ -555,18 +559,18 @@ func renderAuditClaims(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 				fmt.Fprintf(b, "  - negative verification: `%s`", nv.Status)
 			}
 			if nv.Notes != "" {
-				fmt.Fprintf(b, " — %s", nv.Notes)
+				fmt.Fprintf(b, " — %s", p.text(nv.Notes))
 			}
 			b.WriteString("\n")
 			if len(nv.EvidenceIDs) > 0 {
 				fmt.Fprintf(b, "    - evidence: %s\n", strings.Join(evidenceIDs(nv.EvidenceIDs), ", "))
 			}
 			for _, l := range nv.Limitations {
-				fmt.Fprintf(b, "    - limitation: %s\n", l)
+				fmt.Fprintf(b, "    - limitation: %s\n", p.text(l))
 			}
 		}
 		for _, l := range cl.Limitations {
-			fmt.Fprintf(b, "  - limitation: %s\n", l)
+			fmt.Fprintf(b, "  - limitation: %s\n", p.text(l))
 		}
 	}
 	b.WriteString("\n")
@@ -574,7 +578,7 @@ func renderAuditClaims(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 
 // renderAuditEvidence prints the full evidence register with ids, kinds,
 // quality, source location, tool/version and artifact hash.
-func renderAuditEvidence(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAuditEvidence(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	evList := c.EvidenceGraph.EvidenceList()
 	if len(evList) == 0 {
 		return
@@ -588,21 +592,21 @@ func renderAuditEvidence(b *strings.Builder, c *domain.AnalysisCase, isRU bool) 
 	}
 	for _, e := range evList {
 		kindDesc := formatEvidenceKind(e.Kind, isRU)
-		srcDesc := formatEvidenceSource(e, isRU)
+		srcDesc := formatEvidenceSource(e, p, isRU)
 		if e.ToolVersion != "" {
 			srcDesc += " `" + e.ToolVersion + "`"
 		}
 		if e.ArtifactHash != "" {
 			srcDesc += " sha256:`" + e.ArtifactHash + "`"
 		}
-		detail := formatEvidenceDetail(e, c, isRU)
+		detail := formatEvidenceDetail(e, c, p, isRU)
 		quality := string(e.Quality)
 		if quality == "" {
 			quality = "—"
 		}
 		fmt.Fprintf(b, "| `%s` | %s | %s | %s | %s |\n", e.ID, kindDesc, quality, srcDesc, detail)
 		for _, l := range e.Limitations {
-			fmt.Fprintf(b, "| | | | limitation | %s |\n", sanitizeTableString(l, 140))
+			fmt.Fprintf(b, "| | | | limitation | %s |\n", sanitizeTableString(p.text(l), 140))
 		}
 	}
 	b.WriteString("\n")
@@ -610,7 +614,7 @@ func renderAuditEvidence(b *strings.Builder, c *domain.AnalysisCase, isRU bool) 
 
 // renderAuditExposures prints resolved exposure facts and the entrypoint
 // inventory verbatim.
-func renderAuditExposures(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAuditExposures(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	exps := c.EvidenceGraph.ExposuresList()
 	eps := c.EvidenceGraph.Entrypoints
 	if len(exps) == 0 && len(eps) == 0 {
@@ -628,10 +632,10 @@ func renderAuditExposures(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 			b.WriteString("| direction | kind | target | address | address source | scope | owner | location |\n|---|---|---|---|---|---|---|---|\n")
 		}
 		for _, f := range exps {
-			fmt.Fprintf(b, "| `%s` | `%s` | `%s` | `%s` | %s | %s | %s | `%s:%d` |\n",
+			fmt.Fprintf(b, "| `%s` | `%s` | `%s` | `%s` | %s | %s | %s | `%s` |\n",
 				f.Direction, f.Kind, sanitizeTableString(f.Target, 60), f.Address,
 				localizeAddressSource(f.AddressSource, isRU), localizeExposureScope(f.Scope, isRU),
-				f.Owner, f.File, f.Line)
+				f.Owner, p.location(f.File, "", f.Line).Text)
 		}
 		b.WriteString("\n")
 	}
@@ -642,8 +646,8 @@ func renderAuditExposures(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 			b.WriteString("### Entrypoints\n\n")
 		}
 		for _, ep := range eps {
-			fmt.Fprintf(b, "- `%s:%d` `%s` kind=`%s` detail=`%s` exposed=%v\n",
-				ep.File, ep.Line, ep.Function, ep.Kind, sanitizeTableString(ep.Detail, 60), ep.Exposed)
+			fmt.Fprintf(b, "- `%s` `%s` kind=`%s` detail=`%s` exposed=%v\n",
+				p.location(ep.File, "", ep.Line).Text, ep.Function, ep.Kind, sanitizeTableString(p.text(ep.Detail), 60), ep.Exposed)
 		}
 		b.WriteString("\n")
 	}
@@ -652,7 +656,7 @@ func renderAuditExposures(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 // renderAuditDataFlows prints data flows and call paths with full detail:
 // condition, source, transformations, sink, arg, origin, value and
 // PayloadUnproven.
-func renderAuditDataFlows(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAuditDataFlows(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	flows := c.EvidenceGraph.DataFlows
 	paths := c.EvidenceGraph.CallPaths
 	if len(flows) == 0 && len(paths) == 0 {
@@ -696,12 +700,12 @@ func renderAuditDataFlows(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 			if cond == "" {
 				cond = "—"
 			}
-			fmt.Fprintf(b, "| `%s` | `%s` `%s:%d` | %s | `%s` `%s:%d` | %d | `%s` | %s | %v | %s |\n",
-				cond, srcName, f.Source.File, f.Source.Line,
+			fmt.Fprintf(b, "| `%s` | `%s` `%s` | %s | `%s` `%s` | %d | `%s` | %s | %v | %s |\n",
+				cond, srcName, p.location(f.Source.File, f.Source.Package, f.Source.Line).Text,
 				sanitizeTableString(strings.Join(tx, " → "), 60),
-				sinkName, f.Sink.File, f.Sink.Line,
+				sinkName, p.location(f.Sink.File, f.Sink.Package, f.Sink.Line).Text,
 				f.Arg, f.Origin, val, f.PayloadUnproven,
-				sanitizeTableString(f.Summary, 80))
+				sanitizeTableString(p.text(f.Summary), 80))
 		}
 		b.WriteString("\n")
 	}
@@ -722,7 +726,7 @@ func renderAuditDataFlows(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 			}
 			fmt.Fprintf(b, "- path %d (condition `%s`, evidence `%s`):\n", i+1, cond, ev)
 			for _, fr := range cp.Frames {
-				fmt.Fprintf(b, "  - `%s.%s` (`%s:%d`)\n", fr.Package, fr.Function, fr.File, fr.Line)
+				fmt.Fprintf(b, "  - `%s.%s` (`%s`)\n", fr.Package, fr.Function, p.location(fr.File, fr.Package, fr.Line).Text)
 			}
 		}
 		b.WriteString("\n")
@@ -731,7 +735,7 @@ func renderAuditDataFlows(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 
 // renderAuditClosures prints the ingress- and sink-closure coverage
 // inventories: completeness flag, blockers and every recorded item/site.
-func renderAuditClosures(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAuditClosures(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	igs := c.EvidenceGraph.IngressClosures
 	sks := c.EvidenceGraph.SinkClosures
 	if len(igs) == 0 && len(sks) == 0 {
@@ -750,8 +754,8 @@ func renderAuditClosures(b *strings.Builder, c *domain.AnalysisCase, isRU bool) 
 		}
 		for _, it := range cl.Items {
 			fmt.Fprintf(b, "- `%s` kind=`%s` callee=`%s` arg=%d origin=`%s` reaches=`%s` — %s\n",
-				it.File, it.Kind, it.Callee, it.Arg, it.Origin,
-				strings.Join(it.Reaches, ","), sanitizeTableString(it.Detail, 80))
+				p.file(it.File, "").Text, it.Kind, it.Callee, it.Arg, it.Origin,
+				strings.Join(it.Reaches, ","), sanitizeTableString(p.text(it.Detail), 80))
 		}
 		for _, bl := range cl.Blockers {
 			if isRU {
@@ -775,8 +779,8 @@ func renderAuditClosures(b *strings.Builder, c *domain.AnalysisCase, isRU bool) 
 			}
 		}
 		for _, s := range cl.Sites {
-			fmt.Fprintf(b, "- sink `%s` `%s:%d` arg=%d live=%v origin=`%s` — %s\n",
-				s.Sink, s.File, s.Line, s.Arg, s.Live, s.Origin, sanitizeTableString(s.Detail, 80))
+			fmt.Fprintf(b, "- sink `%s` `%s` arg=%d live=%v origin=`%s` — %s\n",
+				s.Sink, p.location(s.File, "", s.Line).Text, s.Arg, s.Live, s.Origin, sanitizeTableString(p.text(s.Detail), 80))
 		}
 		for _, bl := range cl.Blockers {
 			if isRU {
@@ -791,7 +795,7 @@ func renderAuditClosures(b *strings.Builder, c *domain.AnalysisCase, isRU bool) 
 
 // renderAuditTools prints the tool execution journal with full (untruncated)
 // stdout/stderr SHA-256 hashes.
-func renderAuditTools(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAuditTools(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	texs := c.EvidenceGraph.ToolExecutions
 	if len(texs) == 0 {
 		return
@@ -813,14 +817,14 @@ func renderAuditTools(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 			err = "—"
 		}
 		fmt.Fprintf(b, "| `%s` | `%s` | `%s` | `%s` | %d | %d | `%s` | `%s` | %s |\n",
-			t.ID, tool, sanitizeTableString(strings.Join(t.Args, " "), 80), t.Dir,
-			t.ExitCode, t.DurationMs, t.StdoutSHA256, t.StderrSHA256, sanitizeTableString(err, 80))
+			t.ID, tool, sanitizeTableString(strings.Join(t.Args, " "), 80), p.file(t.Dir, "").Text,
+			t.ExitCode, t.DurationMs, t.StdoutSHA256, t.StderrSHA256, sanitizeTableString(p.text(err), 80))
 	}
 	b.WriteString("\n")
 }
 
 // renderAuditRuntime prints runtime evidence facts verbatim.
-func renderAuditRuntime(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAuditRuntime(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	if len(c.EvidenceGraph.Runtime) == 0 {
 		return
 	}
@@ -831,14 +835,14 @@ func renderAuditRuntime(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 	}
 	for _, id := range c.EvidenceGraph.Runtime {
 		if e := c.EvidenceGraph.EvidenceByID(id); e != nil {
-			fmt.Fprintf(b, "- `%s` %s: %s\n", e.ID, e.Source, strings.TrimSpace(e.Content))
+			fmt.Fprintf(b, "- `%s` %s: %s\n", e.ID, e.Source, p.text(strings.TrimSpace(e.Content)))
 		}
 	}
 	b.WriteString("\n")
 }
 
 // renderAuditBuildTest prints build/test evidence verbatim.
-func renderAuditBuildTest(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAuditBuildTest(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	var bt []domain.Evidence
 	for _, e := range c.EvidenceGraph.EvidenceList() {
 		if e.Kind == domain.EvidenceBuild || e.Kind == domain.EvidenceTest {
@@ -858,12 +862,12 @@ func renderAuditBuildTest(b *strings.Builder, c *domain.AnalysisCase, isRU bool)
 		if name == "" {
 			name = e.Source
 		}
-		fmt.Fprintf(b, "- `%s` (`%s`, %s):\n\n%s\n\n", e.ID, name, e.Kind, strings.TrimSpace(e.Content))
+		fmt.Fprintf(b, "- `%s` (`%s`, %s):\n\n%s\n\n", e.ID, name, e.Kind, p.text(strings.TrimSpace(e.Content)))
 	}
 }
 
 // renderAuditReviews prints review findings verbatim.
-func renderAuditReviews(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAuditReviews(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	if len(c.Reviews) == 0 {
 		return
 	}
@@ -878,13 +882,13 @@ func renderAuditReviews(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 			b.WriteString("\n")
 			for _, f := range rv.Findings {
 				if f.TargetID != "" {
-					fmt.Fprintf(b, "  - [%s] %s `%s`: %s", f.Severity, f.TargetType, f.TargetID, f.Problem)
+					fmt.Fprintf(b, "  - [%s] %s `%s`: %s", f.Severity, f.TargetType, f.TargetID, p.text(f.Problem))
 					if f.RequiredCheck != "" {
 						fmt.Fprintf(b, " (required check: %s)", f.RequiredCheck)
 					}
 					b.WriteString("\n")
 				} else {
-					fmt.Fprintf(b, "  - [%s] %s: %s\n", f.Severity, f.TargetType, f.Problem)
+					fmt.Fprintf(b, "  - [%s] %s: %s\n", f.Severity, f.TargetType, p.text(f.Problem))
 				}
 			}
 		} else {
@@ -899,7 +903,7 @@ func renderAuditReviews(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 }
 
 // renderAuditHypotheses prints every working hypothesis verbatim.
-func renderAuditHypotheses(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAuditHypotheses(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	if len(c.Hypotheses) == 0 {
 		return
 	}
@@ -909,7 +913,7 @@ func renderAuditHypotheses(b *strings.Builder, c *domain.AnalysisCase, isRU bool
 		b.WriteString("## Working hypotheses\n\n")
 	}
 	for _, h := range c.Hypotheses {
-		fmt.Fprintf(b, "- `%s` `%s` → **%s**: %s", h.ID, h.ConditionID, h.Status, h.Statement)
+		fmt.Fprintf(b, "- `%s` `%s` → **%s**: %s", h.ID, h.ConditionID, h.Status, p.text(h.Statement))
 		if len(h.ExpectedEvidence) > 0 {
 			var kinds []string
 			for _, k := range h.ExpectedEvidence {
@@ -921,7 +925,7 @@ func renderAuditHypotheses(b *strings.Builder, c *domain.AnalysisCase, isRU bool
 			fmt.Fprintf(b, " (evidence: %s)", strings.Join(evidenceIDs(h.EvidenceIDs), ", "))
 		}
 		if h.Notes != "" {
-			fmt.Fprintf(b, " — %s", h.Notes)
+			fmt.Fprintf(b, " — %s", p.text(h.Notes))
 		}
 		b.WriteString("\n")
 	}
@@ -931,7 +935,7 @@ func renderAuditHypotheses(b *strings.Builder, c *domain.AnalysisCase, isRU bool
 // renderAuditAIArtifacts dumps the persisted AI artifacts completely:
 // CVE analysis proposal with binding limits, source bundle, strategy plan,
 // semantic review and the justification dossier.
-func renderAuditAIArtifacts(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAuditAIArtifacts(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	if c.CVEAnalysis == nil && c.StrategyPlan == nil && c.SemanticReview == nil &&
 		c.Justification == nil && c.CVEAnalysisBundle == nil &&
 		c.UsageSnapshot().LLMCalls == 0 && c.CVEAnalysisProfile == "" {
@@ -968,16 +972,16 @@ func renderAuditAIArtifacts(b *strings.Builder, c *domain.AnalysisCase, isRU boo
 		}
 		fmt.Fprintf(b, "- tool iterations: %d\n", a.ToolIterations)
 		for _, m := range a.Mechanisms {
-			fmt.Fprintf(b, "- `%s`: %s\n  - faulting sites: `%s`\n", m.ID, m.Summary, strings.Join(m.FaultingSites, "`, `"))
+			fmt.Fprintf(b, "- `%s`: %s\n  - faulting sites: `%s`\n", m.ID, p.text(m.Summary), strings.Join(m.FaultingSites, "`, `"))
 			if len(m.AuxiliarySites) > 0 {
 				fmt.Fprintf(b, "  - auxiliary sites: `%s`\n", strings.Join(m.AuxiliarySites, "`, `"))
 			}
 			if m.PatchExplanation != "" {
-				fmt.Fprintf(b, "  - patch explanation: %s\n", m.PatchExplanation)
+				fmt.Fprintf(b, "  - patch explanation: %s\n", p.text(m.PatchExplanation))
 			}
 		}
-		for _, p := range a.Preconditions {
-			fmt.Fprintf(b, "- precondition: %s\n", p)
+		for _, pre := range a.Preconditions {
+			fmt.Fprintf(b, "- precondition: %s\n", p.text(pre))
 		}
 		if len(a.EvidenceIDs) > 0 {
 			fmt.Fprintf(b, "- evidence: %s\n", strings.Join(evidenceIDs(a.EvidenceIDs), ", "))
@@ -994,16 +998,16 @@ func renderAuditAIArtifacts(b *strings.Builder, c *domain.AnalysisCase, isRU boo
 		}
 		for _, art := range bd.Artifacts {
 			fmt.Fprintf(b, "- `%s` (%s) `%s` status=`%s` hash=`%s` evidence=`%s`\n",
-				art.ID, art.Side, art.URI, art.Status, art.Hash, art.EvidenceID)
+				art.ID, art.Side, p.text(art.URI), art.Status, art.Hash, art.EvidenceID)
 			for _, l := range art.Limitations {
-				fmt.Fprintf(b, "  - limitation: %s\n", l)
+				fmt.Fprintf(b, "  - limitation: %s\n", p.text(l))
 			}
 		}
 		if bd.SourceDir != "" {
-			fmt.Fprintf(b, "- source dir: `%s`\n", bd.SourceDir)
+			fmt.Fprintf(b, "- source dir: `%s`\n", p.text(bd.SourceDir))
 		}
 		for _, l := range bd.Limitations {
-			fmt.Fprintf(b, "- limitation: %s\n", l)
+			fmt.Fprintf(b, "- limitation: %s\n", p.text(l))
 		}
 		b.WriteString("\n")
 	}
@@ -1018,10 +1022,10 @@ func renderAuditAIArtifacts(b *strings.Builder, c *domain.AnalysisCase, isRU boo
 			fmt.Fprintf(b, "- selected strategy: `%s`\n", sp.SelectedStrategy)
 		}
 		for _, o := range sp.Obligations {
-			fmt.Fprintf(b, "  - %s\n", o)
+			fmt.Fprintf(b, "  - %s\n", p.text(o))
 		}
 		if sp.StopReason != "" {
-			fmt.Fprintf(b, "- stop reason: %s\n", sp.StopReason)
+			fmt.Fprintf(b, "- stop reason: %s\n", p.text(sp.StopReason))
 		}
 		b.WriteString("\n")
 	}
@@ -1034,7 +1038,7 @@ func renderAuditAIArtifacts(b *strings.Builder, c *domain.AnalysisCase, isRU boo
 			fmt.Fprintf(b, "### Semantic review (passed=%v, reviewer `%s`)\n\n", sr.Passed, sr.Reviewer)
 		}
 		for _, f := range sr.Findings {
-			fmt.Fprintf(b, "- %s\n", f)
+			fmt.Fprintf(b, "- %s\n", p.text(f))
 		}
 		if len(sr.EvidenceIDs) > 0 {
 			fmt.Fprintf(b, "- evidence: %s\n", strings.Join(evidenceIDs(sr.EvidenceIDs), ", "))
@@ -1052,10 +1056,10 @@ func renderAuditAIArtifacts(b *strings.Builder, c *domain.AnalysisCase, isRU boo
 			fmt.Fprintf(b, "- dossier verdict: `%s`\n", j.Verdict)
 		}
 		if j.ExecutiveSummary != "" {
-			fmt.Fprintf(b, "- executive summary: %s\n", j.ExecutiveSummary)
+			fmt.Fprintf(b, "- executive summary: %s\n", p.text(j.ExecutiveSummary))
 		}
 		if j.TechnicalMechanism != "" {
-			fmt.Fprintf(b, "- technical mechanism: %s\n", j.TechnicalMechanism)
+			fmt.Fprintf(b, "- technical mechanism: %s\n", p.text(j.TechnicalMechanism))
 		}
 		if len(j.ProductExposure.EntrypointConstructors) > 0 {
 			fmt.Fprintf(b, "- entrypoint constructors: `%s`\n", strings.Join(j.ProductExposure.EntrypointConstructors, "`, `"))
@@ -1070,13 +1074,13 @@ func renderAuditAIArtifacts(b *strings.Builder, c *domain.AnalysisCase, isRU boo
 			fmt.Fprintf(b, "- unlinked packages: `%s`\n", strings.Join(j.ProductExposure.UnlinkedPackages, "`, `"))
 		}
 		for _, vf := range j.VerifiedFacts {
-			fmt.Fprintf(b, "- verified fact: %s\n", vf)
+			fmt.Fprintf(b, "- verified fact: %s\n", p.text(vf))
 		}
 		for _, rem := range j.HumanRemainder {
-			fmt.Fprintf(b, "- human remainder `%s`: %s (evidence: %s)\n", rem.Obligation, rem.Question, rem.EvidenceRef)
+			fmt.Fprintf(b, "- human remainder `%s`: %s (evidence: %s)\n", rem.Obligation, p.text(rem.Question), rem.EvidenceRef)
 		}
 		if j.TrackerCommentRu != "" {
-			fmt.Fprintf(b, "\n```\n%s\n```\n", strings.TrimSpace(j.TrackerCommentRu))
+			fmt.Fprintf(b, "\n```\n%s\n```\n", p.text(strings.TrimSpace(j.TrackerCommentRu)))
 		}
 		b.WriteString("\n")
 	}
@@ -1084,7 +1088,7 @@ func renderAuditAIArtifacts(b *strings.Builder, c *domain.AnalysisCase, isRU boo
 
 // renderAuditMachineAssessment prints the internal machine disposition
 // proposal — advisory only, explicitly marked as not changing the verdict.
-func renderAuditMachineAssessment(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAuditMachineAssessment(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	if c.Exploit == nil || len(c.Exploit.LocusSubjects) == 0 {
 		return
 	}
@@ -1095,14 +1099,14 @@ func renderAuditMachineAssessment(b *strings.Builder, c *domain.AnalysisCase, is
 		b.WriteString("## Internal machine hypotheses\n\n")
 		b.WriteString("> ⚠️ This is the analyzer's internal advisory for the expert: it is not the verdict and does not change the final verdict.\n\n")
 	}
-	b.WriteString(machineAssessment(c, isRU))
+	b.WriteString(p.text(machineAssessment(c, isRU)))
 	b.WriteString("\n")
 }
 
 // renderAuditProfiles prints both internal perimeter evaluations verbatim:
 // verdict, reason, falsifier, priority and SLA, with non-actual profiles
 // explicitly marked hypothetical. No user-action column.
-func renderAuditProfiles(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAuditProfiles(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	if len(c.Profiles) == 0 {
 		return
 	}
@@ -1120,16 +1124,16 @@ func renderAuditProfiles(b *strings.Builder, c *domain.AnalysisCase, isRU bool) 
 		fmt.Fprintf(b, "- **Обоснование периметра:** %s\n\n", localizePerimeterRationale(detRationale, true))
 		b.WriteString("| Сетевой контур | Модель угроз | Оценка | Приоритет | SLA | Основание | Фалсификатор | Статус среды |\n")
 		b.WriteString("|---|---|---|---|---|---|---|---|\n")
-		for _, p := range c.Profiles {
-			contour, model := profileContourAndModel(p, true)
-			icon := verdictBadge(p.Verdict)
+		for _, prof := range c.Profiles {
+			contour, model := profileContourAndModel(prof, true)
+			icon := verdictBadge(prof.Verdict)
 			env := "фактическая"
-			if !p.IsTargetActual {
+			if !prof.IsTargetActual {
 				env = "гипотетическая — не вердикт для текущей среды"
 			}
 			fmt.Fprintf(b, "| **%s** | %s | %s `%s` | `%s` | `%s` | %s | `%s` | %s |\n",
-				contour, model, icon, p.Verdict, p.Priority, p.SLA,
-				sanitizeTableString(localizeVerdictReason(p.Reason, true), 100), p.Falsifier, env)
+				contour, model, icon, prof.Verdict, prof.Priority, prof.SLA,
+				sanitizeTableString(localizeVerdictReason(p.text(prof.Reason), true), 100), prof.Falsifier, env)
 		}
 		b.WriteString("\nГипотетические строки — внутренние оценки для альтернативных сред; они не являются вердиктом для текущей среды.\n\n")
 	} else {
@@ -1138,23 +1142,23 @@ func renderAuditProfiles(b *strings.Builder, c *domain.AnalysisCase, isRU bool) 
 		fmt.Fprintf(b, "- **Perimeter rationale:** %s\n\n", detRationale)
 		b.WriteString("| Perimeter | Threat model | Assessment | Priority | SLA | Reason | Falsifier | Environment |\n")
 		b.WriteString("|---|---|---|---|---|---|---|---|\n")
-		for _, p := range c.Profiles {
-			contour, model := profileContourAndModel(p, false)
-			icon := verdictBadge(p.Verdict)
+		for _, prof := range c.Profiles {
+			contour, model := profileContourAndModel(prof, false)
+			icon := verdictBadge(prof.Verdict)
 			env := "actual"
-			if !p.IsTargetActual {
+			if !prof.IsTargetActual {
 				env = "hypothetical — not a verdict for the current environment"
 			}
 			fmt.Fprintf(b, "| **%s** | %s | %s `%s` | `%s` | `%s` | %s | `%s` | %s |\n",
-				contour, model, icon, p.Verdict, p.Priority, p.SLA,
-				sanitizeTableString(p.Reason, 100), p.Falsifier, env)
+				contour, model, icon, prof.Verdict, prof.Priority, prof.SLA,
+				sanitizeTableString(p.text(prof.Reason), 100), prof.Falsifier, env)
 		}
 		b.WriteString("\nHypothetical rows are internal evaluations for alternative environments; they are not verdicts for the current one.\n\n")
 	}
 }
 
 // renderAuditLimitations prints the complete deduplicated limitation set.
-func renderAuditLimitations(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+func renderAuditLimitations(b *strings.Builder, c *domain.AnalysisCase, p reportPaths, isRU bool) {
 	lims := allLimitations(c)
 	if len(lims) == 0 {
 		return
@@ -1165,7 +1169,7 @@ func renderAuditLimitations(b *strings.Builder, c *domain.AnalysisCase, isRU boo
 		b.WriteString("## Complete limitations list\n\n")
 	}
 	for _, l := range lims {
-		fmt.Fprintf(b, "- %s\n", l)
+		fmt.Fprintf(b, "- %s\n", p.text(l))
 	}
 	b.WriteString("\n")
 }
@@ -1776,27 +1780,23 @@ func formatEvidenceKind(k domain.EvidenceKind, isRU bool) string {
 	}
 }
 
-func formatEvidenceSource(e domain.Evidence, isRU bool) string {
+func formatEvidenceSource(e domain.Evidence, p reportPaths, isRU bool) string {
 	if e.File != "" {
-		base := filepath.Base(e.File)
-		if e.StartLine > 0 {
-			return fmt.Sprintf("`%s:%d`", base, e.StartLine)
-		}
-		return fmt.Sprintf("`%s`", base)
+		return fmt.Sprintf("`%s`", p.location(e.File, "", e.StartLine).Text)
 	}
 	if e.Command != "" {
-		return fmt.Sprintf("`%s`", sanitizeTableString(e.Command, 40))
+		return fmt.Sprintf("`%s`", sanitizeTableString(p.text(e.Command), 40))
 	}
 	if e.Tool != "" {
 		return fmt.Sprintf("`%s`", sanitizeTableString(e.Tool, 35))
 	}
 	if e.Source != "" {
-		return sanitizeTableString(e.Source, 40)
+		return sanitizeTableString(p.text(e.Source), 40)
 	}
 	return "-"
 }
 
-func formatEvidenceDetail(e domain.Evidence, c *domain.AnalysisCase, isRU bool) string {
+func formatEvidenceDetail(e domain.Evidence, c *domain.AnalysisCase, p reportPaths, isRU bool) string {
 	if e.Kind == domain.EvidenceGovulncheck {
 		var matched *domain.CallPath
 		for i := range c.EvidenceGraph.CallPaths {
@@ -1835,9 +1835,9 @@ func formatEvidenceDetail(e domain.Evidence, c *domain.AnalysisCase, isRU bool) 
 
 	if e.Kind == domain.EvidenceAdvisory {
 		if isRU {
-			return "Уязвимые функции и пакеты из advisory: " + sanitizeTableString(e.Content, 75)
+			return "Уязвимые функции и пакеты из advisory: " + sanitizeTableString(p.text(e.Content), 75)
 		}
-		return "Advisory declared affected symbols/packages: " + sanitizeTableString(e.Content, 75)
+		return "Advisory declared affected symbols/packages: " + sanitizeTableString(p.text(e.Content), 75)
 	}
 
 	if e.Kind == domain.EvidenceFixDiff {
@@ -1850,20 +1850,20 @@ func formatEvidenceDetail(e domain.Evidence, c *domain.AnalysisCase, isRU bool) 
 
 	if e.Kind == domain.EvidenceRuntime {
 		if isRU {
-			return "Параметры среды: " + sanitizeTableString(e.Content, 80)
+			return "Параметры среды: " + sanitizeTableString(p.text(e.Content), 80)
 		}
-		return "Runtime parameters: " + sanitizeTableString(e.Content, 80)
+		return "Runtime parameters: " + sanitizeTableString(p.text(e.Content), 80)
 	}
 
 	if e.Kind == domain.EvidenceConfiguration {
 		if isRU {
-			return "Конфигурация сети / портов: " + sanitizeTableString(e.Content, 80)
+			return "Конфигурация сети / портов: " + sanitizeTableString(p.text(e.Content), 80)
 		}
-		return "Network / port configuration: " + sanitizeTableString(e.Content, 80)
+		return "Network / port configuration: " + sanitizeTableString(p.text(e.Content), 80)
 	}
 
 	if e.Kind == domain.EvidenceSourceSnippet {
-		clean := sanitizeTableString(e.Content, 80)
+		clean := sanitizeTableString(p.text(e.Content), 80)
 		if isRU {
 			return "Фрагмент кода: `" + clean + "`"
 		}
@@ -1871,10 +1871,10 @@ func formatEvidenceDetail(e domain.Evidence, c *domain.AnalysisCase, isRU bool) 
 	}
 
 	if e.Content != "" {
-		return sanitizeTableString(e.Content, 85)
+		return sanitizeTableString(p.text(e.Content), 85)
 	}
 	if e.Source != "" {
-		return sanitizeTableString(e.Source, 85)
+		return sanitizeTableString(p.text(e.Source), 85)
 	}
 	return "-"
 }

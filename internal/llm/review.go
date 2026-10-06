@@ -112,8 +112,9 @@ func reviewPayload(c *domain.AnalysisCase, proposed domain.VerdictResult) any {
 		}
 		claims = append(claims, map[string]any{
 			"id": cl.ID, "condition": cl.ConditionID, "result": cl.Result,
-			"evidence": len(cl.EvidenceIDs), "negative_verification": nv,
-			"limitations": cl.Limitations,
+			"evidence": len(cl.EvidenceIDs), "producer": cl.Producer,
+			"negative_verification": nv,
+			"limitations":           cl.Limitations,
 		})
 	}
 	var conds []map[string]any

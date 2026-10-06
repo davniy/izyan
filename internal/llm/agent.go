@@ -44,6 +44,10 @@ func (a ClaimEvaluator) Evaluate(cond domain.Condition, c *domain.AnalysisCase) 
 		ID:          domain.ClaimID("CL-" + string(cond.ID)),
 		ConditionID: cond.ID,
 		Result:      domain.ClaimUnknown,
+		// The label keeps LLM-asserted results out of deterministic
+		// evidence counts: a cited tool artifact is the agent's reading
+		// of it, not an evaluator-verified fact.
+		Producer: "llm.ClaimEvaluator",
 	}
 	if a.Client == nil || a.Tools.Source == nil || llmBudgetExhausted(c) {
 		claim.Limitations = append(claim.Limitations, "agent evaluator unavailable or budget exhausted")

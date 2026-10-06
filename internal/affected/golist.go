@@ -21,6 +21,11 @@ type Module struct {
 	Main     bool    `json:"Main"`
 	Indirect bool    `json:"Indirect"`
 	Replace  *Module `json:"Replace"`
+	// Dir is the on-disk directory holding the module source — the module
+	// cache for fetched modules or the replacement directory for a local
+	// replace. Persisted module-graph evidence carries it so reports can
+	// attribute recorded source files offline.
+	Dir string `json:"Dir,omitempty"`
 }
 
 // EffectivePath/EffectiveVersion unwrap replace directives: the version that
@@ -37,6 +42,16 @@ func (m Module) EffectiveVersion() string {
 		return m.Replace.Version
 	}
 	return m.Version
+}
+
+// EffectiveDir is the directory the effective module source was read from.
+// For a local replace it is the replacement's Dir; otherwise the module's
+// own cache directory.
+func (m Module) EffectiveDir() string {
+	if m.Replace != nil && m.Replace.Dir != "" {
+		return m.Replace.Dir
+	}
+	return m.Dir
 }
 
 // Package mirrors `go list -json` subset.
@@ -152,7 +167,10 @@ func DecodeModules(b []byte) ([]Module, error) {
 	return out, nil
 }
 
-func decodePackages(b []byte) ([]Package, error) {
+// DecodePackages parses the `go list -json` stream into packages — the
+// shared wire decoder for persisted package-list evidence.
+
+func DecodePackages(b []byte) ([]Package, error) {
 	trimmed := bytes.TrimSpace(b)
 	if len(trimmed) > 0 && trimmed[0] == '[' {
 		var out []Package
@@ -179,7 +197,7 @@ func decodePackages(b []byte) ([]Package, error) {
 // defect-locus contract: a package missing here cannot execute through
 // any path.
 func PackageImportPaths(b []byte) (map[string]bool, error) {
-	pkgs, err := decodePackages(b)
+	pkgs, err := DecodePackages(b)
 	if err != nil {
 		return nil, err
 	}

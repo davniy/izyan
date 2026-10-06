@@ -2440,6 +2440,93 @@ func TestActResearchCVE_ProfileVerifiedAdoptsProposals(t *testing.T) {
 	}
 }
 
+func TestActResearchCVE_ControllerOwnsProposalIdentity(t *testing.T) {
+	c := &domain.AnalysisCase{
+		CVEAnalysisProfile: domain.ProfileAssist,
+		Vulnerability:      domain.Vulnerability{ID: "GO-2026-9000"},
+		// A stale/forged record claiming an earlier revision of the
+		// canonical proposal identity: it stays only as audit history —
+		// never as the current proposal's verification.
+		ProposalVerifications: []domain.ProposalVerification{{
+			Proposal: domain.ProposalRef{Source: domain.ProposalSourceCVEResearch, ID: "PROP-GO-2026-9000", Revision: 1},
+			Check:    domain.CheckSymbolExists, Result: domain.ClaimTrue, Detail: "forged",
+		}},
+	}
+	if err := states.ActResearchCVE(context.Background(), c, nil, fakeCVECompleter{}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if c.CVEAnalysis == nil {
+		t.Fatal("proposal missing")
+	}
+	// LLM-supplied "P-1" is replaced by the deterministic identity; an
+	// existing revision-1 record bumps the new revision to 2 so nothing
+	// old can masquerade as this proposal's check.
+	if c.CVEAnalysis.ID != "PROP-GO-2026-9000" || c.CVEAnalysis.Revision != 2 {
+		t.Fatalf("controller must own id/revision: %q rev %d", c.CVEAnalysis.ID, c.CVEAnalysis.Revision)
+	}
+	for _, rec := range c.ProposalVerifications {
+		if rec.Proposal.ID == "PROP-GO-2026-9000" && rec.Proposal.Revision == 2 {
+			t.Fatalf("record under bound revision before verification ran: %+v", rec)
+		}
+	}
+	if c.SemanticReview == nil || c.SemanticReview.Proposal == nil ||
+		c.SemanticReview.Proposal.Revision != 2 {
+		t.Fatalf("review must bind to the assigned revision: %+v", c.SemanticReview)
+	}
+}
+
+type staticRCResolver struct{}
+
+func (staticRCResolver) Resolve(_ context.Context, _ *domain.AnalysisCase, _ domain.Vulnerability) (*domain.RootCauseModel, []domain.Evidence, error) {
+	return &domain.RootCauseModel{
+		Status: domain.RootCauseResolved,
+		RootCauses: []domain.RootCause{{
+			Package: "example.com/dep/vuln", Symbol: "Parse", Role: domain.RootCauseSink,
+			Mechanism: "advisory fix",
+		}},
+	}, nil, nil
+}
+
+// RESOLVE_ROOT_CAUSE must leave proposal verification records on the
+// case before it transitions: with no source index every displayed
+// assertion is an honest UNKNOWN — records exist, none TRUE, and the
+// dossier (built inside ActResearchCVE) still contains no LLM site.
+func TestResolveRootCause_VerifiesDisplayedAssertions(t *testing.T) {
+	c := &domain.AnalysisCase{
+		CVEAnalysisProfile: domain.ProfileAssist,
+		Vulnerability:      domain.Vulnerability{ID: "GO-2026-9001"},
+	}
+	h := states.ResolveRootCause{Resolver: staticRCResolver{}, LLMClient: fakeCVECompleter{}}
+	tr, err := h.Run(context.Background(), c)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if tr.Next != domain.StateBuildExploitModel {
+		t.Fatalf("want BUILD_EXPLOIT_MODEL, got %+v", tr)
+	}
+	if c.CVEAnalysis == nil {
+		t.Fatal("proposal missing after research")
+	}
+	if len(c.ProposalVerifications) != 7 {
+		t.Fatalf("2 sites x 3 checks + 1 mechanism = 7 records, got %+v", c.ProposalVerifications)
+	}
+	for _, rec := range c.ProposalVerifications {
+		if rec.Proposal.ID != c.CVEAnalysis.ID || rec.Proposal.Revision != c.CVEAnalysis.Revision {
+			t.Fatalf("record not bound to the adopted proposal: %+v", rec.Proposal)
+		}
+		if rec.Result != domain.ClaimUnknown {
+			t.Fatalf("nil source index must produce UNKNOWN, got %+v", rec)
+		}
+	}
+	if c.Justification != nil {
+		for _, vf := range c.Justification.VerifiedFacts {
+			if strings.Contains(vf, "pkg.Fault") || strings.Contains(vf, "pkg.Aux") {
+				t.Fatalf("unverified LLM site leaked into verified facts: %s", vf)
+			}
+		}
+	}
+}
+
 func TestAllMainsInCmd(t *testing.T) {
 	// Case 1: All mains in cmd/
 	dir1 := t.TempDir()

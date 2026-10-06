@@ -275,7 +275,7 @@ func resolvePackages(ctx context.Context, tool GoTool, selected []*domain.Affect
 		Command: "go list -deps -test -json ./...",
 		Content: string(pkgRaw),
 	})
-	pkgs, err := decodePackages(pkgRaw)
+	pkgs, err := DecodePackages(pkgRaw)
 	if err != nil {
 		res.Limitations = append(res.Limitations, fmt.Sprintf("decode package list: %v", err))
 		return res, ev, nil

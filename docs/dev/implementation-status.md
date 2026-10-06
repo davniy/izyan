@@ -24,8 +24,9 @@
 - Детерминистический `VerdictEvaluator`: `NOT_AFFECTED` только по FALSE в
   affected-цепочке; `NO_EXPLOIT_PATH_FOUND` только при VERIFIED
   negative-check; иначе `INCONCLUSIVE`.
-- `internal/report`: `report.json` + human-readable `report.md` с
-  tracker-ready rationale.
+- `internal/report`: `report.json` + человекочитаемый `report.md` (девять
+  обязательных разделов, tracker-ready) + технический аудит
+  `report.audit.md` (RU/EN).
 - CLI `vuln-analyzer analyze` со всеми флагами из спеки §11
   (`--vuln-file`, `--osv-url`, `--goos`, `--goarch`, `--build-tags`,
   `--root-cause`, `--exploit-model`, `--deterministic-only`).
@@ -160,7 +161,9 @@ adapter.
   в `tracker_comment.md` рядом с report; сбой публикации → tool
   limitation, не fail. Слот для реального адаптера трекера —
   без изменения workflow.
-- report.md: секция `## Review` (результат + findings по каждому REV-*).
+- review-итог и findings по каждому REV-* — в техническом аудите
+  `report.audit.md` (раздел рецензирования); человекочитаемый `report.md`
+  показывает только итоговый вердикт и человеко-факты.
 - Тесты: reviewer unit (7 кейсов), repair-демоция TRUE→UNKNOWN, budget
   exhausted → limitation; e2e прогон теперь всегда проходит REVIEW.
 - Live GO-2025-3595: REV-1 ACCEPT + tracker_comment.md записан.
@@ -255,10 +258,11 @@ build-tag развёртка), реальный tracker sink, P6 remediation.
 
 ## Remediation (done)
 
-- report.md: секция `## Remediation` — минимальная fixed-версия строго
-  выше resolved (semver compare, нормализация v-prefix), `go get`/`go mod
-  tidy` команда; нет фикса → honest "no fixed version published".
-  Не affected → секция отсутствует. Live: x/net v0.32.0 → v0.38.0.
+- report.md: секция `## Рекомендация по исправлению` — минимальная
+  fixed-версия строго выше resolved (semver compare, нормализация
+  v-prefix), `go get`/`go mod tidy` команда; нет фикса → honest "no fixed
+  version published". Не affected → честная строка об отсутствии срочного
+  исправления. Live: x/net v0.32.0 → v0.38.0.
 - Tracker adapter остаётся generic: `tracker.Sink` интерфейс + `FileSink`
   (tracker_comment.md); конкретные адаптеры (GitHub Issues, GL, и пр.)
   добавляются позже без изменения ядра.

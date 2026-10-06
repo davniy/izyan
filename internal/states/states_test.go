@@ -251,7 +251,7 @@ func TestE2ENotAffected(t *testing.T) {
 	if len(c.EvidenceGraph.Evidence) == 0 || c.EvidenceGraph.Hash == "" {
 		t.Fatal("evidence graph must contain the go list artifact and a hash")
 	}
-	for _, f := range []string{"report.json", "report.md"} {
+	for _, f := range []string{"report.json", "report.md", "report.en.md", "report.audit.md", "report.audit.en.md"} {
 		if _, err := os.Stat(filepath.Join(caseDir, string(c.ID), f)); err != nil {
 			t.Fatalf("missing report artifact %s: %v", f, err)
 		}
@@ -2113,7 +2113,7 @@ func hasLimitation(c *domain.AnalysisCase, substr string) bool {
 
 // B2: with --allow-exec the gap loop runs `go build`/`go test` once as
 // case-level evidence — BUILD/TEST records land in the graph, the runs in
-// tool_executions, a hypothesis in the case and a section in report.md.
+// tool_executions, a hypothesis in the case and a section in report.audit.md.
 func TestE2EBuildTestEvidence(t *testing.T) {
 	repo := initRepoFiles(t, map[string]string{
 		"go.mod":       "module example.com/product\n\ngo 1.23\n",
@@ -2158,12 +2158,12 @@ func TestE2EBuildTestEvidence(t *testing.T) {
 	if hyp == nil || len(hyp.EvidenceIDs) != 2 {
 		t.Fatalf("build/test hypothesis missing: %+v", c.Hypotheses)
 	}
-	md, err := os.ReadFile(filepath.Join(d.CaseDir, string(c.ID), "report.md"))
+	audit, err := os.ReadFile(filepath.Join(d.CaseDir, string(c.ID), "report.audit.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(md), "Build & Test") {
-		t.Fatal("report.md lacks the Build & test section")
+	if !strings.Contains(string(audit), "Сборка и тесты") {
+		t.Fatal("report.audit.md lacks the build & test section")
 	}
 }
 

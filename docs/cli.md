@@ -347,7 +347,19 @@ LLM_BUILD_MODEL=gpt-4o
 
 `<case-dir>/<case-id>/`:
 
-- `report.json`, `report.md` — вердикт, claims с evidence, limitations;
+- `report.md` (RU) и `report.en.md` (EN) — короткий человекочитаемый
+  отчёт, готовый для вставки в трекер: вердикт, суть уязвимости,
+  применимость, подтверждённые факты, неопределённости, приоритет,
+  рекомендация по исправлению, использование AI;
+- `report.audit.md` и `report.audit.en.md` — технический аудит кейса:
+  полные claims с evidence IDs, реестр доказательств, data flows,
+  журнал инструментов, машинные гипотезы и полные limitations. Ссылка в
+  конце human-отчёта указывает на audit-файл той же локали. Это другой
+  артефакт, чем `--audit-dir` у `eval` (тот пишет отдельный
+  review-пакет по signal-cleared кейсам, см.
+  [`eval/README.md`](../eval/README.md));
+- `report.json` — полный машиночитаемый снимок кейса (вердикт, claims с
+  evidence, limitations, параметры triage);
 - `tracker_comment.md` — готовый комментарий для трекера;
 - `openvex.json`, `cyclonedx.json` — экспорты вердикта;
 - сериализованный `AnalysisCase` — restartable состояние + аудит

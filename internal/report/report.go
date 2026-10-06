@@ -59,11 +59,18 @@ func isRussian(lang ...string) bool {
 }
 
 var verdictReasonRU = map[string]string{
-	"mandatory exploit condition is proven false": "Обязательное условие эксплуатации опровергнуто (уязвимый путь исполнения отсутствует)",
-	"all mandatory conditions met":                "Все обязательные условия эксплуатации выполнены (уязвимость подтверждена)",
-	"resolved version outside affected range":     "Разрешённая версия библиотеки находится вне уязвимого диапазона",
-	"no exploit conditions met":                   "Ни одно условие эксплуатации не выполнено",
-	"locus packages absent from build graph":      "Уязвимый код физически не включён в сборку",
+	"mandatory exploit condition is proven false":                               "Обязательное условие эксплуатации опровергнуто (уязвимый путь исполнения отсутствует)",
+	"all mandatory exploit conditions are satisfied":                            "Все обязательные условия эксплуатации выполнены (уязвимость подтверждена)",
+	"all mandatory conditions met":                                              "Все обязательные условия эксплуатации выполнены (уязвимость подтверждена)",
+	"vulnerable module is not part of the product dependency graph":             "Уязвимый модуль не входит в граф зависимостей продукта",
+	"resolved dependency version is outside affected range":                     "Разрешённая версия зависимости находится вне уязвимого диапазона",
+	"resolved version outside affected range":                                   "Разрешённая версия библиотеки находится вне уязвимого диапазона",
+	"affected package is not imported by the product build":                     "Уязвимый пакет не импортируется в сборке продукта",
+	"package is not linked in build":                                            "Уязвимый пакет не слинкован в сборке продукта",
+	"affected packages are constrained to other platforms/build configurations": "Уязвимые пакеты ограничены другими платформами или конфигурациями сборки",
+	"no exploit conditions met":                                                 "Ни одно условие эксплуатации не выполнено",
+	"locus packages absent from build graph":                                    "Уязвимый код физически не включён в сборку",
+	"one or more mandatory exploit conditions remain unresolved":                "Одно или несколько обязательных условий эксплуатации не подтверждены",
 }
 
 func localizeVerdictReason(reason string, isRU bool) string {
@@ -73,6 +80,33 @@ func localizeVerdictReason(reason string, isRU bool) string {
 	if s, ok := verdictReasonRU[reason]; ok {
 		return s
 	}
+
+	if strings.HasPrefix(reason, "one or more mandatory exploit conditions remain unresolved:") {
+		unresolved := strings.TrimSpace(strings.TrimPrefix(reason, "one or more mandatory exploit conditions remain unresolved:"))
+		return "Одно или несколько обязательных условий эксплуатации не подтверждены: " + unresolved
+	}
+	if strings.HasPrefix(reason, "resolved version ") && strings.Contains(reason, " is outside the affected range") {
+		ver := strings.TrimPrefix(reason, "resolved version ")
+		ver = strings.TrimSuffix(ver, " is outside the affected range")
+		return fmt.Sprintf("Разрешённая версия %s находится вне уязвимого диапазона", ver)
+	}
+	if strings.HasPrefix(reason, "none of the affected module(s) ") && strings.Contains(reason, " resolve to a product dependency") {
+		parts := strings.Split(strings.TrimPrefix(reason, "none of the affected module(s) "), " resolve to a product dependency")
+		mods := parts[0]
+		return fmt.Sprintf("Ни один из уязвимых модулей %s не входит в зависимости продукта (go list -m all)", mods)
+	}
+	if strings.HasPrefix(reason, "affected package(s) ") && strings.Contains(reason, " are absent from the product's transitive import closure") {
+		parts := strings.Split(strings.TrimPrefix(reason, "affected package(s) "), " are absent from the product's transitive import closure")
+		pkgs := parts[0]
+		return fmt.Sprintf("Уязвимый пакет(ы) %s отсутствует в транзитивном графе импортов сборки (go list -deps -test ./...) — код не скомпилирован в продукт", pkgs)
+	}
+	if strings.HasPrefix(reason, "all modeled mandatory conditions are satisfied, but ") {
+		return "Все смоделированные обязательные условия выполнены, но часть дефектных точек сбоя (sinks) не разрешена или отсутствует в сборке: модель усечена и не может обосновать положительный вердикт"
+	}
+	if strings.HasPrefix(reason, "cluster-perimeter verdict rests on a declared trust boundary, but ") {
+		return "Вердикт внутрикластерного периметра опирается на объявленную границу доверия, но часть заявленных в advisory функций не разрешена: утверждение оператора не может закрыть несмоделированный путь атаки"
+	}
+
 	return reason
 }
 
@@ -168,6 +202,54 @@ func localizeClaimResult(r domain.ClaimResult, isRU bool) string {
 			return "Опровергнуто (FALSE)"
 		}
 		return string(r)
+	}
+}
+
+func localizeAddressSource(src string, isRU bool) string {
+	if !isRU {
+		return src
+	}
+	switch src {
+	case "literal":
+		return "литерал"
+	case "const":
+		return "константа"
+	case "config":
+		return "конфигурация"
+	case "param":
+		return "параметр функции"
+	case "dynamic":
+		return "динамический"
+	default:
+		if strings.HasPrefix(src, "env:") {
+			return "переменная окружения " + strings.TrimPrefix(src, "env:")
+		}
+		if strings.HasPrefix(src, "flag:") {
+			return "флаг " + strings.TrimPrefix(src, "flag:")
+		}
+		return src
+	}
+}
+
+func localizeExposureScope(scope string, isRU bool) string {
+	if !isRU {
+		return scope
+	}
+	switch scope {
+	case "all-interfaces":
+		return "все интерфейсы (0.0.0.0)"
+	case "loopback":
+		return "локальный интерфейс (127.0.0.1)"
+	case "static":
+		return "статический адрес"
+	case "configured":
+		return "настроен оператором (configured)"
+	case "cluster-internal":
+		return "внутрикластерный"
+	case "public":
+		return "публичный"
+	default:
+		return scope
 	}
 }
 
@@ -530,10 +612,10 @@ func Markdown(c *domain.AnalysisCase, lang ...string) string {
 					}
 					var meta []string
 					if f.AddressSource != "" {
-						meta = append(meta, "источник: "+f.AddressSource)
+						meta = append(meta, "источник: "+localizeAddressSource(f.AddressSource, true))
 					}
 					if f.Scope != "" {
-						meta = append(meta, "область: "+f.Scope)
+						meta = append(meta, "область: "+localizeExposureScope(f.Scope, true))
 					}
 					if len(meta) > 0 {
 						fmt.Fprintf(&b, " (%s)", strings.Join(meta, ", "))
@@ -1390,7 +1472,7 @@ func rationaleNotAffected(c *domain.AnalysisCase) string {
 		}
 	} else {
 		fmt.Fprintf(&b, "Уязвимость %s не применима к снимку %s: %s.\n\n",
-			c.Vulnerability.ID, repo, c.Verdict.Reason)
+			c.Vulnerability.ID, repo, localizeVerdictReason(c.Verdict.Reason, true))
 	}
 
 	if commit != "" {
@@ -1455,7 +1537,7 @@ func rationaleInconclusive(c *domain.AnalysisCase) string {
 	b.WriteString("Требуется ручной анализ (Inconclusive).\n\n")
 
 	fmt.Fprintf(&b, "Для уязвимости %s в проекте %s (библиотека `%s %s`) автоматический анализ не смог сделать однозначный вывод: %s.\n\n",
-		c.Vulnerability.ID, repo, mod, ver, c.Verdict.Reason)
+		c.Vulnerability.ID, repo, mod, ver, localizeVerdictReason(c.Verdict.Reason, true))
 
 	if commit != "" {
 		fmt.Fprintf(&b, "Проверено по репозиторию `%s`, коммит `%s`%s.\n\n",
@@ -1653,7 +1735,7 @@ func renderTriageAssessment(b *strings.Builder, c *domain.AnalysisCase, isRU boo
 		b.WriteString("|---|---|---|\n")
 		fmt.Fprintf(b, "| **Критичность** | %s (CVSS %s) | %s |\n", formatSeverityBadge(baseSev), baseScoreStr, contextualSevStr)
 		fmt.Fprintf(b, "| **Приоритет в очереди** | %s | %s |\n", nominalPrio, contextualPrioStr)
-		fmt.Fprintf(b, "| **Рекомендуемый SLA** | %s | %s |\n", nominalSLA, r.SLA)
+		fmt.Fprintf(b, "| **Рекомендуемый SLA** | %s | %s |\n", nominalSLA, formatSLA(r.SLA, true))
 		fmt.Fprintf(b, "| **Статус оценки** | Номинальный | %s |\n\n", statusStr)
 
 		if r.AdjustmentReason != "" {
@@ -1733,6 +1815,26 @@ func nominalSLA(baseScore float64, isRU bool) string {
 		return "30 дней (Sprint)"
 	}
 	return "30 days (Sprint)"
+}
+
+func formatSLA(sla string, isRU bool) string {
+	if !isRU {
+		return sla
+	}
+	switch sla {
+	case "24h (Immediate remediation required)":
+		return "24 часа (требуется немедленное устранение)"
+	case "None (No remediation required)":
+		return "Не требуется (устранение не требуется)"
+	case "Sprint (30 days)":
+		return "30 дней (Sprint)"
+	case "7 days":
+		return "7 дней"
+	case "24 hours":
+		return "24 часа"
+	default:
+		return sla
+	}
 }
 
 func formatTriagePriority(p domain.TriagePriority, isRU bool) string {
@@ -1847,6 +1949,54 @@ func perimeterActionRecommendation(p domain.TriagePriority, isRU bool) string {
 	}
 }
 
+func localizePerimeter(p string, isRU bool) string {
+	if !isRU {
+		return p
+	}
+	switch p {
+	case domain.PerimeterPublic:
+		return "Публичный (public)"
+	case domain.PerimeterClusterInternal:
+		return "Внутрикластерный (cluster-internal)"
+	case domain.PerimeterUnknown:
+		return "Не определён (unknown)"
+	default:
+		return p
+	}
+}
+
+func localizePerimeterRationale(rationale string, isRU bool) string {
+	if !isRU || rationale == "" || rationale == "-" {
+		return rationale
+	}
+	switch rationale {
+	case "no deployment exposure facts resolved; defaulting to zero-trust":
+		return "Факты сетевой конфигурации не обнаружены; по умолчанию применяется модель нулевого доверия (zero-trust)"
+	case "no structural cluster-isolation evidence (ClusterIP service or loopback/unix-only listeners); defaulting to zero-trust":
+		return "Структурные свидетельства изоляции внутри кластера отсутствуют (ClusterIP или только loopback/unix слушатели); по умолчанию применяется модель нулевого доверия (zero-trust)"
+	case "ClusterIP service found":
+		return "Обнаружен сервис ClusterIP"
+	}
+
+	res := rationale
+	if strings.HasPrefix(res, "public exposure detected: ") {
+		res = "Обнаружен публичный доступ: " + strings.TrimPrefix(res, "public exposure detected: ")
+	} else if strings.HasPrefix(res, "cluster-internal perimeter: ") {
+		res = "Внутрикластерный периметр: " + strings.TrimPrefix(res, "cluster-internal perimeter: ")
+	} else if strings.HasPrefix(res, "unattributed external-routing manifests may front the service: ") {
+		res = "Внешние маршрутизирующие манифесты без атрибуции могут обслуживать сервис: " + strings.TrimPrefix(res, "unattributed external-routing manifests may front the service: ")
+	} else if strings.HasPrefix(res, "loopback/unix listeners present but inbound exposure unresolved: ") {
+		res = "Обнаружены loopback/unix слушатели, но входящий сетевой периметр полностью не разрешён: " + strings.TrimPrefix(res, "loopback/unix listeners present but inbound exposure unresolved: ")
+	} else if strings.HasPrefix(res, "unresolved inbound exposure: ") {
+		res = "Неразрешённый входящий сетевой периметр: " + strings.TrimPrefix(res, "unresolved inbound exposure: ")
+	}
+
+	res = strings.ReplaceAll(res, "; no public ingress found", "; публичный ingress не обнаружен")
+	res = strings.ReplaceAll(res, "; unresolved inbound surfaces bounded by declared service scope: ", "; неразрешённые входящие интерфейсы ограничены областью сервиса: ")
+	res = strings.ReplaceAll(res, "inbound listener ", "входящий слушатель ")
+	return res
+}
+
 func renderPerimeterMatrix(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
 	if len(c.Profiles) == 0 {
 		return
@@ -1863,8 +2013,8 @@ func renderPerimeterMatrix(b *strings.Builder, c *domain.AnalysisCase, isRU bool
 
 	if isRU {
 		b.WriteString("### Матрица сетевых периметров угроз\n\n")
-		fmt.Fprintf(b, "- **Обнаруженный периметр развёртывания:** `%s`\n", detPerimeter)
-		fmt.Fprintf(b, "- **Обоснование периметра:** %s\n\n", detRationale)
+		fmt.Fprintf(b, "- **Обнаруженный периметр развёртывания:** `%s`\n", localizePerimeter(detPerimeter, true))
+		fmt.Fprintf(b, "- **Обоснование периметра:** %s\n\n", localizePerimeterRationale(detRationale, true))
 		b.WriteString("| Сетевой контур | Модель угроз | Вердикт анализатора | Приоритет триажа | Действие для команды |\n")
 		b.WriteString("|---|---|---|---|---|\n")
 		for _, p := range c.Profiles {

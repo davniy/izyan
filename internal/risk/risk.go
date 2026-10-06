@@ -1,6 +1,7 @@
 package risk
 
 import (
+	"math"
 	"strings"
 
 	"github.com/fedorovmv/izyan/internal/domain"
@@ -38,7 +39,7 @@ func Assess(v domain.Vulnerability, c *domain.AnalysisCase, vr domain.VerdictRes
 			ContextualLevel:  domain.RiskLevelNone,
 			ContextualScore:  0.0,
 			Priority:         domain.PriorityDismissed,
-			SLA:              "None (No remediation required)",
+			SLA:              "None",
 			AdjustmentReason: "Уязвимый модуль не слинкован в бинарный граф сборки продукта (go list -deps). Эксплуатация физически невозможна. Блокировка сборки снята.",
 			Factors:          factors,
 		}
@@ -52,7 +53,7 @@ func Assess(v domain.Vulnerability, c *domain.AnalysisCase, vr domain.VerdictRes
 			ContextualLevel:  domain.RiskLevelNone,
 			ContextualScore:  0.0,
 			Priority:         domain.PriorityDismissed,
-			SLA:              "None (No remediation required)",
+			SLA:              "None",
 			AdjustmentReason: "Обязательное условие эксплуатации опровергнуто детерминированной верификацией. Уязвимый путь вызова отсутствует. Блокировка сборки снята.",
 			Factors:          factors,
 		}
@@ -61,12 +62,12 @@ func Assess(v domain.Vulnerability, c *domain.AnalysisCase, vr domain.VerdictRes
 	// Rule 5: Inconclusive / Provisional
 	if vr.Verdict == domain.VerdictInconclusive {
 		prio := domain.PriorityP2
-		lvl := domain.RiskLevelMedium
-		sla := "Sprint (30 days)"
+		lvl := defaultRiskLevelForScore(baseScore)
+		if baseSev != "" {
+			lvl = domain.RiskLevel(baseSev)
+		}
 		if baseScore >= 9.0 || baseSev == "CRITICAL" || baseSev == "BLOCKER" {
 			prio = domain.PriorityP1
-			lvl = domain.RiskLevelHigh
-			sla = "7 days (Manual triage required)"
 		}
 		return domain.ContextualRisk{
 			Status:           domain.RiskStatusProvisional,
@@ -75,7 +76,7 @@ func Assess(v domain.Vulnerability, c *domain.AnalysisCase, vr domain.VerdictRes
 			ContextualLevel:  lvl,
 			ContextualScore:  baseScore,
 			Priority:         prio,
-			SLA:              sla,
+			SLA:              "Manual Triage",
 			AdjustmentReason: "Условия эксплуатации не подтверждены и не опровергнуты; требуется ручной триаж входных данных и конфигурации.",
 			Factors:          factors,
 		}
@@ -84,49 +85,53 @@ func Assess(v domain.Vulnerability, c *domain.AnalysisCase, vr domain.VerdictRes
 	// If verdict is EXPLOITABLE
 	if vr.Verdict == domain.VerdictExploitable {
 		// Rule 2: Blocker P0 (PUBLIC exposure without required authentication)
+		// Contextual score never inflates above baseScore (a Medium DoS remains Medium severity,
+		// but receives P0 blocker priority in queue due to unmitigated public exposure).
 		if exposure == "PUBLIC" && authn != "REQUIRED" {
-			score := baseScore
-			if score < 9.5 {
-				score = 10.0
+			level := defaultRiskLevelForScore(baseScore)
+			if baseSev != "" {
+				level = domain.RiskLevel(baseSev)
 			}
 			return domain.ContextualRisk{
 				Status:           domain.RiskStatusAssessed,
 				BaseSeverity:     baseSev,
 				BaseScore:        baseScore,
-				ContextualLevel:  domain.RiskLevelCritical,
-				ContextualScore:  score,
+				ContextualLevel:  level,
+				ContextualScore:  baseScore,
 				Priority:         domain.PriorityP0,
-				SLA:              "24h (Immediate remediation required)",
-				AdjustmentReason: "Критическая уязвимость подтверждена: сервис слушает внешний сетевой интерфейс (0.0.0.0) без обязательной аутентификации.",
+				SLA:              "Immediate (Blocker)",
+				AdjustmentReason: "Сетевой слушатель привязан ко всем интерфейсам (0.0.0.0). В репозитории не обнаружены манифесты изоляции (ClusterIP / Service Mesh / Ingress), поэтому по модели нулевого доверия (Zero-Trust) точка входа рассматривается как внешняя. Если сервис изолирован внутри кластера за Service Mesh (Istio mTLS / AuthorizationPolicy) или закрытым периметром, предоставьте манифесты развёртывания (--deploy-manifests) или укажите целевой периметр (--perimeter cluster) для переоценки.",
 				Factors:          factors,
 			}
 		}
 
-		// Rule 3: P1 Critical/High (PUBLIC exposure with authentication REQUIRED)
+		// Rule 3: P1 High (PUBLIC exposure with authentication REQUIRED)
 		if exposure == "PUBLIC" && authn == "REQUIRED" {
+			score := math.Round(baseScore*0.75*10) / 10
 			return domain.ContextualRisk{
 				Status:           domain.RiskStatusAssessed,
 				BaseSeverity:     baseSev,
 				BaseScore:        baseScore,
-				ContextualLevel:  domain.RiskLevelHigh,
-				ContextualScore:  7.5,
+				ContextualLevel:  defaultRiskLevelForScore(score),
+				ContextualScore:  score,
 				Priority:         domain.PriorityP1,
-				SLA:              "7 days",
-				AdjustmentReason: "Уязвимость достижима извне, но защищена предварительной аутентификацией/шлюзом (эксплуатация требует валидных учетных данных).",
+				SLA:              "High Priority",
+				AdjustmentReason: "Уязвимость достижима извне, но защищена предварительной аутентификацией/шлюзом (эксплуатация требует валидных учетных данных). Контекстная критичность снижена наличием контроля доступа.",
 				Factors:          factors,
 			}
 		}
 
 		// Rule 4: P2 Medium (INTERNAL loopback or NONE)
+		score := math.Round(baseScore*0.5*10) / 10
 		return domain.ContextualRisk{
 			Status:           domain.RiskStatusAssessed,
 			BaseSeverity:     baseSev,
 			BaseScore:        baseScore,
-			ContextualLevel:  domain.RiskLevelMedium,
-			ContextualScore:  4.5,
+			ContextualLevel:  defaultRiskLevelForScore(score),
+			ContextualScore:  score,
 			Priority:         domain.PriorityP2,
-			SLA:              "Sprint (30 days)",
-			AdjustmentReason: "Сетевой доступ из внешней сети отсутствует (слушатель привязан к локальному интерфейсу 127.0.0.1 либо сетевые слушатели отсутствуют). Уязвимость переведена в плановый спринт.",
+			SLA:              "Scheduled",
+			AdjustmentReason: "Сетевой доступ из внешней сети отсутствует (слушатель привязан к локальному интерфейсу 127.0.0.1 либо сетевые слушатели отсутствуют). Уязвимость переведена в плановый релизный цикл.",
 			Factors:          factors,
 		}
 	}
@@ -136,10 +141,10 @@ func Assess(v domain.Vulnerability, c *domain.AnalysisCase, vr domain.VerdictRes
 		Status:           domain.RiskStatusAssessed,
 		BaseSeverity:     baseSev,
 		BaseScore:        baseScore,
-		ContextualLevel:  domain.RiskLevelUnknown,
+		ContextualLevel:  defaultRiskLevelForScore(baseScore),
 		ContextualScore:  baseScore,
 		Priority:         domain.PriorityP2,
-		SLA:              "Sprint (30 days)",
+		SLA:              "Scheduled",
 		AdjustmentReason: "Автоматическая переоценка риска завершена.",
 		Factors:          factors,
 	}
@@ -251,5 +256,22 @@ func defaultSeverityForScore(score float64) string {
 		return "LOW"
 	default:
 		return "UNKNOWN"
+	}
+}
+
+func defaultRiskLevelForScore(score float64) domain.RiskLevel {
+	switch {
+	case score >= 9.0:
+		return domain.RiskLevelCritical
+	case score >= 7.0:
+		return domain.RiskLevelHigh
+	case score >= 4.0:
+		return domain.RiskLevelMedium
+	case score > 0:
+		return domain.RiskLevelLow
+	case score == 0:
+		return domain.RiskLevelNone
+	default:
+		return domain.RiskLevelUnknown
 	}
 }

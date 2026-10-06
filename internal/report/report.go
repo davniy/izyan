@@ -284,9 +284,7 @@ func renderProvenanceBreakdown(b *strings.Builder, isRU bool) {
 		b.WriteString("  - Граф пакетов сборки (`go list -deps`): проверка фактического включения скомпилированных пакетов в бинарный файл.\n")
 		b.WriteString("  - Анализ графа вызовов (`govulncheck`): поиск статических путей вызова от приложения к функциям из advisory (проверка достижимости символов).\n")
 		b.WriteString("  - Анализ точек входа (AST): инспекция конструкторов и инициализации сервисов в коде проекта.\n")
-		b.WriteString("- 🤖 **Семантический анализ LLM (AI-исследование):**\n")
-		b.WriteString("  - Архитектурный анализ уязвимости: исследование патча и разделение функций из advisory на сайт сбоя (дефектный локус) и вспомогательные функции (диспетчеры). Это объясняет, почему при наличии вызовов по `govulncheck` реальный уязвимый код не исполняется.\n")
-		b.WriteString("  - Семантическое рецензирование: валидация логики работы компонентов и проверка условий эксплуатации.\n\n")
+		b.WriteString("  - Анализ сетевого периметра и манифестов: инспекция сетевых слушателей и манифестов развёртывания (K8s/Helm).\n\n")
 	} else {
 		b.WriteString("### Verification Sources & Methods (Methodology)\n\n")
 		b.WriteString("- ⚙️ **Go compiler deterministic checks:**\n")
@@ -294,9 +292,7 @@ func renderProvenanceBreakdown(b *strings.Builder, isRU bool) {
 		b.WriteString("  - Build package graph (`go list -deps`): verification of whether library packages are physically linked into the compiled binary.\n")
 		b.WriteString("  - Call graph analysis (`govulncheck`): detection of static call paths from product code to advisory symbols (reachability check).\n")
 		b.WriteString("  - Entrypoint analysis (AST): inspection of service initialization and constructors used in project code.\n")
-		b.WriteString("- 🤖 **LLM semantic analysis (AI research):**\n")
-		b.WriteString("  - Vulnerability architectural analysis: patch investigation, distinguishing actual defect/panic sites (locus) from helper dispatchers. Explains why execution does not reach defective code despite calls reported by `govulncheck`.\n")
-		b.WriteString("  - Semantic review: component operational logic validation and exploit condition checks.\n\n")
+		b.WriteString("  - Network perimeter & manifest analysis: inspection of listeners and deployment manifests (K8s/Helm).\n\n")
 	}
 }
 
@@ -578,21 +574,47 @@ func Markdown(c *domain.AnalysisCase, lang ...string) string {
 
 		if len(c.Claims) > 0 {
 			if isRU {
-				b.WriteString("### Статус условий эксплуатации (Claims)\n\n| Условие | Результат | Верификация | Доказательства |\n|---|---|---|---|\n")
+				b.WriteString("### Статус условий эксплуатации (Claims)\n\n| Условие | Результат | Обоснование | Верификация | Доказательства |\n|---|---|---|---|---|\n")
 				for _, cl := range c.Claims {
-					fmt.Fprintf(&b, "| `%s` | %s | %s | %s |\n", cl.ConditionID, localizeClaimResult(cl.Result, true),
-						claimVerification(cl, true), strings.Join(evidenceIDs(cl.EvidenceIDs), ", "))
+					expl := localizeClaimExplanation(cl.Explanation, true)
+					if expl == "" {
+						expl = "—"
+					}
+					verif := claimVerification(cl, true)
+					if verif == "" {
+						verif = "—"
+					}
+					evs := strings.Join(evidenceIDs(cl.EvidenceIDs), ", ")
+					if evs == "" {
+						evs = "—"
+					}
+					fmt.Fprintf(&b, "| `%s` | %s | %s | %s | %s |\n", cl.ConditionID, localizeClaimResult(cl.Result, true),
+						expl, verif, evs)
 				}
 				b.WriteString("\n")
 			} else {
-				b.WriteString("### Claims Status\n\n| condition | result | verification | evidence |\n|---|---|---|---|\n")
+				b.WriteString("### Claims Status\n\n| condition | result | explanation | verification | evidence |\n|---|---|---|---|---|\n")
 				for _, cl := range c.Claims {
-					fmt.Fprintf(&b, "| `%s` | %s | %s | %s |\n", cl.ConditionID, cl.Result,
-						claimVerification(cl, false), strings.Join(evidenceIDs(cl.EvidenceIDs), ", "))
+					expl := cl.Explanation
+					if expl == "" {
+						expl = "-"
+					}
+					verif := claimVerification(cl, false)
+					if verif == "" {
+						verif = "-"
+					}
+					evs := strings.Join(evidenceIDs(cl.EvidenceIDs), ", ")
+					if evs == "" {
+						evs = "-"
+					}
+					fmt.Fprintf(&b, "| `%s` | %s | %s | %s | %s |\n", cl.ConditionID, cl.Result,
+						expl, verif, evs)
 				}
 				b.WriteString("\n")
 			}
 		}
+
+		renderEvidenceRegister(&b, c, isRU)
 
 		if len(exps) > 0 {
 			if isRU {
@@ -1723,7 +1745,6 @@ func renderTriageAssessment(b *strings.Builder, c *domain.AnalysisCase, isRU boo
 	}
 
 	nominalPrio := nominalPriority(baseSev, r.BaseScore, isRU)
-	nominalSLA := nominalSLA(r.BaseScore, isRU)
 
 	contextualSevStr := formatContextualSeverity(r.ContextualLevel, r.ContextualScore, isRU)
 	contextualPrioStr := formatTriagePriority(r.Priority, isRU)
@@ -1735,7 +1756,6 @@ func renderTriageAssessment(b *strings.Builder, c *domain.AnalysisCase, isRU boo
 		b.WriteString("|---|---|---|\n")
 		fmt.Fprintf(b, "| **Критичность** | %s (CVSS %s) | %s |\n", formatSeverityBadge(baseSev), baseScoreStr, contextualSevStr)
 		fmt.Fprintf(b, "| **Приоритет в очереди** | %s | %s |\n", nominalPrio, contextualPrioStr)
-		fmt.Fprintf(b, "| **Рекомендуемый SLA** | %s | %s |\n", nominalSLA, formatSLA(r.SLA, true))
 		fmt.Fprintf(b, "| **Статус оценки** | Номинальный | %s |\n\n", statusStr)
 
 		if r.AdjustmentReason != "" {
@@ -1747,7 +1767,6 @@ func renderTriageAssessment(b *strings.Builder, c *domain.AnalysisCase, isRU boo
 		b.WriteString("|---|---|---|\n")
 		fmt.Fprintf(b, "| **Severity** | %s (CVSS %s) | %s |\n", formatSeverityBadge(baseSev), baseScoreStr, contextualSevStr)
 		fmt.Fprintf(b, "| **Triage Priority** | %s | %s |\n", nominalPrio, contextualPrioStr)
-		fmt.Fprintf(b, "| **Recommended SLA** | %s | %s |\n", nominalSLA, r.SLA)
 		fmt.Fprintf(b, "| **Assessment Status** | Nominal | %s |\n\n", statusStr)
 
 		if r.AdjustmentReason != "" {
@@ -1796,45 +1815,6 @@ func nominalPriority(baseSev string, baseScore float64, isRU bool) string {
 		return "**P2 (Medium)**"
 	}
 	return "**P3 (Low)**"
-}
-
-func nominalSLA(baseScore float64, isRU bool) string {
-	if baseScore >= 9.0 {
-		if isRU {
-			return "24 часа"
-		}
-		return "24 hours"
-	}
-	if baseScore >= 7.0 {
-		if isRU {
-			return "7 дней"
-		}
-		return "7 days"
-	}
-	if isRU {
-		return "30 дней (Sprint)"
-	}
-	return "30 days (Sprint)"
-}
-
-func formatSLA(sla string, isRU bool) string {
-	if !isRU {
-		return sla
-	}
-	switch sla {
-	case "24h (Immediate remediation required)":
-		return "24 часа (требуется немедленное устранение)"
-	case "None (No remediation required)":
-		return "Не требуется (устранение не требуется)"
-	case "Sprint (30 days)":
-		return "30 дней (Sprint)"
-	case "7 days":
-		return "7 дней"
-	case "24 hours":
-		return "24 часа"
-	default:
-		return sla
-	}
 }
 
 func formatTriagePriority(p domain.TriagePriority, isRU bool) string {
@@ -1928,24 +1908,24 @@ func perimeterActionRecommendation(p domain.TriagePriority, isRU bool) string {
 		return "No remediation required: vulnerability neutralized by network perimeter."
 	case domain.PriorityP0:
 		if isRU {
-			return "Критично: немедленное устранение (24h)."
+			return "Блокирующий приоритет: требуется первоочередное устранение (обновление зависимости или компенсирующий контроль)."
 		}
-		return "Critical: immediate remediation (24h)."
+		return "Blocker: immediate priority remediation required (dependency update or compensating control)."
 	case domain.PriorityP1:
 		if isRU {
-			return "Высокий приоритет: устранение в течение 7 дней."
+			return "Высокий приоритет: требуется плановое устранение или аудит компенсирующих мер защиты."
 		}
-		return "High priority: remediation within 7 days."
+		return "High priority: planned remediation or compensating controls audit required."
 	case domain.PriorityP2:
 		if isRU {
-			return "Плановый спринт: устранение в течение 30 дней."
+			return "Плановый приоритет: устранение в рамках регулярного релизного цикла."
 		}
-		return "Planned sprint: remediation within 30 days."
+		return "Scheduled priority: remediation within regular release cycle."
 	default:
 		if isRU {
-			return "Внимание: при выносе сервиса за пределы кластера потребуется аудит."
+			return "Внимание: при изменении сетевой конфигурации или выносе сервиса за пределы контура потребуется повторная оценка."
 		}
-		return "Notice: audit required if service is exposed outside cluster."
+		return "Notice: re-evaluation required if network configuration changes or service is exposed."
 	}
 }
 
@@ -2050,4 +2030,285 @@ func renderPerimeterMatrix(b *strings.Builder, c *domain.AnalysisCase, isRU bool
 		}
 		b.WriteString("\n")
 	}
+}
+
+func renderEvidenceRegister(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+	evList := c.EvidenceGraph.EvidenceList()
+	if len(evList) == 0 {
+		return
+	}
+
+	if isRU {
+		b.WriteString("### Реестр доказательств (Evidence Register)\n\n")
+		b.WriteString("| ID | Тип доказательства | Источник / Инструмент | Суть доказательства / Свидетельство |\n")
+		b.WriteString("|---|---|---|---|\n")
+		for _, e := range evList {
+			kindDesc := formatEvidenceKind(e.Kind, true)
+			srcDesc := formatEvidenceSource(e, true)
+			detail := formatEvidenceDetail(e, c, true)
+			fmt.Fprintf(b, "| `%s` | %s | %s | %s |\n", e.ID, kindDesc, srcDesc, detail)
+		}
+		b.WriteString("\n")
+	} else {
+		b.WriteString("### Evidence Register\n\n")
+		b.WriteString("| ID | Kind | Source / Tool | Details / Findings |\n")
+		b.WriteString("|---|---|---|---|\n")
+		for _, e := range evList {
+			kindDesc := formatEvidenceKind(e.Kind, false)
+			srcDesc := formatEvidenceSource(e, false)
+			detail := formatEvidenceDetail(e, c, false)
+			fmt.Fprintf(b, "| `%s` | %s | %s | %s |\n", e.ID, kindDesc, srcDesc, detail)
+		}
+		b.WriteString("\n")
+	}
+}
+
+func formatEvidenceKind(k domain.EvidenceKind, isRU bool) string {
+	if !isRU {
+		switch k {
+		case domain.EvidenceGovulncheck:
+			return "Call Graph (govulncheck)"
+		case domain.EvidenceModuleGraph:
+			return "Module Graph (go.mod)"
+		case domain.EvidencePackageList:
+			return "Package Graph (deps)"
+		case domain.EvidenceSourceSnippet:
+			return "Source Snippet (AST)"
+		case domain.EvidenceCallPath:
+			return "Call Path"
+		case domain.EvidenceDataFlow:
+			return "Data Flow"
+		case domain.EvidenceConfiguration:
+			return "Network / Config"
+		case domain.EvidenceEntrypoint:
+			return "Entrypoint"
+		case domain.EvidenceSearchResult:
+			return "Symbol / Config"
+		case domain.EvidenceAdvisory:
+			return "Security Advisory"
+		case domain.EvidenceFixDiff:
+			return "Fix Patch (Diff)"
+		case domain.EvidenceRuntime:
+			return "Runtime Environment"
+		default:
+			return string(k)
+		}
+	}
+	switch k {
+	case domain.EvidenceGovulncheck:
+		return "Анализ вызовов (govulncheck)"
+	case domain.EvidenceModuleGraph:
+		return "Граф модулей (go.mod)"
+	case domain.EvidencePackageList:
+		return "Граф пакетов сборки"
+	case domain.EvidenceSourceSnippet:
+		return "Исходный код (AST)"
+	case domain.EvidenceCallPath:
+		return "Путь вызова"
+	case domain.EvidenceDataFlow:
+		return "Поток данных (Taint/Flow)"
+	case domain.EvidenceConfiguration:
+		return "Сетевая конфигурация"
+	case domain.EvidenceEntrypoint:
+		return "Точка входа"
+	case domain.EvidenceSearchResult:
+		return "Символ / Конфиг"
+	case domain.EvidenceAdvisory:
+		return "База уязвимостей (Advisory)"
+	case domain.EvidenceFixDiff:
+		return "Патч исправления (Diff)"
+	case domain.EvidenceRuntime:
+		return "Среда выполнения"
+	default:
+		return string(k)
+	}
+}
+
+func formatEvidenceSource(e domain.Evidence, isRU bool) string {
+	if e.File != "" {
+		base := filepath.Base(e.File)
+		if e.StartLine > 0 {
+			return fmt.Sprintf("`%s:%d`", base, e.StartLine)
+		}
+		return fmt.Sprintf("`%s`", base)
+	}
+	if e.Command != "" {
+		return fmt.Sprintf("`%s`", sanitizeTableString(e.Command, 40))
+	}
+	if e.Tool != "" {
+		return fmt.Sprintf("`%s`", sanitizeTableString(e.Tool, 35))
+	}
+	if e.Source != "" {
+		return sanitizeTableString(e.Source, 40)
+	}
+	return "-"
+}
+
+func formatEvidenceDetail(e domain.Evidence, c *domain.AnalysisCase, isRU bool) string {
+	if e.Kind == domain.EvidenceGovulncheck {
+		var matched *domain.CallPath
+		for i := range c.EvidenceGraph.CallPaths {
+			if c.EvidenceGraph.CallPaths[i].EvidenceID == e.ID {
+				matched = &c.EvidenceGraph.CallPaths[i]
+				break
+			}
+		}
+		if matched != nil && len(matched.Frames) > 0 {
+			first := matched.Frames[0].Function
+			last := matched.Frames[len(matched.Frames)-1].Function
+			if isRU {
+				return fmt.Sprintf("Трасса вызова (%d кадров): `%s` → ... → `%s`", len(matched.Frames), first, last)
+			}
+			return fmt.Sprintf("Call path (%d frames): `%s` → ... → `%s`", len(matched.Frames), first, last)
+		}
+		if isRU {
+			return "Статический анализ govulncheck: трасса вызова к уязвимым функциям"
+		}
+		return "govulncheck static analysis: call path to affected symbols"
+	}
+
+	if e.Kind == domain.EvidenceModuleGraph {
+		if isRU {
+			return "Список зависимостей проекта и зафиксированных версий (go list -m)"
+		}
+		return "Project dependency list and resolved versions (go list -m)"
+	}
+
+	if e.Kind == domain.EvidencePackageList {
+		if isRU {
+			return "Граф пакетов, скомпилированных в приложение (go list -deps)"
+		}
+		return "Compiled package graph linked into application (go list -deps)"
+	}
+
+	if e.Kind == domain.EvidenceAdvisory {
+		if isRU {
+			return "Уязвимые функции и пакеты из advisory: " + sanitizeTableString(e.Content, 75)
+		}
+		return "Advisory declared affected symbols/packages: " + sanitizeTableString(e.Content, 75)
+	}
+
+	if e.Kind == domain.EvidenceFixDiff {
+		firstLine := firstCommitLine(e.Content)
+		if isRU {
+			return "Коммит исправления: " + sanitizeTableString(firstLine, 80)
+		}
+		return "Upstream fix commit: " + sanitizeTableString(firstLine, 80)
+	}
+
+	if e.Kind == domain.EvidenceRuntime {
+		if isRU {
+			return "Параметры среды: " + sanitizeTableString(e.Content, 80)
+		}
+		return "Runtime parameters: " + sanitizeTableString(e.Content, 80)
+	}
+
+	if e.Kind == domain.EvidenceConfiguration {
+		if isRU {
+			return "Конфигурация сети / портов: " + sanitizeTableString(e.Content, 80)
+		}
+		return "Network / port configuration: " + sanitizeTableString(e.Content, 80)
+	}
+
+	if e.Kind == domain.EvidenceSourceSnippet {
+		clean := sanitizeTableString(e.Content, 80)
+		if isRU {
+			return "Фрагмент кода: `" + clean + "`"
+		}
+		return "Code snippet: `" + clean + "`"
+	}
+
+	if e.Content != "" {
+		return sanitizeTableString(e.Content, 85)
+	}
+	if e.Source != "" {
+		return sanitizeTableString(e.Source, 85)
+	}
+	return "-"
+}
+
+func firstCommitLine(content string) string {
+	lines := strings.Split(content, "\n")
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		if strings.HasPrefix(l, "Subject: [PATCH]") {
+			return strings.TrimSpace(strings.TrimPrefix(l, "Subject: [PATCH]"))
+		}
+		if strings.HasPrefix(l, "Subject:") {
+			return strings.TrimSpace(strings.TrimPrefix(l, "Subject:"))
+		}
+	}
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		if l != "" && !strings.HasPrefix(l, "From ") && !strings.HasPrefix(l, "Date:") && !strings.HasPrefix(l, "diff ") {
+			return l
+		}
+	}
+	return content
+}
+
+func sanitizeTableString(s string, maxLen int) string {
+	s = strings.ReplaceAll(s, "\r\n", " ")
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "\r", " ")
+	s = strings.ReplaceAll(s, "|", "\\|")
+	s = strings.Join(strings.Fields(s), " ")
+	if maxLen > 3 && len([]rune(s)) > maxLen {
+		runes := []rune(s)
+		return string(runes[:maxLen-3]) + "..."
+	}
+	return s
+}
+
+func localizeClaimExplanation(expl string, isRU bool) string {
+	if !isRU || expl == "" {
+		return expl
+	}
+	switch expl {
+	case "govulncheck produced call path(s) to the affected symbol(s)":
+		return "Трасса вызовов govulncheck достигает уязвимых символов библиотеки"
+	case "no call path from application to affected symbol(s)":
+		return "Пути вызова от приложения к уязвимым символам отсутствуют"
+	case "all mandatory exploit conditions are satisfied":
+		return "Все обязательные условия эксплуатации выполнены"
+	case "condition unresolved":
+		return "Условие не определено (недостаточно данных)"
+	case "outbound destination endpoints are statically configured or loaded from trusted configuration: remote backends are operator-managed",
+		"outbound destination endpoints are statically configured or loaded from trusted configuration (config-origin)":
+		return "Адреса исходящих подключений статически заданы в коде или конфигурации: удалённые сервисы доверены"
+	case "vulnerability is server-side (requires incoming requests), but product has no inbound server listener for the vulnerable module (outbound clients only)":
+		return "Уязвимость на стороне сервера (требует входящих запросов), но в продукте нет слушателей для уязвимого модуля (только клиенты)"
+	case "vulnerability is client-side (requires outbound response parsing), but product operates purely as a server (inbound listeners present, no outbound client call sites into vulnerable module)":
+		return "Уязвимость на стороне клиента (требует разбора ответов), но продукт работает исключительно как сервер (только слушатели)"
+	case "deployment infrastructure declared trusted peer communication (--trusted-peer): network traffic and remote peers/brokers are authenticated and trusted":
+		return "Инфраструктура объявлена доверенной: сетевой трафик и узлы кластера аутентифицированы и доверены"
+	case "FALSE is decided by trusted cluster infrastructure / perimeter":
+		return "Условие нейтрализовано доверенной сетевой инфраструктурой кластера"
+	}
+
+	res := expl
+	if strings.HasPrefix(res, "govulncheck found no call path to any of ") {
+		res = strings.Replace(res, "govulncheck found no call path to any of ", "govulncheck не обнаружил путей вызова к ", 1)
+		res = strings.Replace(res, " affected symbol(s)", " уязвимым символам", 1)
+	} else if strings.HasPrefix(res, "inbound surface wired behind auth check(s): ") {
+		res = "Входящий интерфейс защищён проверкой аутентификации: " + strings.TrimPrefix(res, "inbound surface wired behind auth check(s): ")
+	} else if strings.HasPrefix(res, "all call path(s) to affected symbol(s) are dead code under disabled feature gates") {
+		res = "Все пути вызова к уязвимым символам находятся в мёртвом коде за отключёнными флагами"
+	} else if strings.HasPrefix(res, "all resolved inbound network binds are loopback/cluster-internal; public network exposure falsified: ") {
+		res = "Все входящие интерфейсы привязаны к локальным или кластерным адресам: " + strings.TrimPrefix(res, "all resolved inbound network binds are loopback/cluster-internal; public network exposure falsified: ")
+	} else if strings.HasPrefix(res, "network exposure resolved: ") {
+		res = "Сетевая доступность подтверждена: " + strings.TrimPrefix(res, "network exposure resolved: ")
+	} else if strings.Contains(res, "call site(s) receive externally controlled input") {
+		res = strings.Replace(res, "call site(s) receive externally controlled input", "точек вызова принимают входные данные извне", 1)
+	} else if strings.Contains(res, "call site(s) receive non-external input") {
+		res = strings.Replace(res, "call site(s) receive non-external input", "точек вызова получают не-внешние данные", 1)
+	} else if strings.Contains(res, "never assigned in product code — Go zero value false is not") {
+		res = "Параметр никогда не присваивается в коде (значение по умолчанию false)"
+	} else if strings.Contains(res, "assigned only safe value(s)") {
+		res = "Параметру присваиваются только безопасные значения"
+	} else if strings.Contains(res, "set to insecure value") {
+		res = "Параметр установлен в небезопасное значение"
+	}
+
+	return sanitizeTableString(res, 120)
 }

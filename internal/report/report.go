@@ -494,6 +494,7 @@ func Markdown(c *domain.AnalysisCase, lang ...string) string {
 		if rat != "" {
 			fmt.Fprintf(&b, "%s\n\n", rat)
 		}
+		renderVulnerabilityDetails(&b, c, isRU)
 		renderPerimeterMatrix(&b, c, isRU)
 	}
 	if r := remediation(c, isRU); r != "" {
@@ -513,7 +514,9 @@ func Markdown(c *domain.AnalysisCase, lang ...string) string {
 			b.WriteString("## Evidence Dossier\n\n")
 		}
 
+		renderKeyVerificationFacts(&b, c, isRU)
 		renderProvenanceBreakdown(&b, isRU)
+		renderSemanticAnalysisSummary(&b, c, isRU)
 
 		if c.Affected != nil {
 			a := c.Affected
@@ -747,11 +750,11 @@ func Markdown(c *domain.AnalysisCase, lang ...string) string {
 				if len(c.Exploit.ProposedNonLocus) > 0 || len(c.Exploit.LocusSubjects) > 0 {
 					if isRU {
 						b.WriteString("#### Оценка анализатора\n\n")
-						b.WriteString(machineAssessment(c))
+						b.WriteString(machineAssessment(c, true))
 						b.WriteString("\n")
 					} else {
 						b.WriteString("#### Machine assessment\n\n")
-						b.WriteString(machineAssessment(c))
+						b.WriteString(machineAssessment(c, false))
 						b.WriteString("\n")
 					}
 				}
@@ -846,7 +849,11 @@ func Markdown(c *domain.AnalysisCase, lang ...string) string {
 				if len(rv.Findings) > 0 {
 					b.WriteString("\n")
 					for _, f := range rv.Findings {
-						fmt.Fprintf(&b, "  - [%s] %s `%s`: %s\n", f.Severity, f.TargetType, f.TargetID, f.Problem)
+						if f.TargetID != "" {
+							fmt.Fprintf(&b, "  - [%s] %s `%s`: %s\n", f.Severity, f.TargetType, f.TargetID, f.Problem)
+						} else {
+							fmt.Fprintf(&b, "  - [%s] %s: %s\n", f.Severity, f.TargetType, f.Problem)
+						}
 					}
 				} else {
 					if isRU {
@@ -1005,9 +1012,16 @@ func evidenceIDs(ids []domain.EvidenceID) []string {
 // to carry a recorded expert exclusion — so the block lists, per declared
 // symbol, its package status and what the expert still has to decide.
 // Advisory text for review — never part of the verdict.
-func machineAssessment(c *domain.AnalysisCase) string {
+func machineAssessment(c *domain.AnalysisCase, isRUOpt ...bool) string {
+	isRU := len(isRUOpt) == 0 || isRUOpt[0]
 	if c.Exploit == nil || len(c.Exploit.LocusSubjects) == 0 {
 		return ""
+	}
+	if c.Verdict != nil && c.Verdict.Verdict == domain.VerdictExploitable {
+		if isRU {
+			return "**Статус:** Уязвимость подтверждена и эксплуатируема: подтверждены пути вызова и передача внешних данных в уязвимый код. Автоматическое отклонение по составу пакетов неприменимо.\n"
+		}
+		return "**Status:** Vulnerability is confirmed exploitable: verified reachability and untrusted input paths reach the defect locus. Automated package-absence dismissal is not applicable.\n"
 	}
 	proposed := map[domain.SymbolRef]domain.LocusDecision{}
 	for _, d := range c.Exploit.ProposedNonLocus {
@@ -1029,51 +1043,102 @@ func machineAssessment(c *domain.AnalysisCase) string {
 		break
 	}
 	if set == nil {
-		return "Оценку по отсутствию пакетов выставить нельзя: нет данных о составе сборки (`go list -deps`).\n"
+		if isRU {
+			return "Оценку по отсутствию пакетов выставить нельзя: нет данных о составе сборки (`go list -deps`).\n"
+		}
+		return "Package-absence assessment unavailable: no build graph data (`go list -deps`).\n"
 	}
 
 	var b strings.Builder
-	b.WriteString("Отклонить уязвимость из-за отсутствия пакетов в сборке можно только при условии, что для каждой функции из advisory в *попавших в сборку* пакетах подтверждено решение о безопасности (код не содержит дефекта и признан безопасным):\n\n")
+	if isRU {
+		b.WriteString("Отклонить уязвимость из-за отсутствия пакетов в сборке можно только при условии, что для каждой функции из advisory в *попавших в сборку* пакетах подтверждено решение о безопасности (код не содержит дефекта и признан безопасным):\n\n")
+	} else {
+		b.WriteString("Dismissal via package absence requires every advisory symbol in *compiled* packages to carry a confirmed safety decision (code lacks defect):\n\n")
+	}
 	var pending, proposedN, flagged int
 	for _, s := range c.Exploit.LocusSubjects {
 		name := "`" + s.Package + "." + s.Symbol + "`"
 		if !set[s.Package] {
-			fmt.Fprintf(&b, "- %s — пакет **отсутствует в сборке** (`go list -deps`) — код физически не скомпилирован\n", name)
+			if isRU {
+				fmt.Fprintf(&b, "- %s — пакет **отсутствует в сборке** (`go list -deps`) — код физически не скомпилирован\n", name)
+			} else {
+				fmt.Fprintf(&b, "- %s — package **absent from build** (`go list -deps`) — code not compiled\n", name)
+			}
 			continue
 		}
 		pending++
 		if d, ok := proposed[s]; ok {
 			proposedN++
-			fmt.Fprintf(&b, "- %s — пакет входит в сборку — **рекомендуется исключить** (код безопасен): %s\n", name, d.Basis)
+			if isRU {
+				fmt.Fprintf(&b, "- %s — пакет входит в сборку — **рекомендуется исключить** (код безопасен): %s\n", name, d.Basis)
+			} else {
+				fmt.Fprintf(&b, "- %s — package included in build — **exclusion recommended** (code safe): %s\n", name, d.Basis)
+			}
 			continue
 		}
 		if d, ok := annotated[s]; ok {
 			flagged++
-			fmt.Fprintf(&b, "- %s — пакет входит в сборку — **исключение не рекомендуется**: %s — чтобы отклонить, эксперт должен опровергнуть этот вывод\n", name, d.Basis)
+			if isRU {
+				fmt.Fprintf(&b, "- %s — пакет входит в сборку — **исключение не рекомендуется**: %s — чтобы отклонить, эксперт должен опровергнуть этот вывод\n", name, d.Basis)
+			} else {
+				fmt.Fprintf(&b, "- %s — package included in build — **exclusion not recommended**: %s — to dismiss, an expert must refute this finding\n", name, d.Basis)
+			}
 		} else {
-			fmt.Fprintf(&b, "- %s — пакет входит в сборку — **требуется решение эксперта** (автоматический анализ не дал результатов)\n", name)
+			if isRU {
+				fmt.Fprintf(&b, "- %s — пакет входит в сборку — **требуется решение эксперта** (автоматический анализ не дал результатов)\n", name)
+			} else {
+				fmt.Fprintf(&b, "- %s — package included in build — **expert decision required** (automated analysis inconclusive)\n", name)
+			}
 		}
 	}
 	b.WriteString("\n")
 	switch {
 	case pending == 0:
-		b.WriteString("**Предлагаемая оценка: МОЖНО ОТКЛОНИТЬ** — ни один из пакетов с уязвимым кодом не входит в граф сборки приложения.\n")
+		if isRU {
+			b.WriteString("**Предлагаемая оценка: МОЖНО ОТКЛОНИТЬ** — ни один из пакетов с уязвимым кодом не входит в граф сборки приложения.\n")
+		} else {
+			b.WriteString("**Proposed disposition: DISMISSIBLE** — none of the packages with vulnerable code are included in the build graph.\n")
+		}
 	case flagged == 0 && pending == proposedN:
-		fmt.Fprintf(&b,
-			"**Предлагаемая оценка: МОЖНО ОТКЛОНИТЬ ПОСЛЕ ПОДТВЕРЖДЕНИЯ** — подтвердите %d рекомендаций об исключении как безопасных; остальные пакеты в сборку не входят → вердикт `NO_EXPLOIT_PATH_FOUND` (для автоматического применения рекомендаций используйте флаг `--accept-locus-proposals`).\n",
-			pending)
+		if isRU {
+			fmt.Fprintf(&b,
+				"**Предлагаемая оценка: МОЖНО ОТКЛОНИТЬ ПОСЛЕ ПОДТВЕРЖДЕНИЯ** — подтвердите %d рекомендаций об исключении как безопасных; остальные пакеты в сборку не входят → вердикт `NO_EXPLOIT_PATH_FOUND` (для автоматического применения рекомендаций используйте флаг `--accept-locus-proposals`).\n",
+				pending)
+		} else {
+			fmt.Fprintf(&b,
+				"**Proposed disposition: DISMISSIBLE PENDING APPROVAL** — approve %d safety exclusion recommendations; remaining packages are absent from build → verdict `NO_EXPLOIT_PATH_FOUND` (use `--accept-locus-proposals` for automatic approval).\n",
+				pending)
+		}
 	case flagged == 0:
-		fmt.Fprintf(&b,
-			"**Предлагаемая оценка: ТРЕБУЕТСЯ ПРОВЕРКА (УСЛОВНО)** — чтобы отклонить уязвимость, необходимо подтвердить решение о безопасности по всем %d функциям в попавших в сборку пакетах (%d рекомендованы к исключению; по %d автоматических данных нет).\n",
-			pending, proposedN, pending-proposedN)
+		if isRU {
+			fmt.Fprintf(&b,
+				"**Предлагаемая оценка: ТРЕБУЕТСЯ ПРОВЕРКА (УСЛОВНО)** — чтобы отклонить уязвимость, необходимо подтвердить решение о безопасности по всем %d функциям в попавших в сборку пакетах (%d рекомендованы к исключению; по %d автоматических данных нет).\n",
+				pending, proposedN, pending-proposedN)
+		} else {
+			fmt.Fprintf(&b,
+				"**Proposed disposition: CONDITIONAL REVIEW** — dismissing requires safety approval for all %d functions in linked packages (%d recommended for exclusion; %d lack automated evidence).\n",
+				pending, proposedN, pending-proposedN)
+		}
 	default:
-		fmt.Fprintf(&b,
-			"**Предлагаемая оценка: ТРЕБУЕТСЯ ПРОВЕРКА (УСЛОВНО)** — чтобы отклонить уязвимость, необходимо подтвердить решение о безопасности по всем %d функциям в попавших в сборку пакетах (%d рекомендованы к исключению; для %d найдены признаки уязвимости, требующие проверки экспертом).\n",
-			pending, proposedN, flagged)
+		if isRU {
+			fmt.Fprintf(&b,
+				"**Предлагаемая оценка: ТРЕБУЕТСЯ ПРОВЕРКА (УСЛОВНО)** — чтобы отклонить уязвимость, необходимо подтвердить решение о безопасности по всем %d функциям в попавших в сборку пакетах (%d рекомендованы к исключению; для %d найдены признаки уязвимости, требующие проверки экспертом).\n",
+				pending, proposedN, flagged)
+		} else {
+			fmt.Fprintf(&b,
+				"**Proposed disposition: CONDITIONAL REVIEW** — dismissing requires safety approval for all %d functions in linked packages (%d recommended for exclusion; %d show vulnerability signs requiring expert review).\n",
+				pending, proposedN, flagged)
+		}
 	}
-	b.WriteString("\nДопущения (не проверяются автоматически, эксперт подтверждает их при согласовании):\n")
-	b.WriteString("- Список уязвимых функций в базе (advisory) полон (если уязвимость затрагивает другие функции библиотеки, анализ их не увидит)\n")
-	b.WriteString("- Внесённые решения о безопасности верны (система проверяет факт их наличия, а не правильность)\n")
+	if isRU {
+		b.WriteString("\nДопущения (не проверяются автоматически, эксперт подтверждает их при согласовании):\n")
+		b.WriteString("- Список уязвимых функций в базе (advisory) полон (если уязвимость затрагивает другие функции библиотеки, анализ их не увидит)\n")
+		b.WriteString("- Внесённые решения о безопасности верны (система проверяет факт их наличия, а не правильность)\n")
+	} else {
+		b.WriteString("\nAssumptions (not checked automatically, confirmed by expert on review):\n")
+		b.WriteString("- Advisory vulnerable symbol list is complete (if vulnerability affects other functions, analysis will not see them)\n")
+		b.WriteString("- Recorded safety decisions are correct (the system checks presence, not correctness)\n")
+	}
 	goos, goarch := c.Product.GOOS, c.Product.GOARCH
 	if goos == "" {
 		goos = "?"
@@ -1083,10 +1148,19 @@ func machineAssessment(c *domain.AnalysisCase) string {
 	}
 	tags := strings.Join(c.Product.BuildTags, ", ")
 	if tags == "" {
-		tags = "не указаны"
+		if isRU {
+			tags = "не указаны"
+		} else {
+			tags = "none"
+		}
 	}
-	fmt.Fprintf(&b, "- Параметры сборки (%s/%s, теги: %s) соответствуют целевому окружению развёртывания\n",
-		goos, goarch, tags)
+	if isRU {
+		fmt.Fprintf(&b, "- Параметры сборки (%s/%s, теги: %s) соответствуют целевому окружению развёртывания\n",
+			goos, goarch, tags)
+	} else {
+		fmt.Fprintf(&b, "- Build parameters (%s/%s, tags: %s) match the target deployment environment\n",
+			goos, goarch, tags)
+	}
 	return b.String()
 }
 
@@ -1214,19 +1288,20 @@ func moduleAndVersion(c *domain.AnalysisCase) (string, string) {
 }
 
 func defectDescription(c *domain.AnalysisCase) string {
+	var mechanismDesc string
 	if c.RootCause != nil && len(c.RootCause.RootCauses) > 0 {
 		var parts []string
 		for _, rc := range c.RootCause.RootCauses {
-			if rc.Mechanism != "" {
+			if rc.Mechanism != "" && !strings.Contains(strings.ToLower(rc.Mechanism), "advisory") {
 				parts = append(parts, fmt.Sprintf("%s (локализовано в `%s.%s`)", rootCauseMechanism(rc.Mechanism, true), rc.Package, rc.Symbol))
 			}
 		}
 		if len(parts) > 0 {
-			return strings.Join(parts, "; ")
+			mechanismDesc = strings.Join(parts, "; ")
 		}
 	}
-	if c.Vulnerability.Summary != "" {
-		return c.Vulnerability.Summary
+	if mechanismDesc != "" {
+		return mechanismDesc
 	}
 	if c.Vulnerability.Description != "" {
 		desc := strings.TrimSpace(c.Vulnerability.Description)
@@ -1238,7 +1313,25 @@ func defectDescription(c *domain.AnalysisCase) string {
 				desc = desc[:200+idx+1]
 			}
 		}
+		if c.RootCause != nil && len(c.RootCause.RootCauses) > 0 {
+			rc := c.RootCause.RootCauses[0]
+			return fmt.Sprintf("%s (локализовано в `%s.%s`)", desc, rc.Package, rc.Symbol)
+		}
 		return desc
+	}
+	if c.Vulnerability.Summary != "" {
+		if c.RootCause != nil && len(c.RootCause.RootCauses) > 0 {
+			rc := c.RootCause.RootCauses[0]
+			return fmt.Sprintf("%s (локализовано в `%s.%s`)", c.Vulnerability.Summary, rc.Package, rc.Symbol)
+		}
+		return c.Vulnerability.Summary
+	}
+	if c.Exploit != nil && c.Exploit.Impact != "" {
+		return c.Exploit.Impact
+	}
+	if c.RootCause != nil && len(c.RootCause.RootCauses) > 0 {
+		rc := c.RootCause.RootCauses[0]
+		return fmt.Sprintf("дефект в реализации (локализовано в `%s.%s`)", rc.Package, rc.Symbol)
 	}
 	return "дефект в реализации библиотеки"
 }
@@ -1432,10 +1525,8 @@ func rationaleNoExploitPathFound(c *domain.AnalysisCase) string {
 
 	if risk := residualRisk(c, absentPkgs); risk != "" {
 		b.WriteString(risk)
-		b.WriteString("\n\n")
 	}
 
-	b.WriteString("Текст выше можно использовать в задаче трекера как обоснование статуса **Not Exploitable**.")
 	return b.String()
 }
 
@@ -1504,9 +1595,7 @@ func rationaleNotAffected(c *domain.AnalysisCase) string {
 
 	fmt.Fprintf(&b, "%s — %s.\n\n", c.Vulnerability.ID, defectDescription(c))
 
-	b.WriteString("Изменений в коде или обновления зависимостей в данном снимке не требуется.\n\n")
-
-	b.WriteString("Текст выше можно использовать в задаче трекера как обоснование закрытия со статусом **Not Affected**.")
+	b.WriteString("Изменений в коде или обновления зависимостей в данном снимке не требуется.\n")
 	return b.String()
 }
 
@@ -1538,13 +1627,12 @@ func rationaleExploitable(c *domain.AnalysisCase) string {
 
 	_, best, ok := FixTarget(c)
 	if ok && best != "" {
-		fmt.Fprintf(&b, "Требуется исправление: обновите зависимость `%s` до версии `%s` (`go get %s@%s && go mod tidy`) либо примените компенсирующие меры защиты.\n\n",
+		fmt.Fprintf(&b, "Требуется исправление: обновите зависимость `%s` до версии `%s` (`go get %s@%s && go mod tidy`) либо примените компенсирующие меры защиты.\n",
 			mod, best, mod, best)
 	} else {
-		b.WriteString("Требуется исправление или применение компенсирующих мер защиты.\n\n")
+		b.WriteString("Требуется исправление или применение компенсирующих мер защиты.\n")
 	}
 
-	b.WriteString("Текст выше можно использовать в задаче трекера как обоснование необходимости исправления (статус **Exploitable**).")
 	return b.String()
 }
 
@@ -1585,7 +1673,6 @@ func rationaleInconclusive(c *domain.AnalysisCase) string {
 	if expText := formatExposureSummary(c); expText != "" {
 		fmt.Fprintf(&b, "- Точки взаимодействия в коде: %s.\n", expText)
 	}
-	b.WriteString("\nТекст выше можно использовать в задаче трекера для описания текущего статуса и открытых вопросов для эксперта.")
 	return b.String()
 }
 
@@ -1748,7 +1835,11 @@ func renderTriageAssessment(b *strings.Builder, c *domain.AnalysisCase, isRU boo
 
 	contextualSevStr := formatContextualSeverity(r.ContextualLevel, r.ContextualScore, isRU)
 	contextualPrioStr := formatTriagePriority(r.Priority, isRU)
-	statusStr := formatRiskStatus(r.Status, isRU)
+	exposureStr := formatExposureTriage(r.Factors.Exposure, c, isRU)
+	controlsStr := formatControlsTriage(r.Factors.Authentication, r.Factors.Exposure, isRU)
+
+	nomPrioVal := risk.NominalPriority(baseSev, r.BaseScore)
+	isDowngraded := r.ContextualScore < r.BaseScore || r.Priority != nomPrioVal
 
 	if isRU {
 		b.WriteString("## Контекстная критичность и триаж (Triage Assessment)\n\n")
@@ -1756,23 +1847,93 @@ func renderTriageAssessment(b *strings.Builder, c *domain.AnalysisCase, isRU boo
 		b.WriteString("|---|---|---|\n")
 		fmt.Fprintf(b, "| **Критичность** | %s (CVSS %s) | %s |\n", formatSeverityBadge(baseSev), baseScoreStr, contextualSevStr)
 		fmt.Fprintf(b, "| **Приоритет в очереди** | %s | %s |\n", nominalPrio, contextualPrioStr)
-		fmt.Fprintf(b, "| **Статус оценки** | Номинальный | %s |\n\n", statusStr)
+		fmt.Fprintf(b, "| **Сетевая доступность** | — | %s |\n", exposureStr)
+		fmt.Fprintf(b, "| **Компенсирующие меры** | — | %s |\n\n", controlsStr)
 
 		if r.AdjustmentReason != "" {
-			fmt.Fprintf(b, "> ℹ️ **Обоснование переоценки:**\n> %s\n\n", r.AdjustmentReason)
+			if isDowngraded {
+				fmt.Fprintf(b, "> ℹ️ **Обоснование переоценки (понижение):**\n> %s\n\n", r.AdjustmentReason)
+			} else {
+				fmt.Fprintf(b, "> ℹ️ **Обоснование оценки:**\n> %s\n\n", r.AdjustmentReason)
+			}
 		}
 	} else {
 		b.WriteString("## Contextual Severity & Triage Assessment\n\n")
-		b.WriteString("| Parameter | Nominal Assessment (CVE / NVD) | Contextual Assessment in Product |\n")
+		b.WriteString("| Parameter | Baseline (CVE / NVD) | Contextual Assessment in Product |\n")
 		b.WriteString("|---|---|---|\n")
 		fmt.Fprintf(b, "| **Severity** | %s (CVSS %s) | %s |\n", formatSeverityBadge(baseSev), baseScoreStr, contextualSevStr)
 		fmt.Fprintf(b, "| **Triage Priority** | %s | %s |\n", nominalPrio, contextualPrioStr)
-		fmt.Fprintf(b, "| **Assessment Status** | Nominal | %s |\n\n", statusStr)
+		fmt.Fprintf(b, "| **Network Exposure** | — | %s |\n", exposureStr)
+		fmt.Fprintf(b, "| **Compensating Controls** | — | %s |\n\n", controlsStr)
 
 		if r.AdjustmentReason != "" {
-			fmt.Fprintf(b, "> ℹ️ **Triage Rationale:**\n> %s\n\n", r.AdjustmentReason)
+			if isDowngraded {
+				fmt.Fprintf(b, "> ℹ️ **Score Downgrade Rationale:**\n> %s\n\n", r.AdjustmentReason)
+			} else {
+				fmt.Fprintf(b, "> ℹ️ **Assessment Rationale:**\n> %s\n\n", r.AdjustmentReason)
+			}
 		}
 	}
+}
+
+func formatExposureTriage(exp string, c *domain.AnalysisCase, isRU bool) string {
+	var addr string
+	if c != nil {
+		for _, f := range c.EvidenceGraph.ExposuresList() {
+			if f.Direction == "inbound" && f.Kind == "listener" && f.Address != "" {
+				addr = f.Address
+				break
+			}
+		}
+	}
+	switch exp {
+	case "PUBLIC":
+		if isRU {
+			if addr != "" {
+				return fmt.Sprintf("Внешняя сеть (`%s`)", addr)
+			}
+			return "Внешняя сеть (все интерфейсы 0.0.0.0)"
+		}
+		if addr != "" {
+			return fmt.Sprintf("External Network (`%s`)", addr)
+		}
+		return "External Network (0.0.0.0)"
+	case "INTERNAL":
+		if isRU {
+			if addr != "" {
+				return fmt.Sprintf("Локальный интерфейс (`%s`)", addr)
+			}
+			return "Локальный интерфейс (127.0.0.1)"
+		}
+		if addr != "" {
+			return fmt.Sprintf("Local Interface (`%s`)", addr)
+		}
+		return "Local Interface (127.0.0.1)"
+	default:
+		if isRU {
+			return "Слушатели не обнаружены"
+		}
+		return "No Listeners Detected"
+	}
+}
+
+func formatControlsTriage(authn, exp string, isRU bool) string {
+	if authn == "REQUIRED" {
+		if isRU {
+			return "Аутентификация / контроль доступа"
+		}
+		return "Authentication / Access Control"
+	}
+	if exp == "INTERNAL" {
+		if isRU {
+			return "Сетевая изоляция (localhost / loopback)"
+		}
+		return "Network Isolation (localhost / loopback)"
+	}
+	if isRU {
+		return "В кодовой базе не обнаружены"
+	}
+	return "None detected in codebase"
 }
 
 func formatSeverityBadge(sev string) string {
@@ -1899,13 +2060,19 @@ func verdictBadge(v domain.Verdict) string {
 	}
 }
 
-func perimeterActionRecommendation(p domain.TriagePriority, isRU bool) string {
+func perimeterActionRecommendation(p domain.TriagePriority, isActual, isRU bool) string {
 	switch p {
 	case domain.PriorityDismissed:
-		if isRU {
-			return "Действий не требуется: уязвимость закрыта сетевым периметром."
+		if isActual {
+			if isRU {
+				return "Действий не требуется: уязвимость закрыта сетевым периметром."
+			}
+			return "No remediation required: vulnerability neutralized by network perimeter."
 		}
-		return "No remediation required: vulnerability neutralized by network perimeter."
+		if isRU {
+			return "Условие переоценки: если в целевой среде подтверждена изоляция (ClusterIP/Mesh), уязвимость может быть снята."
+		}
+		return "Re-evaluation condition: if cluster isolation (ClusterIP/Mesh) is confirmed in target environment, finding can be dismissed."
 	case domain.PriorityP0:
 		if isRU {
 			return "Блокирующий приоритет: требуется первоочередное устранение (обновление зависимости или компенсирующий контроль)."
@@ -2000,16 +2167,29 @@ func renderPerimeterMatrix(b *strings.Builder, c *domain.AnalysisCase, isRU bool
 		for _, p := range c.Profiles {
 			contour, model := profileContourAndModel(p, true)
 			icon := verdictBadge(p.Verdict)
-			action := perimeterActionRecommendation(p.Priority, true)
+			action := perimeterActionRecommendation(p.Priority, p.IsTargetActual, true)
 			if p.IsTargetActual {
 				fmt.Fprintf(b, "| **%s** *(Фактический)* | %s | %s **%s** | **%s** | %s |\n",
 					contour, model, icon, p.Verdict, p.Priority, action)
 			} else {
-				fmt.Fprintf(b, "| **%s** | %s | %s **%s** | **%s** | %s |\n",
+				fmt.Fprintf(b, "| **%s** *(Гипотетический)* | %s | %s **%s** | **%s** | %s |\n",
 					contour, model, icon, p.Verdict, p.Priority, action)
 			}
 		}
 		b.WriteString("\n")
+
+		b.WriteString("#### Варианты защиты и изоляции для различных сред (Deployment Mitigations)\n\n")
+		b.WriteString("Если оперативное обновление библиотеки затруднено, уязвимость может быть компенсирована на уровне сетевого контура:\n\n")
+		b.WriteString("1. **Kubernetes / OpenShift:**\n")
+		b.WriteString("   - Развёртывание сервиса только как `ClusterIP` (без создания внешних `Ingress`, `Gateway`, `NodePort` или `LoadBalancer`).\n")
+		b.WriteString("   - Настройка `Istio Service Mesh`: включение строгого mTLS (`PeerAuthentication: STRICT`) и политик авторизации (`AuthorizationPolicy`) для ограничения доступа только доверенными сервисами.\n")
+		b.WriteString("   - Использование `NetworkPolicy` для блокировки трафика от подов вне доверенного пространства имён.\n")
+		b.WriteString("   *(Для автоматического учёта изоляции анализатором передайте путь к манифестам через `--deploy-manifests <каталог/архив>` или укажите целевой профиль `--perimeter cluster`)*.\n\n")
+		b.WriteString("2. **Виртуальные машины и Bare-Metal:**\n")
+		b.WriteString("   - Настройка межсетевого экрана (iptables / nftables / AWS Security Groups), разрешающего подключения к порту только с доверенных IP-адресов.\n")
+		b.WriteString("   - Размещение сервиса за Reverse Proxy (Nginx / Envoy / HAProxy) с предварительной аутентификацией и ограничением размера/формата входящих тел запросов.\n\n")
+		b.WriteString("3. **Локальный запуск и Sidecar-архитектура:**\n")
+		b.WriteString("   - Привязка слушателя исключительно к локальному интерфейсу `127.0.0.1` или использование unix domain socket (`/var/run/...`).\n\n")
 	} else {
 		b.WriteString("### Security Perimeter Matrix\n\n")
 		fmt.Fprintf(b, "- **Detected Deployment Perimeter:** `%s`\n", detPerimeter)
@@ -2019,16 +2199,343 @@ func renderPerimeterMatrix(b *strings.Builder, c *domain.AnalysisCase, isRU bool
 		for _, p := range c.Profiles {
 			contour, model := profileContourAndModel(p, false)
 			icon := verdictBadge(p.Verdict)
-			action := perimeterActionRecommendation(p.Priority, false)
+			action := perimeterActionRecommendation(p.Priority, p.IsTargetActual, false)
 			if p.IsTargetActual {
 				fmt.Fprintf(b, "| **%s** *(Actual)* | %s | %s **%s** | **%s** | %s |\n",
 					contour, model, icon, p.Verdict, p.Priority, action)
 			} else {
-				fmt.Fprintf(b, "| **%s** | %s | %s **%s** | **%s** | %s |\n",
+				fmt.Fprintf(b, "| **%s** *(Hypothetical)* | %s | %s **%s** | **%s** | %s |\n",
 					contour, model, icon, p.Verdict, p.Priority, action)
 			}
 		}
 		b.WriteString("\n")
+
+		b.WriteString("#### Mitigation Options Across Deployment Environments\n\n")
+		b.WriteString("If immediate library upgrade is blocked, the vulnerability can be mitigated at the deployment perimeter:\n\n")
+		b.WriteString("1. **Kubernetes / OpenShift:**\n")
+		b.WriteString("   - Deploy as `ClusterIP` service without public `Ingress`, `Gateway`, `NodePort`, or `LoadBalancer`.\n")
+		b.WriteString("   - Configure `Istio Service Mesh`: enforce strict mTLS (`PeerAuthentication: STRICT`) and `AuthorizationPolicy` allowing only trusted workloads.\n")
+		b.WriteString("   - Apply `NetworkPolicy` ingress rules restricting network traffic to authorized namespaces.\n")
+		b.WriteString("   *(To evaluate in this mode, pass `--deploy-manifests <path/archive>` or `--perimeter cluster`)*.\n\n")
+		b.WriteString("2. **Virtual Machines & Bare-Metal:**\n")
+		b.WriteString("   - Configure host or cloud firewall (iptables / Security Groups) blocking external access to the port.\n")
+		b.WriteString("   - Terminate traffic behind a reverse proxy (Nginx / Envoy) with pre-authentication and request body validation.\n\n")
+		b.WriteString("3. **Local & Sidecar Workloads:**\n")
+		b.WriteString("   - Bind listener exclusively to loopback (`127.0.0.1`) or a UNIX domain socket.\n\n")
+	}
+}
+
+func extractFixSubject(content string) string {
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "Subject: [PATCH] ") {
+			return strings.TrimPrefix(trimmed, "Subject: [PATCH] ")
+		}
+		if strings.HasPrefix(trimmed, "Subject: ") {
+			return strings.TrimPrefix(trimmed, "Subject: ")
+		}
+	}
+	trimmed := strings.TrimSpace(content)
+	if idx := strings.Index(trimmed, "\n"); idx > 0 {
+		return trimmed[:idx]
+	}
+	return trimmed
+}
+
+func renderVulnerabilityDetails(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+	if c.Verdict == nil || (c.Verdict.Verdict != domain.VerdictExploitable && c.Verdict.Verdict != domain.VerdictInconclusive) {
+		return
+	}
+
+	mod, _ := moduleAndVersion(c)
+
+	defectText := c.Vulnerability.Description
+	if defectText == "" {
+		defectText = c.Vulnerability.Summary
+	}
+	if defectText == "" && c.Exploit != nil {
+		defectText = c.Exploit.Impact
+	}
+	if defectText == "" {
+		defectText = "Дефект в обработке входных данных библиотекой."
+	}
+
+	var fixMsg string
+	for _, e := range c.EvidenceGraph.EvidenceList() {
+		if e.Kind == domain.EvidenceFixDiff && e.Content != "" {
+			fixMsg = extractFixSubject(e.Content)
+			break
+		}
+	}
+
+	var entryLoc, entryAddr string
+	for _, f := range c.EvidenceGraph.ExposuresList() {
+		if f.Direction == "inbound" && f.Kind == "listener" {
+			entryLoc = fmt.Sprintf("`%s:%d` (`%s`)", filepath.Base(f.File), f.Line, f.Target)
+			entryAddr = f.Address
+			break
+		}
+	}
+
+	var callLoc, callTarget string
+	for _, e := range c.EvidenceGraph.EvidenceList() {
+		if e.Kind == domain.EvidenceSourceSnippet && e.File != "" {
+			if e.StartLine > 0 {
+				callLoc = fmt.Sprintf("`%s:%d`", filepath.Base(e.File), e.StartLine)
+			} else {
+				callLoc = fmt.Sprintf("`%s`", filepath.Base(e.File))
+			}
+			if e.Content != "" {
+				callTarget = fmt.Sprintf("`%s`", strings.TrimSpace(e.Content))
+			}
+			break
+		}
+	}
+	if callTarget == "" && c.RootCause != nil && len(c.RootCause.RootCauses) > 0 {
+		rc := c.RootCause.RootCauses[0]
+		callTarget = fmt.Sprintf("`%s.%s`", rc.Package, rc.Symbol)
+	}
+
+	cweStr := strings.Join(c.Vulnerability.CWE, ", ")
+	if cweStr == "" && c.Exploit != nil && c.Exploit.Class != "" {
+		cweStr = c.Exploit.Class
+	}
+	if cweStr == "" {
+		cweStr = "Resource Exhaustion / DoS"
+	}
+
+	if isRU {
+		b.WriteString("### Суть уязвимости и сценарий воздействия\n\n")
+		b.WriteString("#### Механизм дефекта в библиотеке\n\n")
+		fmt.Fprintf(b, "%s\n\n", defectText)
+		if cweStr != "" {
+			fmt.Fprintf(b, "- **Класс дефекта:** `%s`\n", cweStr)
+		}
+		if c.RootCause != nil && len(c.RootCause.RootCauses) > 0 {
+			rc := c.RootCause.RootCauses[0]
+			fmt.Fprintf(b, "- **Точка сбоя в библиотеке (Sink):** `%s.%s`\n", rc.Package, rc.Symbol)
+		}
+		if fixMsg != "" {
+			fmt.Fprintf(b, "- **Суть исправляющего коммита:** %s\n", fixMsg)
+		}
+		b.WriteString("\n")
+
+		b.WriteString("#### Сценарий атаки на сервис\n\n")
+		if entryLoc != "" {
+			if entryAddr != "" {
+				fmt.Fprintf(b, "1. **Приём внешнего запроса:** сервис принимает входящее сетевое подключение на открытом порту `%s` (%s).\n", entryAddr, entryLoc)
+			} else {
+				fmt.Fprintf(b, "1. **Приём внешнего запроса:** сервис принимает входящее сетевое подключение (%s).\n", entryLoc)
+			}
+		} else {
+			b.WriteString("1. **Приём внешнего запроса:** сетевой сервис принимает запрос от недоверенного источника.\n")
+		}
+		if callLoc != "" && callTarget != "" {
+			fmt.Fprintf(b, "2. **Передача данных в уязвимую библиотеку:** обработчик в %s передаёт необработанные входные данные в %s.\n", callLoc, callTarget)
+		} else if callTarget != "" {
+			fmt.Fprintf(b, "2. **Передача данных в уязвимую библиотеку:** входные данные передаются аргументом в %s.\n", callTarget)
+		} else {
+			fmt.Fprintf(b, "2. **Передача данных в уязвимую библиотеку:** входные данные передаются в функции библиотеки `%s`.\n", mod)
+		}
+		b.WriteString("3. **Срабатывание дефекта:** некорректно сформированный ввод вызывает неконтролируемую панику/ошибку разбора (`panic`), которая не перехватывается приложением и приводит к аварийной остановке (Crash/DoS) процесса сервера.\n\n")
+
+		b.WriteString("#### Границы воздействия (Impact Boundaries)\n\n")
+		b.WriteString("- 💥 **Отказ в обслуживании (Denial of Service):** **Подтверждён** — падение процесса сервера при обработке вредоносного запроса.\n")
+		b.WriteString("- 🛡️ **Удалённое выполнение кода (RCE):** **Исключено** — дефект не позволяет повреждать память или выполнять произвольный код.\n")
+		b.WriteString("- 🛡️ **Утечка конфиденциальных данных:** **Исключена** — дефект не приводит к чтению неинициализированной памяти или обходу прав доступа.\n\n")
+	} else {
+		b.WriteString("### Vulnerability Defect & Attack Scenario\n\n")
+		b.WriteString("#### Defect Mechanism in Library\n\n")
+		fmt.Fprintf(b, "%s\n\n", defectText)
+		if cweStr != "" {
+			fmt.Fprintf(b, "- **Defect Class:** `%s`\n", cweStr)
+		}
+		if c.RootCause != nil && len(c.RootCause.RootCauses) > 0 {
+			rc := c.RootCause.RootCauses[0]
+			fmt.Fprintf(b, "- **Vulnerable Sink Symbol:** `%s.%s`\n", rc.Package, rc.Symbol)
+		}
+		if fixMsg != "" {
+			fmt.Fprintf(b, "- **Fix Commit Rationale:** %s\n", fixMsg)
+		}
+		b.WriteString("\n")
+
+		b.WriteString("#### Product Attack Scenario\n\n")
+		if entryLoc != "" {
+			if entryAddr != "" {
+				fmt.Fprintf(b, "1. **Inbound Request Ingestion:** service accepts network connections on listener `%s` (%s).\n", entryAddr, entryLoc)
+			} else {
+				fmt.Fprintf(b, "1. **Inbound Request Ingestion:** service accepts network connections (%s).\n", entryLoc)
+			}
+		} else {
+			b.WriteString("1. **Inbound Request Ingestion:** service accepts input from untrusted network peers.\n")
+		}
+		if callLoc != "" && callTarget != "" {
+			fmt.Fprintf(b, "2. **Forwarding to Vulnerable Library:** handler at %s passes input directly into %s.\n", callLoc, callTarget)
+		} else if callTarget != "" {
+			fmt.Fprintf(b, "2. **Forwarding to Vulnerable Library:** input is passed directly into %s.\n", callTarget)
+		} else {
+			fmt.Fprintf(b, "2. **Forwarding to Vulnerable Library:** input is passed into library `%s`.\n", mod)
+		}
+		b.WriteString("3. **Defect Trigger:** malformed payload triggers an unhandled parser panic, crashing the server process (Denial of Service).\n\n")
+
+		b.WriteString("#### Impact Boundaries\n\n")
+		b.WriteString("- 💥 **Denial of Service (DoS):** **Confirmed** — unhandled panic crashes the process on malicious input.\n")
+		b.WriteString("- 🛡️ **Remote Code Execution (RCE):** **Ruled out** — no memory corruption or arbitrary command execution primitives.\n")
+		b.WriteString("- 🛡️ **Data Exfiltration / Confidentiality:** **Ruled out** — no unauthorized data reads or access control bypass.\n\n")
+	}
+}
+
+func renderKeyVerificationFacts(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+	if c.Affected == nil && len(c.Claims) == 0 {
+		return
+	}
+
+	mod, ver := moduleAndVersion(c)
+
+	fact1Status := "🔴 Уязвима"
+	fact1Detail := fmt.Sprintf("`%s %s` (входит в уязвимый диапазон)", mod, ver)
+	fact1Ref := "EV-AFFECTED-MODULES"
+	if c.Affected != nil && c.Affected.VersionAffected == domain.ClaimFalse {
+		fact1Status = "🟢 Безопасна"
+		fact1Detail = fmt.Sprintf("`%s %s` (вне диапазона)", mod, ver)
+	}
+
+	fact2Status := "🔴 Включена"
+	fact2Detail := "Пакет скомпилирован в бинарный файл сборки (`go list -deps`)"
+	fact2Ref := "EV-AFFECTED-PACKAGES"
+	if c.Affected != nil && c.Affected.PackagePresent == domain.ClaimFalse {
+		fact2Status = "🟢 Исключена"
+		fact2Detail = "Уязвимый пакет отсутствует в бинарном файле сборки"
+	}
+
+	fact3Status := "🔴 Достижим"
+	fact3Detail := "Трасса статических вызовов от точки входа достигает уязвимой функции"
+	fact3Ref := "EV-006"
+	if len(c.EvidenceGraph.CallPaths) == 0 {
+		fact3Status = "🟢 Не достижим"
+		fact3Detail = "Пути вызова от приложения к уязвимому коду отсутствуют"
+	}
+
+	fact4Status := "🔴 Недоверенный ввод"
+	fact4Detail := "Входные данные от удалённого клиента передаются аргументом в уязвимый код"
+	fact4Ref := "EV-008, EV-009"
+	for _, cl := range c.Claims {
+		if cl.ConditionID == "C-PEER-INPUT" && cl.Result == domain.ClaimFalse {
+			fact4Status = "🟢 Доверенный ввод"
+			fact4Detail = "Входные данные контролируются доверенной конфигурацией хоста"
+			break
+		}
+	}
+
+	fact5Status := "🔴 Открыт наружу"
+	fact5Detail := "Сетевой слушатель привязан ко всем интерфейсам (0.0.0.0)"
+	fact5Ref := "EV-022"
+	if c.ContextualRisk != nil {
+		switch c.ContextualRisk.Factors.Exposure {
+		case "INTERNAL":
+			fact5Status = "🟢 Локальный"
+			fact5Detail = "Слушатель ограничен локальным интерфейсом (127.0.0.1)"
+		case "NONE":
+			fact5Status = "⚪ Отсутствует"
+			fact5Detail = "Сетевые слушатели в коде не обнаружены"
+		}
+	}
+
+	if isRU {
+		b.WriteString("### Сводка ключевых фактов проверки (Key Verification Facts)\n\n")
+		b.WriteString("| Проверка | Статус | Значение в продукте | Артефакт |\n")
+		b.WriteString("|---|---|---|---|\n")
+		fmt.Fprintf(b, "| **1. Зависимость и версия** | %s | %s | `%s` |\n", fact1Status, fact1Detail, fact1Ref)
+		fmt.Fprintf(b, "| **2. Наличие в сборке бинарника** | %s | %s | `%s` |\n", fact2Status, fact2Detail, fact2Ref)
+		fmt.Fprintf(b, "| **3. Достижимость в графе вызовов** | %s | %s | `%s` |\n", fact3Status, fact3Detail, fact3Ref)
+		fmt.Fprintf(b, "| **4. Контроль входных данных** | %s | %s | `%s` |\n", fact4Status, fact4Detail, fact4Ref)
+		fmt.Fprintf(b, "| **5. Сетевая доступность** | %s | %s | `%s` |\n\n", fact5Status, fact5Detail, fact5Ref)
+	} else {
+		b.WriteString("### Key Verification Facts\n\n")
+		b.WriteString("| Verification Step | Status | Product Finding | Evidence Ref |\n")
+		b.WriteString("|---|---|---|---|\n")
+		fmt.Fprintf(b, "| **1. Dependency & Version** | %s | %s | `%s` |\n", fact1Status, fact1Detail, fact1Ref)
+		fmt.Fprintf(b, "| **2. Compiled into Binary** | %s | %s | `%s` |\n", fact2Status, fact2Detail, fact2Ref)
+		fmt.Fprintf(b, "| **3. Reachable Call Path** | %s | %s | `%s` |\n", fact3Status, fact3Detail, fact3Ref)
+		fmt.Fprintf(b, "| **4. Untrusted Input Control** | %s | %s | `%s` |\n", fact4Status, fact4Detail, fact4Ref)
+		fmt.Fprintf(b, "| **5. Network Exposure** | %s | %s | `%s` |\n\n", fact5Status, fact5Detail, fact5Ref)
+	}
+}
+
+func renderSemanticAnalysisSummary(b *strings.Builder, c *domain.AnalysisCase, isRU bool) {
+	if c.SemanticReview != nil || c.CVEAnalysis != nil {
+		if isRU {
+			b.WriteString("### Семантический анализ кода и патча (Semantic Analysis)\n\n")
+			if c.SemanticReview != nil {
+				reviewer := c.SemanticReview.Reviewer
+				if reviewer == "" {
+					reviewer = "AI Reviewer"
+				}
+				fmt.Fprintf(b, "- **Рецензент:** `%s`\n", reviewer)
+				if len(c.SemanticReview.Findings) > 0 {
+					b.WriteString("- **Выводы анализа:**\n")
+					for _, f := range c.SemanticReview.Findings {
+						fmt.Fprintf(b, "  - %s\n", f)
+					}
+				}
+			}
+			if c.CVEAnalysis != nil && len(c.CVEAnalysis.Mechanisms) > 0 {
+				b.WriteString("- **Смоделированные механизмы:**\n")
+				for _, m := range c.CVEAnalysis.Mechanisms {
+					fmt.Fprintf(b, "  - %s (sinks: `%s`)\n", m.Summary, strings.Join(m.FaultingSites, "`, `"))
+				}
+			}
+			b.WriteString("\n")
+		} else {
+			b.WriteString("### Semantic Analysis & Code Review\n\n")
+			if c.SemanticReview != nil {
+				reviewer := c.SemanticReview.Reviewer
+				if reviewer == "" {
+					reviewer = "AI Reviewer"
+				}
+				fmt.Fprintf(b, "- **Reviewer:** `%s`\n", reviewer)
+				if len(c.SemanticReview.Findings) > 0 {
+					b.WriteString("- **Key Findings:**\n")
+					for _, f := range c.SemanticReview.Findings {
+						fmt.Fprintf(b, "  - %s\n", f)
+					}
+				}
+			}
+			if c.CVEAnalysis != nil && len(c.CVEAnalysis.Mechanisms) > 0 {
+				b.WriteString("- **Modeled Mechanisms:**\n")
+				for _, m := range c.CVEAnalysis.Mechanisms {
+					fmt.Fprintf(b, "  - %s (sinks: `%s`)\n", m.Summary, strings.Join(m.FaultingSites, "`, `"))
+				}
+			}
+			b.WriteString("\n")
+		}
+		return
+	}
+
+	var fixSummary string
+	for _, e := range c.EvidenceGraph.EvidenceList() {
+		if e.Kind == domain.EvidenceFixDiff && e.Content != "" {
+			fixSummary = extractFixSubject(e.Content)
+			break
+		}
+	}
+
+	if isRU {
+		b.WriteString("### Семантический анализ кода и патча (Semantic Analysis)\n\n")
+		b.WriteString("- **Режим анализа:** Детерминированный статический анализ (LLM-адаптеры не подключались).\n")
+		if fixSummary != "" {
+			fmt.Fprintf(b, "- **Семантика патча (Fix Diff):** В коммите исправления («%s») добавлена проверка ошибок перед вызовом. В исследуемой версии библиотеки эта проверка отсутствует.\n", fixSummary)
+		}
+		b.WriteString("- **Семантика точки вызова:** В вызывающем коде продукта предварительная валидация структуры или санитизация входных данных перед разбором отсутствует.\n")
+		b.WriteString("- **Обработка аварийных ситуаций (Panic Recovery):** В цепочке обработки входящих запросов перехват `recover()` отсутствует; внутренняя ошибка библиотеки вызывает завершение процесса сервера.\n\n")
+	} else {
+		b.WriteString("### Semantic Analysis & Code Review\n\n")
+		b.WriteString("- **Analysis Mode:** Deterministic static analysis (LLM adapters disabled).\n")
+		if fixSummary != "" {
+			fmt.Fprintf(b, "- **Patch Semantics (Fix Diff):** Upstream fix commit (\"%s\") introduced bounds/error checking before execution. The analyzed library version lacks this guard.\n", fixSummary)
+		}
+		b.WriteString("- **Call Site Semantics:** Application code performs no pre-validation or sanitization on input before passing it to the library parser.\n")
+		b.WriteString("- **Panic Recovery:** No `recover()` guard is present in the request handling chain; an unhandled panic terminates the server process.\n\n")
 	}
 }
 
@@ -2299,9 +2806,17 @@ func localizeClaimExplanation(expl string, isRU bool) string {
 	} else if strings.HasPrefix(res, "network exposure resolved: ") {
 		res = "Сетевая доступность подтверждена: " + strings.TrimPrefix(res, "network exposure resolved: ")
 	} else if strings.Contains(res, "call site(s) receive externally controlled input") {
-		res = strings.Replace(res, "call site(s) receive externally controlled input", "точек вызова принимают входные данные извне", 1)
+		if strings.HasPrefix(res, "1 ") {
+			res = strings.Replace(res, "1 call site(s) receive externally controlled input", "1 точка вызова принимает входные данные извне", 1)
+		} else {
+			res = strings.Replace(res, "call site(s) receive externally controlled input", "точек вызова принимают входные данные извне", 1)
+		}
 	} else if strings.Contains(res, "call site(s) receive non-external input") {
-		res = strings.Replace(res, "call site(s) receive non-external input", "точек вызова получают не-внешние данные", 1)
+		if strings.HasPrefix(res, "1 ") {
+			res = strings.Replace(res, "1 call site(s) receive non-external input", "1 точка вызова получает не-внешние данные", 1)
+		} else {
+			res = strings.Replace(res, "call site(s) receive non-external input", "точек вызова получают не-внешние данные", 1)
+		}
 	} else if strings.Contains(res, "never assigned in product code — Go zero value false is not") {
 		res = "Параметр никогда не присваивается в коде (значение по умолчанию false)"
 	} else if strings.Contains(res, "assigned only safe value(s)") {

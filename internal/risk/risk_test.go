@@ -1,6 +1,7 @@
 package risk
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/fedorovmv/izyan/internal/domain"
@@ -94,9 +95,6 @@ func TestAssess_Exploitable_PublicUnauth_BlockerP0(t *testing.T) {
 	if res.ContextualScore != 10.0 {
 		t.Fatalf("expected score 10.0, got %v", res.ContextualScore)
 	}
-	if res.SLA != "Immediate (Blocker)" {
-		t.Fatalf("expected Immediate (Blocker) SLA, got %q", res.SLA)
-	}
 	if res.Factors.Exposure != "PUBLIC" {
 		t.Fatalf("expected Exposure PUBLIC, got %s", res.Factors.Exposure)
 	}
@@ -127,15 +125,19 @@ func TestAssess_Exploitable_MediumBase_SeverityNotElevated(t *testing.T) {
 	}
 
 	res := Assess(v, c, vr)
-	if res.Priority != domain.PriorityP0 {
-		t.Fatalf("expected PriorityP0, got %s", res.Priority)
+	// Crucial invariant: priority and severity level must NOT be inflated beyond nominal!
+	// A Medium vulnerability unmitigated remains P2, NEVER escalated to P0.
+	if res.Priority != domain.PriorityP2 {
+		t.Fatalf("expected PriorityP2 (capped at nominal), got %s", res.Priority)
 	}
-	// Crucial invariant: severity level and score must NOT be inflated beyond base!
 	if res.ContextualLevel != domain.RiskLevelMedium {
 		t.Fatalf("expected RiskLevelMedium, got %s (must not be elevated to CRITICAL)", res.ContextualLevel)
 	}
 	if res.ContextualScore != 5.0 {
 		t.Fatalf("expected score 5.0, got %v (must not be elevated to 10.0)", res.ContextualScore)
+	}
+	if !strings.Contains(res.AdjustmentReason, "Повышение критичности не производится") {
+		t.Fatalf("expected non-escalation rationale, got %q", res.AdjustmentReason)
 	}
 }
 

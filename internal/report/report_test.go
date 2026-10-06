@@ -105,6 +105,18 @@ func TestMachineAssessment(t *testing.T) {
 			t.Fatalf("assessment=%q", n)
 		}
 	})
+	t.Run("exploitable verdict suppresses dismissal and affirms exploitation", func(t *testing.T) {
+		c := base(`{"ImportPath":"x/internal/transport"}` + "\n" + `{"ImportPath":"x"}`)
+		c.Verdict = &domain.VerdictResult{Verdict: domain.VerdictExploitable}
+		nRU := machineAssessment(c, true)
+		if strings.Contains(nRU, "ОТКЛОНИТЬ") || !strings.Contains(nRU, "Уязвимость подтверждена и эксплуатируема") {
+			t.Fatalf("unexpected RU assessment for exploitable: %q", nRU)
+		}
+		nEN := machineAssessment(c, false)
+		if strings.Contains(nEN, "DISMISSIBLE") || !strings.Contains(nEN, "confirmed exploitable") {
+			t.Fatalf("unexpected EN assessment for exploitable: %q", nEN)
+		}
+	})
 }
 
 func TestTrackerRationale(t *testing.T) {
@@ -214,9 +226,9 @@ func TestTrackerRationale(t *testing.T) {
 			!strings.Contains(r, "v1.82.2") {
 			t.Fatalf("missing residual risk or fixed version: %s", r)
 		}
-		// 9. Tracker closing
-		if !strings.Contains(r, "Текст выше можно использовать в задаче трекера как обоснование статуса **Not Exploitable**") {
-			t.Fatalf("missing tracker closing: %s", r)
+		// 9. Tracker closing - ensure boilerplate meta-text is removed
+		if strings.Contains(r, "Текст выше можно использовать в задаче трекера") {
+			t.Fatalf("unexpected boilerplate tracker closing: %s", r)
 		}
 	})
 
@@ -1213,7 +1225,16 @@ func TestReportTriageAssessmentTable(t *testing.T) {
 	if !strings.Contains(mdRU, "**P2 (Плановый спринт)**") {
 		t.Errorf("RU markdown missing contextual priority:\n%s", mdRU)
 	}
-	if !strings.Contains(mdRU, "> ℹ️ **Обоснование переоценки:**") {
+	if strings.Contains(mdRU, "Статус оценки") {
+		t.Errorf("RU markdown should not contain internal Статус оценки row:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "**Сетевая доступность**") {
+		t.Errorf("RU markdown missing Сетевая доступность row:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "**Компенсирующие меры**") {
+		t.Errorf("RU markdown missing Компенсирующие меры row:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "> ℹ️ **Обоснование переоценки (понижение):**") {
 		t.Errorf("RU markdown missing adjustment reason header:\n%s", mdRU)
 	}
 
@@ -1225,7 +1246,16 @@ func TestReportTriageAssessmentTable(t *testing.T) {
 	if !strings.Contains(mdEN, "**P2 (Scheduled Sprint)**") {
 		t.Errorf("EN markdown missing contextual priority:\n%s", mdEN)
 	}
-	if !strings.Contains(mdEN, "> ℹ️ **Triage Rationale:**") {
+	if strings.Contains(mdEN, "Assessment Status") {
+		t.Errorf("EN markdown should not contain internal Assessment Status row:\n%s", mdEN)
+	}
+	if !strings.Contains(mdEN, "**Network Exposure**") {
+		t.Errorf("EN markdown missing Network Exposure row:\n%s", mdEN)
+	}
+	if !strings.Contains(mdEN, "**Compensating Controls**") {
+		t.Errorf("EN markdown missing Compensating Controls row:\n%s", mdEN)
+	}
+	if !strings.Contains(mdEN, "> ℹ️ **Score Downgrade Rationale:**") {
 		t.Errorf("EN markdown missing triage rationale header:\n%s", mdEN)
 	}
 
@@ -1833,7 +1863,7 @@ func TestReportMarkdown_EvidenceRegisterAndNoSLA(t *testing.T) {
 	if !strings.Contains(mdRU, "Трасса вызовов govulncheck достигает уязвимых символов библиотеки") {
 		t.Errorf("expected localized C-REACH explanation in Claims table:\n%s", mdRU)
 	}
-	if !strings.Contains(mdRU, "точек вызова принимают входные данные извне") {
+	if !strings.Contains(mdRU, "принимает входные данные извне") && !strings.Contains(mdRU, "точек вызова принимают входные данные извне") {
 		t.Errorf("expected localized C-PEER-INPUT explanation in Claims table:\n%s", mdRU)
 	}
 

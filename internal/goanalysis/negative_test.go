@@ -338,6 +338,27 @@ func TestNegativeVerification_InterfaceDispatchUninstantiatedType(t *testing.T) 
 		t.Fatalf("expected NegativeVerified for uninstantiated SafeFormatter.String, got status=%v notes=%q",
 			out2.NegativeVerification.Status, out2.NegativeVerification.Notes)
 	}
+
+	// 3. DepInternalFormatter.String: DepInternalFormatter is instantiated inside
+	// the dependency package itself, but NEVER in product packages.
+	// Interface dispatch in product code cannot reach it, so NegativeVerification
+	// must remain NegativeVerified.
+	depInternalSym := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "DepInternalFormatter.String"}
+	claim3 := domain.Claim{
+		ConditionID: "C-REACH",
+		Result:      domain.ClaimFalse,
+		Falsifier:   domain.FalsifierGovulncheckSilence,
+	}
+	cond3 := domain.Condition{
+		ID:       "C-REACH",
+		Kind:     domain.ConditionSymbolReachable,
+		Subjects: []domain.SymbolRef{depInternalSym},
+	}
+	out3 := v.VerifyFalse(context.Background(), c, claim3, cond3)
+	if out3.NegativeVerification == nil || out3.NegativeVerification.Status != domain.NegativeVerified {
+		t.Fatalf("expected NegativeVerified for DepInternalFormatter.String (instantiated only inside dep), got status=%v notes=%q",
+			out3.NegativeVerification.Status, out3.NegativeVerification.Notes)
+	}
 }
 
 func TestNegativeVerification_GovulncheckSilenceScopesToLocusSubjects(t *testing.T) {

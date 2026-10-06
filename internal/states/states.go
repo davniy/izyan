@@ -897,7 +897,7 @@ func (h CollectEvidence) collectIngress(ctx context.Context, c *domain.AnalysisC
 	if isStdlibModule(c.Vulnerability.Module) {
 		return
 	}
-	closure, evs, err := h.Source.IngressInventory(ctx, c.Vulnerability.Module, subjects, 0)
+	closure, evs, err := h.Source.IngressInventory(ctx, c.Vulnerability.Module, subjects, sinkClosureHops)
 	if err != nil {
 		c.EvidenceGraph.AddToolLimitation(fmt.Sprintf(
 			"ingress inventory %s (cond %s): %v", c.Vulnerability.Module, cond.ID, err))
@@ -977,7 +977,7 @@ func dedupSubjects(in []domain.SymbolRef) []domain.SymbolRef {
 // traceArgs traces a single argument (ArgIndex >= 0) or every argument
 // (ArgIndex < 0, when the input parameter is unknown) at a call site.
 func (h CollectEvidence) traceArgs(ctx context.Context, site domain.CallSite, cond domain.Condition) ([]domain.DataFlow, []domain.Evidence, error) {
-	if cond.ArgIndex < 0 {
+	if cond.ArgIndex < 0 && cond.ArgIndex != domain.ArgReceiver {
 		return h.Source.TraceAllArguments(ctx, site)
 	}
 	flow, evs, err := h.Source.TraceArgument(ctx, site, cond.ArgIndex)
@@ -1047,7 +1047,7 @@ func (h CollectEvidence) collectProvenance(ctx context.Context, c *domain.Analys
 		var vals []domain.Validation
 		var vev []domain.Evidence
 		var verr error
-		if cond.ArgIndex < 0 {
+		if cond.ArgIndex < 0 && cond.ArgIndex != domain.ArgReceiver {
 			vals, vev, verr = h.Source.FindAllValidations(ctx, site)
 		} else {
 			vals, vev, verr = h.Source.FindValidations(ctx, site, cond.ArgIndex)

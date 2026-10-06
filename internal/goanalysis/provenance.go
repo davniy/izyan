@@ -64,8 +64,27 @@ func (ix *Index) TraceArgumentBound(ctx context.Context, site domain.CallSite, a
 	return ix.TraceArgument(ctx, site, argIndex)
 }
 
+func callReceiverExpr(pkg *packages.Package, call *ast.CallExpr) ast.Expr {
+	if call == nil {
+		return nil
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || sel.X == nil {
+		return nil
+	}
+	if pkg != nil && pkg.TypesInfo != nil {
+		if id, ok := sel.X.(*ast.Ident); ok {
+			if _, isPkg := pkg.TypesInfo.Uses[id].(*types.PkgName); isPkg {
+				return nil
+			}
+		}
+	}
+	return sel.X
+}
+
 // TraceArgument classifies the data origin of the argument at argIndex of
-// the call site (File+Line locate the call expression).
+// the call site (File+Line locate the call expression). Special index
+// domain.ArgReceiver (-2) requests the call's receiver expression.
 func (ix *Index) TraceArgument(ctx context.Context, site domain.CallSite, argIndex int) (domain.DataFlow, []domain.Evidence, error) {
 	ix.mu.Lock()
 	defer ix.mu.Unlock()
@@ -82,10 +101,19 @@ func (ix *Index) TraceArgument(ctx context.Context, site domain.CallSite, argInd
 		return flow, nil, err
 	}
 	flow.Arg = argIndex
-	if argIndex >= len(call.Args) {
+	var targetExpr ast.Expr
+	if argIndex == domain.ArgReceiver {
+		recv := callReceiverExpr(pkg, call)
+		if recv == nil {
+			return flow, nil, fmt.Errorf("call site %v has no receiver expression, receiver requested", site)
+		}
+		targetExpr = recv
+	} else if argIndex >= 0 && argIndex < len(call.Args) {
+		targetExpr = call.Args[argIndex]
+		flow.PayloadUnproven = payloadUnprovenParameter(pkg, call, argIndex)
+	} else {
 		return flow, nil, fmt.Errorf("call site has %d args, arg %d requested", len(call.Args), argIndex)
 	}
-	flow.PayloadUnproven = payloadUnprovenParameter(pkg, call, argIndex)
 	// Collect the transformation chain: every call the traced value passes
 	// through, recorded by classifyCall while txBuf is set. Held under the
 	// same mutex as the rest of the trace — nil outside TraceArgument.
@@ -96,7 +124,7 @@ func (ix *Index) TraceArgument(ctx context.Context, site domain.CallSite, argInd
 	ix.paramCache = map[string]classifyResult{}
 	ix.classifyCache = map[classifyKey]classifyResult{}
 	ix.evalBudget = maxEvalBudget
-	origin, why := ix.classify(pkg, enc, call.Args[argIndex], 0)
+	origin, why := ix.classify(pkg, enc, targetExpr, 0)
 	ix.txBuf = nil
 	ix.txSeen = nil
 	ix.traceSeen = nil
@@ -106,7 +134,7 @@ func (ix *Index) TraceArgument(ctx context.Context, site domain.CallSite, argInd
 	ix.evalBudget = 0
 	flow.Origin = origin
 	flow.Summary = why
-	if v, ok := exprIntValue(pkg.TypesInfo, call.Args[argIndex]); ok {
+	if v, ok := exprIntValue(pkg.TypesInfo, targetExpr); ok {
 		flow.Value = &v
 	}
 	flow.Transformations = dedupSites(tx)
@@ -2425,6 +2453,31 @@ func (ix *Index) TraceAllArguments(ctx context.Context, site domain.CallSite) ([
 		File:    site.File,
 		Content: src,
 	})
+	if recv := callReceiverExpr(pkg, call); recv != nil {
+		var tx []domain.CallSite
+		ix.txBuf = &tx
+		ix.traceSeen = map[types.Object]bool{}
+		ix.paramSeen = map[string]bool{}
+		ix.paramCache = map[string]classifyResult{}
+		ix.classifyCache = map[classifyKey]classifyResult{}
+		ix.evalBudget = maxEvalBudget
+		origin, why := ix.classify(pkg, enc, recv, 0)
+		ix.txBuf = nil
+		ix.txSeen = nil
+		ix.traceSeen = nil
+		ix.paramSeen = nil
+		ix.paramCache = nil
+		ix.classifyCache = nil
+		ix.evalBudget = 0
+		flows = append(flows, domain.DataFlow{
+			Arg:             domain.ArgReceiver,
+			Sink:            site,
+			Source:          site,
+			Origin:          origin,
+			Transformations: dedupSites(tx),
+			Summary:         fmt.Sprintf("recv: %s", why),
+		})
+	}
 	for i := range call.Args {
 		var tx []domain.CallSite
 		ix.txBuf = &tx
@@ -2546,7 +2599,54 @@ func (ix *Index) InputParamIndex(ref domain.SymbolRef) (int, int, error) {
 			i++
 		}
 	}
+	if bestScore == 0 && decl.Recv != nil && len(decl.Recv.List) > 0 {
+		rf := decl.Recv.List[0]
+		rstr := ""
+		if dp != nil && dp.TypesInfo != nil {
+			if t := dp.TypesInfo.TypeOf(rf.Type); t != nil {
+				rstr = t.String()
+			}
+		}
+		if rstr == "" && rf.Type != nil {
+			rstr = astRecvTypeName(rf.Type)
+		}
+		if s := receiverInputScore(rstr); s > 0 {
+			return domain.ArgReceiver, i, nil
+		}
+	}
 	return best, i, nil
+}
+
+func astRecvTypeName(e ast.Expr) string {
+	switch x := e.(type) {
+	case *ast.StarExpr:
+		return astRecvTypeName(x.X)
+	case *ast.Ident:
+		return x.Name
+	case *ast.SelectorExpr:
+		return x.Sel.Name
+	default:
+		return ""
+	}
+}
+
+func receiverInputScore(t string) int {
+	name := t
+	if idx := strings.LastIndex(name, "."); idx >= 0 {
+		name = name[idx+1:]
+	}
+	name = strings.TrimPrefix(name, "*")
+	switch {
+	case strings.HasSuffix(name, "Expr"),
+		strings.HasSuffix(name, "Expression"),
+		strings.HasSuffix(name, "Query"),
+		strings.HasSuffix(name, "Pattern"),
+		strings.HasSuffix(name, "Filter"),
+		strings.HasSuffix(name, "Selector"),
+		strings.HasSuffix(name, "Rule"):
+		return 3
+	}
+	return 0
 }
 
 // funcDeclAt locates the FuncDecl for a symbol — reusing the definition

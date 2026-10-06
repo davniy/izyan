@@ -288,10 +288,10 @@ func (h GapAnalysis) actDeepTrace(ctx context.Context, c *domain.AnalysisCase, c
 	// carry f.Arg per flow; falling back to cond.ArgIndex would re-trace
 	// arg 0 and leave the unknown arg untouched.
 	arg := f.Arg
-	if arg < 0 {
+	if arg < 0 && arg != domain.ArgReceiver {
 		arg = cond.ArgIndex
 	}
-	if arg < 0 {
+	if arg < 0 && arg != domain.ArgReceiver {
 		arg = 0
 	}
 	c.IncToolCalls()

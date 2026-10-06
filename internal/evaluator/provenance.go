@@ -316,6 +316,7 @@ func closureGate(c *domain.AnalysisCase, claim domain.Claim, cl *domain.IngressC
 			if allOk {
 				hasUnsafeBoundary := false
 				if cl != nil {
+					cond := findCondition(c.Exploit, claim.ConditionID)
 					for _, it := range cl.Items {
 						if it.Kind == domain.IngressBoundaryArg || it.Kind == domain.IngressBoundaryReceiver || it.Kind == domain.IngressObjectState {
 							// Receivers or object states that do not reach any vulnerable symbol cannot influence the vulnerability.
@@ -324,6 +325,15 @@ func closureGate(c *domain.AnalysisCase, claim domain.Claim, cl *domain.IngressC
 							}
 							// For unmarshaling/decoding functions, arg > 0 is the destination output struct being populated, not the input payload.
 							if it.Kind == domain.IngressBoundaryArg && it.Arg > 0 && isPopulateCallee(it.Callee) {
+								continue
+							}
+							// When verifying a receiver-pinned condition (ArgReceiver), boundary arguments
+							// to non-constructor methods do not feed the method receiver.
+							if cond != nil && cond.ArgIndex == domain.ArgReceiver && it.Kind == domain.IngressBoundaryArg && calleeIsMethod(it.Callee) {
+								continue
+							}
+							// A receiver on a non-subject method cannot influence the vulnerable query AST receiver.
+							if cond != nil && cond.ArgIndex == domain.ArgReceiver && it.Kind == domain.IngressBoundaryReceiver && !isSubjectSymbol(it.Callee, cond.Subjects) {
 								continue
 							}
 							if claim.Falsifier == domain.FalsifierConstantOrGeneratedInput && !domain.SafeOrigin(it.Origin) {
@@ -722,4 +732,39 @@ func isPopulateCallee(callee string) bool {
 	default:
 		return false
 	}
+}
+
+func findCondition(m *domain.ExploitModel, id domain.ConditionID) *domain.Condition {
+	if m == nil {
+		return nil
+	}
+	for i := range m.MandatoryConditions {
+		if m.MandatoryConditions[i].ID == id {
+			return &m.MandatoryConditions[i]
+		}
+	}
+	for i := range m.SupportingFactors {
+		if m.SupportingFactors[i].ID == id {
+			return &m.SupportingFactors[i]
+		}
+	}
+	return nil
+}
+
+func calleeIsMethod(callee string) bool {
+	name := callee
+	if idx := strings.LastIndex(callee, "/"); idx >= 0 {
+		name = callee[idx+1:]
+	}
+	return strings.Count(name, ".") >= 2
+}
+
+func isSubjectSymbol(callee string, subjects []domain.SymbolRef) bool {
+	for _, s := range subjects {
+		key := s.Package + "." + s.Symbol
+		if callee == key {
+			return true
+		}
+	}
+	return false
 }

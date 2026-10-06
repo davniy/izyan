@@ -356,11 +356,20 @@ func (s *ingressScan) calleeKey(fn *types.Func) string {
 	return p
 }
 
+func (s *ingressScan) resetTrace() {
+	s.ix.traceSeen = map[types.Object]bool{}
+	s.ix.paramSeen = map[string]bool{}
+	s.ix.paramCache = map[string]classifyResult{}
+	s.ix.classifyCache = map[classifyKey]classifyResult{}
+	s.ix.evalBudget = maxEvalBudget
+}
+
 // inventoryEntries classifies every argument, method receiver and
 // writable object-state piece of each boundary entry.
 func (s *ingressScan) inventoryEntries() {
 	for _, e := range s.entries {
 		for i, arg := range e.call.Args {
+			s.resetTrace()
 			o, w := s.ix.classify(e.pkg, e.enc, arg, 0)
 			s.addItem(domain.IngressItem{
 				CallSite: e.site,
@@ -378,6 +387,7 @@ func (s *ingressScan) inventoryEntries() {
 		}
 		if sel, ok := e.call.Fun.(*ast.SelectorExpr); ok {
 			if _, isSel := e.pkg.TypesInfo.Selections[sel]; isSel {
+				s.resetTrace()
 				o, w := s.ix.classify(e.pkg, e.enc, sel.X, 0)
 				s.addItem(domain.IngressItem{
 					CallSite: e.site,

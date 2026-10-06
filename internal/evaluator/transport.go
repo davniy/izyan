@@ -106,6 +106,40 @@ func (ServerTransportInput) Evaluate(cond domain.Condition, c *domain.AnalysisCa
 			}
 		}
 	}
+
+	role := cond.Params[domain.ParamProtocolRole]
+	if role == "" && c != nil && c.Exploit != nil {
+		role = string(c.Exploit.ProtocolRole)
+	}
+
+	if role == string(domain.ProtocolRoleServer) {
+		hasInbound := hasInboundTransport(c, frames, module)
+		hasOutbound := hasOutboundTransport(c, module)
+		if !hasInbound && hasOutbound {
+			claim.Result = domain.ClaimFalse
+			claim.Falsifier = domain.FalsifierProtocolRoleMismatch
+			claim.Explanation = "vulnerability is server-side (requires incoming requests), but product has no inbound server listener for the vulnerable module (outbound clients only)"
+			claim.NegativeVerification = &domain.NegativeVerification{
+				Status: domain.NegativeVerified,
+				Notes:  "protocol role mismatch: server-side vulnerability unreached on pure-client usage",
+			}
+			return claim
+		}
+	}
+	if role == string(domain.ProtocolRoleClient) {
+		hasOutbound := hasOutboundTransport(c, module)
+		if !hasOutbound {
+			claim.Result = domain.ClaimFalse
+			claim.Falsifier = domain.FalsifierProtocolRoleMismatch
+			claim.Explanation = "vulnerability is client-side (requires outbound response parsing), but product has no outbound client call sites into the vulnerable module"
+			claim.NegativeVerification = &domain.NegativeVerification{
+				Status: domain.NegativeVerified,
+				Notes:  "protocol role mismatch: client-side vulnerability unreached on pure-server usage",
+			}
+			return claim
+		}
+	}
+
 	if len(frames) == 0 {
 		// Dep-internal argument provenance recorded for this condition
 		// outranks the structural heuristic below: a resolved origin —
@@ -259,4 +293,71 @@ func parseSymbolToCallSite(sym string) domain.CallSite {
 		return domain.CallSite{Package: pkg, Receiver: recv, Function: fn}
 	}
 	return domain.CallSite{Package: rest, Function: fn}
+}
+
+var dialNameRe = regexp.MustCompile(`(?i)dial|^connect$|^open$|^newclient$`)
+
+func hasInboundTransport(c *domain.AnalysisCase, frames []string, module string) bool {
+	if len(frames) > 0 {
+		return true
+	}
+	if c == nil {
+		return false
+	}
+	for _, e := range c.EvidenceGraph.Entrypoints {
+		if e.Kind == "listener" {
+			return true
+		}
+	}
+	for _, f := range c.EvidenceGraph.ExposuresList() {
+		if f.Direction == "inbound" || f.Kind == "listener" {
+			return true
+		}
+	}
+	return false
+}
+
+func hasOutboundTransport(c *domain.AnalysisCase, module string) bool {
+	if c == nil {
+		return false
+	}
+	for _, f := range c.EvidenceGraph.ExposuresList() {
+		if f.Direction == "outbound" || f.Kind == "dial" {
+			if isTargetingModule(f.Target, f.Callee, f.Package, f.ModuleOwner, module) {
+				return true
+			}
+		}
+	}
+	for _, u := range c.EvidenceGraph.ModuleUsages {
+		if module != "" && u.ModuleOwner != "" && u.ModuleOwner != module {
+			continue
+		}
+		if dialNameRe.MatchString(u.Function) || dialNameRe.MatchString(u.Callee) {
+			return true
+		}
+	}
+	for _, cp := range c.EvidenceGraph.CallPaths {
+		for _, fr := range cp.Frames {
+			if module != "" && fr.Package != module && !strings.HasPrefix(fr.Package, module+"/") {
+				continue
+			}
+			if dialNameRe.MatchString(fr.Function) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isTargetingModule(target, callee, pkg, owner, module string) bool {
+	if module == "" {
+		return true
+	}
+	if target == "" && callee == "" && pkg == "" && owner == "" {
+		return true
+	}
+	return strings.HasPrefix(target, module) ||
+		strings.HasPrefix(callee, module) ||
+		strings.HasPrefix(pkg, module) ||
+		owner == module
 }

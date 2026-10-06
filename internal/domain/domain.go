@@ -250,6 +250,15 @@ const (
 	OriginUnknown               DataOrigin = "UNKNOWN"
 )
 
+type ProtocolRole string
+
+const (
+	ProtocolRoleUnknown   ProtocolRole = ""
+	ProtocolRoleServer    ProtocolRole = "server"
+	ProtocolRoleClient    ProtocolRole = "client"
+	ProtocolRoleSymmetric ProtocolRole = "symmetric"
+)
+
 // SafeOrigin reports whether a provenance origin is proven non-external —
 // the value is a compile-time constant or a generated value whose inputs
 // are all safe. Everything else is either attacker-capable,
@@ -267,6 +276,8 @@ const (
 	// come from: "peer" (remote peer of a listener/dialed service), "arg"
 	// (a product-code call argument) or "config" (deployment config).
 	ParamInputSource = "input_source"
+	// ParamProtocolRole declares the required protocol role: "server", "client", or "symmetric".
+	ParamProtocolRole = "protocol_role"
 	// ParamDirection selects the reachability direction: "read" looks for
 	// readers of the subject (data exposure), not paths to a sink.
 	ParamDirection = "direction"
@@ -387,11 +398,12 @@ type ExploitModel struct {
 	// Class is the inferred vulnerability class (INFO_LEAK, URI_CONFUSION,
 	// ...) that selected the exploit pattern; "UNKNOWN" for the generic
 	// fallback model.
-	Class               string      `json:"class,omitempty"`
-	Impact              string      `json:"impact"`
-	RootCauses          []SymbolRef `json:"root_causes"`
-	MandatoryConditions []Condition `json:"mandatory_conditions"`
-	SupportingFactors   []Condition `json:"supporting_factors,omitempty"`
+	Class               string       `json:"class,omitempty"`
+	Impact              string       `json:"impact"`
+	ProtocolRole        ProtocolRole `json:"protocol_role,omitempty"`
+	RootCauses          []SymbolRef  `json:"root_causes"`
+	MandatoryConditions []Condition  `json:"mandatory_conditions"`
+	SupportingFactors   []Condition  `json:"supporting_factors,omitempty"`
 	// UnresolvedSubjects are advisory-declared sinks that failed source
 	// verification or were resolved by package absence — the modeled
 	// conditions cover only the verified-present sinks, so EXPLOITABLE
@@ -550,6 +562,10 @@ const (
 	// FalsifierLoopbackOnly grounds FALSE for exposure conditions requiring public scope
 	// when all resolved network binds are strictly loopback/unix/cluster-internal.
 	FalsifierLoopbackOnly = "loopback-only"
+	// FalsifierProtocolRoleMismatch grounds FALSE when a vulnerability requires
+	// a specific protocol role (server or client) that is contradicted by the product's
+	// exclusive deployment mode (e.g. pure-client usage on a server-side vulnerability).
+	FalsifierProtocolRoleMismatch = "protocol-role-mismatch"
 )
 
 // FalsifierBasis values for Claim.FalsifierBasis and VerdictResult.GroundBasis.

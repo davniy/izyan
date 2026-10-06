@@ -588,7 +588,7 @@ func TestMarkdownLocalizationRU(t *testing.T) {
 			"> **Обязательное условие эксплуатации опровергнуто (уязвимый путь исполнения отсутствует)**",
 			"## Резюме",
 			"## Рекомендации по устранению",
-			"Обновите зависимость `example.com/mod` с `v1.0.0` до `v1.2.0`:",
+			"Обновите зависимость `example.com/mod` с `v1.0.0` до `v1.2.0` (совместимо по SemVer: minor/patch, без изменения импортов):",
 			"## Доказательная база",
 			"### Применимость (Affected Analysis)",
 			"| Проверка | Результат |",
@@ -666,7 +666,7 @@ func TestMarkdownLocalizationEN(t *testing.T) {
 		"> **mandatory exploit condition is proven false**",
 		"## Executive Summary",
 		"## Remediation",
-		"Update `example.com/mod` from `v1.0.0` to `v1.2.0`:",
+		"Update `example.com/mod` from `v1.0.0` to `v1.2.0` (SemVer drop-in: minor/patch, no import path changes):",
 		"## Evidence Dossier",
 		"### Verification Sources & Methods (Methodology)",
 		"### Affected Analysis",
@@ -1380,4 +1380,176 @@ func TestReportMarkdown_DualTrackPerimeterMatrix_EN(t *testing.T) {
 	if !foundClusterActual {
 		t.Errorf("expected *(Actual)* to be on the cluster row:\n%s", md)
 	}
+}
+
+func TestFixCompatibility(t *testing.T) {
+	tests := []struct {
+		name      string
+		resolved  string
+		fixed     string
+		wantDrop  bool
+		wantMajor bool
+		wantOK    bool
+	}{
+		{
+			name:      "minor/patch same major is drop-in",
+			resolved:  "v1.2.0",
+			fixed:     "v1.2.4",
+			wantDrop:  true,
+			wantMajor: false,
+			wantOK:    true,
+		},
+		{
+			name:      "different major is major bump",
+			resolved:  "v1.2.0",
+			fixed:     "v2.0.1",
+			wantDrop:  false,
+			wantMajor: true,
+			wantOK:    true,
+		},
+		{
+			name:      "un-prefixed versions same major is drop-in",
+			resolved:  "1.2.0",
+			fixed:     "1.3.0",
+			wantDrop:  true,
+			wantMajor: false,
+			wantOK:    true,
+		},
+		{
+			name:      "empty resolved",
+			resolved:  "",
+			fixed:     "v1.2.4",
+			wantDrop:  false,
+			wantMajor: false,
+			wantOK:    false,
+		},
+		{
+			name:      "empty fixed",
+			resolved:  "v1.2.0",
+			fixed:     "",
+			wantDrop:  false,
+			wantMajor: false,
+			wantOK:    false,
+		},
+		{
+			name:      "invalid resolved",
+			resolved:  "not-a-semver",
+			fixed:     "v1.2.4",
+			wantDrop:  false,
+			wantMajor: false,
+			wantOK:    false,
+		},
+		{
+			name:      "invalid fixed",
+			resolved:  "v1.2.0",
+			fixed:     "not-a-semver",
+			wantDrop:  false,
+			wantMajor: false,
+			wantOK:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotDrop, gotMajor, gotOK := FixCompatibility(tt.resolved, tt.fixed)
+			if gotDrop != tt.wantDrop || gotMajor != tt.wantMajor || gotOK != tt.wantOK {
+				t.Fatalf("FixCompatibility(%q, %q) = (%v, %v, %v), want (%v, %v, %v)",
+					tt.resolved, tt.fixed, gotDrop, gotMajor, gotOK, tt.wantDrop, tt.wantMajor, tt.wantOK)
+			}
+		})
+	}
+}
+
+func TestRemediationSemVerCompatibility(t *testing.T) {
+	t.Run("same-major fix renders drop-in notice in RU and EN", func(t *testing.T) {
+		c := &domain.AnalysisCase{
+			Vulnerability: domain.Vulnerability{
+				ID:            "CVE-2026-TEST1",
+				Module:        "example.com/mod",
+				FixedVersions: []string{"v1.2.4"},
+			},
+			Affected: &domain.AffectedResult{
+				VersionAffected: domain.ClaimTrue,
+				ResolvedVersion: "v1.2.0",
+			},
+		}
+
+		ru := remediation(c, true)
+		if !strings.Contains(ru, "(совместимо по SemVer: minor/patch, без изменения импортов)") {
+			t.Fatalf("remediation RU missing drop-in notice:\n%s", ru)
+		}
+
+		en := remediation(c, false)
+		if !strings.Contains(en, "(SemVer drop-in: minor/patch, no import path changes)") {
+			t.Fatalf("remediation EN missing drop-in notice:\n%s", en)
+		}
+
+		if !c.Affected.UpgradeDropIn {
+			t.Fatalf("expected UpgradeDropIn to be true, got %v", c.Affected.UpgradeDropIn)
+		}
+		if c.Affected.UpgradeMajorBump {
+			t.Fatalf("expected UpgradeMajorBump to be false, got %v", c.Affected.UpgradeMajorBump)
+		}
+	})
+
+	t.Run("different-major fix renders major bump notice in RU and EN", func(t *testing.T) {
+		c := &domain.AnalysisCase{
+			Vulnerability: domain.Vulnerability{
+				ID:            "CVE-2026-TEST2",
+				Module:        "example.com/mod",
+				FixedVersions: []string{"v2.0.1"},
+			},
+			Affected: &domain.AffectedResult{
+				VersionAffected: domain.ClaimTrue,
+				ResolvedVersion: "v1.2.0",
+			},
+		}
+
+		ru := remediation(c, true)
+		if !strings.Contains(ru, "(Внимание: смена мажорной версии v2, требуются обновление путей импорта и адаптация API)") {
+			t.Fatalf("remediation RU missing major bump notice:\n%s", ru)
+		}
+
+		en := remediation(c, false)
+		if !strings.Contains(en, "(Notice: major version bump to v2, import path changes and API adaptation required)") {
+			t.Fatalf("remediation EN missing major bump notice:\n%s", en)
+		}
+
+		if c.Affected.UpgradeDropIn {
+			t.Fatalf("expected UpgradeDropIn to be false, got %v", c.Affected.UpgradeDropIn)
+		}
+		if !c.Affected.UpgradeMajorBump {
+			t.Fatalf("expected UpgradeMajorBump to be true, got %v", c.Affected.UpgradeMajorBump)
+		}
+	})
+
+	t.Run("report.Write populates AffectedResult upgrade flags", func(t *testing.T) {
+		c := &domain.AnalysisCase{
+			Vulnerability: domain.Vulnerability{
+				ID:            "CVE-2026-TEST3",
+				Module:        "example.com/mod",
+				FixedVersions: []string{"v1.3.0"},
+			},
+			Affected: &domain.AffectedResult{
+				VersionAffected: domain.ClaimTrue,
+				ResolvedVersion: "v1.2.0",
+			},
+		}
+
+		tmpDir := t.TempDir()
+		if err := Write(tmpDir, c); err != nil {
+			t.Fatalf("Write failed: %v", err)
+		}
+		if !c.Affected.UpgradeDropIn {
+			t.Fatalf("expected UpgradeDropIn to be true after Write")
+		}
+
+		repJSON, err := os.ReadFile(filepath.Join(tmpDir, "report.json"))
+		if err != nil {
+			t.Fatalf("reading report.json: %v", err)
+		}
+		if !strings.Contains(string(repJSON), `"upgrade_drop_in": true`) {
+			t.Fatalf("report.json missing upgrade_drop_in flag: %s", string(repJSON))
+		}
+	})
 }

@@ -68,6 +68,21 @@ func TestFindSymbol(t *testing.T) {
 	}
 }
 
+func TestEnclosingFuncAt(t *testing.T) {
+	ix := fixture(t, "constprod")
+	cs, err := ix.FindSymbol(context.Background(), vulnSym)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref, err := ix.EnclosingFuncAt(context.Background(), vulnSym.Package, filepath.Base(cs.File), cs.Line)
+	if err != nil {
+		t.Fatalf("EnclosingFuncAt failed: %v", err)
+	}
+	if ref.Symbol != "Parse" {
+		t.Fatalf("expected Parse, got %+v", ref)
+	}
+}
+
 func TestTraceArgumentConstant(t *testing.T) {
 	ix := fixture(t, "constprod")
 	sites, _ := ix.FindCallers(context.Background(), vulnSym)

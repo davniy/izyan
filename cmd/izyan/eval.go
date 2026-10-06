@@ -395,6 +395,9 @@ func runCase(ctx context.Context, idx, total int, c eval.Case, o analyzeOpts, ba
 	if c.DeployManifests != "" {
 		co.deployManifests = c.DeployManifests
 	}
+	if c.AcceptLocusProposals {
+		co.acceptLocusProposals = true
+	}
 	var productDir string
 	switch {
 	case c.Product != "" && c.Repo != "":

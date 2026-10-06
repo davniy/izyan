@@ -1279,10 +1279,10 @@ func TestReportMarkdown_DualTrackPerimeterMatrix_RU(t *testing.T) {
 	if !strings.Contains(md, "### Матрица сетевых периметров угроз") {
 		t.Fatalf("expected matrix heading in RU report:\n%s", md)
 	}
-	if !strings.Contains(md, "- **Обнаруженный периметр развёртывания:** `cluster-internal`") {
+	if !strings.Contains(md, "- **Обнаруженный периметр развёртывания:** `Внутрикластерный (cluster-internal)`") {
 		t.Errorf("expected detected perimeter in RU report:\n%s", md)
 	}
-	if !strings.Contains(md, "- **Обоснование периметра:** ClusterIP service found") {
+	if !strings.Contains(md, "- **Обоснование периметра:** Обнаружен сервис ClusterIP") {
 		t.Errorf("expected perimeter rationale in RU report:\n%s", md)
 	}
 	if !strings.Contains(md, "*(Фактический)*") {
@@ -1552,4 +1552,189 @@ func TestRemediationSemVerCompatibility(t *testing.T) {
 			t.Fatalf("report.json missing upgrade_drop_in flag: %s", string(repJSON))
 		}
 	})
+}
+
+func TestLocalizeVerdictReason(t *testing.T) {
+	tests := []struct {
+		input  string
+		isRU   bool
+		wanted string
+	}{
+		{
+			input:  "all mandatory exploit conditions are satisfied",
+			isRU:   true,
+			wanted: "Все обязательные условия эксплуатации выполнены (уязвимость подтверждена)",
+		},
+		{
+			input:  "all mandatory exploit conditions are satisfied",
+			isRU:   false,
+			wanted: "all mandatory exploit conditions are satisfied",
+		},
+		{
+			input:  "all mandatory conditions met",
+			isRU:   true,
+			wanted: "Все обязательные условия эксплуатации выполнены (уязвимость подтверждена)",
+		},
+		{
+			input:  "mandatory exploit condition is proven false",
+			isRU:   true,
+			wanted: "Обязательное условие эксплуатации опровергнуто (уязвимый путь исполнения отсутствует)",
+		},
+		{
+			input:  "vulnerable module is not part of the product dependency graph",
+			isRU:   true,
+			wanted: "Уязвимый модуль не входит в граф зависимостей продукта",
+		},
+		{
+			input:  "none of the affected module(s) example.com/pkg resolve to a product dependency (go list -m all)",
+			isRU:   true,
+			wanted: "Ни один из уязвимых модулей example.com/pkg не входит в зависимости продукта (go list -m all)",
+		},
+		{
+			input:  "resolved dependency version is outside affected range",
+			isRU:   true,
+			wanted: "Разрешённая версия зависимости находится вне уязвимого диапазона",
+		},
+		{
+			input:  "resolved version v2.0.0 is outside the affected range",
+			isRU:   true,
+			wanted: "Разрешённая версия v2.0.0 находится вне уязвимого диапазона",
+		},
+		{
+			input:  "affected package is not imported by the product build",
+			isRU:   true,
+			wanted: "Уязвимый пакет не импортируется в сборке продукта",
+		},
+		{
+			input:  "affected package(s) example.com/mod/pkg are absent from the product's transitive import closure (go list -deps -test ./...) — the code is not linked into the product",
+			isRU:   true,
+			wanted: "Уязвимый пакет(ы) example.com/mod/pkg отсутствует в транзитивном графе импортов сборки (go list -deps -test ./...) — код не скомпилирован в продукт",
+		},
+		{
+			input:  "affected packages are constrained to other platforms/build configurations",
+			isRU:   true,
+			wanted: "Уязвимые пакеты ограничены другими платформами или конфигурациями сборки",
+		},
+		{
+			input:  "one or more mandatory exploit conditions remain unresolved",
+			isRU:   true,
+			wanted: "Одно или несколько обязательных условий эксплуатации не подтверждены",
+		},
+		{
+			input:  "one or more mandatory exploit conditions remain unresolved: C-REACH, C-PEER-INPUT",
+			isRU:   true,
+			wanted: "Одно или несколько обязательных условий эксплуатации не подтверждены: C-REACH, C-PEER-INPUT",
+		},
+		{
+			input:  "all modeled mandatory conditions are satisfied, but 1 sink candidate(s) are unresolved or proven absent from the build (pkg.Symbol): the exploit model is pruned and cannot ground a positive verdict",
+			isRU:   true,
+			wanted: "Все смоделированные обязательные условия выполнены, но часть дефектных точек сбоя (sinks) не разрешена или отсутствует в сборке: модель усечена и не может обосновать положительный вердикт",
+		},
+		{
+			input:  "cluster-perimeter verdict rests on a declared trust boundary, but 1 advisory-declared subject(s) are unresolved: an operator assertion cannot discharge an unmodeled exploit shape",
+			isRU:   true,
+			wanted: "Вердикт внутрикластерного периметра опирается на объявленную границу доверия, но часть заявленных в advisory функций не разрешена: утверждение оператора не может закрыть несмоделированный путь атаки",
+		},
+	}
+
+	for _, tt := range tests {
+		got := localizeVerdictReason(tt.input, tt.isRU)
+		if got != tt.wanted {
+			t.Errorf("localizeVerdictReason(%q, %v) =\n%q\nwant:\n%q", tt.input, tt.isRU, got, tt.wanted)
+		}
+	}
+}
+
+func TestReportRussianLocalizationNoEnglishLeaks(t *testing.T) {
+	c := &domain.AnalysisCase{
+		ID: "case-russian-localization",
+		Vulnerability: domain.Vulnerability{
+			ID:            "GO-2022-0603",
+			Module:        "gopkg.in/yaml.v3",
+			FixedVersions: []string{"v3.0.0-20220521103104-8f96da9f5d5e"},
+		},
+		Product: domain.ProductSnapshot{
+			Repository: "my-service",
+			Commit:     "1070baac73db",
+		},
+		Verdict: &domain.VerdictResult{
+			Verdict: domain.VerdictExploitable,
+			Reason:  "all mandatory exploit conditions are satisfied",
+		},
+		DetectedPerimeter:  domain.PerimeterPublic,
+		PerimeterRationale: "public exposure detected: inbound listener :8080",
+		Profiles: []domain.ProfileVerdict{
+			{
+				Profile:        domain.ProfileZeroTrust,
+				Verdict:        domain.VerdictExploitable,
+				Priority:       domain.PriorityP0,
+				IsTargetActual: true,
+			},
+			{
+				Profile:        domain.ProfileClusterPerimeter,
+				Verdict:        domain.VerdictNoExploitPathFound,
+				Priority:       domain.PriorityDismissed,
+				IsTargetActual: false,
+			},
+		},
+		EvidenceGraph: domain.EvidenceGraph{
+			Exposures: []domain.ExposureFact{
+				{
+					Direction:     "inbound",
+					Kind:          "listener",
+					Target:        "net/http.ListenAndServe",
+					Address:       ":8080",
+					AddressSource: "literal",
+					Scope:         "all-interfaces",
+					CallSite:      domain.CallSite{File: "main.go", Line: 40},
+				},
+			},
+		},
+		ContextualRisk: &domain.ContextualRisk{
+			BaseSeverity:    "MEDIUM",
+			BaseScore:       5.0,
+			ContextualLevel: domain.RiskLevelCritical,
+			ContextualScore: 10.0,
+			Priority:        domain.PriorityP0,
+			Status:          domain.RiskStatusAssessed,
+			SLA:             "24h (Immediate remediation required)",
+		},
+	}
+
+	md := Markdown(c, "ru")
+
+	if strings.Contains(md, "> **all mandatory exploit conditions are satisfied**") {
+		t.Errorf("found raw English verdict reason in Russian report:\n%s", md)
+	}
+	if !strings.Contains(md, "> **Все обязательные условия эксплуатации выполнены (уязвимость подтверждена)**") {
+		t.Errorf("missing localized Russian verdict reason in report:\n%s", md)
+	}
+
+	if strings.Contains(md, "- **Обнаруженный периметр развёртывания:** `public`") {
+		t.Errorf("found unlocalized perimeter 'public' in Russian report:\n%s", md)
+	}
+	if !strings.Contains(md, "- **Обнаруженный периметр развёртывания:** `Публичный (public)`") {
+		t.Errorf("missing localized perimeter 'Публичный (public)' in Russian report:\n%s", md)
+	}
+
+	if strings.Contains(md, "- **Обоснование периметра:** public exposure detected: inbound listener :8080") {
+		t.Errorf("found unlocalized perimeter rationale in Russian report:\n%s", md)
+	}
+	if !strings.Contains(md, "- **Обоснование периметра:** Обнаружен публичный доступ: входящий слушатель :8080") {
+		t.Errorf("missing localized perimeter rationale in Russian report:\n%s", md)
+	}
+
+	if strings.Contains(md, "источник: literal") || strings.Contains(md, "область: all-interfaces") {
+		t.Errorf("found unlocalized exposure metadata (literal/all-interfaces) in Russian report:\n%s", md)
+	}
+	if !strings.Contains(md, "источник: литерал, область: все интерфейсы (0.0.0.0)") {
+		t.Errorf("missing localized exposure metadata (литерал, все интерфейсы) in Russian report:\n%s", md)
+	}
+
+	if strings.Contains(md, "24h (Immediate remediation required)") {
+		t.Errorf("found unlocalized SLA '24h (Immediate remediation required)' in Russian report:\n%s", md)
+	}
+	if !strings.Contains(md, "24 часа (требуется немедленное устранение)") {
+		t.Errorf("missing localized SLA '24 часа (требуется немедленное устранение)' in Russian report:\n%s", md)
+	}
 }

@@ -18,8 +18,9 @@ import (
 // patch, following the spec priority: affected symbols first, then the fix
 // commit diff.
 type Resolver struct {
-	Fix   fix.Resolver
-	Patch fix.Provider // optional; nil disables patch-based candidates
+	Fix    fix.Resolver
+	Patch  fix.Provider // optional; nil disables patch-based candidates
+	Source *goanalysis.Index
 }
 
 // maxPatchFiles bounds the patch scope we accept before calling the result
@@ -74,13 +75,35 @@ func (r Resolver) Resolve(ctx context.Context, _ *domain.AnalysisCase, v domain.
 			if isTestFile(f.Path) {
 				continue
 			}
+			pkg := packageGuess(v, f.Path)
 			for _, sym := range f.Symbols {
 				model.Alternatives = append(model.Alternatives, domain.RootCause{
-					Package:   packageGuess(v, f.Path),
+					Package:   pkg,
 					Symbol:    sym,
 					Role:      domain.RootCauseSink,
 					Mechanism: fmt.Sprintf("changed by fix commit %s", ref.URL),
 				})
+			}
+			if r.Source != nil {
+				for _, line := range f.HunkLines {
+					if enc, err := r.Source.EnclosingFuncAt(ctx, pkg, f.Path, line); err == nil && enc.Symbol != "" {
+						found := false
+						for _, alt := range model.Alternatives {
+							if alt.Package == enc.Package && alt.Symbol == enc.Symbol {
+								found = true
+								break
+							}
+						}
+						if !found {
+							model.Alternatives = append(model.Alternatives, domain.RootCause{
+								Package:   enc.Package,
+								Symbol:    enc.Symbol,
+								Role:      domain.RootCauseSink,
+								Mechanism: fmt.Sprintf("enclosing function at hunk line %d in fix commit %s", line, ref.URL),
+							})
+						}
+					}
+				}
 			}
 		}
 		if len(model.Alternatives) > 0 && len(model.RootCauses) == 0 {

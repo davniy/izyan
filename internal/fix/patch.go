@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -125,6 +126,7 @@ type File struct {
 	GuardOperands map[string][]string `json:"guard_operands,omitempty"`
 	Adds          int                 `json:"added_lines"`
 	Dels          int                 `json:"deleted_lines"`
+	HunkLines     []int               `json:"hunk_lines,omitempty"`
 }
 
 // Patch is a parsed unified diff — the set of files it touches.
@@ -132,7 +134,7 @@ type Patch []File
 
 var (
 	diffGitRe  = regexp.MustCompile(`^diff --git a/(\S+) b/(\S+)`)
-	hunkRe     = regexp.MustCompile(`^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@\s*(.*)`)
+	hunkRe     = regexp.MustCompile(`^@@ -(\d+)(?:,\d+)? \+\d+(?:,\d+)? @@\s*(.*)`)
 	funcCtxRe  = regexp.MustCompile(`func\s+(?:\(([^)]*)\)\s*)?([A-Za-z_]\w*)\s*\(`)
 	funcDeclRe = regexp.MustCompile(`^[+-]?func\s+(?:\(([^)]*)\)\s*)?([A-Za-z_]\w*)\s*\(`)
 	// guardLenRe matches added bound checks: `if len(x) == 0`,
@@ -204,7 +206,10 @@ func Parse(patch string) Patch {
 		if m := hunkRe.FindStringSubmatch(line); m != nil {
 			flushHunk()
 			hk = &hunk{}
-			if fm := funcCtxRe.FindStringSubmatch(m[1]); fm != nil {
+			if startLine, err := strconv.Atoi(m[1]); err == nil && startLine > 0 {
+				cur.HunkLines = append(cur.HunkLines, startLine)
+			}
+			if fm := funcCtxRe.FindStringSubmatch(m[2]); fm != nil {
 				hk.symbol = qualifySym(fm[1], fm[2])
 				contextFuncs = append(contextFuncs, hk.symbol)
 			}

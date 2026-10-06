@@ -68,6 +68,9 @@ type Case struct {
 	// contract as --deploy-manifests. Manifests ground perimeter and
 	// exposure facts for deployment-dependent falsifiers.
 	DeployManifests string `json:"deploy_manifests,omitempty"`
+	// AcceptLocusProposals adopts machine-generated non_locus recommendations
+	// into expert basis for this case.
+	AcceptLocusProposals bool `json:"accept_locus_proposals,omitempty"`
 	// Expect lists acceptable verdicts; empty means informational only
 	// (the case still counts toward distribution metrics).
 	Expect []string `json:"expect,omitempty"`

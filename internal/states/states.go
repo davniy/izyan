@@ -230,6 +230,9 @@ func (h ResolveRootCause) Run(ctx context.Context, c *domain.AnalysisCase) (work
 			Reason: "root cause unresolved: no resolver configured and --root-cause not provided",
 		}, nil
 	}
+	if r, ok := h.Resolver.(*rootcause.Resolver); ok && r.Source == nil && h.Verifier != nil {
+		r.Source = h.Verifier.Source
+	}
 	model, evs, err := h.Resolver.Resolve(ctx, c, c.Vulnerability)
 	if err != nil {
 		return workflow.Transition{}, fmt.Errorf("root cause resolve: %w", err)
@@ -626,7 +629,11 @@ func (h CollectEvidence) runExposure(ctx context.Context, c *domain.AnalysisCase
 
 	scope, rationale := exposure.ClassifyPerimeter(c.EvidenceGraph.ExposuresList(), productNames(c))
 	if c.Product.PerimeterOverride != "" && c.Product.PerimeterOverride != "auto" {
-		scope = c.Product.PerimeterOverride
+		if c.Product.PerimeterOverride == "cluster" || c.Product.PerimeterOverride == domain.PerimeterClusterInternal {
+			scope = domain.PerimeterClusterInternal
+		} else {
+			scope = c.Product.PerimeterOverride
+		}
 		rationale = "perimeter overridden by configuration: " + c.Product.PerimeterOverride
 	}
 	c.DetectedPerimeter = scope
@@ -1791,7 +1798,11 @@ func (h EvaluateVerdict) Run(_ context.Context, c *domain.AnalysisCase) (workflo
 	cRiskZT := risk.Assess(c.Vulnerability, cClonedZT, vZT)
 	cRiskCP := risk.Assess(c.Vulnerability, cClonedCP, vCP)
 
-	isClusterTarget := c.DetectedPerimeter == domain.PerimeterClusterInternal || c.Product.TrustedPeer
+	isClusterTarget := c.DetectedPerimeter == domain.PerimeterClusterInternal ||
+		c.DetectedPerimeter == "cluster" ||
+		c.Product.PerimeterOverride == "cluster" ||
+		c.Product.PerimeterOverride == domain.PerimeterClusterInternal ||
+		c.Product.TrustedPeer
 
 	ztProfile := domain.ProfileVerdict{
 		Profile:        domain.ProfileZeroTrust,

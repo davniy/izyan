@@ -79,14 +79,22 @@ type ingressScan struct {
 	items    []domain.IngressItem
 	blockers []string
 
-	varSeen     map[string]bool
-	scanned     map[*ast.FuncDecl]bool
-	litSeen     map[*ast.FuncLit]bool
-	callers     map[string][]string  // callee key -> caller decl keys (inverted edges)
-	methodCalls map[string][]selCall // method name -> call sites inside module code
-	ifaceCache  map[string][]string  // iface key+method -> outside-module impls
-	varReads    []varRead
-	varWrites   map[*types.Var]*varWriteSet
+	varSeen        map[string]bool
+	scanned        map[*ast.FuncDecl]bool
+	litSeen        map[*ast.FuncLit]bool
+	callers        map[string][]string  // callee key -> caller decl keys (inverted edges)
+	methodCalls    map[string][]selCall // method name -> call sites inside module code
+	ifaceCache     map[string][]string  // iface key+method -> outside-module impls
+	varReads       []varRead
+	varWrites      map[*types.Var]*varWriteSet
+	varOriginCache map[*types.Var]varOriginResult
+	reaches        map[*ingressEntry][]string
+}
+
+type varOriginResult struct {
+	origin domain.DataOrigin
+	why    string
+	ok     bool
 }
 
 // IngressInventory builds the coverage set of the ingress-closure
@@ -131,17 +139,18 @@ func (ix *Index) IngressInventory(ctx context.Context, module string, subjects [
 	}
 
 	s := &ingressScan{
-		ix:         ix,
-		module:     module,
-		pkgMod:     ix.pkgModules,
-		subjects:   map[string]bool{},
-		modPkgs:    modPkgs,
-		decls:      map[string]fnDeclRef{},
-		cone:       map[string]bool{},
-		varSeen:    map[string]bool{},
-		scanned:    map[*ast.FuncDecl]bool{},
-		litSeen:    map[*ast.FuncLit]bool{},
-		ifaceCache: map[string][]string{},
+		ix:             ix,
+		module:         module,
+		pkgMod:         ix.pkgModules,
+		subjects:       map[string]bool{},
+		modPkgs:        modPkgs,
+		decls:          map[string]fnDeclRef{},
+		cone:           map[string]bool{},
+		varSeen:        map[string]bool{},
+		scanned:        map[*ast.FuncDecl]bool{},
+		litSeen:        map[*ast.FuncLit]bool{},
+		ifaceCache:     map[string][]string{},
+		varOriginCache: map[*types.Var]varOriginResult{},
 	}
 	for _, p := range ix.pkgs {
 		if s.prodMod == "" && ix.pkgModules[p.PkgPath] != "" {
@@ -155,9 +164,9 @@ func (ix *Index) IngressInventory(ctx context.Context, module string, subjects [
 	s.indexDecls(modPkgs)
 	s.findEntries()
 	s.findFeeders(modPkgs)
-	s.inventoryEntries()
 	s.buildCone()
 	s.markReaches()
+	s.inventoryEntries()
 	s.scanCone()
 	s.emitVarItems()
 	s.annotateReaches()
@@ -359,27 +368,35 @@ func (s *ingressScan) calleeKey(fn *types.Func) string {
 func (s *ingressScan) resetTrace() {
 	s.ix.traceSeen = map[types.Object]bool{}
 	s.ix.paramSeen = map[string]bool{}
-	s.ix.paramCache = map[string]classifyResult{}
-	s.ix.classifyCache = map[classifyKey]classifyResult{}
 	s.ix.evalBudget = maxEvalBudget
 }
 
 // inventoryEntries classifies every argument, method receiver and
 // writable object-state piece of each boundary entry.
 func (s *ingressScan) inventoryEntries() {
-	for _, e := range s.entries {
-		for i, arg := range e.call.Args {
+	for i := range s.entries {
+		e := &s.entries[i]
+		r := s.reaches[e]
+		hops := 0
+		if len(r) > 0 {
+			hops = s.ix.hopLimit
+		}
+		for argIdx, arg := range e.call.Args {
 			s.resetTrace()
+			prevHops := s.ix.hopLimit
+			s.ix.hopLimit = hops
 			o, w := s.ix.classify(e.pkg, e.enc, arg, 0)
+			s.ix.hopLimit = prevHops
 			s.addItem(domain.IngressItem{
 				CallSite: e.site,
 				Kind:     domain.IngressBoundaryArg,
 				Callee:   e.calleeKey,
-				Arg:      i,
+				Arg:      argIdx,
 				Origin:   o,
 				Detail:   w,
+				Reaches:  r,
 			})
-			s.objectState(e, arg, i)
+			s.objectState(*e, arg, argIdx)
 			d := fnDeclRef{pkg: e.pkg, decl: e.enc, key: e.calleeKey}
 			s.scanBody(e.pkg, d, arg, func(target fnDeclRef) {
 				s.extraDecls = append(s.extraDecls, target)
@@ -388,7 +405,10 @@ func (s *ingressScan) inventoryEntries() {
 		if sel, ok := e.call.Fun.(*ast.SelectorExpr); ok {
 			if _, isSel := e.pkg.TypesInfo.Selections[sel]; isSel {
 				s.resetTrace()
+				prevHops := s.ix.hopLimit
+				s.ix.hopLimit = hops
 				o, w := s.ix.classify(e.pkg, e.enc, sel.X, 0)
+				s.ix.hopLimit = prevHops
 				s.addItem(domain.IngressItem{
 					CallSite: e.site,
 					Kind:     domain.IngressBoundaryReceiver,
@@ -396,8 +416,9 @@ func (s *ingressScan) inventoryEntries() {
 					Arg:      -1,
 					Origin:   o,
 					Detail:   "receiver: " + w,
+					Reaches:  r,
 				})
-				s.objectState(e, sel.X, -1)
+				s.objectState(*e, sel.X, -1)
 				d := fnDeclRef{pkg: e.pkg, decl: e.enc, key: e.calleeKey}
 				s.scanBody(e.pkg, d, sel.X, func(target fnDeclRef) {
 					s.extraDecls = append(s.extraDecls, target)
@@ -520,7 +541,7 @@ func (s *ingressScan) buildCone() {
 // can reach through the cone — an item whose entry reaches no subject is
 // excluded as provably not payload.
 func (s *ingressScan) markReaches() {
-	reaches := map[*ingressEntry][]string{}
+	s.reaches = map[*ingressEntry][]string{}
 	for i := range s.entries {
 		e := &s.entries[i]
 		var r []string
@@ -534,10 +555,10 @@ func (s *ingressScan) markReaches() {
 			}
 		}
 		sort.Strings(r)
-		reaches[e] = r
+		s.reaches[e] = r
 	}
 	for i := range s.items {
-		for e, r := range reaches {
+		for e, r := range s.reaches {
 			if s.items[i].Callee == e.calleeKey && s.items[i].Line == e.site.Line && s.items[i].File == e.site.File {
 				s.items[i].Reaches = r
 				break
@@ -1714,8 +1735,11 @@ type varRead struct {
 // budget, and an exhausted budget must not turn an unrelated, cheap
 // initializer UNKNOWN by ordering.
 func (s *ingressScan) emitVarItems() {
+	prevHops := s.ix.hopLimit
+	defer func() { s.ix.hopLimit = prevHops }()
+	s.ix.hopLimit = 1
 	for _, r := range s.varReads {
-		s.ix.evalBudget = maxEvalBudget * 4
+		s.resetTrace()
 		origin, why, ok := s.pkgVarOrigin(r.vr)
 		if !ok {
 			s.addItem(domain.IngressItem{
@@ -1752,6 +1776,11 @@ func (s *ingressScan) emitVarItems() {
 // a single pass per declaration maps all bare-var events at once instead
 // of re-walking every function body for each var.
 func (s *ingressScan) pkgVarOrigin(vr *types.Var) (domain.DataOrigin, string, bool) {
+	if s.varOriginCache != nil {
+		if cached, ok := s.varOriginCache[vr]; ok {
+			return cached.origin, cached.why, cached.ok
+		}
+	}
 	if s.varWrites == nil {
 		s.varWrites = s.collectVarWrites()
 	}
@@ -1803,9 +1832,17 @@ func (s *ingressScan) pkgVarOrigin(vr *types.Var) (domain.DataOrigin, string, bo
 	}
 
 	if merged == "" {
-		return domain.OriginConstant, "zero value, no writes", true
+		res := varOriginResult{origin: domain.OriginConstant, why: "zero value, no writes", ok: true}
+		if s.varOriginCache != nil {
+			s.varOriginCache[vr] = res
+		}
+		return res.origin, res.why, res.ok
 	}
-	return merged, strings.Join(whys, "; "), complete
+	res := varOriginResult{origin: merged, why: strings.Join(whys, "; "), ok: complete}
+	if s.varOriginCache != nil {
+		s.varOriginCache[vr] = res
+	}
+	return res.origin, res.why, res.ok
 }
 
 // varWriteSet accumulates everything a single declaration pass observed

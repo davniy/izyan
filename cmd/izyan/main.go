@@ -591,7 +591,7 @@ func analyzeCase(ctx context.Context, o analyzeOpts) (*domain.AnalysisCase, erro
 	if o.strictLLM && (!llmCfg.Enabled || o.detOnly) {
 		return nil, fmt.Errorf("strict-llm: cannot use --strict-llm when LLM is disabled or --deterministic-only is set")
 	}
-	var rcResolver states.RootCauseResolver = &rootcause.Resolver{Fix: fix.Resolver{}, Patch: fix.HTTPProvider{}}
+	var rcResolver states.RootCauseResolver = &rootcause.Resolver{Fix: fix.Resolver{}, Patch: fix.HTTPProvider{}, Source: srcIndex}
 	var builder states.ExploitBuilder = &exploit.Builder{Source: srcIndex}
 	reviewers := review.Multi{review.Structural{}}
 	// The deterministic evaluator chain — shared by EVALUATE_CONDITIONS

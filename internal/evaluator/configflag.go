@@ -60,13 +60,20 @@ func evalConfigFlag(cond domain.Condition, c *domain.AnalysisCase, claim domain.
 	}
 	// If the package defining the knob or constructor is not linked into the
 	// product's build graph (go list -deps), the configuration cannot exist or be set.
-	if set, ids, err := packageImportSet(c); err == nil && !set[pkg] {
+	set, ids, err := packageImportSet(c)
+	if err == nil && !set[pkg] {
 		claim.Result = domain.ClaimFalse
 		claim.Falsifier = domain.FalsifierPackageAbsent
 		claim.EvidenceIDs = ids
 		claim.Explanation = fmt.Sprintf(
 			"package %s is absent from the product's build graph (go list -deps); configuration knob/symbol cannot be set or executed",
 			pkg)
+		return claim
+	}
+	if sym == "*" {
+		claim.Result = domain.ClaimTrue
+		claim.EvidenceIDs = ids
+		claim.Explanation = fmt.Sprintf("package %s is linked into the product's build graph", pkg)
 		return claim
 	}
 	key := pkg + "." + sym

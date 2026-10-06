@@ -602,6 +602,81 @@ func (ix *Index) findSymbol(ctx context.Context, ref domain.SymbolRef) (*domain.
 	return nil, fmt.Errorf("symbol %s.%s not found", ref.Package, ref.Symbol)
 }
 
+// EnclosingFuncAt locates the function or method declaration that encloses
+// the given 1-based line number in a file whose path matches relPath.
+// If pkgPath is non-empty, that package is loaded if not already present.
+func (ix *Index) EnclosingFuncAt(ctx context.Context, pkgPath, relPath string, line int) (domain.SymbolRef, error) {
+	if ix == nil || relPath == "" || line <= 0 {
+		return domain.SymbolRef{}, fmt.Errorf("invalid arguments")
+	}
+	ix.mu.Lock()
+	defer ix.mu.Unlock()
+	if err := ix.load(ctx); err != nil {
+		return domain.SymbolRef{}, err
+	}
+	cleanRel := filepath.Clean(relPath)
+	slashRel := filepath.ToSlash(cleanRel)
+
+	findInPkg := func(pkg *packages.Package) (domain.SymbolRef, bool) {
+		if pkg == nil || pkg.Types == nil {
+			return domain.SymbolRef{}, false
+		}
+		for _, f := range pkg.Syntax {
+			pos := ix.fset.File(f.Pos())
+			if pos == nil {
+				continue
+			}
+			slashPath := filepath.ToSlash(pos.Name())
+			if !strings.HasSuffix(slashPath, slashRel) && !strings.HasSuffix(slashPath, "/"+slashRel) {
+				continue
+			}
+			for _, decl := range f.Decls {
+				fd, ok := decl.(*ast.FuncDecl)
+				if !ok || fd.Name == nil {
+					continue
+				}
+				start := ix.fset.Position(fd.Pos()).Line
+				end := ix.fset.Position(fd.End()).Line
+				if line >= start && line <= end {
+					sym := fd.Name.Name
+					if fd.Recv != nil && len(fd.Recv.List) > 0 {
+						sym = recvDeclName(fd.Recv.List[0].Type) + "." + sym
+					}
+					return domain.SymbolRef{
+						Package: pkg.PkgPath,
+						Symbol:  sym,
+					}, true
+				}
+			}
+		}
+		return domain.SymbolRef{}, false
+	}
+
+	for _, pkg := range ix.pkgs {
+		if ref, found := findInPkg(pkg); found {
+			return ref, nil
+		}
+	}
+	for _, pkgs := range ix.extraPkgs {
+		for _, pkg := range pkgs {
+			if ref, found := findInPkg(pkg); found {
+				return ref, nil
+			}
+		}
+	}
+	if pkgPath != "" {
+		extra, err := ix.loadExtra(ctx, pkgPath)
+		if err == nil {
+			for _, pkg := range extra {
+				if ref, found := findInPkg(pkg); found {
+					return ref, nil
+				}
+			}
+		}
+	}
+	return domain.SymbolRef{}, fmt.Errorf("no function encloses line %d in %s", line, relPath)
+}
+
 func splitSymbol(sym string) (typeName, name string) {
 	s := strings.TrimPrefix(sym, "*")
 	if i := strings.Index(s, "."); i >= 0 {

@@ -194,3 +194,23 @@ index 1..2 100644
 		t.Fatalf("expected err to be ignored as guard operand, got: %v", f.GuardOperands["Handle"])
 	}
 }
+
+func TestParseHunkLines(t *testing.T) {
+	patch := `diff --git a/pkg/iter.go b/pkg/iter.go
+index 1..2 100644
+--- a/pkg/iter.go
++++ b/pkg/iter.go
+@@ -376,6 +376,4 @@
+ 	outp = p
+-	i.p += sz
++	i.p += int(i.info.size)
+`
+	files := Parse(patch)
+	if len(files) != 1 {
+		t.Fatalf("expected 1 file, got %d", len(files))
+	}
+	f := files[0]
+	if len(f.HunkLines) != 1 || f.HunkLines[0] != 376 {
+		t.Fatalf("expected hunk line 376, got %+v", f.HunkLines)
+	}
+}

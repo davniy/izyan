@@ -148,3 +148,103 @@ func TestServerTransportInputRoleMatching_ClientWithOutbound(t *testing.T) {
 		t.Fatalf("unexpected falsification: client role matched outbound dial")
 	}
 }
+
+func TestServerTransportInputRoleMismatch_ClientRoleNoListenersNoOutbound(t *testing.T) {
+	c := &domain.AnalysisCase{
+		Vulnerability: domain.Vulnerability{
+			Module: "example.com/netmod",
+		},
+		Exploit: &domain.ExploitModel{
+			ProtocolRole: domain.ProtocolRoleClient,
+		},
+	}
+	// No inbound listeners, no outbound calls: product is not a server, so client role should NOT be falsified
+	cond := domain.Condition{
+		ID:   "C-PEER-INPUT",
+		Kind: domain.ConditionAttackerControl,
+		Params: map[string]string{
+			domain.ParamInputSource:  domain.InputPeer,
+			domain.ParamProtocolRole: string(domain.ProtocolRoleClient),
+		},
+	}
+
+	claim := ServerTransportInput{}.Evaluate(cond, c)
+	if claim.Result == domain.ClaimFalse && claim.Falsifier == domain.FalsifierProtocolRoleMismatch {
+		t.Fatalf("unsafe falsification: product without inbound listeners should not falsify client-side vulnerability")
+	}
+}
+
+func TestServerTransportInputRoleMatching_ClientWithModuleUsageNonDial(t *testing.T) {
+	c := &domain.AnalysisCase{
+		Vulnerability: domain.Vulnerability{
+			Module: "example.com/netmod",
+		},
+		Exploit: &domain.ExploitModel{
+			ProtocolRole: domain.ProtocolRoleClient,
+		},
+	}
+	// Pure server inbound listener present
+	c.EvidenceGraph.AddExposure(domain.ExposureFact{
+		Direction: "inbound",
+		Kind:      "listener",
+		Target:    "net.Listen",
+	})
+	// But product calls module via non-dial API (Get/Query)
+	c.EvidenceGraph.AddModuleUsages(domain.CallSite{
+		Callee:      "example.com/netmod.Get",
+		ModuleOwner: "example.com/netmod",
+	})
+
+	cond := domain.Condition{
+		ID:   "C-PEER-INPUT",
+		Kind: domain.ConditionAttackerControl,
+		Params: map[string]string{
+			domain.ParamInputSource:  domain.InputPeer,
+			domain.ParamProtocolRole: string(domain.ProtocolRoleClient),
+		},
+	}
+
+	claim := ServerTransportInput{}.Evaluate(cond, c)
+	if claim.Result == domain.ClaimFalse && claim.Falsifier == domain.FalsifierProtocolRoleMismatch {
+		t.Fatalf("unexpected falsification: module usage with Get should be recognized as outbound transport")
+	}
+}
+
+func TestServerTransportInputRoleMatching_ClientWithCallPathNonDial(t *testing.T) {
+	c := &domain.AnalysisCase{
+		Vulnerability: domain.Vulnerability{
+			Module: "example.com/netmod",
+		},
+		Exploit: &domain.ExploitModel{
+			ProtocolRole: domain.ProtocolRoleClient,
+		},
+	}
+	// Pure server inbound listener present
+	c.EvidenceGraph.AddExposure(domain.ExposureFact{
+		Direction: "inbound",
+		Kind:      "listener",
+		Target:    "net.Listen",
+	})
+	// But product call path reaches package of module
+	c.EvidenceGraph.CallPaths = []domain.CallPath{
+		{
+			Frames: []domain.CallSite{
+				{Package: "example.com/netmod", Function: "ProcessResponse"},
+			},
+		},
+	}
+
+	cond := domain.Condition{
+		ID:   "C-PEER-INPUT",
+		Kind: domain.ConditionAttackerControl,
+		Params: map[string]string{
+			domain.ParamInputSource:  domain.InputPeer,
+			domain.ParamProtocolRole: string(domain.ProtocolRoleClient),
+		},
+	}
+
+	claim := ServerTransportInput{}.Evaluate(cond, c)
+	if claim.Result == domain.ClaimFalse && claim.Falsifier == domain.FalsifierProtocolRoleMismatch {
+		t.Fatalf("unexpected falsification: call path reaching module package should be recognized as outbound transport")
+	}
+}

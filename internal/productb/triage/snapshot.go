@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/productb/repository"
+	"github.com/davniy/izyan/internal/productb/repository"
 )
 
 // SnapshotSchemaVersion is the only manifest schema the builder produces.

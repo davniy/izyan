@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // This file pins the applicability contract: the specialized transport proof

@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/productb/vulnerability"
-	"github.com/fedorovmv/izyan/internal/toolchain"
+	"github.com/davniy/izyan/internal/evidencetools"
+	domain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/vulnerability"
+	"github.com/davniy/izyan/internal/toolchain"
 )
 
 // goodStage0 builds a fully resolved Stage 0 fixture: confirmed intake

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/productb/vulnerability"
+	"github.com/davniy/izyan/internal/productb/vulnerability"
 )
 
 // ReplayRun re-renders a stored run dossier without any model call,

@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // maxDeclaredAssumptionsBytes bounds the operator-supplied assumptions

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/affected"
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // evalLocus evaluates a C-LOCUS condition — execution of the defect locus

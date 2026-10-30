@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // OpenVEX export (openvex.dev/ns/v0.2.0). The internal verdict model is

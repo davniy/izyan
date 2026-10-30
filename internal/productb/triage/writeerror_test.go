@@ -12,7 +12,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/llm"
 )
 
 // decodeRunDirName inverts the percent-encoding of RunDirName for tests:

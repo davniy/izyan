@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/goanalysis"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/goanalysis"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 // invokePackageUsage drives the handler through the full invoke path so

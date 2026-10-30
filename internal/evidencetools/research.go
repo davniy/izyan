@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/fix"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/fix"
 )
 
 // ErrRecordUnavailable marks a source answer that is definitive and local:

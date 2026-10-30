@@ -3,7 +3,7 @@ package fix
 import (
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 func TestPatchURL(t *testing.T) {

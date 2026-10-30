@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/mod/semver"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // VersionFact evaluates CONFIGURATION / BUILD_CONDITION conditions whose

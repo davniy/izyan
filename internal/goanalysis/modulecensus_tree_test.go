@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/repository"
 )
 
 func TestLocalInventoryRequiresCompletePinnedProductCapture(t *testing.T) {

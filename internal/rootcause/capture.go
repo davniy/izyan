@@ -11,9 +11,9 @@ import (
  "reflect"
  "strings"
 
- "github.com/fedorovmv/izyan/internal/domain"
- "github.com/fedorovmv/izyan/internal/fix"
- "github.com/fedorovmv/izyan/internal/fixbinding"
+ "github.com/davniy/izyan/internal/domain"
+ "github.com/davniy/izyan/internal/fix"
+ "github.com/davniy/izyan/internal/fixbinding"
 )
 
 const FixSourceCapturesSchema="fix-source-captures.v1"

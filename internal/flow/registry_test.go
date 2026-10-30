@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 func TestRegistryAdmit(t *testing.T) {

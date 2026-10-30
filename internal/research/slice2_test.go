@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 // laneFor builds a lane fixture over a single Go advisory entry with a

@@ -19,7 +19,7 @@ Go vulnerability analyzer. Определяет применимость и эк
 
 * Go-код: `internal/`.
 * CLI: `cmd/izyan`.
-* Модуль: `github.com/fedorovmv/izyan`.
+* Модуль: `github.com/davniy/izyan`.
 * Тестовые mini-repo: `testdata/`.
 * Канонический backlog: `docs/dev/gap-analysis.md`.
 * Бенчмарки и корпуса: автономный `eval/corpus-real.json` (38 кейсов) и live-корпус `eval/live-corpus.json` (`eval/README.md`).

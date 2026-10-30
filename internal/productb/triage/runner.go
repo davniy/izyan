@@ -12,7 +12,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/fedorovmv/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/llm"
 )
 
 type ChatClient interface {

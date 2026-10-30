@@ -14,8 +14,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/affected"
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // MaxSearchMatches is the cap SearchSource applies to returned matches;

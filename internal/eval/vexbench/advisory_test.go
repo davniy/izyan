@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/eval/vexbench"
+	"github.com/davniy/izyan/internal/eval/vexbench"
 )
 
 // fixtureFetcher serves OSV documents from testdata/advisory/<id>.json;

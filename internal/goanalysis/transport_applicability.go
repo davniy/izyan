@@ -20,7 +20,7 @@ import (
 
 	"golang.org/x/tools/go/packages"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // TransportProofScope is the exact binding set a caller supplies for one

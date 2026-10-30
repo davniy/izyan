@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 // Engine is the generic react loop. It owns sequencing only: the

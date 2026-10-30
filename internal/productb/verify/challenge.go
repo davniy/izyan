@@ -6,7 +6,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/fedorovmv/izyan/internal/productb/claimshape"
+	"github.com/davniy/izyan/internal/productb/claimshape"
 )
 
 // ChallengeSchemaVersion identifies the persisted challenge-document

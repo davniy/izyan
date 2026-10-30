@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	pbdomain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/productb/vulnerability"
+	pbdomain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/vulnerability"
 )
 
 // AdvisoryOptions controls advisory resolution in Builder.Build.

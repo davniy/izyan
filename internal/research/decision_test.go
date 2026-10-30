@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/affected"
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/goanalysis"
+	"github.com/davniy/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/goanalysis"
 )
 
 //go:embed testdata/r6-recorded-symbol-unreachable.json

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // scopeOf builds the unreachability scope for a testdata fixture.

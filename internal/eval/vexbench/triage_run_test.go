@@ -3,9 +3,9 @@ package vexbench_test
 import (
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/eval/vexbench"
-	"github.com/fedorovmv/izyan/internal/llm"
-	"github.com/fedorovmv/izyan/internal/productb/triage"
+	"github.com/davniy/izyan/internal/eval/vexbench"
+	"github.com/davniy/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/productb/triage"
 )
 
 func TestRunPinsExactPromptAndToolSurface(t *testing.T) {

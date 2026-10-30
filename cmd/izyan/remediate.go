@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/gitlock"
-	"github.com/fedorovmv/izyan/internal/report"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/gitlock"
+	"github.com/davniy/izyan/internal/report"
 )
 
 // remediationTarget is one witness-bound fix target: the module and fixed

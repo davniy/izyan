@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 type testMandatorySource struct {

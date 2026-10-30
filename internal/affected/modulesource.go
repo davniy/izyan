@@ -3,7 +3,7 @@ package affected
 import (
 	"fmt"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // EffectiveSourceResolver resolves the source the recorded build actually

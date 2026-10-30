@@ -37,9 +37,9 @@ import (
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
 
-	"github.com/fedorovmv/izyan/internal/affected"
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 // FeasibilitySchema identifies the raw collector output version.

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // axisAdmittedScope is an exact-record scope that admits negative closure.

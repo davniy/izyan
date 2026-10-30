@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 // controlProof is deliberately small: every control names the status it

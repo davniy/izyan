@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evaluator"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/goanalysis"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evaluator"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/goanalysis"
 )
 
 // FactBuildInput carries the evidence an R6 fact may be built from:

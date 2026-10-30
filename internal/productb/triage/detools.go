@@ -9,8 +9,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/llm"
 )
 
 // DetCaller is the invocation surface of an evidencetools session — in

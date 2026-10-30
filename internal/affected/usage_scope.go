@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // UsageScope classifies where a package/module is reachable in the recorded

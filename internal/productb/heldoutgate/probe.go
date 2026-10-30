@@ -9,10 +9,10 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/productb/claimshape"
-	agenttriage "github.com/fedorovmv/izyan/internal/productb/triage"
-	"github.com/fedorovmv/izyan/internal/productb/verify"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/productb/claimshape"
+	agenttriage "github.com/davniy/izyan/internal/productb/triage"
+	"github.com/davniy/izyan/internal/productb/verify"
 )
 
 // KernelSpec mirrors the deterministic probe specification the earlier

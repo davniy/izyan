@@ -3,7 +3,7 @@ package states
 import (
 	"runtime"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // declaredProduct is the product snapshot a declared-target fixture resolves

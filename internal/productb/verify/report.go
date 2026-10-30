@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"sort"
 
-	"github.com/fedorovmv/izyan/internal/productb/claimshape"
+	"github.com/davniy/izyan/internal/productb/claimshape"
 )
 
 // Report is the deterministic evaluation output for one run: the contract

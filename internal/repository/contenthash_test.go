@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 func writeFile(t *testing.T, path, content string) {

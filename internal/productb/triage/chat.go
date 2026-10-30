@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/llm"
 )
 
 // chatWithTransientRetry calls the provider with up to chatMaxAttempts

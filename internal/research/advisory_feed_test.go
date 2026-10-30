@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/advfeed"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/advfeed"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 // writeFeedDir builds a synthetic offline dump directory.

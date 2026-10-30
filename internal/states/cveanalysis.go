@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fedorovmv/izyan/internal/cveanalysis"
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/justification"
-	"github.com/fedorovmv/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/cveanalysis"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/justification"
+	"github.com/davniy/izyan/internal/llm"
 )
 
 // ActResearchCVE performs autonomous research and synthesizes the technical justification.

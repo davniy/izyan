@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
+	domain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 const validFindingJSON = `{

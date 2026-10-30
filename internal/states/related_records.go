@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/finding"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
-	"github.com/fedorovmv/izyan/internal/workflow"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/finding"
+	"github.com/davniy/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/workflow"
 )
 
 // RelatedRecordSource is the configured, pinned advisory corpus: it nominates

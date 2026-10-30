@@ -18,9 +18,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/toolaudit"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/toolaudit"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 // Runner executes govulncheck and returns the raw -json stream plus the

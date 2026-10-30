@@ -3,7 +3,7 @@ package evaluator
 import (
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // Exposure evaluates check=exposure conditions — a supporting factor

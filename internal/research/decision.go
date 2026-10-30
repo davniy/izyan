@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/affected"
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evaluator"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/goanalysis"
+	"github.com/davniy/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evaluator"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/goanalysis"
 )
 
 // GuardVerification is a parsed-but-non-authoritative payload shape an

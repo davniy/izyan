@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/fix"
-	"github.com/fedorovmv/izyan/internal/goanalysis"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/fix"
+	"github.com/davniy/izyan/internal/goanalysis"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 // proseOperationDetails is the shape the requirement pins: the record's own

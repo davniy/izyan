@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/repository"
 )
 
 func writeFile(t *testing.T, path, content string) {

@@ -1,6 +1,6 @@
 # Участие в разработке Izyan (Contributing)
 
-Оригинальный репозиторий проекта: [https://github.com/fedorovmv/izyan](https://github.com/fedorovmv/izyan)
+Оригинальный репозиторий проекта: [https://github.com/davniy/izyan](https://github.com/davniy/izyan)
 
 Спасибо за интерес к развитию **Izyan**! Проект открыт для предложений, исправлений дефектов и добавления поддержки новых классов уязвимостей.
 
@@ -31,7 +31,7 @@ Izyan — детерминированный анализатор уязвимо
 1. Требуется **Go 1.25** или новее.
 2. Клонирование оригинального репозитория:
    ```bash
-   git clone https://github.com/fedorovmv/izyan.git
+   git clone https://github.com/davniy/izyan.git
    cd izyan
    ```
 3. Сборка CLI:

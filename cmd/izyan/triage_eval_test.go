@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	triage "github.com/fedorovmv/izyan/internal/productb/triage"
+	triage "github.com/davniy/izyan/internal/productb/triage"
 )
 
 // TestTriageEvalOfflineComparison exercises the offline command end to end

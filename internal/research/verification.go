@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/toolchain"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/toolchain"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 // EvidenceCallFunc executes one bounded typed check against the

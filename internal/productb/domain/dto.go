@@ -11,7 +11,7 @@
 package domain
 
 import (
-	shadowdomain "github.com/fedorovmv/izyan/internal/domain"
+	shadowdomain "github.com/davniy/izyan/internal/domain"
 )
 
 // Advisory data types — the exact shapes finding/stage0/artifacts carry.

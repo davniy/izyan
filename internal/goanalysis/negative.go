@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/fixbinding"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/fixbinding"
 )
 
 // Verifier performs a bounded negative verification pass on FALSE claims.

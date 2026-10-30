@@ -14,8 +14,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/eval/agent7"
-	"github.com/fedorovmv/izyan/internal/eval/vexbench"
+	"github.com/davniy/izyan/internal/eval/agent7"
+	"github.com/davniy/izyan/internal/eval/vexbench"
 )
 
 // factColumns is the frozen A1.5 column order (brief): every row carries a

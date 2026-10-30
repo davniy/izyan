@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/productb/vulnerability"
-	"github.com/fedorovmv/izyan/internal/toolchain"
+	"github.com/davniy/izyan/internal/productb/vulnerability"
+	"github.com/davniy/izyan/internal/toolchain"
 )
 
 // checkStatus runs one named check against the input and fails the test

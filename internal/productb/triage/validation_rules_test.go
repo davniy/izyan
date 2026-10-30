@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/toolchain"
+	domain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/toolchain"
 )
 
 // localGoVersion returns the bare version of `go` in PATH.

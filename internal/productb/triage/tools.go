@@ -18,10 +18,10 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/llm"
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/productb/repository"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/llm"
+	domain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/repository"
 )
 
 // ToolBudget bounds the agent's tool use for one run. Zero values mean

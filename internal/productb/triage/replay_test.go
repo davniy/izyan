@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/llm"
 )
 
 // replayFixture holds one recorded triage run plus the pieces tests assert on.

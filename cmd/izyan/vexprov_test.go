@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/eval/vexbench"
-	"github.com/fedorovmv/izyan/internal/toolchain"
+	"github.com/davniy/izyan/internal/eval/vexbench"
+	"github.com/davniy/izyan/internal/toolchain"
 )
 
 func TestParseGovulnVersion(t *testing.T) {

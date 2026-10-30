@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/llm"
-	"github.com/fedorovmv/izyan/internal/tracker"
+	"github.com/davniy/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/tracker"
 )
 
 // stubIntakeChat is a fake ChatClient returning scripted replies; it records

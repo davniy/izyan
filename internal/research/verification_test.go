@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/toolchain"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/toolchain"
 )
 
 // verificationPlanFixture builds a plan that satisfies

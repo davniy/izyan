@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/productb/claimshape"
-	"github.com/fedorovmv/izyan/internal/productb/verify"
+	"github.com/davniy/izyan/internal/productb/claimshape"
+	"github.com/davniy/izyan/internal/productb/verify"
 )
 
 // AssessVariance replays every recorded attempt of the variance corpus

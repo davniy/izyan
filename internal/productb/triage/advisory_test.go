@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/productb/vulnerability"
+	domain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/vulnerability"
 )
 
 const advisoryOSVDoc = `{

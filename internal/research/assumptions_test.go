@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 const assumptionsSectionHeading = "## Declared assumptions — policy/scope inputs, not deterministic evidence"

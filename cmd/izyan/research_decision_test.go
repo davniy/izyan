@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/research"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/research"
 )
 
 // TestResearchDecisionCLIReplayPlan: a replayed turn whose retained answer
@@ -242,10 +242,10 @@ func observationIDs(t *testing.T, path string) map[string]bool {
 // import the old states/report/risk/llm analysis packages.
 func TestNoAnalyzeIntegration(t *testing.T) {
 	forbidden := []string{
-		`"github.com/fedorovmv/izyan/internal/states"`,
-		`"github.com/fedorovmv/izyan/internal/report"`,
-		`"github.com/fedorovmv/izyan/internal/risk"`,
-		`"github.com/fedorovmv/izyan/internal/llm"`,
+		`"github.com/davniy/izyan/internal/states"`,
+		`"github.com/davniy/izyan/internal/report"`,
+		`"github.com/davniy/izyan/internal/risk"`,
+		`"github.com/davniy/izyan/internal/llm"`,
 	}
 	var sources []string
 	for _, pat := range []string{"research.go", "../../internal/research/*.go"} {

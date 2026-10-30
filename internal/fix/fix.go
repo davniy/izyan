@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // Reference points at a vendor fix — a commit or patch that resolves the

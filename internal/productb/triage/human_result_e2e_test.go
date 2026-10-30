@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/llm"
-	"github.com/fedorovmv/izyan/internal/productb/vulnerability"
+	"github.com/davniy/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/productb/vulnerability"
 )
 
 const humanResultFindingID = "human-result-001"

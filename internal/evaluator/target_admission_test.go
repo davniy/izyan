@@ -3,7 +3,7 @@ package evaluator
 import (
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // Fixtures shared by the evaluator tests. A scoped operator-declared target

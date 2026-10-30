@@ -7,10 +7,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/exposure"
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/toolchain"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/exposure"
+	domain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/toolchain"
 )
 
 // Decision-fact statuses returned by fact providers (spec §11.1). They are

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/eval/agent7"
+	"github.com/davniy/izyan/internal/eval/agent7"
 )
 
 // writeFile creates one fixture file inside t.TempDir-style dirs.

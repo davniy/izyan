@@ -319,32 +319,32 @@ $ go vet ./...
 # (чисто, exit 0)
 
 $ go test ./...
-ok      github.com/fedorovmv/izyan/cmd/izyan
-ok      github.com/fedorovmv/izyan/internal/affected
-ok      github.com/fedorovmv/izyan/internal/cveanalysis
-ok      github.com/fedorovmv/izyan/internal/domain
-ok      github.com/fedorovmv/izyan/internal/eval
-ok      github.com/fedorovmv/izyan/internal/eval/agent7
-ok      github.com/fedorovmv/izyan/internal/eval/vexbench
-ok      github.com/fedorovmv/izyan/internal/evaluator
-ok      github.com/fedorovmv/izyan/internal/evidencetools
-ok      github.com/fedorovmv/izyan/internal/exploit
-ok      github.com/fedorovmv/izyan/internal/exposure
-ok      github.com/fedorovmv/izyan/internal/fix
-ok      github.com/fedorovmv/izyan/internal/goanalysis
-ok      github.com/fedorovmv/izyan/internal/justification
-ok      github.com/fedorovmv/izyan/internal/llm
-ok      github.com/fedorovmv/izyan/internal/readgate
-ok      github.com/fedorovmv/izyan/internal/report
-ok      github.com/fedorovmv/izyan/internal/repository
-ok      github.com/fedorovmv/izyan/internal/review
-ok      github.com/fedorovmv/izyan/internal/risk
-ok      github.com/fedorovmv/izyan/internal/rootcause
-ok      github.com/fedorovmv/izyan/internal/states
-ok      github.com/fedorovmv/izyan/internal/toolaudit
-ok      github.com/fedorovmv/izyan/internal/toolchain
-ok      github.com/fedorovmv/izyan/internal/tracker
-ok      github.com/fedorovmv/izyan/internal/vulnerability
+ok      github.com/davniy/izyan/cmd/izyan
+ok      github.com/davniy/izyan/internal/affected
+ok      github.com/davniy/izyan/internal/cveanalysis
+ok      github.com/davniy/izyan/internal/domain
+ok      github.com/davniy/izyan/internal/eval
+ok      github.com/davniy/izyan/internal/eval/agent7
+ok      github.com/davniy/izyan/internal/eval/vexbench
+ok      github.com/davniy/izyan/internal/evaluator
+ok      github.com/davniy/izyan/internal/evidencetools
+ok      github.com/davniy/izyan/internal/exploit
+ok      github.com/davniy/izyan/internal/exposure
+ok      github.com/davniy/izyan/internal/fix
+ok      github.com/davniy/izyan/internal/goanalysis
+ok      github.com/davniy/izyan/internal/justification
+ok      github.com/davniy/izyan/internal/llm
+ok      github.com/davniy/izyan/internal/readgate
+ok      github.com/davniy/izyan/internal/report
+ok      github.com/davniy/izyan/internal/repository
+ok      github.com/davniy/izyan/internal/review
+ok      github.com/davniy/izyan/internal/risk
+ok      github.com/davniy/izyan/internal/rootcause
+ok      github.com/davniy/izyan/internal/states
+ok      github.com/davniy/izyan/internal/toolaudit
+ok      github.com/davniy/izyan/internal/toolchain
+ok      github.com/davniy/izyan/internal/tracker
+ok      github.com/davniy/izyan/internal/vulnerability
 # exit 0: все пакеты ok или [no test files]; internal/eval/agent7 — новый пакет A1,
 # `go test ./internal/eval/agent7/... -v` — 15/15 PASS.
 ```

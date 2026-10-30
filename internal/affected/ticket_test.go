@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // ticketVuln mirrors the measured CASE-227168 shape: the advisory covers

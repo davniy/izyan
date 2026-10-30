@@ -344,7 +344,7 @@ No model or benchmark arm is part of this work.
 
 Самодостаточные задачи — можно делегировать субагенту или свежей
 сессии. Общий контекст: репо плоский (`internal/` на корне, модуля
-`github.com/fedorovmv/izyan`), репозиторий продукта задаётся через
+`github.com/davniy/izyan`), репозиторий продукта задаётся через
 `VA_PRODUCT_REPO` (env) или `--repo`, проверка — `go test ./...` +
 `go run ./cmd/izyan eval --corpus eval/live-corpus.json`.
 

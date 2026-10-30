@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/productb/triage"
+	"github.com/davniy/izyan/internal/productb/triage"
 )
 
 // TriageScoreSchemaVersion pins the triage score schema version.

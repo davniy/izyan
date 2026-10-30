@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 // SupportLevel is the deterministically derived strength of the decisive

@@ -3,7 +3,7 @@ package evaluator
 import (
 	"fmt"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // Validation evaluates VALIDATION conditions. In exploit-model semantics a

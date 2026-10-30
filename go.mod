@@ -1,4 +1,4 @@
-module github.com/fedorovmv/izyan
+module github.com/davniy/izyan
 
 go 1.25.0
 

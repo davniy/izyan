@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
+	domain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 func writeFixture(t *testing.T, name, content string) string {

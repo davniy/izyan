@@ -44,7 +44,7 @@ import (
 	"os"
 	"sort"
 
-	pbdomain "github.com/fedorovmv/izyan/internal/productb/domain"
+	pbdomain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 // SchemaID is the document schema the grounder emits.

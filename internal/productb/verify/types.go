@@ -44,8 +44,8 @@
 package verify
 
 import (
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/productb/claimshape"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/productb/claimshape"
 )
 
 // ContractSchemaVersion identifies the persisted observation/report schema.

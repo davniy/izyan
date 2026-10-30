@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 func findExposure(facts []domain.ExposureFact, target, addr, source string) *domain.ExposureFact {

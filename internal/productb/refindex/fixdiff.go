@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/fix"
-	pbdomain "github.com/fedorovmv/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/fix"
+	pbdomain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 // PatchFetcher is the fix-patch provider seam (fix.HTTPProvider in

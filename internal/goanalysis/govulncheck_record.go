@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 // RecordForCase returns the loaded-record projection target for a case. A

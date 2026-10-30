@@ -16,7 +16,7 @@ import (
 	"strings"
 	"testing"
 
-	triage "github.com/fedorovmv/izyan/internal/productb/triage"
+	triage "github.com/davniy/izyan/internal/productb/triage"
 )
 
 // copyTestTree duplicates a source fixture so the workflow can delete its

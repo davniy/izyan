@@ -73,7 +73,7 @@ func TestOnlyTriageOwnsLiveHumanProjection(t *testing.T) {
 		}
 		for _, imp := range f.Imports {
 			p := strings.Trim(imp.Path.Value, `"`)
-			if p == "github.com/fedorovmv/izyan/internal/productb/triage" {
+			if p == "github.com/davniy/izyan/internal/productb/triage" {
 				t.Errorf("%s imports the Product B investigator: only triage owns the live human projection", path)
 			}
 		}

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 // stableAttempt is a fully populated canonical attempt projection: every

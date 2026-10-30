@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // DynamicCoverage is the scoped dynamic-dispatch record for one subject:

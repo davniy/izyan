@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/gitlock"
-	repoB "github.com/fedorovmv/izyan/internal/productb/repository"
-	repoA "github.com/fedorovmv/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/gitlock"
+	repoB "github.com/davniy/izyan/internal/productb/repository"
+	repoA "github.com/davniy/izyan/internal/repository"
 )
 
 // gitTestRepo creates a real repo with one commit for worktree testing.

@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/productb/affected"
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/affected"
+	domain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 // fakeGoTool injects deterministic go list output without subprocesses.

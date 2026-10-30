@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/affected"
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // verifyLocusAbsent re-checks the locus-package-absent falsifier against

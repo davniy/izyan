@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"github.com/fedorovmv/izyan/internal/productb/domain"
-	canonical "github.com/fedorovmv/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/productb/domain"
+	canonical "github.com/davniy/izyan/internal/repository"
 )
 
 // LoadDeclaredAssumptions delegates to the canonical declared-assumptions/1

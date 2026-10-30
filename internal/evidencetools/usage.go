@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/goanalysis"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/goanalysis"
 )
 
 // ---- package-usage ----

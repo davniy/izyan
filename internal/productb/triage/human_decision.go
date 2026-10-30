@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/flock"
+	"github.com/davniy/izyan/internal/flock"
 )
 
 // HumanDecisionSchemaVersion is the schema of one human-decision record.

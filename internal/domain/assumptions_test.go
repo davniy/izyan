@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // declaredAssumption builds one well-formed member with a matching

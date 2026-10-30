@@ -4,8 +4,8 @@ import (
  "context"
  "encoding/json"
  "testing"
- "github.com/fedorovmv/izyan/internal/affected"
- "github.com/fedorovmv/izyan/internal/domain"
+ "github.com/davniy/izyan/internal/affected"
+ "github.com/davniy/izyan/internal/domain"
 )
 
 func TestUnreachabilityRequiresMatchingInventory(t *testing.T) {

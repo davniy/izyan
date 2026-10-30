@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // retirement_test.go pins the Phase-4 cutover boundary of this package:
@@ -31,7 +31,7 @@ func TestResearchNeverStartsModel(t *testing.T) {
 	banned := map[string]map[string]bool{
 		"os/exec":  {"Command": true, "CommandContext": true},
 		"net/http": {"Get": true, "Post": true, "PostForm": true, "NewRequest": true, "NewRequestWithContext": true},
-		"github.com/fedorovmv/izyan/internal/llm": {"NewClient": true, "NewResearcher": true},
+		"github.com/davniy/izyan/internal/llm": {"NewClient": true, "NewResearcher": true},
 	}
 	files, err := filepath.Glob("*.go")
 	if err != nil {

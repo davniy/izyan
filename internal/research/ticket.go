@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/repository"
-	"github.com/fedorovmv/izyan/internal/tracker"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/tracker"
 )
 
 // TicketRecord is the lane's record of the tracker-ticket channel: the

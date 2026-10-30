@@ -21,9 +21,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/finding"
-	"github.com/fedorovmv/izyan/internal/risk"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/finding"
+	"github.com/davniy/izyan/internal/risk"
 )
 
 // publication is the report-side view of one persisted case: the re-admitted

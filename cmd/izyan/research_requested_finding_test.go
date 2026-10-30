@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/finding"
-	"github.com/fedorovmv/izyan/internal/research"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/finding"
+	"github.com/davniy/izyan/internal/research"
 )
 
 func TestResearchCLIEmitsCanonicalRequestedFinding(t *testing.T) {

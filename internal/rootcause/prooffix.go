@@ -4,8 +4,8 @@ import (
  "context"
 	"fmt"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/fixbinding"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/fixbinding"
 )
 
 // proveContentBinding derives the persisted content proof for one advisory

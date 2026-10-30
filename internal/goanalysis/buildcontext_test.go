@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // BuildEnv is the single build-selection env shared by package loads and

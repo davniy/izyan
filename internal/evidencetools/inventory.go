@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fedorovmv/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/affected"
 )
 
 // PackageInventoryArgs selects product packages or the merged test inventory.

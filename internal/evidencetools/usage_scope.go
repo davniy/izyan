@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/affected"
 )
 
 // ---- usage-scope ----

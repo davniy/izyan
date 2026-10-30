@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/llm"
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 func TestPromptHasRequiredBlocksAndUntrustedRule(t *testing.T) {

@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 func corpusDocJSON(t *testing.T, id, summary string, aliases, related, modules []string) string {

@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/llm"
 )
 
 // StabilitySchemaVersion is the schema of stability.json, the per-finding

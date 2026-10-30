@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/productb/vulnerability"
+	"github.com/davniy/izyan/internal/productb/vulnerability"
 )
 
 // stage0GitRepo builds a small local repository usable as a catalog source:

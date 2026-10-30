@@ -30,8 +30,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/eval/vexbench"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/eval/vexbench"
 )
 
 const (

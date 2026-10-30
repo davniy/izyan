@@ -10,9 +10,9 @@ import (
 	"strings"
 	"sync"
 
-	canonicalaffected "github.com/fedorovmv/izyan/internal/affected"
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/toolaudit"
+	canonicalaffected "github.com/davniy/izyan/internal/affected"
+	domain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/toolaudit"
 )
 
 // Module mirrors the `go list -m -json` output subset we rely on.

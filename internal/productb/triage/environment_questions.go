@@ -5,7 +5,7 @@ import (
 	"strings"
 	"slices"
 
-	"github.com/fedorovmv/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/domain"
 )
 
 const (

@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/eval/vexbench"
-	"github.com/fedorovmv/izyan/internal/productb/triage"
+	"github.com/davniy/izyan/internal/eval/vexbench"
+	"github.com/davniy/izyan/internal/productb/triage"
 )
 
 func TestTriageScoringSeparatesHumanAndMachine(t *testing.T) {

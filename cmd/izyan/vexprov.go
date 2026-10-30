@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/eval/vexbench"
-	"github.com/fedorovmv/izyan/internal/goanalysis"
-	"github.com/fedorovmv/izyan/internal/toolchain"
+	"github.com/davniy/izyan/internal/eval/vexbench"
+	"github.com/davniy/izyan/internal/goanalysis"
+	"github.com/davniy/izyan/internal/toolchain"
 )
 
 // vexAdapterVersion marks the benchmark envelope/provenance schema. Bump on

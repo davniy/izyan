@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/llm"
 )
 
 // recordedAssessmentVersion selects a supported recorded schema without

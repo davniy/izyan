@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/productb/claimshape"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/productb/claimshape"
 )
 
 // Capability ids are generic: they name what a deterministic check can

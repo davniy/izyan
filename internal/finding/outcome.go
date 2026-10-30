@@ -9,8 +9,8 @@ package finding
 import (
 	"fmt"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evaluator"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evaluator"
 )
 
 // AssessmentInput is the complete input of one assessment classification.

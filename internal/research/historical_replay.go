@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/flow"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/flow"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 const HistoricalReplaySchema = "historical-replay.v1"

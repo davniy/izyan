@@ -12,7 +12,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/fedorovmv/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/repository"
 )
 
 // FactValidation is the fact gate result: an aggregate status plus one

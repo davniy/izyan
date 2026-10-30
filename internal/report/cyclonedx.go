@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // caseSerialNumber returns the deterministic RFC-4122 UUID the CycloneDX 1.5

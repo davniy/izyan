@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 var tlsKnob = domain.SymbolRef{Package: "crypto/tls", Symbol: "Config.InsecureSkipVerify"}

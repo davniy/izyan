@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/eval"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/eval"
 )
 
 const evalBaselineConfig = `{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}` + "\n"

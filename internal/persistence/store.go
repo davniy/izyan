@@ -3,7 +3,7 @@ package persistence
 import (
 	"context"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 type CaseStore interface {

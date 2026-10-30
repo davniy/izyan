@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 const reportAssumptionsHeading = "## Declared assumptions — policy/scope inputs, not deterministic evidence"

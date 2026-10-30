@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // ArgumentOrigin evaluates ATTACKER_CONTROL and INPUT_CONSTRAINT conditions

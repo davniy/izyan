@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 // c14Input builds the minimal evidence C14 reasons over: one proposal, its

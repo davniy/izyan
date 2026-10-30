@@ -18,7 +18,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // AuthorityDeltaSchema is the frozen discriminator of the comparison record.

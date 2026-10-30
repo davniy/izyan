@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/fix"
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
-	pbvuln "github.com/fedorovmv/izyan/internal/productb/vulnerability"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/fix"
+	domain "github.com/davniy/izyan/internal/productb/domain"
+	pbvuln "github.com/davniy/izyan/internal/productb/vulnerability"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 // DetToolInfo is the adapter-local tool descriptor the deterministic

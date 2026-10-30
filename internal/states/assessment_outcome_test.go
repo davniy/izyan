@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evaluator"
-	"github.com/fedorovmv/izyan/internal/persistence/filesystem"
-	"github.com/fedorovmv/izyan/internal/rootcause"
-	"github.com/fedorovmv/izyan/internal/workflow"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evaluator"
+	"github.com/davniy/izyan/internal/persistence/filesystem"
+	"github.com/davniy/izyan/internal/rootcause"
+	"github.com/davniy/izyan/internal/workflow"
 )
 
 // requireFailedAnalysis asserts the terminal assessment shape: no public

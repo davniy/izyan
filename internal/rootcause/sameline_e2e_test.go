@@ -7,13 +7,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evaluator"
-	"github.com/fedorovmv/izyan/internal/exploit"
-	"github.com/fedorovmv/izyan/internal/finding"
-	"github.com/fedorovmv/izyan/internal/fix"
-	"github.com/fedorovmv/izyan/internal/fixbinding"
-	"github.com/fedorovmv/izyan/internal/goanalysis"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evaluator"
+	"github.com/davniy/izyan/internal/exploit"
+	"github.com/davniy/izyan/internal/finding"
+	"github.com/davniy/izyan/internal/fix"
+	"github.com/davniy/izyan/internal/fixbinding"
+	"github.com/davniy/izyan/internal/goanalysis"
 )
 
 // F11 — TestSameLineResolverVerifierEarnsAbsenceEndToEnd.

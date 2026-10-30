@@ -15,11 +15,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/flock"
-	"github.com/fedorovmv/izyan/internal/llm"
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/productb/vulnerability"
-	"github.com/fedorovmv/izyan/internal/toolchain"
+	"github.com/davniy/izyan/internal/flock"
+	"github.com/davniy/izyan/internal/llm"
+	domain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/vulnerability"
+	"github.com/davniy/izyan/internal/toolchain"
 )
 
 // secretPatterns is the redaction allowlist applied to free-form error text

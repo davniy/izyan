@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/eval/agent7"
+	"github.com/davniy/izyan/internal/eval/agent7"
 )
 
 // fakeRun builds a minimal run dir: scoring/cases.jsonl, metrics.json and

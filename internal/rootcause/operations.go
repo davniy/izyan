@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // This file resolves the vulnerable operation the record's *own prose* names.

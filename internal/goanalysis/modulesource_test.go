@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/affected"
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/repository"
 )
 
 // sourceFixture writes one file under root.

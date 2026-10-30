@@ -8,10 +8,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/affected"
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	productaffected "github.com/fedorovmv/izyan/internal/productb/affected"
+	"github.com/davniy/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evidencetools"
+	productaffected "github.com/davniy/izyan/internal/productb/affected"
 )
 
 // currentInventoryFixture contains independent build selection and full raw

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // countingGoTool records how many times the inner subprocess path ran.

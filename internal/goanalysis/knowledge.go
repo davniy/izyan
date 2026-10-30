@@ -11,7 +11,7 @@ import (
 	"os"
 	"slices"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // Knowledge holds the ecosystem-semantics tables the provenance and

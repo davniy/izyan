@@ -22,8 +22,8 @@ import (
 
 	"golang.org/x/tools/go/packages"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/readgate"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/readgate"
 )
 
 // ErrSymbolNotFoundInPackage indicates that the package was loaded and typed,

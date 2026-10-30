@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/productb/claimshape"
-	triage "github.com/fedorovmv/izyan/internal/productb/triage"
+	"github.com/davniy/izyan/internal/productb/claimshape"
+	triage "github.com/davniy/izyan/internal/productb/triage"
 )
 
 // payloadEnvelope unwraps a recorded observation payload: archived entries

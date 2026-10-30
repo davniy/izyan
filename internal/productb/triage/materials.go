@@ -14,11 +14,11 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 
-	canonicalrepository "github.com/fedorovmv/izyan/internal/repository"
-	"github.com/fedorovmv/izyan/internal/exposure"
-	"github.com/fedorovmv/izyan/internal/productb/affected"
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/productb/repository"
+	canonicalrepository "github.com/davniy/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/exposure"
+	"github.com/davniy/izyan/internal/productb/affected"
+	domain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/repository"
 )
 
 // MaterialAvailability is the deterministic availability verdict for one

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/eval/vexbench"
+	"github.com/davniy/izyan/internal/eval/vexbench"
 )
 
 func layoutTask(owner, repo, sha string) vexbench.Task {

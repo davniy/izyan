@@ -29,8 +29,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/productb/triage"
+	"github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/triage"
 )
 
 // ProjectionSchema is the only schema the deployment projection artifact

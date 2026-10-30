@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // assumptionsMember builds a well-formed member with a matching digest.

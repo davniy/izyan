@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 func relevantCoverage(t *testing.T, fixtureName string, ref domain.SymbolRef) DynamicCoverage {

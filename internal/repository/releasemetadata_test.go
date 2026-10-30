@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // TestLoadReleaseMetadata covers the release-metadata/1 channel contract:

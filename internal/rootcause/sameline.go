@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/fixbinding"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/fixbinding"
 )
 
 // This file is the verifier side of the exact-preimage correspondence route. It

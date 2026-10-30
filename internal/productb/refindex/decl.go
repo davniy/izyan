@@ -7,7 +7,7 @@ import (
 	"go/token"
 	"strings"
 
-	pbdomain "github.com/fedorovmv/izyan/internal/productb/domain"
+	pbdomain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 // SymbolLocator is the slice of goanalysis.Index the decl resolver needs —

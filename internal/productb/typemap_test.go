@@ -81,10 +81,10 @@ func TestTypeMapCompletenessOverImports(t *testing.T) {
 			}
 			for _, imp := range f.Imports {
 				path := strings.Trim(imp.Path.Value, `"`)
-				if !strings.HasPrefix(path, "github.com/fedorovmv/izyan/") {
+				if !strings.HasPrefix(path, "github.com/davniy/izyan/") {
 					continue
 				}
-				rel := strings.TrimPrefix(path, "github.com/fedorovmv/izyan/")
+				rel := strings.TrimPrefix(path, "github.com/davniy/izyan/")
 				if strings.HasPrefix(rel, "internal/domain") || strings.HasPrefix(rel, "internal/affected") ||
 					strings.HasPrefix(rel, "internal/evaluator") || strings.HasPrefix(rel, "internal/agenttriage") {
 					// The domain alias shim may import the canonical domain

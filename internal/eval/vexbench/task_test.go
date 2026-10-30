@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/eval/vexbench"
+	"github.com/davniy/izyan/internal/eval/vexbench"
 )
 
 func TestLoadGoTasksFiltersAndKeepsOrder(t *testing.T) {

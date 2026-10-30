@@ -13,7 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/fedorovmv/izyan/internal/flock"
+	"github.com/davniy/izyan/internal/flock"
 )
 
 // LockFileName is the lock file inside the repo's git dir. Git itself

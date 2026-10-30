@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	pbdomain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/productb/reportcheck"
+	pbdomain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/reportcheck"
 )
 
 // groundAnswer runs the deterministic report grounder over the agent's

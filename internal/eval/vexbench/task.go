@@ -13,7 +13,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // Task is one VEX-Bench JSONL record. It is control-plane data:

@@ -17,8 +17,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/repository"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )

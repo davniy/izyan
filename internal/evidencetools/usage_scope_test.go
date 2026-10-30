@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/affected"
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/toolaudit"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/toolaudit"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 // usageScopeStubTool serves two canned `go list -deps [-test] -json ./...`

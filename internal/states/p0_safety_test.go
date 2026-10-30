@@ -26,12 +26,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evaluator"
-	"github.com/fedorovmv/izyan/internal/exploit"
-	"github.com/fedorovmv/izyan/internal/llm"
-	"github.com/fedorovmv/izyan/internal/states"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evaluator"
+	"github.com/davniy/izyan/internal/exploit"
+	"github.com/davniy/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/states"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 // exactScope is the only scope authority that allows a negative closure: an

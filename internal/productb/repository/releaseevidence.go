@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
+	domain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 // ReleaseEvidence is the outcome of snapshot-local release-toolchain

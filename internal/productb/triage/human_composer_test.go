@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 // humanOnlyAssessment is the fixture the human-result tests compose: the

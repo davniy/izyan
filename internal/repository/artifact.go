@@ -21,7 +21,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // DefaultArtifactCredentialsEnv is the default environment variable an

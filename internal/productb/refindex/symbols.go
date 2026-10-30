@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	pbdomain "github.com/fedorovmv/izyan/internal/productb/domain"
+	pbdomain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 // atomSource is the raw material one atom is built from: the declaring

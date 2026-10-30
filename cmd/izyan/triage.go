@@ -15,14 +15,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/fix"
-	"github.com/fedorovmv/izyan/internal/llm"
-	triage "github.com/fedorovmv/izyan/internal/productb/triage"
-	pbvuln "github.com/fedorovmv/izyan/internal/productb/vulnerability"
-	"github.com/fedorovmv/izyan/internal/toolchain"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/fix"
+	"github.com/davniy/izyan/internal/llm"
+	triage "github.com/davniy/izyan/internal/productb/triage"
+	pbvuln "github.com/davniy/izyan/internal/productb/vulnerability"
+	"github.com/davniy/izyan/internal/toolchain"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 // cliExitError carries the process exit code a CLI error must produce.

@@ -9,9 +9,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/affected"
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/goanalysis"
+	"github.com/davniy/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/goanalysis"
 )
 
 // sha256Of returns the hex sha256 of b.

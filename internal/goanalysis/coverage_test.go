@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/affected"
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 var uriStringSym = domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "URI.String"}

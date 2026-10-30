@@ -3,7 +3,7 @@ package vexbench
 import (
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // CaseOutcome is the safety-aware classification of one case against its

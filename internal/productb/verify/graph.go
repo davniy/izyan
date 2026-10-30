@@ -3,8 +3,8 @@ package verify
 import (
 	"sort"
 
-	"github.com/fedorovmv/izyan/internal/productb/claimshape"
-	triage "github.com/fedorovmv/izyan/internal/productb/triage"
+	"github.com/davniy/izyan/internal/productb/claimshape"
+	triage "github.com/davniy/izyan/internal/productb/triage"
 )
 
 // Node kinds of the entailment graph (plan §5.2).

@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	triage "github.com/fedorovmv/izyan/internal/productb/triage"
+	triage "github.com/davniy/izyan/internal/productb/triage"
 )
 
 // The locator parsing mirrors the fact gate's own conventions: the same

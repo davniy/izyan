@@ -3,9 +3,9 @@ package states_test
 import (
 	"runtime"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evaluator"
-	"github.com/fedorovmv/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evaluator"
+	"github.com/davniy/izyan/internal/repository"
 )
 
 // declaredSnapshotOptions declares the analyzed build explicitly: both axes

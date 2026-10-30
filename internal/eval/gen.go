@@ -19,7 +19,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/toolaudit"
+	"github.com/davniy/izyan/internal/toolaudit"
 )
 
 // Gen materializes generated-manifest products. GoBin runs `go mod tidy`

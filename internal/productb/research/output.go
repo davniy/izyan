@@ -3,8 +3,8 @@ package research
 import (
 	"encoding/json"
 	"fmt"
-	pbdomain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/productb/reportcheck"
+	pbdomain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/reportcheck"
 	"os"
 	"path/filepath"
 	"sort"

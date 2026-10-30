@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/productb/repository"
+	"github.com/davniy/izyan/internal/productb/repository"
 )
 
 // Options carries everything Build needs; the command maps its flags onto

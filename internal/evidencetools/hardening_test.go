@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/goanalysis"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/goanalysis"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 // envValue reports the last KEY=value entry of env — the one a

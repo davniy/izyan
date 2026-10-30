@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/fedorovmv/izyan/internal/research"
+	"github.com/davniy/izyan/internal/research"
 )
 
 // runResearchHistory is deliberately independent of the live research and

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 func TestTraceCalleeLocalPopulatedAfterInitialization(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/persistence"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/persistence"
 )
 
 type Transition struct {

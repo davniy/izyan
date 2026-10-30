@@ -16,7 +16,7 @@ import (
 
 	"golang.org/x/tools/go/packages"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // maxTraceHops bounds how far argument provenance follows identifiers into

@@ -3,7 +3,7 @@ package fixbinding
 import (
 	"sort"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // This file builds the necessary disjunction a claim may range over:

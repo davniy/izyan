@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evaluator"
-	"github.com/fedorovmv/izyan/internal/goanalysis"
-	"github.com/fedorovmv/izyan/internal/toolaudit"
-	"github.com/fedorovmv/izyan/internal/workflow"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evaluator"
+	"github.com/davniy/izyan/internal/goanalysis"
+	"github.com/davniy/izyan/internal/toolaudit"
+	"github.com/davniy/izyan/internal/workflow"
 )
 
 // GapAnalysis is the bounded hypothesis loop (spec §18): for every

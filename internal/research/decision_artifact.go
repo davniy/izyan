@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // decisionHex64Re is the strict sha256 digest shape the R6 artifact

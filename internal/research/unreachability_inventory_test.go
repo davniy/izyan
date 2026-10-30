@@ -2,8 +2,8 @@ package research
 
 import (
  "testing"
- "github.com/fedorovmv/izyan/internal/affected"
- "github.com/fedorovmv/izyan/internal/domain"
+ "github.com/davniy/izyan/internal/affected"
+ "github.com/davniy/izyan/internal/domain"
 )
 
 func TestUnreachabilityReplayResearchInventory(t *testing.T) {

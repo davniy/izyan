@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // writeTicket writes a tracker ticket document (JSON or plain text)

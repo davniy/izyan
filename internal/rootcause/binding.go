@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // establishBinding derives a candidate's identity observation in the selected

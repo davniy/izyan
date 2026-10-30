@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/eval"
+	"github.com/davniy/izyan/internal/eval"
 )
 
 // writeProduct creates a minimal product source tree in dir.

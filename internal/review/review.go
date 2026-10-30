@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/exploit"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/exploit"
 	"path/filepath"
 )
 

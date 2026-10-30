@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 func TestAssess_NotAffected_Dismissed(t *testing.T) {

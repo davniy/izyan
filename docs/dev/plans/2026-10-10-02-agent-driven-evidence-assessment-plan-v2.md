@@ -25,7 +25,7 @@
 - Инвентаризировать 31 MCP-tool, старые `internal/{affected,goanalysis,evaluator,llm,workflow,report}`, eval scripts, provenance, stale `/tmp` dependencies, frozen inputs и результаты Tasks 3–6.
 - Провести `go test ./...`, smoke, compare core verdict distribution, ревизию capability boundaries и GT isolation; классифицировать компоненты `REUSE / ADAPT / REWRITE / DROP`.
 - Проверить `docs/dev/roadmaps/llm-cve-analysis-roadmap.md`, B30/B32, предыдущий Task 7. Выписать, что реализовано, что существует только в документах и что нельзя использовать без проверки.
-- Не включать переименование `module github.com/fedorovmv/izyan` в эту работу.
+- Не включать переименование `module github.com/davniy/izyan` в эту работу.
 
 **Выбор:** использовать shadow, если воспроизводим и исследовательские изменения отделимы от core; иначе чистый worktree **того же** repo. Новый repo — только при доказанной технической/правовой невозможности reuse.
 

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/states"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/states"
 )
 
 // outcomeRunner controls the raw stream, the actually-used pattern, and the

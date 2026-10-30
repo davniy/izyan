@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // This file is the activation boundary of the persisted content-proof

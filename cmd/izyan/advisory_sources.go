@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/advfeed"
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/advfeed"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/repository"
 )
 
 // attributionManifestSchema is the closed schema of the operator-supplied

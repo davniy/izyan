@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/productb/claimshape"
-	triage "github.com/fedorovmv/izyan/internal/productb/triage"
+	"github.com/davniy/izyan/internal/productb/claimshape"
+	triage "github.com/davniy/izyan/internal/productb/triage"
 )
 
 // --- challenge normalization and re-derivation ---

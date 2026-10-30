@@ -14,8 +14,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/toolaudit"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/toolaudit"
 )
 
 // Module mirrors the `go list -m -json` output subset we rely on.

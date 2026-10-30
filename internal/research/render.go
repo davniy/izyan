@@ -7,8 +7,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/flow"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/flow"
 )
 
 // RenderJSON serializes the report as canonical indented JSON. The byte

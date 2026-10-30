@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/llm"
 )
 
 func investigationFile(t *testing.T, dir, name string, data []byte) (string, string) {

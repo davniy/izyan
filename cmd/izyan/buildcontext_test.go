@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/goanalysis"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/goanalysis"
 )
 
 // writeAnalyzeFixture materializes a minimal module and a local OSV document

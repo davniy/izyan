@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/domain"
 )
 
 // humanAssessmentFixture is the minimal structurally valid v2 assessment:

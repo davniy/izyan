@@ -19,9 +19,9 @@ import (
 	"strings"
 	"time"
 
-	pbdomain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/productb/reportcheck"
-	"github.com/fedorovmv/izyan/internal/toolaudit"
+	pbdomain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/reportcheck"
+	"github.com/davniy/izyan/internal/toolaudit"
 )
 
 // DefaultAgentImage is the frozen opencode container used by the B1 arm

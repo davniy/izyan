@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/eval/vexbench"
-	"github.com/fedorovmv/izyan/internal/toolchain"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/eval/vexbench"
+	"github.com/davniy/izyan/internal/toolchain"
 )
 
 // runVexBench executes the VEX-Bench Go subset against the analyzer under a

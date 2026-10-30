@@ -1,6 +1,6 @@
 # Izyan (Vuln Analyzer)
 
-Оригинальный репозиторий: [https://github.com/fedorovmv/izyan](https://github.com/fedorovmv/izyan)
+Оригинальный репозиторий: [https://github.com/davniy/izyan](https://github.com/davniy/izyan)
 
 **Izyan** (рус. *«Изъян»* — дефект, уязвимость) — статический анализатор эксплуатируемости уязвимостей в коде на **Go**.
 
@@ -89,10 +89,10 @@ flowchart TD
 
 ```bash
 # Установка через go install
-go install github.com/fedorovmv/izyan/cmd/izyan@latest
+go install github.com/davniy/izyan/cmd/izyan@latest
 
 # Либо сборка из исходников
-git clone https://github.com/fedorovmv/izyan.git
+git clone https://github.com/davniy/izyan.git
 cd izyan
 go build -o izyan ./cmd/izyan
 ```
@@ -202,7 +202,7 @@ Izyan поддерживает гибкие варианты передачи в
 
 ## Участие в разработке и форки
 
-Проект открыт для сообщества! Если вы форкаете или зеркалируете репозиторий (в том числе во внутренние корпоративные контуры), сохраняйте ссылку на оригинальный репозиторий: [https://github.com/fedorovmv/izyan](https://github.com/fedorovmv/izyan).
+Проект открыт для сообщества! Если вы форкаете или зеркалируете репозиторий (в том числе во внутренние корпоративные контуры), сохраняйте ссылку на оригинальный репозиторий: [https://github.com/davniy/izyan](https://github.com/davniy/izyan).
 
 Все доработки, исправления дефектов и поддержка новых уязвимостей приветствуются обратно в апстрим через Pull Requests. Подробные правила, инварианты безопасности (`false-safe = 0`, no case-specific hardcode) и чеклист перед отправкой описаны в [**`CONTRIBUTING.md`**](CONTRIBUTING.md).
 

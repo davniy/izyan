@@ -9,7 +9,7 @@ package evidencetools
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // Completeness states how much of the declared scope the check covered.

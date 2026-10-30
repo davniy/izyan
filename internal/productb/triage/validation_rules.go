@@ -7,8 +7,8 @@ import (
 
 	"golang.org/x/mod/semver"
 
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/toolchain"
+	domain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/toolchain"
 )
 
 // AdvisoryProjection is the deterministic view of the frozen advisory the

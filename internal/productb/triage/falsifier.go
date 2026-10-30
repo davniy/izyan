@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"errors"
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	domain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 type MandatoryConditionLookup struct {

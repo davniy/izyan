@@ -3,7 +3,7 @@ package fixbinding
 import (
 	"reflect"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // This file is the admission boundary. Admit re-derives the whole binding from

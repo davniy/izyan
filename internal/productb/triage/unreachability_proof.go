@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	domain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 // UnreachabilityRuleID names an observation capability, not an automatic proof.

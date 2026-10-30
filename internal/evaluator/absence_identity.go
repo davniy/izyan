@@ -3,9 +3,9 @@ package evaluator
 import (
 	"fmt"
 
-	"github.com/fedorovmv/izyan/internal/affected"
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/fixbinding"
+	"github.com/davniy/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/fixbinding"
 )
 
 // absenceFalsifier reports whether a FALSE claim rests on a subject's absence

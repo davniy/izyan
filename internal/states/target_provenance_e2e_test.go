@@ -24,12 +24,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evaluator"
-	"github.com/fedorovmv/izyan/internal/report"
-	"github.com/fedorovmv/izyan/internal/repository"
-	"github.com/fedorovmv/izyan/internal/states"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evaluator"
+	"github.com/davniy/izyan/internal/report"
+	"github.com/davniy/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/states"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 const provenanceAdvisoryID = "GO-TEST-PROV"

@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/flock"
-	"github.com/fedorovmv/izyan/internal/llm"
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/productb/repository"
-	"github.com/fedorovmv/izyan/internal/productb/vulnerability"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/flock"
+	"github.com/davniy/izyan/internal/llm"
+	domain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/repository"
+	"github.com/davniy/izyan/internal/productb/vulnerability"
 )
 
 // ReplaySchemaVersion is the schema of replay.json inside a replay report.

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/eval/vexbench"
+	"github.com/davniy/izyan/internal/eval/vexbench"
 )
 
 // readOSVLog loads the persisted fetch records, verifying each line is an

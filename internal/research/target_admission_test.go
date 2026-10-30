@@ -3,8 +3,8 @@ package research
 import (
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 // The applicability chain's build-dependent axes need an admitted target;

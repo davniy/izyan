@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/eval"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/eval"
 )
 
 func record(r *eval.Report, c eval.Case, verdict domain.Verdict) {

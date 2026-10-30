@@ -6,8 +6,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/flow"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/flow"
 	"golang.org/x/mod/module"
 )
 

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/productb/research"
+	"github.com/davniy/izyan/internal/productb/research"
 )
 
 // runResearchB executes the frozen B1 evaluation arm: verify a pinned

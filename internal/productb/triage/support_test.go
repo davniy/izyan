@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/productb/vulnerability"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/productb/vulnerability"
 )
 
 // supportAssessment assembles a model-owned assessment for the support

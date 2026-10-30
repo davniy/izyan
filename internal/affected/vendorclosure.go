@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/llm"
-	"github.com/fedorovmv/izyan/internal/productb/repository"
+	"github.com/davniy/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/productb/repository"
 	"golang.org/x/mod/semver"
 )
 

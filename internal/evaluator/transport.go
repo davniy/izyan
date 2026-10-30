@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // ServerTransportInput evaluates ATTACKER_CONTROL / INPUT_CONSTRAINT for

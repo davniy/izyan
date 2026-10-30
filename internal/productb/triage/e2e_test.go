@@ -17,13 +17,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/llm"
-	"github.com/fedorovmv/izyan/internal/productb/claimshape"
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
-	triage "github.com/fedorovmv/izyan/internal/productb/triage"
-	"github.com/fedorovmv/izyan/internal/productb/verify"
-	"github.com/fedorovmv/izyan/internal/productb/vulnerability"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/productb/claimshape"
+	domain "github.com/davniy/izyan/internal/productb/domain"
+	triage "github.com/davniy/izyan/internal/productb/triage"
+	"github.com/davniy/izyan/internal/productb/verify"
+	"github.com/davniy/izyan/internal/productb/vulnerability"
 )
 
 var e2eClock = func() time.Time { return time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC) }

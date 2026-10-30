@@ -1,7 +1,7 @@
 package evaluator
 
 import (
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // MissingCall evaluates MISSING_CALL conditions.

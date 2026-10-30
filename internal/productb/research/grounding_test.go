@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	pbdomain "github.com/fedorovmv/izyan/internal/productb/domain"
+	pbdomain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 // groundFixture builds a report whose answer cites real snapshot files and

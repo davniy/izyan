@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/justification"
-	"github.com/fedorovmv/izyan/internal/report"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/justification"
+	"github.com/davniy/izyan/internal/report"
 )
 
 func TestJustification_ExploitableGeneratesHumanRemainder(t *testing.T) {

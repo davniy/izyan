@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/productb/triage"
+	"github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/triage"
 )
 
 // TestMissingManifestNeverIsolates pins the S-13 rule: an empty deploy scan

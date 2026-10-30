@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // axisReportDocument is the report.json envelope: the unchanged persisted case

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
+	domain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 // ModelMandatoryConditionSource adapts the deterministic exploit model to the

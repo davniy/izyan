@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // actCollectEvidence verifies the model's admitted omission contract: it asks

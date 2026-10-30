@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/productb/repository"
+	"github.com/davniy/izyan/internal/productb/repository"
 )
 
 var fixedNow = func() time.Time { return time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC) }

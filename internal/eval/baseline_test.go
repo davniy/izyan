@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/eval"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/eval"
 )
 
 type baselineRunner struct {

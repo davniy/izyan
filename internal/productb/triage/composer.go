@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/risk"
+	"github.com/davniy/izyan/internal/risk"
 )
 
 // DecisionRule is one versioned risk rule: when its Applicability

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
+	domain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 // composeOrFail composes with the default providers and auto-run checks.

@@ -7,7 +7,7 @@ import (
 	"go/types"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 func TestCanonicalByteIORequiresExactNonvariadicSignature(t *testing.T) {

@@ -13,7 +13,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // Item is a key/value pair found in a repository config file.

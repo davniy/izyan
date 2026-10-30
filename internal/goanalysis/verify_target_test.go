@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // The verifier gate runs before every verification route: a build-dependent

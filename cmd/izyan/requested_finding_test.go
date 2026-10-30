@@ -11,12 +11,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/eval/vexbench"
-	"github.com/fedorovmv/izyan/internal/evaluator"
-	"github.com/fedorovmv/izyan/internal/finding"
-	"github.com/fedorovmv/izyan/internal/justification"
-	"github.com/fedorovmv/izyan/internal/report"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/eval/vexbench"
+	"github.com/davniy/izyan/internal/evaluator"
+	"github.com/davniy/izyan/internal/finding"
+	"github.com/davniy/izyan/internal/justification"
+	"github.com/davniy/izyan/internal/report"
 )
 
 const (

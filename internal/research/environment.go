@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/exposure"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/exposure"
 )
 
 // The decision-variable registry (Amendment R6). Branch enumeration is

@@ -11,11 +11,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/affected"
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evaluator"
-	"github.com/fedorovmv/izyan/internal/states"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evaluator"
+	"github.com/davniy/izyan/internal/states"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 // The end-to-end library proof runs on a synthetic but complete advisory: a

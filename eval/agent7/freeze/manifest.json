@@ -53,10 +53,10 @@
  },
  "spec": {
   "files_sha256": {
-   "docs/dev/specs/2026-10-10-01-agent-driven-evidence-assessment-design-v2.md": "662d1e86fe6487f97635d51b1876eb13c52f84a300a913b2137689f9c697a132"
+   "docs/dev/specs/2026-10-10-01-agent-driven-evidence-assessment-design-v2.md": "d8ff697e7c40ae6fefa87c40f4e88f2bd2d758e9777c9ed94d51ac76943eb5ec"
   },
   "plan_sha256": {
-   "docs/dev/plans/2026-10-10-02-agent-driven-evidence-assessment-plan-v2.md": "95472be7cc295edc6d963e975ca5686cb36c968178b1b6078100d4bb99dbdf5f"
+   "docs/dev/plans/2026-10-10-02-agent-driven-evidence-assessment-plan-v2.md": "d4e18138dc821386c13ba738202ea8b9bfcd3c371aa47b3dd017b66952fc913e"
   },
   "note": "PR-0 documents are worktree files at freeze time; hashes recorded for audit, re-verified by internal/eval/agent7.Validate"
  },
@@ -77,8 +77,8 @@
   "files_sha256": {
    "internal/eval/agent7/manifest.go": "07916357c52feda0961c5baecc08aafcdc082e84f7479aa43158b372c35d853f",
    "internal/eval/agent7/outcomes.go": "ce48d4d30c032917688961d1e041a9eb538aa8d40d3b39753356e018e5ba6355",
-   "internal/eval/agent7/manifest_test.go": "5c6f07bf77e6f0bc3a508151c5713a625936d7b88e8f95be4c7efd02d7ef00b1",
-   "internal/eval/agent7/outcomes_test.go": "8a776933580037807d59c7404d2e5c0da29618312f70954b3a7ccdbe0b445e52"
+   "internal/eval/agent7/manifest_test.go": "12c23bf054c0472b370f402680f74d6ffa6b64610c14c588e522d57ec37196a1",
+   "internal/eval/agent7/outcomes_test.go": "64e5247c70b747118713c692e7dd56e72dcfdbbbd888c12289aa5c4c46515ec1"
   },
   "package": "internal/eval/agent7",
   "convention": "Go package mirroring internal/eval/vexbench; classifier+aggregator are the frozen scorer — byte-identical across arms"

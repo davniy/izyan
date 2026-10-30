@@ -7,12 +7,12 @@ import (
  "runtime"
  "testing"
 
- "github.com/fedorovmv/izyan/internal/domain"
- "github.com/fedorovmv/izyan/internal/evaluator"
- "github.com/fedorovmv/izyan/internal/exploit"
- "github.com/fedorovmv/izyan/internal/goanalysis"
- "github.com/fedorovmv/izyan/internal/repository"
- "github.com/fedorovmv/izyan/internal/vulnerability"
+ "github.com/davniy/izyan/internal/domain"
+ "github.com/davniy/izyan/internal/evaluator"
+ "github.com/davniy/izyan/internal/exploit"
+ "github.com/davniy/izyan/internal/goanalysis"
+ "github.com/davniy/izyan/internal/repository"
+ "github.com/davniy/izyan/internal/vulnerability"
 )
 
 func TestSafeConfigCollection(t *testing.T) {

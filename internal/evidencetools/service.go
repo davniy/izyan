@@ -15,13 +15,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/affected"
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/fix"
-	"github.com/fedorovmv/izyan/internal/goanalysis"
-	"github.com/fedorovmv/izyan/internal/repository"
-	"github.com/fedorovmv/izyan/internal/toolaudit"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/fix"
+	"github.com/davniy/izyan/internal/goanalysis"
+	"github.com/davniy/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/toolaudit"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 // AdapterVersion is stamped into every Observation's evidence metadata

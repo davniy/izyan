@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/llm"
 )
 
 // setupRefGitRepo builds a local repository with plain tags, release-style

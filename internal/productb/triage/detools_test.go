@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/llm"
 )
 
 // fakeDetCaller is a scripted DetCaller: it records invocations and answers

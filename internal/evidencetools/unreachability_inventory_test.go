@@ -3,7 +3,7 @@ package evidencetools
 import (
  "context"
  "testing"
- "github.com/fedorovmv/izyan/internal/domain"
+ "github.com/davniy/izyan/internal/domain"
 )
 
 func TestUnreachabilityRequiresSessionInventory(t *testing.T) {

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/fix"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/fix"
 )
 
 // resolveFixArtifacts accounts for every fix locator the record declares and

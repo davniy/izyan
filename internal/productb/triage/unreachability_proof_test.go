@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	canonicaldomain "github.com/fedorovmv/izyan/internal/domain"
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/productb/vulnerability"
+	"github.com/davniy/izyan/internal/evidencetools"
+	canonicaldomain "github.com/davniy/izyan/internal/domain"
+	domain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/vulnerability"
 )
 
 // kernelSession runs the real unreachability tool against the mini fixture:

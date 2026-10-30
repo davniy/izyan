@@ -350,7 +350,7 @@ Stop rules:
 
 - **Same repo, separate lane.** Инвентаризация `vuln-analyzer-shadow` обязательна; если воспроизводим и изменения изолируемы — reuse. Если нет — чистый worktree от стабильного SHA, перенос только проверенных частей. Новый репозиторий не нужен без установленной несовместимости.
 - `izyan analyze` и старые authoritative verdicts не менять. Новые `izyan research`/offline `proof-check` экспериментальные; production VEX/трекер не пишутся.
-- `go.mod` опубликованного master всё ещё содержит `github.com/fedorovmv/izyan`; module rename отдельная задача, не смешивать с исследованием.
+- `go.mod` опубликованного master всё ещё содержит `github.com/davniy/izyan`; module rename отдельная задача, не смешивать с исследованием.
 
 ### 10.2. Политика по старому proof roadmap
 

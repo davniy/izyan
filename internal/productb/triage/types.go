@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
+	domain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 // FindingSchemaVersion is the only accepted schema for parsed findings.

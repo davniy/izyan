@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/finding"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/finding"
 )
 
 // Build constructs an audit-ready AnalysisJustification from the case's one

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/affected"
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 func persistedLocusFixture(t *testing.T) (domain.ProductSnapshot, *domain.ExploitModel, domain.Claim, domain.Condition, []domain.Evidence, UnreachabilityResult) {

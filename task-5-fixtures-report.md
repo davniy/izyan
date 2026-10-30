@@ -41,7 +41,7 @@ Core API readiness was communicated before checks. Final focused command, after 
 go test ./internal/fixbinding -run 'Test(CaptureContext|PersistedProof|Refused|NonCounterpart|SelectedSource|Binding|Admission|AllInapplicable|PerLocator|PatchBase|CompleteTree|CaptureReplay|ExternalCapture|TwoFixLocators|AssertedProof|WithdrawnHistorical|ThirdPartyFix|AnotherVersionSource|MissingExactSource|GuessedV2|UnsupportedFix|ChangedProof)' -count=1
 ```
 
-Result: PASS (`ok github.com/fedorovmv/izyan/internal/fixbinding 0.885s`).
+Result: PASS (`ok github.com/davniy/izyan/internal/fixbinding 0.885s`).
 
 The separately exercised product-tree regression passed before the final combined command as well.
 

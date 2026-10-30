@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/toolaudit"
+	"github.com/davniy/izyan/internal/toolaudit"
 )
 
 // modelToProvider mirrors the harness MODEL2NAME map

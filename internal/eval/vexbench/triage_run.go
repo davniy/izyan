@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/llm"
-	"github.com/fedorovmv/izyan/internal/productb/triage"
+	"github.com/davniy/izyan/internal/llm"
+	"github.com/davniy/izyan/internal/productb/triage"
 )
 
 // VexTriageRunSchemaVersion pins the execution run schema.

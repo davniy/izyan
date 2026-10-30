@@ -3,9 +3,9 @@ package research
 import (
  "context"
 
- "github.com/fedorovmv/izyan/internal/evidencetools"
- "github.com/fedorovmv/izyan/internal/fix"
- "github.com/fedorovmv/izyan/internal/rootcause"
+ "github.com/davniy/izyan/internal/evidencetools"
+ "github.com/davniy/izyan/internal/fix"
+ "github.com/davniy/izyan/internal/rootcause"
 )
 
 // laneFixSourceCaptures invokes the same producer as analyze. It retains proof

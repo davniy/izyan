@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/gitlock"
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/toolaudit"
+	"github.com/davniy/izyan/internal/gitlock"
+	domain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/toolaudit"
 )
 
 type SnapshotOptions struct {

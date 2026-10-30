@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/fixbinding"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/fixbinding"
 )
 
 // ConditionEvaluator assigns a TRUE/FALSE/UNKNOWN claim to a condition using

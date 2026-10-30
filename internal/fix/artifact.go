@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // Provenance labels distinguish how a locator was answered. They are recorded

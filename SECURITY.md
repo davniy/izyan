@@ -13,7 +13,7 @@ Security reports are accepted for issues that impact the correctness and safety 
 
 Please report potential security vulnerabilities privately:
 
-* **Preferred**: Use [GitHub Private Vulnerability Reporting](https://github.com/fedorovmv/izyan/security/advisories/new).
+* **Preferred**: Use [GitHub Private Vulnerability Reporting](https://github.com/davniy/izyan/security/advisories/new).
 * **Alternative**: Email maintainers directly at `mvfedorov@gmail.com`.
 
 Please provide:

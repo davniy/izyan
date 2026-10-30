@@ -10,9 +10,9 @@ import (
 
 	"golang.org/x/mod/modfile"
 
-	pbdomain "github.com/fedorovmv/izyan/internal/productb/domain"
-	"github.com/fedorovmv/izyan/internal/productb/repository"
-	"github.com/fedorovmv/izyan/internal/toolaudit"
+	pbdomain "github.com/davniy/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/productb/repository"
+	"github.com/davniy/izyan/internal/toolaudit"
 )
 
 // commitSHARx matches a full lowercase git SHA — the directory-name

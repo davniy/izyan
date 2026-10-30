@@ -8,8 +8,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/workflow"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/workflow"
 )
 
 // memStore records saves and can fail on demand. Load is unused by the engine.

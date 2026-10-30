@@ -1,6 +1,6 @@
 package claimshape
 
-import triage "github.com/fedorovmv/izyan/internal/productb/triage"
+import triage "github.com/davniy/izyan/internal/productb/triage"
 
 // ShapePredicate is the canonical predicate prose of a shape. It is a
 // fixed property of the taxonomy — never derived from claim text.

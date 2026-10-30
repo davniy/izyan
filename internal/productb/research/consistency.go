@@ -20,7 +20,7 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 
-	pbdomain "github.com/fedorovmv/izyan/internal/productb/domain"
+	pbdomain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 // absenceCaveat is the standing rule attached to the consistency section:

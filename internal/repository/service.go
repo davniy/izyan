@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/gitlock"
-	"github.com/fedorovmv/izyan/internal/toolaudit"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/gitlock"
+	"github.com/davniy/izyan/internal/toolaudit"
 	"golang.org/x/mod/modfile"
 )
 

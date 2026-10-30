@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/mod/semver"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // affectedByRanges reports whether version falls inside any of the ranges.

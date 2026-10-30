@@ -37,17 +37,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/affected"
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/eval/vexbench"
-	"github.com/fedorovmv/izyan/internal/evaluator"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/persistence/filesystem"
-	"github.com/fedorovmv/izyan/internal/repository"
-	"github.com/fedorovmv/izyan/internal/research"
-	"github.com/fedorovmv/izyan/internal/states"
-	"github.com/fedorovmv/izyan/internal/toolaudit"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/affected"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/eval/vexbench"
+	"github.com/davniy/izyan/internal/evaluator"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/persistence/filesystem"
+	"github.com/davniy/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/research"
+	"github.com/davniy/izyan/internal/states"
+	"github.com/davniy/izyan/internal/toolaudit"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 const (

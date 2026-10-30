@@ -3,8 +3,8 @@ package rootcause
 import (
 	"fmt"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/goanalysis"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/goanalysis"
 )
 
 // coordinateResolution answers one question: does this module-relative patch

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/productb/repository"
+	"github.com/davniy/izyan/internal/productb/repository"
 )
 
 // MaterializationMode records how a catalog source became a snapshot root.

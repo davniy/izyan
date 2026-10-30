@@ -15,8 +15,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	triage "github.com/fedorovmv/izyan/internal/productb/triage"
+	"github.com/davniy/izyan/internal/domain"
+	triage "github.com/davniy/izyan/internal/productb/triage"
 )
 
 // operatorBuild is the build-selection object an operator supplies either in

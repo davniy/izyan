@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	triage "github.com/fedorovmv/izyan/internal/productb/triage"
+	triage "github.com/davniy/izyan/internal/productb/triage"
 )
 
 const triageEvalUsage = `usage:

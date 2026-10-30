@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/flow"
-	"github.com/fedorovmv/izyan/internal/research"
+	"github.com/davniy/izyan/internal/flow"
+	"github.com/davniy/izyan/internal/research"
 )
 
 func TestDecisionReadyFlagConflicts(t *testing.T) {

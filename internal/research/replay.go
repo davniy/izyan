@@ -12,8 +12,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/flow"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/flow"
 )
 
 // replay.go rebuilds the agent turn of a persisted `izyan research` run

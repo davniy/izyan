@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/finding"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/finding"
 )
 
 // axesAffirmative is the four-fact applicability chain. The optional

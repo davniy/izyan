@@ -19,7 +19,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 // PlanAction is one typed, bounded action the planner proposes. The

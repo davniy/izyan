@@ -25,7 +25,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/toolaudit"
+	"github.com/davniy/izyan/internal/toolaudit"
 )
 
 // Mode names how the target toolchain is provided.

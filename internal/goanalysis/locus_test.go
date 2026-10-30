@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // SymbolFaultingUse separates the defect site (body indexes the guarded

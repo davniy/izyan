@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/eval/agent7"
+	"github.com/davniy/izyan/internal/eval/agent7"
 )
 
 // key builds a frozen attempt key (experiment_id, arm, model, task_id,

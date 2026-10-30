@@ -17,7 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
+	domain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 // toolsFixture builds an executor over a temp snapshot tree: go.mod and

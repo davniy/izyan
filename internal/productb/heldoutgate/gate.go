@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/productb/claimshape"
-	agenttriage "github.com/fedorovmv/izyan/internal/productb/triage"
-	"github.com/fedorovmv/izyan/internal/productb/verify"
+	"github.com/davniy/izyan/internal/productb/claimshape"
+	agenttriage "github.com/davniy/izyan/internal/productb/triage"
+	"github.com/davniy/izyan/internal/productb/verify"
 )
 
 // RunCorpus replays every run of the corpus (<corpus>/<ticket>/intake-*/)

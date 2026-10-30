@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/flock"
+	"github.com/davniy/izyan/internal/flock"
 )
 
 // humanDecisionFixture records one complete decision-bearing run and returns

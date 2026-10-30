@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // Synthetic toolchain values for capability tests — never a real ecosystem

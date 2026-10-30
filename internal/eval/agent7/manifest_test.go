@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/eval/agent7"
+	"github.com/davniy/izyan/internal/eval/agent7"
 )
 
 // repoRoot resolves the repository root from the package dir

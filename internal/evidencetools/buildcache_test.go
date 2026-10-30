@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/repository"
 )
 
 // A declared --build-cache-dir is canonicalized, exported to tool

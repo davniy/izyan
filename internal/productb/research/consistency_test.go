@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	pbdomain "github.com/fedorovmv/izyan/internal/productb/domain"
+	pbdomain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 // writeTree builds a snapshot dir from a name→content map.

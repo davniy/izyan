@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/goanalysis"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/goanalysis"
 )
 
 // callSiteScopeObs translates ErrCallSiteNotFound — a position that is not

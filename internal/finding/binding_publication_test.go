@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/rootcause"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/rootcause"
 )
 
 // The re-landed proof contract refuses dependencies, not unrelated evidence. A

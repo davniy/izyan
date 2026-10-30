@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/advfeed"
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/finding"
-	"github.com/fedorovmv/izyan/internal/states"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/advfeed"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/finding"
+	"github.com/davniy/izyan/internal/states"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 const (

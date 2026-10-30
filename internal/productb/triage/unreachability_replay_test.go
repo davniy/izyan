@@ -4,11 +4,11 @@ import (
  "context"
  "encoding/json"
  "testing"
- "github.com/fedorovmv/izyan/internal/affected"
- "github.com/fedorovmv/izyan/internal/domain"
- "github.com/fedorovmv/izyan/internal/evidencetools"
- "github.com/fedorovmv/izyan/internal/goanalysis"
- "github.com/fedorovmv/izyan/internal/productb/triage"
+ "github.com/davniy/izyan/internal/affected"
+ "github.com/davniy/izyan/internal/domain"
+ "github.com/davniy/izyan/internal/evidencetools"
+ "github.com/davniy/izyan/internal/goanalysis"
+ "github.com/davniy/izyan/internal/productb/triage"
 )
 
 func TestUnreachabilityReplayRequiresFullPayload(t *testing.T) {

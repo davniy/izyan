@@ -30,7 +30,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/repository"
 )
 
 // EcosystemGo is the only ecosystem this analyzer consumes from a dump.

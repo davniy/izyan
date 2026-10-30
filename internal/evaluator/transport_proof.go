@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // ValidateTransportInput re-admits a rooted server-transport input claim.

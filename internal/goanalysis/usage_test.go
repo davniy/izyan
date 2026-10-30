@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 	"golang.org/x/tools/go/packages"
 )
 

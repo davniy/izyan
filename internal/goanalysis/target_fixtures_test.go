@@ -3,7 +3,7 @@ package goanalysis
 import (
 	"runtime"
 
-	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/domain"
 )
 
 // testProduct is the scoped product build every verifier fixture uses. The

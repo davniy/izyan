@@ -29,8 +29,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evidencetools"
 )
 
 // oversizedEvidenceContent is tool output far past the observation

@@ -18,9 +18,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/llm"
-	domain "github.com/fedorovmv/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/llm"
+	domain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 // catalogTestProposal is the falsifier proposal every fixture in this

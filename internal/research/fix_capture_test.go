@@ -4,7 +4,7 @@ import (
  "bytes"
  "testing"
 
- "github.com/fedorovmv/izyan/internal/domain"
+ "github.com/davniy/izyan/internal/domain"
 )
 
 // The real producer/publication/replay fixture is in cmd/izyan. This unit

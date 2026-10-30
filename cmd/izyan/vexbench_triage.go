@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/eval/vexbench"
+	"github.com/davniy/izyan/internal/eval/vexbench"
 )
 
 const vexTriageUsage = `usage:

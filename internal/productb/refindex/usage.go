@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/fedorovmv/izyan/internal/goanalysis"
-	pbdomain "github.com/fedorovmv/izyan/internal/productb/domain"
+	"github.com/davniy/izyan/internal/goanalysis"
+	pbdomain "github.com/davniy/izyan/internal/productb/domain"
 )
 
 // UsageChecker is the slice of goanalysis.Index usage probing needs.

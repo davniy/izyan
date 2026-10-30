@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/repository"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 // Relationship is one of the three independent corpus indexes. Related ids

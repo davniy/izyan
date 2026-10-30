@@ -14,13 +14,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fedorovmv/izyan/internal/advfeed"
-	"github.com/fedorovmv/izyan/internal/domain"
-	"github.com/fedorovmv/izyan/internal/evidencetools"
-	"github.com/fedorovmv/izyan/internal/repository"
-	"github.com/fedorovmv/izyan/internal/research"
- "github.com/fedorovmv/izyan/internal/rootcause"
-	"github.com/fedorovmv/izyan/internal/vulnerability"
+	"github.com/davniy/izyan/internal/advfeed"
+	"github.com/davniy/izyan/internal/domain"
+	"github.com/davniy/izyan/internal/evidencetools"
+	"github.com/davniy/izyan/internal/repository"
+	"github.com/davniy/izyan/internal/research"
+ "github.com/davniy/izyan/internal/rootcause"
+	"github.com/davniy/izyan/internal/vulnerability"
 )
 
 // researchOpts mirrors the `izyan research` flag surface (design §3).

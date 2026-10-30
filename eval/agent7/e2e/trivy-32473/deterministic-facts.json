@@ -1,0 +1,240 @@
+{
+  "content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+  "facts": [
+    {
+      "id": "fact-obs-0001",
+      "statement": "snapshot <VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02 contained, replaces confined, content hash 7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "claim": "TRUE",
+      "tool": "repository-preflight",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "repository-preflight {\"snapshot\":\"<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02\"}",
+      "scope": "VerifyContained + CheckPathReplacements + ContentHash over the snapshot tree",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "external_commit_sha": null,
+      "input_digest": "6e5d60fec80692a26e979d6a9dd683dc198f805a07d1b525c15bc426efaf9e9e",
+      "data_digest": "a1025078125e59dadf14c466debf08b9c86b709ae79c9fac8a90ea85125da1fd",
+      "artifact": {
+        "path": "artifacts/obs-0001.json",
+        "sha256": "6037578bb28833c7e02bed4e537b4d1342d241b723c8942538015cca5a10ee96",
+        "size_bytes": 1019,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0001",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:08:04Z"
+      },
+      "limitations": null
+    },
+    {
+      "id": "fact-obs-0002",
+      "statement": "snapshot identity 37da98df45f6014fcd5f1744e2e26351b61d2a02: go directive 1.22, release toolchain \"go1.22.0\", darwin/arm64",
+      "claim": "TRUE",
+      "tool": "repository-snapshot",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "repository-snapshot {\"GOOS\":\"\",\"GOARCH\":\"\",\"BuildTags\":null,\"BinaryPath\":\"\",\"ReleaseGoVersion\":\"\",\"TrustedPeer\":false,\"DeployManifests\":null,\"DeployArchive\":\"\",\"PerimeterOverride\":\"\",\"ExternalCommitSHA\":\"37da98df45f6014fcd5f1744e2e26351b61d2a02\",\"GoBin\":\"go\",\"Env\":null}",
+      "scope": "repository.Service.Snapshot (git/go probes + static release-evidence scan, no repo code executed)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "external_commit_sha": "37da98df45f6014fcd5f1744e2e26351b61d2a02",
+      "input_digest": "96214e325fc36fc78c2908e90ec647a80bc63af2f53d01bc6bdb8834e32d6526",
+      "data_digest": "2336183a87726d8b3148de2c53d4d958b5f94afce736245a5f6f4f5bda9e920c",
+      "artifact": {
+        "path": "artifacts/obs-0002.json",
+        "sha256": "4a94a80345294a5aa11bcad167e897526b53b78a840c32e2feacefb6c37403b1",
+        "size_bytes": 1470,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0002",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:08:04Z"
+      },
+      "limitations": []
+    },
+    {
+      "id": "fact-obs-0003",
+      "statement": "frozen advisory CVE-2024-32473 resolved to GO-2024-2737 (1 affected entries, source frozen_file)",
+      "claim": "TRUE",
+      "tool": "advisory-load",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "advisory-load {\"cve\":\"CVE-2024-32473\",\"path\":\"eval/agent7/advisories/trivy-32473.json\",\"source\":\"frozen_file\"}",
+      "scope": "FileSource(eval/agent7/advisories/trivy-32473.json) with alias enrichment disabled; no network",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "external_commit_sha": null,
+      "input_digest": "0ba2dfa0cbee8599c05d27989a14e72509f2d7b10b8abf7405b35d5646b18476",
+      "data_digest": "c299a34112356f0ac0c72483a17149fe70c9782b8ca491950db3d4c4baf94199",
+      "artifact": {
+        "path": "artifacts/obs-0003.json",
+        "sha256": "15225471dc86c46cca3a0958e675ea565d6f80526baa06c9c39f03ed8debcba5",
+        "size_bytes": 807,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0003",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:08:04Z"
+      },
+      "limitations": null
+    },
+    {
+      "id": "fact-obs-0004",
+      "statement": "snapshot 37da98df45f6014fcd5f1744e2e26351b61d2a02: content hash 7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5, go directive 1.22, 0 replace directives",
+      "claim": "TRUE",
+      "tool": "get_product_snapshot",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_product_snapshot {}",
+      "scope": "this snapshot's build context and module manifest facts",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "external_commit_sha": "37da98df45f6014fcd5f1744e2e26351b61d2a02",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "a60cf64454049485ca3e2c5f71247d28c101065adf14dcf1bf0f68a62a08e9fc",
+      "artifact": {
+        "path": "artifacts/obs-0004.json",
+        "sha256": "341ae774e91280f2d1d5ffbe8267fdc4da94748834a9856bc141434f2853011a",
+        "size_bytes": 5017,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0004",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:08:04Z"
+      },
+      "limitations": null
+    },
+    {
+      "id": "fact-obs-0005",
+      "statement": "normalized advisory record for CVE-2024-32473 (resolved id GO-2024-2737)",
+      "claim": "TRUE",
+      "tool": "get_vulnerability",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_vulnerability {}",
+      "scope": "OSV-compatible advisory record for CVE-2024-32473",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "external_commit_sha": "37da98df45f6014fcd5f1744e2e26351b61d2a02",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "c57593a970bbfd7f89c7f9cdd3fffcd6fc57f5b5c65417cb740d5b6ee882157e",
+      "artifact": {
+        "path": "artifacts/obs-0005.json",
+        "sha256": "8387fa94223c6eba39a18ff50df2686d1d33272445d7e006db4234558f5be48a",
+        "size_bytes": 6007,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0005",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:08:04Z"
+      },
+      "limitations": [
+        "advisory declares no affected symbols; symbol-level queries need an explicit subject",
+        "severity provenance not declared by the advisory source"
+      ]
+    },
+    {
+      "id": "fact-obs-0006",
+      "statement": "dependency graph: 1019 module(s) resolved via go list -m -json all",
+      "claim": "TRUE",
+      "tool": "get_dependency_graph",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_dependency_graph {}",
+      "scope": "module list of <VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02 (go list -m -json all)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "external_commit_sha": "37da98df45f6014fcd5f1744e2e26351b61d2a02",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "8232638d12cf4a8264bae626111854d87137b3b8d44e7939662c7637ec731c6a",
+      "artifact": {
+        "path": "artifacts/obs-0006.json",
+        "sha256": "5a554e3b302640e9d208455524b78052aab14c64d369f0275ecac164d2fc1434",
+        "size_bytes": 236553,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0006",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:08:04Z"
+      },
+      "limitations": null
+    },
+    {
+      "id": "fact-obs-0007",
+      "statement": "module github.com/docker/docker resolved to version v26.0.1+incompatible",
+      "claim": "TRUE",
+      "tool": "get_module_version",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_module_version {\"module\":\"github.com/docker/docker\"}",
+      "scope": "resolved module list of <VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02 (go list -m -json all)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "external_commit_sha": null,
+      "input_digest": "1b56dd748179a66993ac00a9b9afc53aa98670db9f0af2bc90cd3d7c6cc1b8e4",
+      "data_digest": "76cc009f2727a27d0c43db0704eb0916e465142277edbad9b03abf1158b2478a",
+      "artifact": {
+        "path": "artifacts/obs-0007.json",
+        "sha256": "360b2073fe5256a9a412a0392718414818acc15517580c2dc50e516d471efe78",
+        "size_bytes": 4252,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0007",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:08:04Z"
+      },
+      "limitations": null
+    },
+    {
+      "id": "fact-obs-0008",
+      "statement": "applicability chain for GO-2024-2737: module_present=TRUE version_affected=TRUE package_present=UNKNOWN build_relevant=UNKNOWN (selected [github.com/docker/docker])",
+      "claim": "TRUE",
+      "tool": "affected-resolve",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "affected-resolve {\"vuln\":\"GO-2024-2737\"}",
+      "scope": "affected.GoResolver.Resolve over the snapshot module graph and import closure (go list -m, go list -deps under strict toolchain env)",
+      "status": "OK",
+      "coverage": "PARTIAL",
+      "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "external_commit_sha": "37da98df45f6014fcd5f1744e2e26351b61d2a02",
+      "input_digest": "88b6a0142bc51b450ba7cf0d8129c5b2c58dbb34e7de91c05af9f9827492c0f1",
+      "data_digest": "415791d3e35689829d2b46a9cff55ee3ce167a57908967aecb248c111b6b6882",
+      "artifact": {
+        "path": "artifacts/obs-0008.json",
+        "sha256": "71822044477fb26922413990681cbce63e0e5a7f9a336ed5b4bfece091b1ef20",
+        "size_bytes": 310951,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0008",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:08:04Z"
+      },
+      "limitations": [
+        "advisory names no affected packages for the selected module; package presence undecidable",
+        "observation payload truncated at 262144 bytes (full payload 69467104 bytes, sha256 7691ba8a7bc1fc4cab4dbdfbb2eb591bec3e0991ef3099aa3964cddf3384fd4c); stored bytes are a prefix of the tool result, not the full result"
+      ]
+    }
+  ],
+  "observations": 15,
+  "schema": "deterministic-facts/1",
+  "snapshot_root": "<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02",
+  "verified_fact_ids": [
+    "fact-obs-0001",
+    "fact-obs-0002",
+    "fact-obs-0003",
+    "fact-obs-0004",
+    "fact-obs-0005",
+    "fact-obs-0006",
+    "fact-obs-0007",
+    "fact-obs-0008"
+  ]
+}

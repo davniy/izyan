@@ -69,11 +69,22 @@ func (Tools) Schemas() string { return toolSchemas }
 // to the model as an error string, not as "no evidence exists".
 func (t Tools) Call(ctx context.Context, c *domain.AnalysisCase, name string, args json.RawMessage) ToolResult {
 	if c.UsageSnapshot().ToolCalls >= c.Workflow.Limits.MaxToolCalls && c.Workflow.Limits.MaxToolCalls > 0 {
+		RecordAnalysisBudget(c, "tool call budget exhausted")
+		if name == "run_govulncheck" {
+			// The action was requested and rejected before execution; the
+			// durable record must say not_run, not omit the measurement.
+			return govulncheckRefusal(ctx, c, "tool call budget exhausted")
+		}
 		return ToolResult{Error: "tool call budget exhausted"}
 	}
 	c.IncToolCalls()
 
-	fail := func(err error) ToolResult { return ToolResult{Error: err.Error()} }
+	fail := func(err error) ToolResult {
+		if IsAnalysisTimeout(err) || IsAnalysisTimeout(ctx.Err()) {
+			RecordAnalysisTimeout(c, err)
+		}
+		return ToolResult{Error: err.Error()}
+	}
 	switch name {
 	case "read_function":
 		var a struct {
@@ -84,6 +95,7 @@ func (t Tools) Call(ctx context.Context, c *domain.AnalysisCase, name string, ar
 			return fail(err)
 		}
 		if c.UsageSnapshot().SourceReads >= c.Workflow.Limits.MaxSourceReads && c.Workflow.Limits.MaxSourceReads > 0 {
+			RecordAnalysisBudget(c, "source read budget exhausted")
 			return ToolResult{Error: "source read budget exhausted"}
 		}
 		c.IncSourceReads()
@@ -153,19 +165,15 @@ func (t Tools) Call(ctx context.Context, c *domain.AnalysisCase, name string, ar
 		if err != nil {
 			return fail(err)
 		}
-		var last domain.EvidenceID
-		for _, e := range evs {
-			last = c.EvidenceGraph.AddEvidence(e)
-		}
 		for i := range flows {
 			flows[i].ConditionID = condFromCtx(ctx)
 		}
-		c.EvidenceGraph.AddDataFlows(flows...)
+		ids := c.EvidenceGraph.AddArgumentTrace(flows, evs)
 		b, _ := json.Marshal(flows)
 		id := addEvidence(c, domain.EvidenceDataFlow, "trace_argument",
 			fmt.Sprintf("%s:%d", a.File, a.Line), string(b))
-		if last != "" {
-			id = last
+		if len(ids) > 0 {
+			id = ids[len(ids)-1]
 		}
 		return result(id, map[string]any{"data_flows": flows})
 
@@ -241,6 +249,7 @@ func (t Tools) Call(ctx context.Context, c *domain.AnalysisCase, name string, ar
 			return fail(err)
 		}
 		if c.UsageSnapshot().SourceReads >= c.Workflow.Limits.MaxSourceReads && c.Workflow.Limits.MaxSourceReads > 0 {
+			RecordAnalysisBudget(c, "source read budget exhausted")
 			return ToolResult{Error: "source read budget exhausted"}
 		}
 		c.IncSourceReads()
@@ -360,30 +369,48 @@ func (t Tools) Call(ctx context.Context, c *domain.AnalysisCase, name string, ar
 		return result(id, map[string]any{"modules": mods, "source": src})
 
 	case "run_govulncheck":
-		if t.Govulncheck == nil {
-			return ToolResult{Error: "govulncheck runner not configured"}
+		record := goanalysis.RecordForCase(c)
+		ev, res := goanalysis.CollectGovulncheck(ctx, t.Govulncheck, c.Product, record)
+		id := c.EvidenceGraph.AddEvidence(ev)
+		run := ev.Govulncheck
+		if run == nil {
+			RecordAnalysisGap(c, domain.AnalysisGap{
+				Owner: domain.GapOwnerProof, Code: domain.GapMeasurementNotCompleted,
+				Obligation: domain.ObligationMeasurement, Message: "govulncheck produced no run record",
+			})
+			return ToolResult{Error: "govulncheck produced no run record", EvidenceID: id}
 		}
-		raw, pattern, gvErr := t.Govulncheck.RunGovulncheck(ctx, c.Product.Repository, c.Product)
-		if gvErr != nil {
-			return fail(fmt.Errorf("govulncheck: %w", gvErr))
+		switch run.Outcome {
+		case domain.GovulncheckNotRun:
+			RecordAnalysisGap(c, domain.AnalysisGap{
+				Owner: domain.GapOwnerProof, Code: domain.GapMeasurementNotCompleted,
+				Obligation: domain.ObligationMeasurement,
+				Message:    "govulncheck did not run: " + run.Error,
+			})
+			return ToolResult{Error: "govulncheck runner not configured", EvidenceID: id}
+		case domain.GovulncheckFailed:
+			RecordAnalysisGap(c, domain.AnalysisGap{
+				Owner: domain.GapOwnerProof, Code: domain.GapMeasurementNotCompleted,
+				Obligation: domain.ObligationMeasurement,
+				Message:    "govulncheck failed: " + run.Error,
+			})
+			return ToolResult{Error: "govulncheck: " + run.Error, EvidenceID: id}
 		}
-		res, err := goanalysis.Parse(raw)
-		if err != nil {
-			return fail(err)
+		projection, projErr := res.ProjectRecord(record)
+		if projErr != nil {
+			RecordAnalysisGap(c, domain.AnalysisGap{
+				Owner: domain.GapOwnerProof, Code: domain.GapMeasurementNotCompleted,
+				Obligation: domain.ObligationMeasurement,
+				Message:    "govulncheck record projection failed: " + projErr.Error(),
+			})
+			return ToolResult{Error: "govulncheck record projection: " + projErr.Error(), EvidenceID: id}
 		}
-		var findings []goanalysis.Finding
-		for _, f := range res.Findings {
-			if f.OSV == c.Vulnerability.ID || contains(c.Vulnerability.Aliases, f.OSV) {
-				findings = append(findings, f)
-			}
-		}
-		b, _ := json.Marshal(findings)
-		id := addEvidence(c, domain.EvidenceGovulncheck, "run_govulncheck", c.Vulnerability.ID, string(b))
 		return result(id, map[string]any{
-			"in_database": res.Covers(c.Vulnerability),
-			"findings":    findings,
-			"count":       len(findings),
-			"scope":       pattern,
+			"in_database": projection.Coverage.Advisory == domain.GovulncheckCoverageCovered,
+			"findings":    projection.Findings,
+			"count":       len(projection.Findings),
+			"scope":       run.Pattern,
+			"outcome":     string(run.Outcome),
 		})
 
 	case "run_build", "run_tests":
@@ -431,15 +458,6 @@ func (t Tools) goExec() (string, []string) {
 	return "go", nil
 }
 
-func contains(list []string, v string) bool {
-	for _, s := range list {
-		if s == v {
-			return true
-		}
-	}
-	return false
-}
-
 func addEvidence(c *domain.AnalysisCase, kind domain.EvidenceKind, tool, title, content string) domain.EvidenceID {
 	return c.EvidenceGraph.AddEvidence(domain.Evidence{
 		Kind:    kind,
@@ -448,6 +466,24 @@ func addEvidence(c *domain.AnalysisCase, kind domain.EvidenceKind, tool, title, 
 		Tool:    "agent." + tool,
 		Content: truncate(content, 4000),
 	})
+}
+
+// govulncheckRefusal records a not_run govulncheck outcome for a requested
+// action rejected before execution (missing runner, exhausted tool budget)
+// and preserves the evidence id on the error result.
+func govulncheckRefusal(ctx context.Context, c *domain.AnalysisCase, reason string) ToolResult {
+	ev, _ := goanalysis.CollectGovulncheck(ctx, nil, c.Product, goanalysis.RecordForCase(c))
+	if ev.Govulncheck != nil {
+		ev.Govulncheck.Error = reason
+	}
+	ev.Limitations = []string{"govulncheck did not run: " + reason}
+	RecordAnalysisGap(c, domain.AnalysisGap{
+		Owner: domain.GapOwnerProof, Code: domain.GapMeasurementNotCompleted,
+		Obligation: domain.ObligationMeasurement,
+		Message:    "govulncheck did not run: " + reason,
+	})
+	id := c.EvidenceGraph.AddEvidence(ev)
+	return ToolResult{Error: reason, EvidenceID: id}
 }
 
 func result(id domain.EvidenceID, v any) ToolResult {

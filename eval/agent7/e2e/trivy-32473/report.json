@@ -1,0 +1,1843 @@
+{
+  "schema": "research-report/1",
+  "mode": "experimental-research-v1",
+  "run": {
+    "run_id": "research-CVE-2024-32473-1791799609",
+    "started_at": "2026-10-12T10:06:49Z",
+    "finished_at": "2026-10-12T10:11:13Z",
+    "deterministic_only": false,
+    "timeouts": {
+      "overall_ms": 1800000,
+      "deterministic_ms": 60000,
+      "agent_ms": 900000
+    },
+    "harness": {
+      "path": "<VA_VEXBENCH>/agent-ctl",
+      "commit": "80cddeac3132826bfd47227ad59b2e6618a681bd",
+      "patch_sha256": "5534fae586976a9db2471f744c35e92897734b60fdbaf7300baff2c1e8ac1b86",
+      "e6_preflight_report": "<VA_REPO>/eval/agent7/results/research-s2/trivy-32473/agent/harness/e6/security-boundary-check.json",
+      "e6_preflight_sha256": "22b908e5905f240762b9e4e818e1f02c0875bf5c6f2aab900a5499e9c41bf560",
+      "image": "vex-bench-go-opencode-e6:latest",
+      "image_sha256": "sha256:c85bc1df0f7e89b370c5ef552cd624bba1e49c2cb07005c8946be557b7379ba1",
+      "prompt_path": "eval/agent7/prompts/r0-v1.txt",
+      "prompt_sha256": "55b01e9a505bd058cb7be568f08c0e58364b8048e5acea030a14534f7031a0ae"
+    },
+    "attempts": [
+      {
+        "id": "attempt-0001",
+        "kind": "deterministic",
+        "ordinal": 1,
+        "status": "OK",
+        "started_at": "2026-10-12T10:06:49Z",
+        "finished_at": "2026-10-12T10:08:04Z",
+        "reason_code": "initial",
+        "reason": "initial deterministic lane pass (strict evidencetools session)",
+        "retry_of": null,
+        "original_preserved": true,
+        "result_artifact": {
+          "path": "deterministic-facts.json",
+          "sha256": "c0dda0d57db61d4010b1c04e45d6cfa17061c3a9bfb1c31ecff70a524eafc995",
+          "size_bytes": 11629,
+          "selector": "deterministic lane result"
+        },
+        "extraction": {
+          "status": "NOT_APPLICABLE",
+          "invalid_reason": "NONE",
+          "candidate_count": 0,
+          "candidates": [],
+          "selected_index": -1,
+          "answer_artifact": null
+        }
+      },
+      {
+        "id": "attempt-0002",
+        "kind": "agent",
+        "ordinal": 2,
+        "status": "OK",
+        "started_at": "2026-10-12T10:09:49Z",
+        "finished_at": "2026-10-12T10:11:13Z",
+        "reason_code": "initial",
+        "reason": "initial agent assessment",
+        "retry_of": null,
+        "original_preserved": true,
+        "result_artifact": {
+          "path": "agent/attempt-0002/result.json",
+          "sha256": "aa497caf93d5f2ccf130f2daa5d9679915243b24a2f9dff716af8fb0eed621c0",
+          "size_bytes": 153854,
+          "selector": "raw harness result"
+        },
+        "extraction": {
+          "status": "VALID",
+          "invalid_reason": "NONE",
+          "candidate_count": 1,
+          "candidates": [
+            {
+              "index": 0,
+              "status": "VALID",
+              "category": "code_not_reachable",
+              "raw_sha256": "f36f3cc7968dd4da52b0d5c3d30a0b4141d8ad6d61cbe528e289f849070dd848",
+              "canonical_sha256": "87f5d37411be40bde20141468cc58ae10af218664c3ed3778982635cf29de8d8",
+              "selector": "bytes 8..7559 of retained answer"
+            }
+          ],
+          "selected_index": 0,
+          "answer_artifact": {
+            "path": "agent/attempt-0002/answer.txt",
+            "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054",
+            "size_bytes": 7563,
+            "selector": "assistant text"
+          }
+        }
+      }
+    ]
+  },
+  "input": {
+    "snapshot": {
+      "path": "<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02",
+      "commit_sha": "37da98df45f6014fcd5f1744e2e26351b61d2a02",
+      "external_commit_sha": "37da98df45f6014fcd5f1744e2e26351b61d2a02",
+      "content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "go_version": "go version go1.26.1 darwin/arm64",
+      "release_go_version": "go1.22.0",
+      "go_version_source": "toolchain",
+      "minimum_go_version": "1.22",
+      "goos": "darwin",
+      "goarch": "arm64",
+      "build_tags": null,
+      "vendor_mode": false,
+      "go_work_file": null
+    },
+    "advisory": {
+      "requested_id": "CVE-2024-32473",
+      "resolved_id": "GO-2024-2737",
+      "source_kind": "frozen_file",
+      "source_path": "eval/agent7/advisories/trivy-32473.json",
+      "raw_sha256": "5c4dd340e0a4490e1fcb51e7bf49ea8c13a4f7c33dd5dce9d1a4154e2277fe5c",
+      "canonical_sha256": "50ee8772e189732d7a9d095b33e47507476d1c819f50c7a292d15a102aa1d04c",
+      "modified": "2026-02-04T04:28:42.566154Z"
+    }
+  },
+  "vulnerability": {
+    "id": "GO-2024-2737",
+    "aliases": [
+      "CVE-2024-32473",
+      "GHSA-x84c-p2g9-rqv9"
+    ],
+    "summary": "IPv6 enabled on IPv4-only network interfaces in github.com/docker/docker",
+    "description": "IPv6 enabled on IPv4-only network interfaces in github.com/docker/docker",
+    "references": [
+      {
+        "type": "ADVISORY",
+        "url": "https://github.com/moby/moby/security/advisories/GHSA-x84c-p2g9-rqv9"
+      },
+      {
+        "type": "ADVISORY",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-32473"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/moby/moby/commit/7cef0d9cd1cf221d8c0b7b7aeda69552649e0642"
+      }
+    ],
+    "advisory_digest_ref": "fact-obs-0003"
+  },
+  "affected_implementations": [
+    {
+      "id": "adv-01",
+      "ecosystem": "Go",
+      "module": "github.com/docker/docker",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "26.0.0+incompatible",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "26.0.2+incompatible",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [
+        "26.0.2+incompatible"
+      ],
+      "binding": "alias-resolved",
+      "source_ref": "adv:GO-2024-2737"
+    }
+  ],
+  "product_applicability": {
+    "status": "PARTIAL",
+    "module_present": "TRUE",
+    "resolved_version": null,
+    "version_affected": "TRUE",
+    "package_present": "UNKNOWN",
+    "build_relevant": "UNKNOWN",
+    "selected_module": "github.com/docker/docker",
+    "selected_modules": [
+      "github.com/docker/docker"
+    ],
+    "checked_modules": [
+      "github.com/docker/docker"
+    ],
+    "checked_packages": [],
+    "pending_modules": [],
+    "limitations": [
+      "advisory names no affected packages for the selected module; package presence undecidable"
+    ],
+    "evidence_refs": [
+      "obs:OBS-0008",
+      "fact-obs-0008"
+    ],
+    "conclusion_scope": "AFFECTED_ENTRY_ONLY",
+    "advisory_scope_status": "UNKNOWN",
+    "basis": [
+      {
+        "kind": "component_present_affected",
+        "status": "ESTABLISHED",
+        "source": "deterministic",
+        "statement": "the affected component github.com/docker/docker is present at an advisory-affected version",
+        "evidence_refs": [
+          "fact-obs-0008",
+          "obs:OBS-0008"
+        ],
+        "verified_evidence_refs": [
+          "fact-obs-0008"
+        ],
+        "limitations": []
+      },
+      {
+        "kind": "sdk_vs_daemon_distinction",
+        "status": "PROVISIONAL",
+        "source": "agent",
+        "statement": "agent-named basis: the product uses the component's client/SDK surface while the advisory defect lives in the daemon/server implementation",
+        "evidence_refs": [
+          "A-0001",
+          "A-0002",
+          "A-0003",
+          "A-0004",
+          "A-0005",
+          "A-0006"
+        ],
+        "verified_evidence_refs": [],
+        "limitations": [
+          "agent-stated only; no deterministic source bytes or reproducible recipe currently proves the SDK-vs-daemon distinction"
+        ]
+      }
+    ]
+  },
+  "exploitation_conditions": [
+    {
+      "id": "EC-0001",
+      "subject": "affected module presence",
+      "scope": "resolved module graph / snapshot build context",
+      "necessity": "required",
+      "statement": "the affected component (github.com/docker/docker) is present in the resolved module graph",
+      "origin": "deterministic",
+      "state": "SUPPORTED",
+      "evidence_refs": [
+        "obs:OBS-0008",
+        "fact-obs-0008"
+      ],
+      "limitations": [],
+      "axis": "code_reachability"
+    },
+    {
+      "id": "EC-0002",
+      "subject": "affected version in use",
+      "scope": "resolved module graph / snapshot build context",
+      "necessity": "required",
+      "statement": "the deployed product uses github.com/docker/docker at a version inside the advisory's affected ranges",
+      "origin": "deterministic",
+      "state": "SUPPORTED",
+      "evidence_refs": [
+        "obs:OBS-0008",
+        "fact-obs-0008"
+      ],
+      "limitations": [],
+      "axis": "code_reachability"
+    },
+    {
+      "id": "EC-0003",
+      "subject": "affected package reachable",
+      "scope": "resolved module graph / snapshot build context",
+      "necessity": "required",
+      "statement": "whether product code reaches the affected package is undecided",
+      "origin": "deterministic",
+      "state": "UNKNOWN",
+      "evidence_refs": [
+        "obs:OBS-0008",
+        "fact-obs-0008"
+      ],
+      "limitations": [
+        "follow-up: the advisory names no affected package for this module, or go list coverage was partial; run module_usage/symbol scans under the full build context"
+      ],
+      "axis": "code_reachability"
+    },
+    {
+      "id": "EC-0004",
+      "subject": "affected package build-relevant",
+      "scope": "resolved module graph / snapshot build context",
+      "necessity": "required",
+      "statement": "whether the affected code is build-relevant under the recorded context is undecided",
+      "origin": "deterministic",
+      "state": "UNKNOWN",
+      "evidence_refs": [
+        "obs:OBS-0008",
+        "fact-obs-0008"
+      ],
+      "limitations": [
+        "follow-up: resolve package presence/build relevance (requires go list -deps coverage)"
+      ],
+      "axis": "code_reachability"
+    },
+    {
+      "id": "EC-0005",
+      "subject": "runtime/deployment posture",
+      "scope": "runtime configuration and deployment environment",
+      "necessity": "required",
+      "statement": "a runtime configuration/environment predicate must hold for exploitation (attacker reachability, feature flags, deployment exposure); static source evidence cannot decide it",
+      "origin": "deterministic",
+      "state": "UNKNOWN",
+      "evidence_refs": [
+        "obs:OBS-0011"
+      ],
+      "limitations": [
+        "follow-up: confirm deployment posture (listeners, auth, network exposure, config) against the recorded entry-point facts"
+      ],
+      "axis": "attack_surface_availability"
+    },
+    {
+      "id": "EC-0006",
+      "subject": "",
+      "scope": "agent assessment (snapshot-read scope as stated)",
+      "necessity": "unknown",
+      "statement": "An attacker would need to invoke Docker's network creation APIs (e.g., via Docker API with NetworkCreate requests) on a Docker daemon using a version between 26.0.0 and 26.0.2 on a host with IPv4-only network interfaces. Trivy does not expose Docker API network endpoints, does not create Docker networks, and does not call any network-related Docker client APIs. There is no attack-reachable path from Trivy's attack surfaces (image scanning via CLI, OCI artifact processing, registry operations) to the vulnerable code.",
+      "origin": "agent",
+      "state": "OPEN",
+      "evidence_refs": [
+        "A-0004"
+      ],
+      "limitations": [],
+      "axis": "other"
+    }
+  ],
+  "vulnerability_mechanism": {
+    "status": "PARTIAL",
+    "summary": "CVE-2024-32473 allows IPv6 to be enabled on IPv4-only network interfaces in the Docker daemon. This is a network configuration defect where Docker creates network interfaces with IPv6 support even when the underlying host interface is IPv4-only, potentially causing unintended network exposure or misconfiguration. The effect occurs because the affected docker/docker code path handles network creation/management in the Docker daemon, not in the client library.",
+    "claims": [
+      {
+        "id": "dc-mechanism-01",
+        "statement": "advisory GO-2024-2737 states: IPv6 enabled on IPv4-only network interfaces in github.com/docker/docker",
+        "subject": "GO-2024-2737",
+        "scope": "frozen advisory document",
+        "state": "SUPPORTED",
+        "evidence_refs": [
+          "fact-obs-0003"
+        ],
+        "limitations": [],
+        "origin": "deterministic"
+      },
+      {
+        "id": "ac-mechanism-01",
+        "statement": "CVE-2024-32473 allows IPv6 to be enabled on IPv4-only network interfaces in the Docker daemon. This is a network configuration defect where Docker creates network interfaces with IPv6 support even when the underlying host interface is IPv4-only, potentially causing unintended network exposure or misconfiguration. The effect occurs because the affected docker/docker code path handles network creation/management in the Docker daemon, not in the client library.",
+        "subject": "",
+        "scope": "agent assessment (snapshot-read scope as stated)",
+        "state": "OPEN",
+        "evidence_refs": [
+          "A-0002"
+        ],
+        "limitations": [],
+        "origin": "agent"
+      }
+    ],
+    "limitations": []
+  },
+  "root_cause": {
+    "status": "PARTIAL",
+    "summary": "The advisory GO-2024-2737 binds to module github.com/docker/docker, introduced in 26.0.0+incompatible and fixed in 26.0.2+incompatible. The vulnerable code resides in the Docker daemon's network layer within the docker/docker module. In this Trivy snapshot, docker/docker is imported as a dependency at go.mod:45 (v26.0.1+incompatible). The code in Trivy that uses docker/docker (pkg/fanal/image/daemon/docker.go:7-9 imports github.com/docker/docker/client) only calls read-only image APIs (ImageInspectWithRaw, ImageHistory, ImageSave). No network creation or management APIs are invoked.",
+    "claims": [
+      {
+        "id": "ac-rootcause-02",
+        "statement": "The advisory GO-2024-2737 binds to module github.com/docker/docker, introduced in 26.0.0+incompatible and fixed in 26.0.2+incompatible. The vulnerable code resides in the Docker daemon's network layer within the docker/docker module. In this Trivy snapshot, docker/docker is imported as a dependency at go.mod:45 (v26.0.1+incompatible). The code in Trivy that uses docker/docker (pkg/fanal/image/daemon/docker.go:7-9 imports github.com/docker/docker/client) only calls read-only image APIs (ImageInspectWithRaw, ImageHistory, ImageSave). No network creation or management APIs are invoked.",
+        "subject": "",
+        "scope": "agent assessment (snapshot-read scope as stated)",
+        "state": "OPEN",
+        "evidence_refs": [
+          "A-0003"
+        ],
+        "limitations": [],
+        "origin": "agent"
+      }
+    ],
+    "limitations": []
+  },
+  "attack_scenario": {
+    "status": "UNKNOWN",
+    "summary": "UNKNOWN: a non-applicability attack conclusion is not established (no verified applicability basis); follow-up: capture exact source bytes or a reproducible static recipe for the agent's named applicability basis, then adjudicate the non-applicability conclusion; agent-stated: An attacker would need to invoke Docker's network creation APIs (e.g., via Docker API with NetworkCreate requests) on a Docker daemon using a version between 26.0.0 and 26.0.2 on a host with IPv4-only network interfaces. Trivy does not expose Docker API network endpoints, does not create Docker networks, and does not call any network-related Docker client APIs. There is no attack-reachable path fr…",
+    "claims": [
+      {
+        "id": "ac-attack-03",
+        "statement": "An attacker would need to invoke Docker's network creation APIs (e.g., via Docker API with NetworkCreate requests) on a Docker daemon using a version between 26.0.0 and 26.0.2 on a host with IPv4-only network interfaces. Trivy does not expose Docker API network endpoints, does not create Docker networks, and does not call any network-related Docker client APIs. There is no attack-reachable path from Trivy's attack surfaces (image scanning via CLI, OCI artifact processing, registry operations) to the vulnerable code.",
+        "subject": "",
+        "scope": "agent assessment (snapshot-read scope as stated)",
+        "state": "OPEN",
+        "evidence_refs": [
+          "A-0004"
+        ],
+        "limitations": [],
+        "origin": "agent"
+      }
+    ],
+    "limitations": [
+      "downgraded per §3.2: classification_review is UNKNOWN — preserved agent statements remain unverified agent assertions"
+    ]
+  },
+  "product_exposure": {
+    "status": "UNKNOWN",
+    "summary": "UNKNOWN: a non-applicability exposure conclusion is not established (no verified applicability basis); follow-up: capture exact source bytes or a reproducible static recipe for the agent's named applicability basis, then adjudicate the non-applicability conclusion; agent-stated: Trivy is a container security scanner (github.com/aquasecurity/trivy, per go.mod:1). It uses the Docker client (pkg/fanal/image/daemon/docker.go) to inspect and save container images for scanning when the Docker engine driver is used. Build: Go module, Go 1.22 (go.mod:3-5). Configuration: the daemon image feature is a user-invoked capability via trivy image --platform or similar flags. Platform: L…",
+    "claims": [
+      {
+        "id": "ac-exposure-04",
+        "statement": "Trivy is a container security scanner (github.com/aquasecurity/trivy, per go.mod:1). It uses the Docker client (pkg/fanal/image/daemon/docker.go) to inspect and save container images for scanning when the Docker engine driver is used. Build: Go module, Go 1.22 (go.mod:3-5). Configuration: the daemon image feature is a user-invoked capability via trivy image --platform or similar flags. Platform: Linux (container scanning target). The snapshot does not establish any Docker daemon network configuration or deployment context. Unknown: whether downstream builds of Trivy might link additional docker/docker code paths not present in this snapshot, and whether any future plugin or extension system could introduce network-related code.",
+        "subject": "",
+        "scope": "agent assessment (snapshot-read scope as stated)",
+        "state": "OPEN",
+        "evidence_refs": [
+          "A-0005"
+        ],
+        "limitations": [],
+        "origin": "agent"
+      }
+    ],
+    "limitations": [
+      "downgraded per §3.2: classification_review is UNKNOWN — preserved agent statements remain unverified agent assertions"
+    ]
+  },
+  "alternative_paths": {
+    "status": "PARTIAL",
+    "summary": "Checked: (1) All docker/docker imports in the snapshot - confirmed only client and types APIs used, no daemon/network code. (2) All docker docker client method calls - only ImageInspectWithRaw, ImageHistory, ImageSave, ImageLoad, ImageTag, ImageRemove. (3) Integration tests (integration/docker_engine_test.go) only test image loading, inspection, and removal. (4) Containerd and podman daemon readers (containerd.go, podman.go) do not use docker network APIs. (5) Searched for any network creation API calls - zero matches. Not fully explored: transitive dependencies within docker/docker that may have different usage patterns not visible from import analysis alone (the docker/docker client package may internally reference network-related types even if only image APIs are called). However, Go packages are typically not linked if their symbols are not referenced, and the CVE affects daemon-side network logic, not client-side code.",
+    "claims": [
+      {
+        "id": "ac-altpaths-05",
+        "statement": "Checked: (1) All docker/docker imports in the snapshot - confirmed only client and types APIs used, no daemon/network code. (2) All docker docker client method calls - only ImageInspectWithRaw, ImageHistory, ImageSave, ImageLoad, ImageTag, ImageRemove. (3) Integration tests (integration/docker_engine_test.go) only test image loading, inspection, and removal. (4) Containerd and podman daemon readers (containerd.go, podman.go) do not use docker network APIs. (5) Searched for any network creation API calls - zero matches. Not fully explored: transitive dependencies within docker/docker that may have different usage patterns not visible from import analysis alone (the docker/docker client package may internally reference network-related types even if only image APIs are called). However, Go packages are typically not linked if their symbols are not referenced, and the CVE affects daemon-side network logic, not client-side code.",
+        "subject": "",
+        "scope": "agent assessment (snapshot-read scope as stated)",
+        "state": "OPEN",
+        "evidence_refs": [
+          "A-0006"
+        ],
+        "limitations": [],
+        "origin": "agent"
+      }
+    ],
+    "limitations": []
+  },
+  "evidence_quality": {
+    "status": "SUPPORTED",
+    "summary": "evidence base: 8 deterministic check(s) OK, 7 non-OK; evidence is scope-bounded per each observation's scope/limitations; agent stated: Evidence covers the relevant import declarations, method call sites, and the advisory binding. Coverage is strong for Trivy's docker/docker usage pattern (read-only image operations). Limitation: the internal code of the docker/docker v26.0.1+incompatible package itself is not present in this snapshot (it is fetched as a transitive dependency), so a full call-graph analysis within docker/docker is not possible. The classification relies on the absence of network-related method calls in the Trivy codebase and the known scope of the vulnerability (daemon network code).",
+    "references": [
+      {
+        "ref": "adv:GO-2024-2737",
+        "kind": "advisory",
+        "path": "eval/agent7/advisories/trivy-32473.json",
+        "selector": "frozen document",
+        "sha256": "5c4dd340e0a4490e1fcb51e7bf49ea8c13a4f7c33dd5dce9d1a4154e2277fe5c",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "eval/agent7/advisories/trivy-32473.json",
+            "sha256": "5c4dd340e0a4490e1fcb51e7bf49ea8c13a4f7c33dd5dce9d1a4154e2277fe5c",
+            "size_bytes": 0,
+            "selector": "frozen advisory document"
+          },
+          "reproducible_source": {
+            "kind": "FILE",
+            "path": "eval/agent7/advisories/trivy-32473.json",
+            "command": null,
+            "working_dir": null,
+            "tool": null,
+            "tool_version": null,
+            "snapshot_content_hash": null,
+            "input_digest": null,
+            "env": null,
+            "selector": "canonical OSV projection",
+            "output_sha256": "50ee8772e189732d7a9d095b33e47507476d1c819f50c7a292d15a102aa1d04c"
+          }
+        }
+      },
+      {
+        "ref": "agent-src:FROZEN_ADVISORY - advisory GO-2024-2737, affected entries: github.com/docker/docker introduced=26.0.0+incompatible fixed=26.0.2+incompatible",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+      },
+      {
+        "ref": "agent-src:assessment.altpaths",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+      },
+      {
+        "ref": "agent-src:assessment.attack",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+      },
+      {
+        "ref": "agent-src:assessment.exposure",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+      },
+      {
+        "ref": "agent-src:assessment.mechanism",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+      },
+      {
+        "ref": "agent-src:assessment.rootcause",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+      },
+      {
+        "ref": "agent-src:final-answer",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+      },
+      {
+        "ref": "agent-src:go.mod:1 - module github.com/aquasecurity/trivy",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+      },
+      {
+        "ref": "agent-src:go.mod:45 - github.com/docker/docker v26.0.1+incompatible dependency declaration",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+      },
+      {
+        "ref": "agent-src:integration/docker_engine_test.go:14-15 - test imports for docker client",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+      },
+      {
+        "ref": "agent-src:integration/docker_engine_test.go:230-267 - test Docker API calls (ImageRemove, ImageLoad, ImageTag)",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+      },
+      {
+        "ref": "agent-src:pkg/fanal/image/daemon/containerd.go:19-20 - imports of github.com/docker/docker/api/types",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+      },
+      {
+        "ref": "agent-src:pkg/fanal/image/daemon/docker.go:40,43,49,66 - Docker client method calls (ImageInspectWithRaw, ImageHistory, ImageSave)",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+      },
+      {
+        "ref": "agent-src:pkg/fanal/image/daemon/docker.go:7 - import of github.com/docker/docker/client",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+      },
+      {
+        "ref": "agent-src:pkg/fanal/image/daemon/image.go:11-13 - imports of github.com/docker/docker/api/types",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+      },
+      {
+        "ref": "agent-src:residual_questions",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+      },
+      {
+        "ref": "obs:OBS-0001",
+        "kind": "observation",
+        "path": "artifacts/obs-0001.json",
+        "selector": "observation",
+        "sha256": "6037578bb28833c7e02bed4e537b4d1342d241b723c8942538015cca5a10ee96",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0001.json",
+            "sha256": "6037578bb28833c7e02bed4e537b4d1342d241b723c8942538015cca5a10ee96",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0002",
+        "kind": "observation",
+        "path": "artifacts/obs-0002.json",
+        "selector": "observation",
+        "sha256": "4a94a80345294a5aa11bcad167e897526b53b78a840c32e2feacefb6c37403b1",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0002.json",
+            "sha256": "4a94a80345294a5aa11bcad167e897526b53b78a840c32e2feacefb6c37403b1",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0003",
+        "kind": "observation",
+        "path": "artifacts/obs-0003.json",
+        "selector": "observation",
+        "sha256": "15225471dc86c46cca3a0958e675ea565d6f80526baa06c9c39f03ed8debcba5",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0003.json",
+            "sha256": "15225471dc86c46cca3a0958e675ea565d6f80526baa06c9c39f03ed8debcba5",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0004",
+        "kind": "observation",
+        "path": "artifacts/obs-0004.json",
+        "selector": "observation",
+        "sha256": "341ae774e91280f2d1d5ffbe8267fdc4da94748834a9856bc141434f2853011a",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0004.json",
+            "sha256": "341ae774e91280f2d1d5ffbe8267fdc4da94748834a9856bc141434f2853011a",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0005",
+        "kind": "observation",
+        "path": "artifacts/obs-0005.json",
+        "selector": "observation",
+        "sha256": "8387fa94223c6eba39a18ff50df2686d1d33272445d7e006db4234558f5be48a",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0005.json",
+            "sha256": "8387fa94223c6eba39a18ff50df2686d1d33272445d7e006db4234558f5be48a",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0006",
+        "kind": "observation",
+        "path": "artifacts/obs-0006.json",
+        "selector": "observation",
+        "sha256": "5a554e3b302640e9d208455524b78052aab14c64d369f0275ecac164d2fc1434",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0006.json",
+            "sha256": "5a554e3b302640e9d208455524b78052aab14c64d369f0275ecac164d2fc1434",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0007",
+        "kind": "observation",
+        "path": "artifacts/obs-0007.json",
+        "selector": "observation",
+        "sha256": "360b2073fe5256a9a412a0392718414818acc15517580c2dc50e516d471efe78",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0007.json",
+            "sha256": "360b2073fe5256a9a412a0392718414818acc15517580c2dc50e516d471efe78",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0008",
+        "kind": "observation",
+        "path": "artifacts/obs-0008.json",
+        "selector": "observation",
+        "sha256": "71822044477fb26922413990681cbce63e0e5a7f9a336ed5b4bfece091b1ef20",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0008.json",
+            "sha256": "71822044477fb26922413990681cbce63e0e5a7f9a336ed5b4bfece091b1ef20",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0009",
+        "kind": "observation",
+        "path": "artifacts/obs-0009.json",
+        "selector": "observation",
+        "sha256": "fa54795be9e91648b269e1cd3f52bca5ab43cb94487cdb9113b58808e38293c3",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0009.json",
+            "sha256": "fa54795be9e91648b269e1cd3f52bca5ab43cb94487cdb9113b58808e38293c3",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0010",
+        "kind": "observation",
+        "path": "artifacts/obs-0010.json",
+        "selector": "observation",
+        "sha256": "62e2ea72dc84a20554f9a4cdbea6f362ae7d0a44a286c9005bad415729ed5b5b",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0010.json",
+            "sha256": "62e2ea72dc84a20554f9a4cdbea6f362ae7d0a44a286c9005bad415729ed5b5b",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0011",
+        "kind": "observation",
+        "path": "artifacts/obs-0011.json",
+        "selector": "observation",
+        "sha256": "65a9237d4c304d6cfc15aaaf108c9fbf15890d97d10cdf6df009e2990abca825",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0011.json",
+            "sha256": "65a9237d4c304d6cfc15aaaf108c9fbf15890d97d10cdf6df009e2990abca825",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0012",
+        "kind": "observation",
+        "path": "artifacts/obs-0012.json",
+        "selector": "observation",
+        "sha256": "bbbae0fa1b1b8de8e163b795983e7d47591ccac8082bbf7817ba191f7a583b2f",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0012.json",
+            "sha256": "bbbae0fa1b1b8de8e163b795983e7d47591ccac8082bbf7817ba191f7a583b2f",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0013",
+        "kind": "observation",
+        "path": "artifacts/obs-0013.json",
+        "selector": "observation",
+        "sha256": "d9345ace4c47be9b41e8259f7838f372d485b1285d71b78cbc4621e7cd079d50",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0013.json",
+            "sha256": "d9345ace4c47be9b41e8259f7838f372d485b1285d71b78cbc4621e7cd079d50",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0014",
+        "kind": "observation",
+        "path": "artifacts/obs-0014.json",
+        "selector": "observation",
+        "sha256": "da923d5d93c174c2b48de7b0254c4209c0bdeda14b252d48171f040933bb7b97",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0014.json",
+            "sha256": "da923d5d93c174c2b48de7b0254c4209c0bdeda14b252d48171f040933bb7b97",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0015",
+        "kind": "observation",
+        "path": "artifacts/obs-0015.json",
+        "selector": "observation",
+        "sha256": "b0c1e5fd0a3f6762e73e7f462e1e81271be7bc51f3acd949a0c04b24b6dee01c",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0015.json",
+            "sha256": "b0c1e5fd0a3f6762e73e7f462e1e81271be7bc51f3acd949a0c04b24b6dee01c",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      }
+    ],
+    "coverage": [
+      "repository-preflight: VerifyContained + CheckPathReplacements + ContentHash over the snapshot tree",
+      "repository-snapshot: repository.Service.Snapshot (git/go probes + static release-evidence scan, no repo code executed)",
+      "advisory-load: FileSource(eval/agent7/advisories/trivy-32473.json) with alias enrichment disabled; no network",
+      "get_product_snapshot: this snapshot's build context and module manifest facts",
+      "get_vulnerability: OSV-compatible advisory record for CVE-2024-32473",
+      "get_dependency_graph: module list of <VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02 (go list -m -json all)",
+      "get_module_version: resolved module list of <VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02 (go list -m -json all)",
+      "affected-resolve: affected.GoResolver.Resolve over the snapshot module graph and import closure (go list -m, go list -deps under strict toolchain env)"
+    ],
+    "conflicts": [],
+    "limitations": [
+      "module_usage TIMEOUT: tool exceeded its 1m0s wall-clock timeout",
+      " ERROR: context deadline exceeded",
+      "find_entrypoints ERROR: context deadline exceeded",
+      " ERROR: context deadline exceeded",
+      " ERROR: context deadline exceeded",
+      " ERROR: context deadline exceeded",
+      "run_govulncheck UNSUPPORTED: strict profile requires --govulndb to pin the vulnerability database",
+      "applicability: advisory names no affected packages for the selected module; package presence undecidable"
+    ]
+  },
+  "residual_questions": [
+    {
+      "id": "Q-0001",
+      "question": "module_usage check did not produce a result (TIMEOUT)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is TIMEOUT, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0009"
+      ]
+    },
+    {
+      "id": "Q-0002",
+      "question": " check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0010"
+      ]
+    },
+    {
+      "id": "Q-0003",
+      "question": "find_entrypoints check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0011"
+      ]
+    },
+    {
+      "id": "Q-0004",
+      "question": " check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0012"
+      ]
+    },
+    {
+      "id": "Q-0005",
+      "question": " check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0013"
+      ]
+    },
+    {
+      "id": "Q-0006",
+      "question": " check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0014"
+      ]
+    },
+    {
+      "id": "Q-0007",
+      "question": "run_govulncheck check did not produce a result (UNSUPPORTED)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is UNSUPPORTED, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0015"
+      ]
+    },
+    {
+      "id": "Q-0008",
+      "question": "Whether the docker/docker client package v26.0.1 internally includes and links network-related code that could be triggered implicitly (follow-up: build the Go modules and inspect the compiled dependency graph for docker/docker network package symbol references)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0009",
+      "question": "Whether any Trivy plugins, extensions, or alternative import paths not present in this commit could invoke network APIs (follow-up: verify this snapshot captures all entry points for the analyzed build configuration)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0010",
+      "question": "Whether the CVE affects client-side behavior during image operations in some edge case on hosts with specific network configurations (follow-up: review the full CVE description and Docker documentation for CVE-2024-32473 to determine if the vulnerability scope extends beyond daemon network creation)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    }
+  ],
+  "triage_recommendation": {
+    "action": "needs review",
+    "reason": "the research contract forbids authoritative dispositions; a human must adjudicate the recorded claims and unknowns",
+    "bounds": "all findings are scoped to the snapshot tree and the stated build context; no runtime, delivery or deployment claim is made",
+    "evidence_refs": [
+      "adv:GO-2024-2737"
+    ]
+  },
+  "verified_facts": [
+    {
+      "id": "fact-obs-0001",
+      "statement": "snapshot <VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02 contained, replaces confined, content hash 7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "claim": "TRUE",
+      "tool": "repository-preflight",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "repository-preflight {\"snapshot\":\"<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02\"}",
+      "scope": "VerifyContained + CheckPathReplacements + ContentHash over the snapshot tree",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "external_commit_sha": null,
+      "input_digest": "6e5d60fec80692a26e979d6a9dd683dc198f805a07d1b525c15bc426efaf9e9e",
+      "data_digest": "a1025078125e59dadf14c466debf08b9c86b709ae79c9fac8a90ea85125da1fd",
+      "artifact": {
+        "path": "artifacts/obs-0001.json",
+        "sha256": "6037578bb28833c7e02bed4e537b4d1342d241b723c8942538015cca5a10ee96",
+        "size_bytes": 1019,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0001",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:08:04Z"
+      },
+      "limitations": [],
+      "materiality": {
+        "level": "SUPPORTING",
+        "raw_bytes": {
+          "path": "artifacts/obs-0001.json",
+          "sha256": "6037578bb28833c7e02bed4e537b4d1342d241b723c8942538015cca5a10ee96",
+          "size_bytes": 1019,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "repository-preflight {\"snapshot\":\"<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02\"}",
+          "working_dir": "<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02",
+          "tool": "repository-preflight",
+          "tool_version": "izyan/research-lane go1.26.1",
+          "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+          "input_digest": "6e5d60fec80692a26e979d6a9dd683dc198f805a07d1b525c15bc426efaf9e9e",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "a1025078125e59dadf14c466debf08b9c86b709ae79c9fac8a90ea85125da1fd"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0002",
+      "statement": "snapshot identity 37da98df45f6014fcd5f1744e2e26351b61d2a02: go directive 1.22, release toolchain \"go1.22.0\", darwin/arm64",
+      "claim": "TRUE",
+      "tool": "repository-snapshot",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "repository-snapshot {\"GOOS\":\"\",\"GOARCH\":\"\",\"BuildTags\":null,\"BinaryPath\":\"\",\"ReleaseGoVersion\":\"\",\"TrustedPeer\":false,\"DeployManifests\":null,\"DeployArchive\":\"\",\"PerimeterOverride\":\"\",\"ExternalCommitSHA\":\"37da98df45f6014fcd5f1744e2e26351b61d2a02\",\"GoBin\":\"go\",\"Env\":null}",
+      "scope": "repository.Service.Snapshot (git/go probes + static release-evidence scan, no repo code executed)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "external_commit_sha": "37da98df45f6014fcd5f1744e2e26351b61d2a02",
+      "input_digest": "96214e325fc36fc78c2908e90ec647a80bc63af2f53d01bc6bdb8834e32d6526",
+      "data_digest": "2336183a87726d8b3148de2c53d4d958b5f94afce736245a5f6f4f5bda9e920c",
+      "artifact": {
+        "path": "artifacts/obs-0002.json",
+        "sha256": "4a94a80345294a5aa11bcad167e897526b53b78a840c32e2feacefb6c37403b1",
+        "size_bytes": 1470,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0002",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:08:04Z"
+      },
+      "limitations": [],
+      "materiality": {
+        "level": "SUPPORTING",
+        "raw_bytes": {
+          "path": "artifacts/obs-0002.json",
+          "sha256": "4a94a80345294a5aa11bcad167e897526b53b78a840c32e2feacefb6c37403b1",
+          "size_bytes": 1470,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "repository-snapshot {\"GOOS\":\"\",\"GOARCH\":\"\",\"BuildTags\":null,\"BinaryPath\":\"\",\"ReleaseGoVersion\":\"\",\"TrustedPeer\":false,\"DeployManifests\":null,\"DeployArchive\":\"\",\"PerimeterOverride\":\"\",\"ExternalCommitSHA\":\"37da98df45f6014fcd5f1744e2e26351b61d2a02\",\"GoBin\":\"go\",\"Env\":null}",
+          "working_dir": "<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02",
+          "tool": "repository-snapshot",
+          "tool_version": "izyan/research-lane go1.26.1",
+          "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+          "input_digest": "96214e325fc36fc78c2908e90ec647a80bc63af2f53d01bc6bdb8834e32d6526",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "2336183a87726d8b3148de2c53d4d958b5f94afce736245a5f6f4f5bda9e920c"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0003",
+      "statement": "frozen advisory CVE-2024-32473 resolved to GO-2024-2737 (1 affected entries, source frozen_file)",
+      "claim": "TRUE",
+      "tool": "advisory-load",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "advisory-load {\"cve\":\"CVE-2024-32473\",\"path\":\"eval/agent7/advisories/trivy-32473.json\",\"source\":\"frozen_file\"}",
+      "scope": "FileSource(eval/agent7/advisories/trivy-32473.json) with alias enrichment disabled; no network",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "external_commit_sha": null,
+      "input_digest": "0ba2dfa0cbee8599c05d27989a14e72509f2d7b10b8abf7405b35d5646b18476",
+      "data_digest": "c299a34112356f0ac0c72483a17149fe70c9782b8ca491950db3d4c4baf94199",
+      "artifact": {
+        "path": "artifacts/obs-0003.json",
+        "sha256": "15225471dc86c46cca3a0958e675ea565d6f80526baa06c9c39f03ed8debcba5",
+        "size_bytes": 807,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0003",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:08:04Z"
+      },
+      "limitations": [],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0003.json",
+          "sha256": "15225471dc86c46cca3a0958e675ea565d6f80526baa06c9c39f03ed8debcba5",
+          "size_bytes": 807,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "advisory-load {\"cve\":\"CVE-2024-32473\",\"path\":\"eval/agent7/advisories/trivy-32473.json\",\"source\":\"frozen_file\"}",
+          "working_dir": "<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02",
+          "tool": "advisory-load",
+          "tool_version": "izyan/research-lane go1.26.1",
+          "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+          "input_digest": "0ba2dfa0cbee8599c05d27989a14e72509f2d7b10b8abf7405b35d5646b18476",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "c299a34112356f0ac0c72483a17149fe70c9782b8ca491950db3d4c4baf94199"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0004",
+      "statement": "snapshot 37da98df45f6014fcd5f1744e2e26351b61d2a02: content hash 7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5, go directive 1.22, 0 replace directives",
+      "claim": "TRUE",
+      "tool": "get_product_snapshot",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_product_snapshot {}",
+      "scope": "this snapshot's build context and module manifest facts",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "external_commit_sha": "37da98df45f6014fcd5f1744e2e26351b61d2a02",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "a60cf64454049485ca3e2c5f71247d28c101065adf14dcf1bf0f68a62a08e9fc",
+      "artifact": {
+        "path": "artifacts/obs-0004.json",
+        "sha256": "341ae774e91280f2d1d5ffbe8267fdc4da94748834a9856bc141434f2853011a",
+        "size_bytes": 5017,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0004",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:08:04Z"
+      },
+      "limitations": [],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0004.json",
+          "sha256": "341ae774e91280f2d1d5ffbe8267fdc4da94748834a9856bc141434f2853011a",
+          "size_bytes": 5017,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "get_product_snapshot {}",
+          "working_dir": "<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02",
+          "tool": "get_product_snapshot",
+          "tool_version": "izyan-evidence-tools/0.1.0",
+          "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+          "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "a60cf64454049485ca3e2c5f71247d28c101065adf14dcf1bf0f68a62a08e9fc"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0005",
+      "statement": "normalized advisory record for CVE-2024-32473 (resolved id GO-2024-2737)",
+      "claim": "TRUE",
+      "tool": "get_vulnerability",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_vulnerability {}",
+      "scope": "OSV-compatible advisory record for CVE-2024-32473",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "external_commit_sha": "37da98df45f6014fcd5f1744e2e26351b61d2a02",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "c57593a970bbfd7f89c7f9cdd3fffcd6fc57f5b5c65417cb740d5b6ee882157e",
+      "artifact": {
+        "path": "artifacts/obs-0005.json",
+        "sha256": "8387fa94223c6eba39a18ff50df2686d1d33272445d7e006db4234558f5be48a",
+        "size_bytes": 6007,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0005",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:08:04Z"
+      },
+      "limitations": [
+        "advisory declares no affected symbols; symbol-level queries need an explicit subject",
+        "severity provenance not declared by the advisory source"
+      ],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0005.json",
+          "sha256": "8387fa94223c6eba39a18ff50df2686d1d33272445d7e006db4234558f5be48a",
+          "size_bytes": 6007,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "get_vulnerability {}",
+          "working_dir": "<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02",
+          "tool": "get_vulnerability",
+          "tool_version": "izyan-evidence-tools/0.1.0",
+          "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+          "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "c57593a970bbfd7f89c7f9cdd3fffcd6fc57f5b5c65417cb740d5b6ee882157e"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0006",
+      "statement": "dependency graph: 1019 module(s) resolved via go list -m -json all",
+      "claim": "TRUE",
+      "tool": "get_dependency_graph",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_dependency_graph {}",
+      "scope": "module list of <VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02 (go list -m -json all)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "external_commit_sha": "37da98df45f6014fcd5f1744e2e26351b61d2a02",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "8232638d12cf4a8264bae626111854d87137b3b8d44e7939662c7637ec731c6a",
+      "artifact": {
+        "path": "artifacts/obs-0006.json",
+        "sha256": "5a554e3b302640e9d208455524b78052aab14c64d369f0275ecac164d2fc1434",
+        "size_bytes": 236553,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0006",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:08:04Z"
+      },
+      "limitations": [],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0006.json",
+          "sha256": "5a554e3b302640e9d208455524b78052aab14c64d369f0275ecac164d2fc1434",
+          "size_bytes": 236553,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "get_dependency_graph {}",
+          "working_dir": "<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02",
+          "tool": "get_dependency_graph",
+          "tool_version": "izyan-evidence-tools/0.1.0",
+          "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+          "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "8232638d12cf4a8264bae626111854d87137b3b8d44e7939662c7637ec731c6a"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0007",
+      "statement": "module github.com/docker/docker resolved to version v26.0.1+incompatible",
+      "claim": "TRUE",
+      "tool": "get_module_version",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_module_version {\"module\":\"github.com/docker/docker\"}",
+      "scope": "resolved module list of <VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02 (go list -m -json all)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "external_commit_sha": null,
+      "input_digest": "1b56dd748179a66993ac00a9b9afc53aa98670db9f0af2bc90cd3d7c6cc1b8e4",
+      "data_digest": "76cc009f2727a27d0c43db0704eb0916e465142277edbad9b03abf1158b2478a",
+      "artifact": {
+        "path": "artifacts/obs-0007.json",
+        "sha256": "360b2073fe5256a9a412a0392718414818acc15517580c2dc50e516d471efe78",
+        "size_bytes": 4252,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0007",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:08:04Z"
+      },
+      "limitations": [],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0007.json",
+          "sha256": "360b2073fe5256a9a412a0392718414818acc15517580c2dc50e516d471efe78",
+          "size_bytes": 4252,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "get_module_version {\"module\":\"github.com/docker/docker\"}",
+          "working_dir": "<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02",
+          "tool": "get_module_version",
+          "tool_version": "izyan-evidence-tools/0.1.0",
+          "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+          "input_digest": "1b56dd748179a66993ac00a9b9afc53aa98670db9f0af2bc90cd3d7c6cc1b8e4",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "76cc009f2727a27d0c43db0704eb0916e465142277edbad9b03abf1158b2478a"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0008",
+      "statement": "applicability chain for GO-2024-2737: module_present=TRUE version_affected=TRUE package_present=UNKNOWN build_relevant=UNKNOWN (selected [github.com/docker/docker])",
+      "claim": "TRUE",
+      "tool": "affected-resolve",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "affected-resolve {\"vuln\":\"GO-2024-2737\"}",
+      "scope": "affected.GoResolver.Resolve over the snapshot module graph and import closure (go list -m, go list -deps under strict toolchain env)",
+      "status": "OK",
+      "coverage": "PARTIAL",
+      "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "external_commit_sha": "37da98df45f6014fcd5f1744e2e26351b61d2a02",
+      "input_digest": "88b6a0142bc51b450ba7cf0d8129c5b2c58dbb34e7de91c05af9f9827492c0f1",
+      "data_digest": "415791d3e35689829d2b46a9cff55ee3ce167a57908967aecb248c111b6b6882",
+      "artifact": {
+        "path": "artifacts/obs-0008.json",
+        "sha256": "71822044477fb26922413990681cbce63e0e5a7f9a336ed5b4bfece091b1ef20",
+        "size_bytes": 310951,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0008",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:08:04Z"
+      },
+      "limitations": [
+        "advisory names no affected packages for the selected module; package presence undecidable",
+        "observation payload truncated at 262144 bytes (full payload 69467104 bytes, sha256 7691ba8a7bc1fc4cab4dbdfbb2eb591bec3e0991ef3099aa3964cddf3384fd4c); stored bytes are a prefix of the tool result, not the full result"
+      ],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0008.json",
+          "sha256": "71822044477fb26922413990681cbce63e0e5a7f9a336ed5b4bfece091b1ef20",
+          "size_bytes": 310951,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "affected-resolve {\"vuln\":\"GO-2024-2737\"}",
+          "working_dir": "<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02",
+          "tool": "affected-resolve",
+          "tool_version": "izyan/research-lane go1.26.1",
+          "snapshot_content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+          "input_digest": "88b6a0142bc51b450ba7cf0d8129c5b2c58dbb34e7de91c05af9f9827492c0f1",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "415791d3e35689829d2b46a9cff55ee3ce167a57908967aecb248c111b6b6882"
+        }
+      }
+    }
+  ],
+  "agent_assertions": [
+    {
+      "id": "A-0001",
+      "statement": "category=code_not_reachable: The affected component github.com/docker/docker v26.0.1+incompatible is present in the snapshot (go.mod:45, in the range 26.0.0+incompatible to before 26.0.2+incompatible as specified by the advisory GO-2024-2737). However, CVE-2024-32473 affects Docker's network creation code (IPv6 enabled on IPv4-only network interfaces), specifically in the Docker daemon's network layer. Trivy uses the docker/docker client only for read-only image operations: ImageInspectWithRaw (docker.go:40,43), ImageHistory (docker.go:49), ImageSave (docker.go:66 via imageOpener), and ImageLoad/ImageTag/ImageRemove in tests (docker_engine_test.go:240,246,254). A full search for ContainerCreate, NetworkCreate, NetworkConnect, NetworkDisconnect, VolumeCreate, or any network/container/volume creation APIs found no match…",
+      "subject": "GO-2024-2737",
+      "scope": "final classification",
+      "state": "OPEN",
+      "basis": "MODEL_HYPOTHESIS",
+      "evidence_refs": [
+        "A-0001"
+      ],
+      "limitations": [],
+      "original_text": "category=code_not_reachable: The affected component github.com/docker/docker v26.0.1+incompatible is present in the snapshot (go.mod:45, in the range 26.0.0+incompatible to before 26.0.2+incompatible as specified by the advisory GO-2024-2737). However, CVE-2024-32473 affects Docker's network creation code (IPv6 enabled on IPv4-only network interfaces), specifically in the Docker daemon's network layer. Trivy uses the docker/docker client only for read-only image operations: ImageInspectWithRaw (docker.go:40,43), ImageHistory (docker.go:49), ImageSave (docker.go:66 via imageOpener), and ImageLoad/ImageTag/ImageRemove in tests (docker_engine_test.go:240,246,254). A full search for ContainerCreate, NetworkCreate, NetworkConnect, NetworkDisconnect, VolumeCreate, or any network/container/volume creation APIs found no matches in the entire snapshot. The vulnerable code path in docker/docker requires invocation of Docker network management APIs, which Trivy never calls. Therefore, the vulnerable surface has no execution path from any attack surface in Trivy's analyzed scope.",
+      "source_selector": "$.category + $.reasoning"
+    },
+    {
+      "id": "A-0002",
+      "statement": "CVE-2024-32473 allows IPv6 to be enabled on IPv4-only network interfaces in the Docker daemon. This is a network configuration defect where Docker creates network interfaces with IPv6 support even when the underlying host interface is IPv4-only, potentially causing unintended network exposure or misconfiguration. The effect occurs because the affected docker/docker code path handles network creation/management in the Docker daemon, not in the client library.",
+      "subject": "",
+      "scope": "agent assessment (snapshot-read scope as stated)",
+      "state": "OPEN",
+      "basis": "MODEL_HYPOTHESIS",
+      "evidence_refs": [
+        "A-0002"
+      ],
+      "limitations": [],
+      "original_text": "CVE-2024-32473 allows IPv6 to be enabled on IPv4-only network interfaces in the Docker daemon. This is a network configuration defect where Docker creates network interfaces with IPv6 support even when the underlying host interface is IPv4-only, potentially causing unintended network exposure or misconfiguration. The effect occurs because the affected docker/docker code path handles network creation/management in the Docker daemon, not in the client library.",
+      "source_selector": "$.assessment.vulnerability_mechanism"
+    },
+    {
+      "id": "A-0003",
+      "statement": "The advisory GO-2024-2737 binds to module github.com/docker/docker, introduced in 26.0.0+incompatible and fixed in 26.0.2+incompatible. The vulnerable code resides in the Docker daemon's network layer within the docker/docker module. In this Trivy snapshot, docker/docker is imported as a dependency at go.mod:45 (v26.0.1+incompatible). The code in Trivy that uses docker/docker (pkg/fanal/image/daemon/docker.go:7-9 imports github.com/docker/docker/client) only calls read-only image APIs (ImageInspectWithRaw, ImageHistory, ImageSave). No network creation or management APIs are invoked.",
+      "subject": "",
+      "scope": "agent assessment (snapshot-read scope as stated)",
+      "state": "OPEN",
+      "basis": "EVIDENCE_SUPPORTED",
+      "evidence_refs": [
+        "A-0003"
+      ],
+      "limitations": [],
+      "original_text": "The advisory GO-2024-2737 binds to module github.com/docker/docker, introduced in 26.0.0+incompatible and fixed in 26.0.2+incompatible. The vulnerable code resides in the Docker daemon's network layer within the docker/docker module. In this Trivy snapshot, docker/docker is imported as a dependency at go.mod:45 (v26.0.1+incompatible). The code in Trivy that uses docker/docker (pkg/fanal/image/daemon/docker.go:7-9 imports github.com/docker/docker/client) only calls read-only image APIs (ImageInspectWithRaw, ImageHistory, ImageSave). No network creation or management APIs are invoked.",
+      "source_selector": "$.assessment.root_cause"
+    },
+    {
+      "id": "A-0004",
+      "statement": "An attacker would need to invoke Docker's network creation APIs (e.g., via Docker API with NetworkCreate requests) on a Docker daemon using a version between 26.0.0 and 26.0.2 on a host with IPv4-only network interfaces. Trivy does not expose Docker API network endpoints, does not create Docker networks, and does not call any network-related Docker client APIs. There is no attack-reachable path from Trivy's attack surfaces (image scanning via CLI, OCI artifact processing, registry operations) to the vulnerable code.",
+      "subject": "",
+      "scope": "agent assessment (snapshot-read scope as stated)",
+      "state": "OPEN",
+      "basis": "MODEL_HYPOTHESIS",
+      "evidence_refs": [
+        "A-0004"
+      ],
+      "limitations": [],
+      "original_text": "An attacker would need to invoke Docker's network creation APIs (e.g., via Docker API with NetworkCreate requests) on a Docker daemon using a version between 26.0.0 and 26.0.2 on a host with IPv4-only network interfaces. Trivy does not expose Docker API network endpoints, does not create Docker networks, and does not call any network-related Docker client APIs. There is no attack-reachable path from Trivy's attack surfaces (image scanning via CLI, OCI artifact processing, registry operations) to the vulnerable code.",
+      "source_selector": "$.assessment.attack_scenario"
+    },
+    {
+      "id": "A-0005",
+      "statement": "Trivy is a container security scanner (github.com/aquasecurity/trivy, per go.mod:1). It uses the Docker client (pkg/fanal/image/daemon/docker.go) to inspect and save container images for scanning when the Docker engine driver is used. Build: Go module, Go 1.22 (go.mod:3-5). Configuration: the daemon image feature is a user-invoked capability via trivy image --platform or similar flags. Platform: Linux (container scanning target). The snapshot does not establish any Docker daemon network configuration or deployment context. Unknown: whether downstream builds of Trivy might link additional docker/docker code paths not present in this snapshot, and whether any future plugin or extension system could introduce network-related code.",
+      "subject": "",
+      "scope": "agent assessment (snapshot-read scope as stated)",
+      "state": "OPEN",
+      "basis": "MODEL_HYPOTHESIS",
+      "evidence_refs": [
+        "A-0005"
+      ],
+      "limitations": [],
+      "original_text": "Trivy is a container security scanner (github.com/aquasecurity/trivy, per go.mod:1). It uses the Docker client (pkg/fanal/image/daemon/docker.go) to inspect and save container images for scanning when the Docker engine driver is used. Build: Go module, Go 1.22 (go.mod:3-5). Configuration: the daemon image feature is a user-invoked capability via trivy image --platform or similar flags. Platform: Linux (container scanning target). The snapshot does not establish any Docker daemon network configuration or deployment context. Unknown: whether downstream builds of Trivy might link additional docker/docker code paths not present in this snapshot, and whether any future plugin or extension system could introduce network-related code.",
+      "source_selector": "$.assessment.product_exposure"
+    },
+    {
+      "id": "A-0006",
+      "statement": "Checked: (1) All docker/docker imports in the snapshot - confirmed only client and types APIs used, no daemon/network code. (2) All docker docker client method calls - only ImageInspectWithRaw, ImageHistory, ImageSave, ImageLoad, ImageTag, ImageRemove. (3) Integration tests (integration/docker_engine_test.go) only test image loading, inspection, and removal. (4) Containerd and podman daemon readers (containerd.go, podman.go) do not use docker network APIs. (5) Searched for any network creation API calls - zero matches. Not fully explored: transitive dependencies within docker/docker that may have different usage patterns not visible from import analysis alone (the docker/docker client package may internally reference network-related types even if only image APIs are called). However, Go packages are typically not linked if their symbols are not referenced, and the CVE affects daemon-side network logic, not client-side code.",
+      "subject": "",
+      "scope": "agent assessment (snapshot-read scope as stated)",
+      "state": "OPEN",
+      "basis": "MODEL_HYPOTHESIS",
+      "evidence_refs": [
+        "A-0006"
+      ],
+      "limitations": [],
+      "original_text": "Checked: (1) All docker/docker imports in the snapshot - confirmed only client and types APIs used, no daemon/network code. (2) All docker docker client method calls - only ImageInspectWithRaw, ImageHistory, ImageSave, ImageLoad, ImageTag, ImageRemove. (3) Integration tests (integration/docker_engine_test.go) only test image loading, inspection, and removal. (4) Containerd and podman daemon readers (containerd.go, podman.go) do not use docker network APIs. (5) Searched for any network creation API calls - zero matches. Not fully explored: transitive dependencies within docker/docker that may have different usage patterns not visible from import analysis alone (the docker/docker client package may internally reference network-related types even if only image APIs are called). However, Go packages are typically not linked if their symbols are not referenced, and the CVE affects daemon-side network logic, not client-side code.",
+      "source_selector": "$.assessment.alternative_paths"
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-0001",
+      "statement": "UNKNOWN: module_usage check did not produce a result (TIMEOUT)",
+      "reason": "tool exceeded its 1m0s wall-clock timeout",
+      "follow_up": "rerun or scope-down the check; its status is TIMEOUT, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0009"
+      ],
+      "group": "code_reachability",
+      "priority": "DECISION_CHANGING",
+      "decision_changing_for": "code_reachability status (the module_usage check that could decide it did not complete)"
+    },
+    {
+      "id": "U-0002",
+      "statement": "UNKNOWN:  check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0010"
+      ],
+      "group": "other",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0003",
+      "statement": "UNKNOWN: find_entrypoints check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0011"
+      ],
+      "group": "attack_surface",
+      "priority": "DECISION_CHANGING",
+      "decision_changing_for": "attack_surface_availability status (the find_entrypoints check that could decide it did not complete)"
+    },
+    {
+      "id": "U-0004",
+      "statement": "UNKNOWN:  check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0012"
+      ],
+      "group": "other",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0005",
+      "statement": "UNKNOWN:  check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0013"
+      ],
+      "group": "other",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0006",
+      "statement": "UNKNOWN:  check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0014"
+      ],
+      "group": "other",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0007",
+      "statement": "UNKNOWN: run_govulncheck check did not produce a result (UNSUPPORTED)",
+      "reason": "strict profile requires --govulndb to pin the vulnerability database",
+      "follow_up": "rerun or scope-down the check; its status is UNSUPPORTED, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0015"
+      ],
+      "group": "evidence",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    }
+  ],
+  "open_questions": [
+    {
+      "id": "Q-0001",
+      "question": "module_usage check did not produce a result (TIMEOUT)",
+      "subject": "U-0001",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is TIMEOUT, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0009"
+      ]
+    },
+    {
+      "id": "Q-0002",
+      "question": " check did not produce a result (ERROR)",
+      "subject": "U-0002",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0010"
+      ]
+    },
+    {
+      "id": "Q-0003",
+      "question": "find_entrypoints check did not produce a result (ERROR)",
+      "subject": "U-0003",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0011"
+      ]
+    },
+    {
+      "id": "Q-0004",
+      "question": " check did not produce a result (ERROR)",
+      "subject": "U-0004",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0012"
+      ]
+    },
+    {
+      "id": "Q-0005",
+      "question": " check did not produce a result (ERROR)",
+      "subject": "U-0005",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0013"
+      ]
+    },
+    {
+      "id": "Q-0006",
+      "question": " check did not produce a result (ERROR)",
+      "subject": "U-0006",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0014"
+      ]
+    },
+    {
+      "id": "Q-0007",
+      "question": "run_govulncheck check did not produce a result (UNSUPPORTED)",
+      "subject": "U-0007",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is UNSUPPORTED, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0015"
+      ]
+    },
+    {
+      "id": "Q-0008",
+      "question": "Whether the docker/docker client package v26.0.1 internally includes and links network-related code that could be triggered implicitly (follow-up: build the Go modules and inspect the compiled dependency graph for docker/docker network package symbol references)",
+      "subject": "",
+      "scope": "agent assessment",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0009",
+      "question": "Whether any Trivy plugins, extensions, or alternative import paths not present in this commit could invoke network APIs (follow-up: verify this snapshot captures all entry points for the analyzed build configuration)",
+      "subject": "",
+      "scope": "agent assessment",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0010",
+      "question": "Whether the CVE affects client-side behavior during image operations in some edge case on hosts with specific network configurations (follow-up: review the full CVE description and Docker documentation for CVE-2024-32473 to determine if the vulnerability scope extends beyond daemon network creation)",
+      "subject": "",
+      "scope": "agent assessment",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "R-0001",
+      "action": "review every verified_fact against its persisted artifact, then adjudicate agent assertions and unknowns",
+      "owner": "human",
+      "reason": "disposition is review-required by contract",
+      "evidence_refs": []
+    },
+    {
+      "id": "R-0002",
+      "action": "capture exact source bytes or a reproducible static recipe proving the agent's named applicability basis (e.g. client/SDK-only use vs the daemon/server defect surface), then adjudicate the basis",
+      "owner": "operator",
+      "reason": "the non-applicability classification is UNKNOWN: no verified evidence ref currently proves the agent's named basis",
+      "evidence_refs": []
+    }
+  ],
+  "agent_output": {
+    "status": "OK",
+    "category": "code_not_reachable",
+    "reasoning": "The affected component github.com/docker/docker v26.0.1+incompatible is present in the snapshot (go.mod:45, in the range 26.0.0+incompatible to before 26.0.2+incompatible as specified by the advisory GO-2024-2737). However, CVE-2024-32473 affects Docker's network creation code (IPv6 enabled on IPv4-only network interfaces), specifically in the Docker daemon's network layer. Trivy uses the docker/docker client only for read-only image operations: ImageInspectWithRaw (docker.go:40,43), ImageHistory (docker.go:49), ImageSave (docker.go:66 via imageOpener), and ImageLoad/ImageTag/ImageRemove in tests (docker_engine_test.go:240,246,254). A full search for ContainerCreate, NetworkCreate, NetworkConnect, NetworkDisconnect, VolumeCreate, or any network/container/volume creation APIs found no matches in the entire snapshot. The vulnerable code path in docker/docker requires invocation of Docker network management APIs, which Trivy never calls. Therefore, the vulnerable surface has no execution path from any attack surface in Trivy's analyzed scope.",
+    "raw_artifact": {
+      "path": "agent/attempt-0002/answer.txt",
+      "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054"
+    },
+    "attempt_id": "attempt-0002",
+    "result_artifact": {
+      "path": "agent/attempt-0002/result.json",
+      "sha256": "aa497caf93d5f2ccf130f2daa5d9679915243b24a2f9dff716af8fb0eed621c0",
+      "size_bytes": 153854,
+      "selector": "raw harness result"
+    },
+    "answer_artifact": {
+      "path": "agent/attempt-0002/answer.txt",
+      "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054",
+      "size_bytes": 7563,
+      "selector": "assistant text"
+    },
+    "extraction": {
+      "status": "VALID",
+      "invalid_reason": "NONE",
+      "candidate_count": 1,
+      "candidates": [
+        {
+          "index": 0,
+          "status": "VALID",
+          "category": "code_not_reachable",
+          "raw_sha256": "f36f3cc7968dd4da52b0d5c3d30a0b4141d8ad6d61cbe528e289f849070dd848",
+          "canonical_sha256": "87f5d37411be40bde20141468cc58ae10af218664c3ed3778982635cf29de8d8",
+          "selector": "bytes 8..7559 of retained answer"
+        }
+      ],
+      "selected_index": 0,
+      "answer_artifact": {
+        "path": "agent/attempt-0002/answer.txt",
+        "sha256": "ba189b30c542cc7c778b188c08d203cbc07ef17a0c6e19aac4744f9efe004054",
+        "size_bytes": 7563,
+        "selector": "assistant text"
+      }
+    }
+  },
+  "contract_extensions": [
+    "slice2-fidelity/1"
+  ],
+  "contradictions": [],
+  "exploitation_axes": {
+    "code_reachability": {
+      "status": "UNKNOWN",
+      "level": "MODULE",
+      "statement": "the affected module github.com/docker/docker is present, but package-level reachability of the vulnerable code is undecided at the recorded scope",
+      "scope": "resolved module graph / snapshot build context",
+      "basis": "deterministic",
+      "evidence_refs": [
+        "fact-obs-0008",
+        "obs:OBS-0008"
+      ],
+      "limitations": [
+        "module presence alone does not establish that the advisory package is compiled in"
+      ]
+    },
+    "attack_surface_availability": {
+      "status": "UNKNOWN",
+      "level": "NONE",
+      "statement": "no deterministic listener/socket fact at this scope — runtime attack-surface availability is unknown",
+      "scope": "product source tree (static scan scope)",
+      "basis": "none",
+      "evidence_refs": [
+        "obs:OBS-0011"
+      ],
+      "limitations": [
+        "bounded static scans do not prove absence; runtime availability requires runtime evidence (level RUNTIME_AVAILABLE)"
+      ]
+    },
+    "exploitation_established": {
+      "status": "NOT_ESTABLISHED",
+      "level": "NONE",
+      "statement": "attacker exploitability is not established: package reachability and an agent-described scenario do not prove socket availability, attacker access, malformed-message delivery, or a resulting panic",
+      "scope": "whole report scope",
+      "basis": "none",
+      "evidence_refs": [],
+      "limitations": [
+        "NOT_ESTABLISHED means not proven, never proven impossible; it requires a retained dynamic trace, runtime observation, or reproduction"
+      ]
+    }
+  },
+  "classification_review": {
+    "original_category": "code_not_reachable",
+    "class": "NON_APPLICABLE",
+    "status": "UNKNOWN",
+    "basis_refs": [
+      "fact-obs-0008",
+      "A-0001",
+      "A-0002",
+      "A-0003",
+      "A-0004",
+      "A-0005",
+      "A-0006"
+    ],
+    "limitations": [
+      "no verified non-applicability basis (component_absent|version_fixed|package_not_in_import_closure|sdk_vs_daemon_distinction) resolves in verified_facts — the preserved category is retained but not established"
+    ]
+  },
+  "disposition": {
+    "class": "REVIEW_REQUIRED",
+    "auto_close": false,
+    "reason": "research lane output supports human triage only: evidence is scope-bounded, agent claims are unverified hypotheses, and the contract forbids VERIFIED/FALSE/AUTO_CLOSE dispositions",
+    "forbidden_classes": [
+      "VERIFIED",
+      "FALSE",
+      "AUTO_CLOSE"
+    ]
+  }
+}

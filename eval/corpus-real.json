@@ -132,7 +132,7 @@
    "deps": {
     "github.com/dgrijalva/jwt-go": "v3.2.0+incompatible"
    },
-   "_note": "missing-call advisory — Valid() never calls VerifyAudience, so the declared sink is unreachable by design; truth EXPLOITABLE. The missing-call gate (sibling methods of the same receiver invoked in dep) blocks NEPF → INCONCLUSIVE required.",
+   "_note": "DEFECTIVE-CHECK advisory, not missing-call: MapClaims.VerifyAudience mishandles an array `aud` when invoked with req=false. products/jwt-auth calls ParseWithClaims but never VerifyAudience, so the advisory's defective operation is not reachable; the product's own absent audience validation is a separate product-level fact, not this CVE. The expect list below is the historical missing-call label and is not re-derived: the corrected exact-record answer is NO_EXPLOIT_PATH_FOUND, earned only under an admitted product target (measured 2026-10-26: host-default run FAILED / REACHABILITY_PROOF_INCOMPLETE + TRIGGER_PROOF_INCOMPLETE; operator-declared darwin/arm64 run DECIDED / NO_EXPLOIT_PATH_FOUND at record level).",
    "expect": [
     "EXPLOITABLE",
     "INCONCLUSIVE"
@@ -145,8 +145,9 @@
    "product": "products/http2-server",
    "module": "example.com/http2-server",
    "expect": [
-    "NOT_AFFECTED"
-   ]
+    "INCONCLUSIVE"
+   ],
+   "_note": "stdlib advisory without release toolchain evidence: go.mod is a minimum, not the release version, so applicability is undecidable and the verdict must not be a safe negative"
   },
   {
    "id": "real-dns-zone",
@@ -359,11 +360,11 @@
    ]
   },
   {
-   "id": "real-micro-xds",
+   "id": "real-service-xds",
    "vuln": "GO-2026-6441",
    "vuln_file": "advisories/real/GO-2026-6441.json",
-   "product": "products/micro-xds",
-   "module": "example.com/micro-xds",
+   "product": "products/service-xds",
+   "module": "example.com/service-xds",
    "deps": {
     "google.golang.org/grpc": "v1.83.0"
    },
@@ -374,11 +375,11 @@
    ]
   },
   {
-   "id": "real-micro-xds-fixed",
+   "id": "real-service-xds-fixed",
    "vuln": "GO-2026-6441",
    "vuln_file": "advisories/real/GO-2026-6441.json",
-   "product": "products/micro-xds",
-   "module": "example.com/micro-xds",
+   "product": "products/service-xds",
+   "module": "example.com/service-xds",
    "deps": {
     "google.golang.org/grpc": "v1.83.1"
    },
@@ -387,11 +388,11 @@
    ]
   },
   {
-   "id": "real-micro-plain",
+   "id": "real-service-plain",
    "vuln": "GO-2026-6441",
    "vuln_file": "advisories/real/GO-2026-6441.json",
-   "product": "products/micro-plain",
-   "module": "example.com/micro-plain",
+   "product": "products/service-plain",
+   "module": "example.com/service-plain",
    "deps": {
     "google.golang.org/grpc": "v1.83.0"
    },
@@ -403,11 +404,11 @@
    ]
   },
   {
-   "id": "real-micro-plain-6443",
+   "id": "real-service-plain-6443",
    "vuln": "GO-2026-6443",
    "vuln_file": "advisories/real/GO-2026-6443.json",
-   "product": "products/micro-plain",
-   "module": "example.com/micro-plain",
+   "product": "products/service-plain",
+   "module": "example.com/service-plain",
    "deps": {
     "google.golang.org/grpc": "v1.83.0"
    },
@@ -417,11 +418,11 @@
    ]
   },
   {
-   "id": "real-micro-plain-6443x",
+   "id": "real-service-plain-6443x",
    "vuln": "GO-2026-6443",
    "vuln_file": "advisories/real/GO-2026-6443.json",
-   "product": "products/micro-plain",
-   "module": "example.com/micro-plain",
+   "product": "products/service-plain",
+   "module": "example.com/service-plain",
    "deps": {
     "google.golang.org/grpc": "v1.83.0"
    },
@@ -450,11 +451,11 @@
    ]
   },
   {
-   "id": "real-micro-xds-6443",
+   "id": "real-service-xds-6443",
    "vuln": "GO-2026-6443",
    "vuln_file": "advisories/real/GO-2026-6443.json",
-   "product": "products/micro-xds",
-   "module": "example.com/micro-xds",
+   "product": "products/service-xds",
+   "module": "example.com/service-xds",
    "deps": {
     "google.golang.org/grpc": "v1.83.0"
    },
@@ -465,11 +466,11 @@
    ]
   },
   {
-   "id": "real-micro-wrap-6443",
+   "id": "real-service-wrap-6443",
    "vuln": "GO-2026-6443",
    "vuln_file": "advisories/real/GO-2026-6443.json",
-   "product": "products/micro-xds-wrap",
-   "module": "example.com/micro-xds-wrap",
+   "product": "products/service-xds-wrap",
+   "module": "example.com/service-xds-wrap",
    "deps": {
     "google.golang.org/grpc": "v1.83.0"
    },
@@ -480,11 +481,11 @@
    ]
   },
   {
-   "id": "real-micro-pkg-6443",
+   "id": "real-service-pkg-6443",
    "vuln": "GO-2026-6443",
    "vuln_file": "advisories/real/GO-2026-6443.json",
-   "product": "products/micro-xds-pkg",
-   "module": "example.com/micro-xds-pkg",
+   "product": "products/service-xds-pkg",
+   "module": "example.com/service-xds-pkg",
    "deps": {
     "google.golang.org/grpc": "v1.83.0"
    },
@@ -555,7 +556,7 @@
    },
    "goos": "linux",
    "expect": [
-    "NOT_AFFECTED"
+    "INCONCLUSIVE"
    ]
   },
   {

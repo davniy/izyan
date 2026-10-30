@@ -1,0 +1,36 @@
+{
+  "schema": "r6-fixture/1",
+  "case_label": "synthetic-release-artifact",
+  "release_evidence": {
+    "status": "RESOLVED",
+    "selected_version": "go1.25.10",
+    "selected_source": "binary",
+    "selected_trust": "AUTHORITATIVE",
+    "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "binary_member": "bundle/bin/example",
+    "build_info_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "items": [
+      {
+        "version": "go1.25.10",
+        "source": "binary",
+        "trust_class": "AUTHORITATIVE",
+        "location": "bundle/bin/example",
+        "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "binary_member": "bundle/bin/example",
+        "build_info_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      {
+        "version": "go1.25.8",
+        "source": "dockerfile",
+        "trust_class": "SUPPORTING",
+        "location": "Dockerfile:1"
+      }
+    ]
+  },
+  "supporting_only": {
+    "status": "UNKNOWN",
+    "reason_code": "RELEASE_EVIDENCE_SUPPORTING_ONLY",
+    "docker_version": "go1.25.8",
+    "stdlib_applicability": "UNKNOWN"
+  }
+}

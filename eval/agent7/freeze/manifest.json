@@ -1,0 +1,735 @@
+{
+ "schema": "agent7-manifest/1",
+ "experiment_id": "agent7",
+ "frozen_at_utc": "2026-10-10T16:03:19Z",
+ "implementation_language": "go",
+ "freeze_status": {
+  "state": "protocol_frozen",
+  "pending_pins": [
+   "prompts.arm_prompts for R1/R2 (A4) — B1/R0 pinned 2026-10-11, prompts.files covers the committed prompt artifacts",
+   "tool_exposure.R1.selected_tool_names (A4)",
+   "holdout manifest (A9)",
+   "checkpoint sign-offs b/c (checkpoint_0 and checkpoint_a signed 2026-10-11; E6 PASS report pinned 2026-10-11)"
+  ]
+ },
+ "run_gate": {
+  "enforced_by": "internal/eval/agent7.CheckRunGateForArm / CheckRunGateForBlindArm (per scope); CheckRunGate remains the strict superset for the full matrix",
+  "scope": "arm-scoped (E6 sandbox design §0 option 1): each arm is gated only on the pins its phase actually authors — A2 is no longer blocked on A4/A9 pins",
+  "required_for_every_arm": [
+   "outcomes.scorer_version: set",
+   "run_profile.parallelism_upper_bound / run_profile.mem_limit / run_profile.degraded_declaration: set (E8)",
+   "environment.e6: report_path + 64-hex report_sha256 + status \"PASS\" — an ENV_FAIL report (environment/VPN precondition, e.g. provider unreachable) or a FAIL report (isolation assertion violated) both keep the gate closed; only PASS opens it — SATISFIED 2026-10-11 (PASS, 29/29 checks, report pinned under freeze/e6/)",
+   "checkpoints.checkpoint_0.operator_signoff: true"
+  ],
+  "required_per_arm": {
+   "B1/R0 (A2)": [
+    "prompts.arm_prompts[<arm>]: 64-hex sha256 of the frozen prompt bytes — SATISFIED 2026-10-11 (eval/agent7/prompts/b1.txt + r0.txt)",
+    "checkpoints.checkpoint_a.operator_signoff: true — SATISFIED 2026-10-11 (operator message; signed thresholds recorded in checkpoints.checkpoint_a)"
+   ],
+   "R1/R2 (A4+)": [
+    "prompts.arm_prompts[<arm>]: 64-hex sha256 of the frozen prompt bytes",
+    "tool_exposure.R1.selected_tool_names: 1..5 names pinned",
+    "checkpoints.checkpoint_b.operator_signoff: true"
+   ],
+   "B0": [
+    "checkpoints.checkpoint_a.operator_signoff: true (deterministic — no prompt pin)"
+   ],
+   "PR1": [
+    "checkpoints.checkpoint_c.operator_signoff: true (deterministic — no prompt pin)"
+   ]
+  },
+  "required_for_blind_runs (A9, any arm)": [
+   "holdout.manifest_file / holdout.manifest_sha256: pinned before blind runs"
+  ],
+  "strict_gate": "internal/eval/agent7.CheckRunGate — the superset kept for later phases: requires every requirement of every arm simultaneously, plus prompts.files non-empty, plus the holdout and ALL checkpoint sign-offs; it is not weakened by the arm-scoped gate",
+  "run_time_contract": [
+   "E1-E5 strict evidence-tools profile active for every arm run (izyan-evidence-tools --strict: confinement required, --modcache declared, hardened toolchain env, toolchain-command gate, per-tool timeout) — security-boundary-check.md §1/§4",
+   "E6/E7/E7b launch preconditions verified and recorded before any arm run: OS/container sandbox probe, frozen advisory snapshot (or digest canonicalisation), frozen govulncheck db — eval/agent7/freeze/security-boundary-check.md §8"
+  ]
+ },
+ "goal": {
+  "primary": "prove additional research value of an autonomous agent over a plain coding-agent (B1) and the current product (B0) under identical conditions",
+  "secondary": "separately test the economics of narrow machine proofs (incremental certified safe over independently re-verified B0); no production Verification Gate is built"
+ },
+ "spec": {
+  "files_sha256": {
+   "docs/dev/specs/2026-10-10-01-agent-driven-evidence-assessment-design-v2.md": "662d1e86fe6487f97635d51b1876eb13c52f84a300a913b2137689f9c697a132"
+  },
+  "plan_sha256": {
+   "docs/dev/plans/2026-10-10-02-agent-driven-evidence-assessment-plan-v2.md": "95472be7cc295edc6d963e975ca5686cb36c968178b1b6078100d4bb99dbdf5f"
+  },
+  "note": "PR-0 documents are worktree files at freeze time; hashes recorded for audit, re-verified by internal/eval/agent7.Validate"
+ },
+ "freeze": {
+  "files_sha256": {
+   "eval/agent7/freeze/e6/security-boundary-check.json": "8ba5851e834f890916e23890c14164f210efbf5dbc860a1fca8e16dd9b7cfbdf",
+   "eval/agent7/freeze/protocol.md": "38821771a5e79c93cd5d41970a991cb22052d6444b7c6f0ff8bb1eb2f3d19333",
+   "eval/agent7/freeze/research-rubric.md": "49e2298495195fe06acc6a18ed882cd3dfed1483e186e3c5c0c0eb05c5415efd",
+   "eval/agent7/freeze/security-boundary-check.md": "94f33f196b45cb55d571250ae64d0b78482b4e03bbb9d9d77df46e1c7bd0adb0",
+   "configs/research/checks.yaml": "468c5a18a0bef3a4ad4caf59b8c905f1c93c46fdb876e55508c31e1716f8450c",
+   "configs/research/conditions.yaml": "b00bd63b47ef4ed84255156dc5fb6bf73f68bba76b2d9fca83248eb0beead0d0",
+   "configs/research/dispositions.yaml": "656cbcde76953a387e6b7ac5ab68ac6f7a8c46efd9d5a458d71b6d8600bcb209",
+   "rubrics/research.yaml": "8961622e315cab5765ec8ea059be67773a25a66d9fb539e169fe2092b08a9ab4"
+  },
+  "note": "manifest.json itself is excluded (it cannot hash itself); all other freeze docs are pinned — including the committed E6 probe report and the R6 decision-ready configuration surface (configs/research/*, rubrics/decision.yaml, rubrics/research.yaml)"
+ },
+ "controller": {
+  "files_sha256": {
+   "internal/eval/agent7/manifest.go": "07916357c52feda0961c5baecc08aafcdc082e84f7479aa43158b372c35d853f",
+   "internal/eval/agent7/outcomes.go": "ce48d4d30c032917688961d1e041a9eb538aa8d40d3b39753356e018e5ba6355",
+   "internal/eval/agent7/manifest_test.go": "5c6f07bf77e6f0bc3a508151c5713a625936d7b88e8f95be4c7efd02d7ef00b1",
+   "internal/eval/agent7/outcomes_test.go": "8a776933580037807d59c7404d2e5c0da29618312f70954b3a7ccdbe0b445e52"
+  },
+  "package": "internal/eval/agent7",
+  "convention": "Go package mirroring internal/eval/vexbench; classifier+aggregator are the frozen scorer — byte-identical across arms"
+ },
+ "izyan_base": {
+  "worktree": "${IZYAN_WORKTREE}",
+  "branch": "feat/shadow-analyzer-agent",
+  "commit": "a65056a679aa88a4e5037981b7558dff45d9bc1c",
+  "note": "PR-0 adds only docs/eval artifacts (eval/agent7/freeze/*, internal/eval/agent7/*, eval/README.md §13); izyan analyze behaviour is unchanged — spec §10.1 same-repo experimental lane"
+ },
+ "harness": {
+  "dir": "${VEXBENCH_HARNESS_DIR}",
+  "commit": "80cddeac3132826bfd47227ad59b2e6618a681bd",
+  "dirty_files": [
+   " M benchmark/tasks/vex_bench.jsonl",
+   " M pyproject.toml",
+   " M src/cli.py",
+   " M src/evaluate/agents/__init__.py",
+   " M src/evaluate/agents/base.py",
+   " M src/evaluate/agents/opencode.py",
+   " M src/evaluate/prompts.py",
+   " M src/evaluate/run.py",
+   " M uv.lock",
+   "?? benchmark/tasks/vex_bench.upstream75.jsonl",
+   "?? benchmark/tasks/vex_bench_go.jsonl",
+   "?? docker/bin/",
+   "?? docker/build-c1.sh",
+   "?? docker/build-e6.sh",
+   "?? docker/e6-helpers/",
+   "?? docker/e6-image.stamp",
+   "?? docker/go.codex-c1.Dockerfile",
+   "?? docker/go.opencode-c1.Dockerfile",
+   "?? docker/go.opencode-e6.Dockerfile",
+   "?? results-e6/",
+   "?? src/evaluate/agents/codex_c1.py",
+   "?? src/evaluate/agents/opencode_c1.py",
+   "?? src/evaluate/e6.py",
+   "?? src/evaluate/e6_forwarder.py",
+   "?? src/evaluate/e6_sandbox.py",
+   "?? src/evaluate/prompts_data/",
+   "?? tests/"
+  ],
+  "task6_patch_file": "eval/task6/harness/vexbench-agent-ctl-task6.patch",
+  "task6_patch_sha256": "30131aa312e0dd4e8adf0d25295542c574f8eab208664fceeb30da4e75ebd202",
+  "e6_patch_file": "eval/agent7/harness/e6-sandbox.patch",
+  "e6_patch_sha256": "a8bb258cf7b0b958af92a19235373f8fe3b113605235e3ae5de3f32eb35a9d8f",
+  "e6_patch_baseline": "harness HEAD (80cddeac) + the C1 patch above; the patch is the record of the E6 delta",
+  "note": "the harness working tree already carries the E6 changes (dirty_files is the live `git status --porcelain` of 2026-10-11), so `git apply --check` reports 'already exists' — e6_patch_file pins the delta against the recorded baseline"
+ },
+ "images": {
+  "opencode_gw": {
+   "tag": "vex-bench-go-opencode-gw:latest",
+   "id": "sha256:91629799d07a08fc56e36fe1d51589cf3a1f24ff73ed9e09bad0331161703c13",
+   "arch": "linux/arm64",
+   "source": "pinned from eval/task6/experiment-manifest.json images.p2 (docker image id, verified local)"
+  },
+  "opencode_c1": {
+   "tag": "vex-bench-go-opencode-c1:latest",
+   "id": "sha256:e9b61aa5a097619aaa938602c9499e6a274c530caeaa5ddaad6ebfc5775ecd76",
+   "arch": "linux/arm64",
+   "source": "pinned from eval/task6/experiment-manifest.json images.t2 (docker image id, verified local)"
+  },
+  "opencode_e6": {
+   "tag": "vex-bench-go-opencode-e6:latest",
+   "id": "sha256:1d7b3d3982a5a8948ed4f0219b385eaff8e472eb3a0849877b722cd14eafc90b",
+   "arch": "linux/arm64",
+   "opencode": "1.15.5",
+   "base": "vex-bench-go-opencode-gw:latest",
+   "base_id": "sha256:91629799d07a08fc56e36fe1d51589cf3a1f24ff73ed9e09bad0331161703c13",
+   "dockerfile": "docker/go.opencode-e6.Dockerfile",
+   "build_script": "docker/build-e6.sh",
+   "source": "pinned from the E6 preflight probe report + docker/e6-image.stamp (docker image id, verified 2026-10-11); the A2 B1/R0 image role"
+  }
+ },
+ "toolchain": {
+  "go": "go version go1.26.8 linux/arm64",
+  "opencode": "1.15.5",
+  "source": "pinned from eval/task6/experiment-manifest.json toolchain (container toolchain); host go1.26.1 darwin/arm64 used only for controller code"
+ },
+ "model": {
+  "id": "qwen3.6-35b",
+  "provider": "custom-openai (OpenAI-compatible gateway, OpenAI-compatible)",
+  "provider_model_id": "custom-openai/Qwen/Qwen3.6-35B-A3B",
+  "model_revision": null,
+  "settings": {
+   "temperature": null,
+   "reasoning_effort": null,
+   "limits": {
+    "context": 262144,
+    "output": 16384
+   }
+  },
+  "settings_note": "temperature/effort/revision unexposed by the provider — null, never fabricated; context/output limits from the synthesized opencode provider block (Task-6 pin)"
+ },
+ "attempt_policy": {
+  "timeout_seconds": 900,
+  "repeats": 3,
+  "parallel": 1,
+  "retries": 0,
+  "best_of": "forbidden",
+  "cache_admission": "forbidden",
+  "gt_driven_retries": "forbidden",
+  "attempt_key": "(experiment_id, arm, model, task_id, run_NNN)",
+  "note": "B0 and PR1 are deterministic and run repeats=1 — deviation recorded in limitations (Task-6 precedent)"
+ },
+ "run_profile": {
+  "applies_to": "every arm run that invokes izyan analyze / izyan eval vex-bench (B0 re-verification, PR1 inputs, repeat-stability samples); pinned in the identical-conditions checklist (protocol.md §2, §10)",
+  "parallelism_upper_bound": "-j <= 3 — the verified baseline profile is -j 3; higher parallelism is an unverified profile",
+  "mem_limit": "--mem-limit 24GiB — the ceiling is result-affecting (eval/agent7/proof-feasibility.md §7: INCONCLUSIVE at -j 2 --mem-limit 8GiB vs EXPLOITABLE at 24GiB on cilium-cilium-3977f6a); a different ceiling is a different profile, not a tuning knob",
+  "guard_trip": "a tripping memory guard (cmd/izyan/memguard.go) is a RUN-PROFILE failure, never a verdict and never an alternative profile",
+  "guard_trip_detection": "instant 'advisory error: osv get … context canceled' envelopes with wall_seconds ≈ 0 (17/30 cases in the invalidated j2/8GiB attempt), corroborated by the degraded 'limitations' marker; the marker alone is not a detector — the same strings appear in healthy runs — so exclusion is always an operator declaration, never inferred",
+  "degraded_declaration": "an arm run may not be scored while any case is infra or degraded; the generator's --require-complete refuses final artifacts in that state and --degraded <case_id> / --invalidated <run_dir> are the exclusion mechanism; every exclusion is recorded in the run manifest",
+  "repeat_stability": "≥3 cases × 2 repeats on the same snapshot under the identical pinned profile with identical verdicts required before any arm comparison is scored; a mismatch blocks scoring and is reported, never averaged away",
+  "advisory_reproducibility": "live OSV responses are not canonical — byte digests of the same advisory differ in member order (ecosystem_specific.imports); matched arm comparison requires a frozen advisory snapshot or digest canonicalisation (run_gate E7); govulncheck's vulnerability DB is a separate egress path — a frozen vulndb or recorded db_info is required (run_gate E7b)",
+  "evidence": "eval/agent7/proof-feasibility.md §2, §5, §7; eval/agent7/freeze/security-boundary-check.md §8; eval/agent7/freeze/protocol.md §10"
+ },
+ "arms": {
+  "B0": {
+   "role": "product_reference",
+   "command": "izyan analyze + izyan eval vex-bench",
+   "treatment_variable": "none — fixed product pipeline, no agent",
+   "agent": null,
+   "image": null,
+   "mcp": false,
+   "tool_exposure": "product internals only",
+   "repeats": 1,
+   "repeats_rationale": "deterministic pipeline; repeats add no information",
+   "identical_conditions": [
+    "dataset",
+    "snapshots",
+    "scorer",
+    "attempt_key",
+    "gt_isolation",
+    "timeout_seconds",
+    "budget_accounting"
+   ]
+  },
+  "B1": {
+   "role": "plain_coding_agent_baseline",
+   "agent": "opencode-b1p",
+   "image": "opencode_e6",
+   "mcp": false,
+   "tool_exposure": "read/search only; no Izyan tools",
+   "treatment_variable": "none — baseline arm",
+   "repeats": 3,
+   "identical_conditions": [
+    "dataset",
+    "snapshots",
+    "model",
+    "prompt_skeleton",
+    "image_role",
+    "scorer",
+    "attempt_policy",
+    "gt_isolation"
+   ]
+  },
+  "R0": {
+   "role": "research_poc_no_izyan_tools",
+   "agent": "opencode-b1p",
+   "image": "opencode_e6",
+   "mcp": false,
+   "tool_exposure": "read/search only; no Izyan tools",
+   "treatment_variable": "research prompt/protocol vs B1 plain prompt",
+   "repeats": 3,
+   "identical_conditions": [
+    "dataset",
+    "snapshots",
+    "model",
+    "image",
+    "scorer",
+    "attempt_policy",
+    "gt_isolation"
+   ]
+  },
+  "R1": {
+   "role": "research_poc_plus_selected_izyan_facts",
+   "agent": "opencode-c1",
+   "image": "opencode_c1",
+   "mcp": true,
+   "tool_exposure": "R0 + <=5 selected Izyan fact tools (list decided in A4)",
+   "treatment_variable": "selected Izyan fact tools + MCP transport",
+   "repeats": 3,
+   "identical_conditions": [
+    "dataset",
+    "snapshots",
+    "model",
+    "research_prompt",
+    "scorer",
+    "attempt_policy",
+    "gt_isolation"
+   ]
+  },
+  "R2": {
+   "role": "research_poc_plus_counterexample_pass",
+   "agent": "opencode-c1",
+   "image": "opencode_c1",
+   "mcp": true,
+   "tool_exposure": "same as R1",
+   "treatment_variable": "bounded counterexample pass by the SAME agent (no independent vote)",
+   "repeats": 3,
+   "identical_conditions": [
+    "dataset",
+    "snapshots",
+    "model",
+    "research_prompt",
+    "tool_set",
+    "scorer",
+    "attempt_policy",
+    "gt_isolation"
+   ]
+  },
+  "PR1": {
+   "role": "offline_proof_projection",
+   "agent": null,
+   "image": null,
+   "mcp": false,
+   "tool_exposure": "none — consumes saved R2/B0 artifacts only",
+   "treatment_variable": "none — deterministic projection, no new LLM calls",
+   "repeats": 1,
+   "repeats_rationale": "deterministic projection over immutable artifacts; repeats add no information",
+   "identical_conditions": [
+    "input_artifacts",
+    "scorer",
+    "gt_isolation"
+   ]
+  }
+ },
+ "matched_conditions_note": "for every matched comparison: same snapshot+dataset, model+settings, runtime+image role, prompt bytes except the treatment delta, attempt policy, scorer bytes, GT isolation",
+ "tool_exposure": {
+  "R0": {
+   "tools": []
+  },
+  "R1": {
+   "candidate_tool_names": [
+    "get_module_version",
+    "get_dependency_graph",
+    "get_advisory",
+    "get_fix_diff",
+    "find_callers",
+    "module_usage"
+   ],
+   "selected_tool_names": [],
+   "candidate_source": "eval/task6/experiment-manifest.json tools_binary.tool_names (31 tools); final <=5 subset decided in A4 and pinned into selected_tool_names by the run gate",
+   "mapping_doc": "docs/dev/decisions/agent7-base-and-reuse.md (A0 deliverable — actual tool ↔ proposed API mapping)"
+  },
+  "capability_policy": {
+   "read_search": "allowed",
+   "shell": "denied",
+   "process_execution": "denied (no run_build/run_tests; product binary never executed)",
+   "network": "advisory allowlist only (AllowNet semantics); no arbitrary egress",
+   "writes": "run output dir only — never snapshot, other runs, GT or credentials"
+  }
+ },
+ "prompts": {
+  "freeze_required_before_run": true,
+  "rule": "identical bytes across arms except the treatment delta; sha256 recorded at freeze time; prompt text is NOT invented in PR-0",
+  "files": {
+   "eval/agent7/prompts/b1.txt": "e10e2a922c2e37ba86ca5e673b4936f8e84316bae3ca6e6d043d8285db548b09",
+   "eval/agent7/prompts/r0.txt": "dba37365ea24a63bdd349eaa8325514a0872b8340f1ca4954e0985e28af6097a",
+   "eval/agent7/prompts/r0-v1.txt": "55b01e9a505bd058cb7be568f08c0e58364b8048e5acea030a14534f7031a0ae",
+   "eval/agent7/prompts/r0-v2.txt": "7233718f3d70dcdf122806b3485104bf8370e5da9a372af1a9ef178abadb9adc",
+   "eval/agent7/prompts/r0-v3.txt": "7a53b8d47d02faaaf3cdcd977df3936135b890cf0628a992788c6caf8aec99ec",
+   "eval/agent7/prompts/r0-v4.txt": "307936ae9ade2e00eef5c15951aa52ce3db2c223beadbc073ead84d2ac202549",
+   "eval/agent7/prompts/r6-plan-v1.txt": "9679cd5576f4304b626e6a2893c3455ba77e42a86dd2fd3088fee5c266468e25",
+   "eval/agent7/prompts/r6-plan-v2.txt": "dc7f1df3b46c4709d93fc555133e7e7a752f423d5f50d67d47f2887d51d943fb",
+   "eval/agent7/prompts/r6-plan-v4.txt": "efddbb7e822694ecabf3c9c661016ee8385e66e95fe087e00b092e59801392d5",
+   "eval/agent7/prompts/r6-plan-v5.txt": "7a73958dbbe49f946cb0b395edf566d22031200b4c0ca7388e3ddd1a7ef11d06",
+   "eval/agent7/prompts/r6-plan-v6.txt": "6a02fadcc263197512657ddb7a5a619dfc744fe14b6a73f9b32b6956434264ea",
+   "eval/agent7/prompts/r6-reassess-v1.txt": "2adebfe1187c11ca9022535e4b9dbf89d17fbc1c4f49cf076af650b751aec495",
+   "eval/agent7/prompts/r6-counterexample-v1.txt": "753d48a954e255879a8eb026cd0d2a8b9ebd4744986f48826f65928adc62b765"
+  },
+  "arm_prompts": {
+   "B1": "e10e2a922c2e37ba86ca5e673b4936f8e84316bae3ca6e6d043d8285db548b09",
+   "R0": "dba37365ea24a63bdd349eaa8325514a0872b8340f1ca4954e0985e28af6097a"
+  },
+  "treatment_delta": {
+   "convention": "byte-additive: r0.txt = b1.txt minus its final LF + two LF + the <RESEARCH_ASSESSMENT> delta block; every other prompt byte identical across the A2 arms",
+   "base": "eval/agent7/prompts/b1.txt",
+   "treatment": "eval/agent7/prompts/r0.txt",
+   "delta_bytes": 3301,
+   "delta_sha256": "11d17070e51a2c02a05abafcfa639395025c81c9467da3fa602fe3275d6a0cf6"
+  },
+  "note": "A2 B1/R0 prompt files are committed and hash-verified via prompts.files (Validate pins them like spec/freeze/controller files); the arm-scoped run gate (CheckRunGateForArm) requires prompts.arm_prompts[<arm>] — a 64-hex sha256 of the frozen prompt bytes — before that arm runs; arm ids are canonical (matching arms.<ID>); R1/R2 prompt pins land in A4; prompts.files records every prompt artifact and is required by the strict gate"
+ },
+ "environment": {
+  "e6": {
+   "report_path": "eval/agent7/freeze/e6/security-boundary-check.json",
+   "report_sha256": "8ba5851e834f890916e23890c14164f210efbf5dbc860a1fca8e16dd9b7cfbdf",
+   "status": "PASS",
+   "provider_host": "<corporate-provider-host>",
+   "provider_port": 443,
+   "provider_pinned_ips": [
+    "<corporate-provider-ip>"
+   ],
+   "forwarder_stats": {
+    "accepted": 30,
+    "forwarded": 21,
+    "rejected": 8
+   },
+   "status_contract": "PASS = every probe assertion verified (gate opens); ENV_FAIL = environment/precondition failure, e.g. model provider unreachable while VPN was down — fail-closed, NOT an isolation violation; FAIL = an isolation/security assertion was violated — fail-closed. The report is produced by the agent-ctl e6-preflight (schema agent7-e6-probe/1); report_path pins the committed verbatim copy of the probe report (recorded 2026-10-11, 29/29 checks PASS) and report_sha256 pins its bytes (E6 sandbox design §5/§6)"
+  }
+ },
+ "sandbox": {
+  "profile": "e6 — the OS/container boundary every A2 B1/R0 attempt runs under (security-boundary-check.md §8); proven by the probe report pinned in environment.e6",
+  "docker": {
+   "network": "none",
+   "user": "10001:10001",
+   "group_add": "0",
+   "read_only": true,
+   "cap_drop": [
+    "ALL"
+   ],
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "pids_limit": 256,
+   "memory": "4g",
+   "memory_swap": "4g",
+   "tmpfs": {
+    "/run-output": "rw,nosuid,nodev,noexec,size=64m,uid=10001,gid=10001,mode=0700",
+    "/tmp": "rw,nosuid,nodev,noexec,size=128m,uid=10001,gid=10001,mode=1777"
+   },
+   "binds_ro": [
+    "<snapshot>:/work",
+    "<per-attempt-input>:/run-input",
+    "<provider-socket>:/run/provider.sock"
+   ],
+   "entrypoint": "e6-exec-guard (absolute inside the container image: usr/local/bin/e6-exec-guard — recorded without the leading slash so host path rules do not misfire; see the probe report for the verbatim argv)",
+   "env_policy": "no env-file; cleared HTTP(S)_PROXY/ALL_PROXY; HOME=/tmp; XDG_CONFIG_HOME=/tmp/.config; no credentials in the container environment",
+   "exec_guard": "static Landlock LANDLOCK_ACCESS_FS_EXECUTE policy: exec allowed under image system paths only, denied under /work, /tmp, /run-output (probe: EACCES); noexec tmpfs is the second layer"
+  },
+  "config_sha256": "e9658f9766e104f579512dbe5aa32fca11344a049b4d9b2009622367b7a56763",
+  "permission_sha256": "2a5e9ad67681f998b8fae67e89373a806b62e3098a18353a9a7a4884b9af8f9a",
+  "create_argv_sha256": "2134c8fd50fdc96d889218176c11774c674c272d7df95ff8231cb16b83f7a71b",
+  "resolved_permission_matrix": {
+   "*": "deny",
+   "read": "allow",
+   "glob": "allow",
+   "grep": "allow",
+   "edit": "deny",
+   "bash": "deny",
+   "webfetch": "deny",
+   "websearch": "deny",
+   "task": "deny",
+   "skill": "deny",
+   "lsp": "deny",
+   "todowrite": "deny",
+   "question": "deny",
+   "external_directory": "deny",
+   "repo_clone": "deny",
+   "repo_overview": "deny"
+  },
+  "mcp": false,
+  "helper_sha256": {
+   "e6-relay": "a1c6460a8320647557eec50b39784918af145ccf319de64828ecf7f4c50d413f",
+   "e6-exec-guard": "a5cbf68724626cd660f7e14657016b96515b6a24646d3f18a4d5de965487e585",
+   "e6-probe": "2ea73ca96e9ea9913bd922b3c0db2271de14f7cf4e9e391beeae4d30bcaf09dc"
+  },
+  "provider": {
+   "host": "<corporate-provider-host>",
+   "port": 443,
+   "pinned_ips": [
+    "<corporate-provider-ip>"
+   ],
+   "status": "ok"
+  }
+ },
+ "dataset": {
+  "tasks_file": "${VEXBENCH_HARNESS_DIR}/benchmark/tasks/vex_bench.jsonl",
+  "tasks_sha256": "60b55373031dca97009d2e89ef8dfdf0ba083f9ce1035470fdf46f0da15384b3",
+  "task_count": 30,
+  "task_ids": [
+   "caddyserver-caddy-8dc7667-CVE-2025-29785",
+   "aquasecurity-trivy-37da98d-CVE-2024-32473",
+   "kubernetes-minikube-e7bf515-CVE-2019-5736",
+   "juanfont-headscale-e172c29-CVE-2024-45338",
+   "zeromicro-go-zero-bae061a-CVE-2022-32149",
+   "cilium-cilium-43bff35-CVE-2026-35469",
+   "containers-podman-6541fc4-CVE-2025-58181",
+   "rancher-rancher-4dc4f53-CVE-2025-47914",
+   "rancher-rancher-4dc4f53-CVE-2025-58181",
+   "cilium-cilium-3977f6a-CVE-2026-33186",
+   "moby-moby-3ede246-CVE-2026-39984",
+   "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+   "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+   "stretchr-testify-285adcc-CVE-2022-28948",
+   "labstack-echo-fdacff0-CVE-2020-26160",
+   "aquasecurity-trivy-98e136e-CVE-2024-24791",
+   "containers-podman-38ccfa2-CVE-2024-37298",
+   "containers-podman-6a65597-CVE-2023-48795",
+   "cilium-cilium-1228cbc-CVE-2026-35469",
+   "helm-helm-b76a950-CVE-2024-25621",
+   "rancher-rancher-8761419-CVE-2026-24051",
+   "rancher-rancher-8761419-CVE-2026-39883",
+   "istio-istio-042afc3-CVE-2023-48795",
+   "istio-istio-8903f65-CVE-2024-45338",
+   "helm-helm-fbb24fe-CVE-2021-21334",
+   "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+   "containers-podman-5ae6347-CVE-2025-47914",
+   "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+   "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+   "moby-moby-caea5f7-CVE-2026-39883"
+  ],
+  "cve_ids": [
+   "CVE-2019-5736",
+   "CVE-2020-26160",
+   "CVE-2021-21334",
+   "CVE-2021-3121",
+   "CVE-2022-28948",
+   "CVE-2022-32149",
+   "CVE-2022-41717",
+   "CVE-2023-44487",
+   "CVE-2023-48795",
+   "CVE-2024-24786",
+   "CVE-2024-24791",
+   "CVE-2024-25621",
+   "CVE-2024-32473",
+   "CVE-2024-37298",
+   "CVE-2024-45338",
+   "CVE-2025-22871",
+   "CVE-2025-29785",
+   "CVE-2025-47914",
+   "CVE-2025-58181",
+   "CVE-2026-24051",
+   "CVE-2026-33186",
+   "CVE-2026-35469",
+   "CVE-2026-39883",
+   "CVE-2026-39984"
+  ],
+  "repos_dir": "${VEXBENCH_REPOS_DIR}",
+  "acquisition_file": "${VEXBENCH_DURABLE_DIR}/acquisition.json",
+  "acquisition_sha256": "dd9adb0f8f6685f89b54880caebae67a06262b365e336b9aef9466e8a7b78b58",
+  "snapshot_hashes": {
+   "aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+   "aquasecurity/trivy/98e136eb7baa2b66f4233d96875c1490144e1594": "8c3488acf5b1c84ec77f526430407b6c7815ca9745d9f4560f64fff1b6ddfcc2",
+   "caddyserver/caddy/8dc76676fb5156f971db49c50a5c509d1c93613b": "d361247533c02147d40f8485c3f5adc7c6522fc9f9f81e06f0cd1448f6ccee83",
+   "cilium/cilium/1228cbc922a31aa9cf83962863d6818ad2eec315": "b599730fec0a03b9d0da2c68237253f089096392cf2e3c1ce29cbca07a106ddf",
+   "cilium/cilium/3977f6a1120bf5ec0206c1b3c484ba094da82c7d": "3e38825cea2577cc8456695f19e6bd80e19d6553d2b904368d826f6e8b46afb8",
+   "cilium/cilium/43bff353599662f7d2996c3b77155e383f0a5e96": "951a77d526f2bbaf217cad6659cca71464d174566e7c5ad9990533762a816146",
+   "containers/podman/38ccfa2b3327f0a3d0380c7ba6701046fa7c6aab": "d9c38ff6f123144dd255d157df4caec49ddeda554f2fcaa3179402fb327aea98",
+   "containers/podman/5ae63471cf9b370a78c6158c5bbb992be0807beb": "fb1e4efd0eb0308dcb1f232225f817636a471e2b22519f730fc01c03915dae37",
+   "containers/podman/6541fc4fb29e4ce56d88b46864b4559e0a07f978": "ba3a7eab0061977156c90d1f66956d67b7e390da268464b74e9ddb2b3889503c",
+   "containers/podman/6a6559735845f21a3066cf547b90669ef24f768b": "033455cb2220d35fbc0a18c4d8db1ce2c4ec06de69d1b060a9afdb9604d33b11",
+   "gitleaks/gitleaks/f487f853788e1f40b802a8476d98d6a049de6373": "b94b8461f08f2b9c5e95d70c7b33b39b21ea5fe6e4fb92e11e9a6e911946795b",
+   "helm/helm/b76a950f6835474e0906b96c9ec68a2eff3a6430": "d1697c7b277a2722ce74a05c7178443b56c52f06112bb7134c4b8d04c22b14c6",
+   "helm/helm/fbb24fe545a5923f4ebb393244654b359c69371b": "7a51bc13ca563cec8db84eace6328796035fb033b7394703eae3275696991723",
+   "istio/istio/042afc3802c1c5daee65f5b6703b0718c1f60541": "f62a45079ac8705f49c325d4608a4d4d041af0b8fcba06d2fb0ece89aedd014f",
+   "istio/istio/8903f65dc2e7191a14a958364c63908a05405f12": "172e4f6a7bf4dcaecb1b34ebb7ab261db62883257c07c7c44439e5ec577f2069",
+   "juanfont/headscale/e172c29360e0c9bdfbd22b5acc41a483ef513393": "5e22d3bc6d6f837f9a26bb4677b9123dc2dd9f95472b2d444be0e9b98d386143",
+   "kubernetes/kubernetes/1ee2acbb2e92caf28d3ff29121af657f2758ce58": "a490ab17c35082686ca08761ac990080b4c0afa6d08574a16524aad573451501",
+   "kubernetes/kubernetes/6d4b94f0ab25561be59396fd83fc7bf929fd825d": "523f2ddc3d50269739e88dd655f80f620685de26dad90f4269b935d4e4e37c75",
+   "kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+   "kubernetes/kubernetes/ec78c0f487ebde300ebbe1fb5189cb178e6a18b5": "2e8850eff98abb47bc46b974c74d87ddfeb790a5bd6ef71866692b4fc7196c21",
+   "kubernetes/minikube/e7bf515c48f32d7ef63c81fcdba92cccef619016": "4fe802e0b96503fc1e603320317ebe05b628e3f4a32129f5b369555ab4298e31",
+   "labstack/echo/fdacff0d93d54e8065ac7f5072041146f054a201": "db506090bbed3c6bef6befe632268116b3614381e57cc262d2dd354020ea14a1",
+   "moby/moby/3ede246fb2176a72b034ad01e4250818f67b6b13": "5bc551935bfe9da709a9c01b698c0bcb775900bb5e22235bd45c4f53bad6eca8",
+   "moby/moby/caea5f77adfc694c0e67c4f11022e3fa6d490e11": "3f9252a314b27a7d8d1173016b8953d9c39cad845a10713ffc63f2e1560e5749",
+   "rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+   "rancher/rancher/876141989e372bcc09b3c8523b05cac4e4d8665d": "0d0975942ec5c8d8c867cc13d03e6a469a31f3db2af7737466f4604f55b71e70",
+   "stretchr/testify/285adcc5ced0bb267a7c874cfa3ca238266ce14f": "63f6629dcd56f0eefd2ac0fa08b2a57af770108daab576fb47851850e4325ef3",
+   "zeromicro/go-zero/bae061a67e29184f7ae1113ead46c03ae717170e": "8ef3ad2d049965ecd3959783e8567ecedd2c884932f7f8ae6d6facc4057654a4"
+  },
+  "gt_class_counts": {
+   "not_exploitable": 23,
+   "exploitable": 7,
+   "measured": true
+  },
+  "note": "the 30 Go VEX-Bench cases are a development/regression set, NOT a blind holdout (spec §9.3); per-case GT labels stay controller-side and are never committed (see gt_policy)"
+ },
+ "outcomes": {
+  "classes": [
+   "OK",
+   "FAILED",
+   "INFRA_ERROR",
+   "INVALID_FORMAT",
+   "ABSTAIN",
+   "PROVIDER_REFUSED"
+  ],
+  "scorer_version": "agent7-scorer/1",
+  "rules": [
+   "INFRA_ERROR excluded from case-level denominators, reported separately (infra_only_cases)",
+   "attempt-level and case-level metrics reported separately; repeats are not independent cases",
+   "FAILED/ABSTAIN/PROVIDER_REFUSED/INFRA_ERROR never merge into each other or into a safe verdict",
+   "certified_safe counts only certificates with explicit certificate_source on OK attempts (baseline_b0 vs pr1 kept separate)"
+  ],
+  "scorer": "internal/eval/agent7 (ClassifyAttempt + Aggregate; bytes pinned in controller.files_sha256)",
+  "official_categories": [
+   "false_positive",
+   "code_not_present",
+   "code_not_reachable",
+   "requires_configuration",
+   "requires_dependency",
+   "requires_environment",
+   "compiler_protected",
+   "runtime_protected",
+   "perimeter_protected",
+   "mitigating_control_protected",
+   "uncertain",
+   "vulnerable"
+  ]
+ },
+ "smoke": {
+  "experiment_id": "agent7-smoke",
+  "selection_rule": "host-side by GT class from the frozen dataset, before any answer is examined: 2 not_exploitable + 2 exploitable cases + 1 additional forced INFRA_ERROR attempt injected host-side (e.g. docker transport failure); open dev control cases preferred (plan §A1: k8s-44487, k8s-3121, rancher-47914, testify-28948 usable for smoke); selected case ids are recorded in the run manifest, never in this committed manifest",
+  "class_quota": {
+   "not_exploitable": 2,
+   "exploitable": 2,
+   "forced_infra_failure": 1
+  },
+  "labels_never_reach_agent": true
+ },
+ "gt_policy": "ground_truth / ground_truth_category / reference PR (metadata.pr_url) / prior results / expect[] are controller-only; the rendered agent input carries only {task_id, cve_id, repo_url, commit_sha}; advisory inputs are public records only; per-case GT labels are never committed to manifests (selection happens host-side)",
+ "gt_paths_denied": [
+  "eval/ground-truth.md",
+  "eval/ground-truth/**",
+  "eval/corpus.json",
+  "eval/corpus-real.json",
+  "eval/live-corpus.json",
+  "eval/corpus-reviewed.json",
+  "benchmark/tasks/*.jsonl",
+  "${VEXBENCH_HARNESS_DIR}/benchmark/tasks/*.jsonl",
+  "eval/agent7/freeze/gt*"
+ ],
+ "holdout": {
+  "selection_protocol": "independent curator selects and freezes the holdout before any inspection of agent answers; no overlap with the dev 30, VEX-Bench upstream or prior PRs; holdout data unreachable from model containers; frozen candidate prompt/tool-policy/checkers/scorer/budgets set before blind runs",
+  "manifest_file": null,
+  "manifest_sha256": null,
+  "data": null,
+  "note": "protocol only, no data (spec §9.3, plan §A1/A9); the run gate requires the holdout manifest pinned before blind runs"
+ },
+ "checkpoints": {
+  "checkpoint_0": {
+   "status": "accepted",
+   "requires_operator_signoff": true,
+   "operator_signoff": true,
+   "question": "start a custom research runtime at all?",
+   "criteria": [
+    "A0 reuse audit completed: shadow base reproducible, research changes separable from core",
+    "GT isolation demonstrably holds (negative tests green, denied-path probe enforced)",
+    "proof lane potential from A1.5 known before any checker work"
+   ],
+   "stop_rule": "STOP proof if potential value absent; ADJUST environment if sandbox guarantees are unmet; GO research only when reuse + GT isolation hold"
+  },
+  "checkpoint_a": {
+   "status": "accepted",
+   "requires_operator_signoff": true,
+   "operator_signoff": true,
+   "question": "R0 vs B1 — measurable analyst usefulness?",
+   "criteria": [
+    "research value — at least one of: (a) improvement >= 0.5 anchored points on vulnerability_mechanism OR root_cause AND >= 0.5 on one of alternative_paths / product_exposure / evidence_quality; (b) >= 25% reduction of median analyst time-to-decision without degradation of research quality",
+    "mandatory constraints: proposed_false_safe <= B1 at attempt level AND at case level; any new false-safe conclusion on a case that was previously handled correctly (exploitable) is a separate BLOCKING signal; output-contract compliance and completion success no worse than B1; execution cost <= 2x B1",
+    "aggregation rule: aggregate first across repeats within a CVE, then across cases; on 8-12 dev cases the result decides whether to continue the architecture, not whether it is safe"
+   ],
+   "stop_rule": "if R0 ~= B1 → keep plain coding-agent with minimal export; do not build custom runtime (plan §9 stop rule 1); the signed criteria above are the operator's decision thresholds — no post-hoc adjustment",
+   "signed_at": "2026-10-11",
+   "signoff_source": "operator sign-off message of 2026-10-11 (GO A2, thresholds as recorded above); provenance convention of docs/dev/decisions/agent7-checkpoint-0.md — no signature artifact exists"
+  },
+  "checkpoint_b": {
+   "status": "proposed",
+   "requires_operator_signoff": true,
+   "operator_signoff": false,
+   "question": "R1/R2 ablation — do tools and critic add utility?",
+   "criteria": [
+    "R1 adds >=1 new correct observation (precision+recall gain or evidence discovery gain) over R0 on >=20% of cases, AND",
+    "R2 produces >=1 correct correction/counterexample over R1, AND",
+    "no increase in proposed_false_safe at comparable research quality"
+   ],
+   "stop_rule": "if R1/R2 add no facts/counterexamples or raise FS → remove the corresponding layer (plan §9 stop rule 2); tool count is never self-justifying"
+  },
+  "checkpoint_c": {
+   "status": "proposed",
+   "requires_operator_signoff": true,
+   "operator_signoff": false,
+   "question": "is a proof product needed?",
+   "criteria": [
+    "incremental_safe_clear > 0 against independently re-verified B0 with practical value (operator-set minimum new verified safes), AND",
+    "zero accepted unsafe certificates on any evaluated case, AND",
+    "scope/preconditions confirmed and fault-injection fails closed"
+   ],
+   "stop_rule": "zero or near-zero increment → STOP the proof lane; research lane continues (plan §9 stop rule 3); no post-hoc threshold adjustment after seeing results"
+  },
+  "meta_rule": "all thresholds are PROPOSED pending operator sign-off before the corresponding comparison runs; no post-hoc adjustment"
+ },
+ "attribution": {
+  "cost_per_attempt": "recorded per attempt key (tokens in/out, wall-clock, container minutes)",
+  "cost_per_case": "aggregated over the case's attempts; case-level and attempt-level denominators kept separate — 3 repeats of one case are not 3 independent cases",
+  "cost_per_new_verified_safe": "total lane cost / incremental_safe_clear numerator; reported per proof type",
+  "baseline_certified_source": "independently re-verified B0 outputs recorded as AttemptRecord{certificate_source: baseline_b0} — never old verdict labels and never committed per-case ids"
+ },
+ "protocol": {
+  "run_artifacts": [
+   "run-manifest.json",
+   "operations.jsonl",
+   "observations.jsonl",
+   "transcript-redacted.txt",
+   "dossier.json",
+   "research-report.md",
+   "proof-obligations.json",
+   "certificates.json",
+   "disposition.json",
+   "tool-errors.jsonl"
+  ],
+  "attempt_layout": "<arm>/<experiment_id>/<task_id>/run_NNN/",
+  "audit_sink": "per-run artifacts/izyan-audit/tool_calls.jsonl when MCP active"
+ },
+ "results_root": "eval/agent7/results",
+ "path_resolution": {
+  "IZYAN_WORKTREE": {
+   "default": "",
+   "description": "izyan repo worktree root; no committed default — the resolver falls back to the repo root passed to ResolvePaths (the worktree in use), so this variable is always resolvable"
+  },
+  "IZYAN_MASTER_WORKTREE": {
+   "default": "",
+   "description": "master worktree used for baseline comparisons; no default — dependent checks skip explicitly when unset"
+  },
+  "VEXBENCH_DURABLE_DIR": {
+   "default": "",
+   "description": "durable benchmark workspace root (harness + repos + acquisition); no committed default — set by the operator/harness environment; when unset, every dependent check (dataset pin, harness/image verification) is skipped explicitly, never assumed"
+  },
+  "VEXBENCH_HARNESS_DIR": {
+   "default": "${VEXBENCH_DURABLE_DIR}/agent-ctl",
+   "description": "agent-ctl harness dir; derives only when VEXBENCH_DURABLE_DIR is set (or set directly via env)"
+  },
+  "VEXBENCH_REPOS_DIR": {
+   "default": "${VEXBENCH_DURABLE_DIR}/repos",
+   "description": "snapshot repos dir; derives only when VEXBENCH_DURABLE_DIR is set (or set directly via env)"
+  },
+  "VA_PRODUCT_REPO": {
+   "default": "",
+   "description": "private product repo placeholder — never a committed absolute path (docs/agent-rules/security.md)"
+  }
+ },
+ "allowed_path_roots": [
+  "${IZYAN_WORKTREE}",
+  "${VEXBENCH_DURABLE_DIR}",
+  "${VA_PRODUCT_REPO}"
+ ],
+ "private_path_patterns": [
+  "vuln-analyzer-product",
+  ".git-credentials"
+ ],
+ "product_repo_reference": "${VA_PRODUCT_REPO} — private product repo is referenced by placeholder only, never by absolute path (docs/agent-rules/security.md)",
+ "limitations": [
+  "attempt-policy deviation: B0 and PR1 are deterministic and run repeats=1 instead of attempt_policy.repeats=3 (repeats add no information for fixed pipelines; Task-6 precedent for recording arm-level deviation)",
+  "freeze-scope deviation: plan A1 lists prompt bytes and the R1 tool subset among frozen inputs, but in this protocol they are authored in A2/A4 — they are pinned by the arm-scoped run gate (CheckRunGateForArm per arm), not by the PR-0 freeze; an arm may not run while its own gate is closed",
+  "container toolchain values (go1.26.8, opencode 1.15.5) are inherited from the Task-6 frozen manifest — the same pinned images are reused; re-verify at A2 if images are rebuilt",
+  "model.temperature / reasoning_effort / model_revision are null — the provider exposes nothing; never fabricated (plan §0.8)",
+  "prompt bytes did not exist in PR-0 — prompts.files and prompts.arm_prompts were empty by design; the A2 B1/R0 pins landed 2026-10-11 (eval/agent7/prompts/), R1/R2 prompts land in A4; the freeze rule still requires sha256 pinning before any run (run gate)",
+  "environment.e6 is now PASS — the E6 sandbox probe ran in the external harness (agent-ctl) on 2026-10-11 and the verbatim report is pinned under freeze/e6/ (environment.e6.report_path/report_sha256); an ENV_FAIL report (e.g. provider unreachable over VPN) remains an environment precondition failure, not an isolation violation, and is still fail-closed",
+  "operator-local absolute paths are never committed — every host path resolves through ${IZYAN_*}/${VEXBENCH_*} environment variables at run time; IZYAN_WORKTREE falls back to the repo root in code, VEXBENCH_* carry no committed default and dependent checks skip explicitly when unset",
+  "2026-10-12 environment rebuild: the local Docker base image was rebuilt externally (corp base id changed), so the E6 sandbox image was rebuilt from it (new digest) and the E6 probe re-run (PASS 29/29) with the pins re-recorded here; the sandbox policy (network none, user 10001:10001, cap-drop ALL, no-new-privileges, read-only binds, Landlock exec guard, provider allowlist) is unchanged.",
+  "2026-10-14 sanitization purge: a confidentiality pass replaced corporate terms (personal absolute paths, provider host/ip, corporate image/domain names, tracker prefixes) inside the committed artifacts, so the affected digests below were re-recorded against the sanitized bytes. Pre-sanitization digests (historical): eval/agent7/freeze/e6/security-boundary-check.json=f0a10941685c14941a14480997a46216fde757b6f658c5d6a95c70f129c3b25d; eval/agent7/freeze/security-boundary-check.md=cfb9a763b5f6d9b4239f75f501d623e6b1f81ffa5112dcf05bcf85d00ce929bd; eval/agent7/freeze/e6/security-boundary-check.json#environment.e6=f0a10941685c14941a14480997a46216fde757b6f658c5d6a95c70f129c3b25d"
+ ]
+}

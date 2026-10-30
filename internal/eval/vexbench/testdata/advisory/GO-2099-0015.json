@@ -1,0 +1,18 @@
+{
+  "id": "GO-2099-0015",
+  "summary": "Usable GO document fetched after a failed alias",
+  "published": "2099-14-01T00:00:00Z",
+  "modified": "2099-14-01T00:00:00Z",
+  "aliases": ["CVE-2099-0014"],
+  "affected": [
+    {
+      "package": {"name": "example.com/late", "ecosystem": "Go"},
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [{"introduced": "0"}, {"fixed": "0.3.0"}]
+        }
+      ]
+    }
+  ]
+}

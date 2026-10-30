@@ -1,0 +1,6 @@
+# Agent7 run outputs are local artifacts — only frozen documents
+# (freeze/) and committed data artifacts (proof-feasibility.*,
+# baseline-proof-coverage.json) ship in the repo, matching the
+# eval/task5 and eval/task6 convention.
+results/
+scoring/

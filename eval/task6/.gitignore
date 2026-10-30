@@ -1,0 +1,5 @@
+# Task 6 run outputs are local artifacts — only frozen documents
+# (prompts/, freeze/, harness/) and code commit.
+results/
+scoring/
+holdout/

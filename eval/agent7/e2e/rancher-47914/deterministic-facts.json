@@ -1,0 +1,238 @@
+{
+  "content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+  "facts": [
+    {
+      "id": "fact-obs-0001",
+      "statement": "snapshot <VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35 contained, replaces confined, content hash f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "claim": "TRUE",
+      "tool": "repository-preflight",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "repository-preflight {\"snapshot\":\"<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35\"}",
+      "scope": "VerifyContained + CheckPathReplacements + ContentHash over the snapshot tree",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "external_commit_sha": null,
+      "input_digest": "5490beaee16716dc168b1182e927945b6cb692fb641df1947a138c6c95e4a5c1",
+      "data_digest": "db5b0c3a2ee0b00270c9d42f33c74a0e38f58ba1657643f026306ae79f2f6a0e",
+      "artifact": {
+        "path": "artifacts/obs-0001.json",
+        "sha256": "ee257a4865447cfe27756717e393978bbfd9e1858589c0f701248c478b3bb59f",
+        "size_bytes": 1010,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0001",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:12:33Z"
+      },
+      "limitations": null
+    },
+    {
+      "id": "fact-obs-0002",
+      "statement": "snapshot identity 4dc4f534eed10a4b45b7475ebebaf99ab0056b35: go directive 1.24.0, release toolchain \"go1.24.11\", darwin/arm64",
+      "claim": "TRUE",
+      "tool": "repository-snapshot",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "repository-snapshot {\"GOOS\":\"\",\"GOARCH\":\"\",\"BuildTags\":null,\"BinaryPath\":\"\",\"ReleaseGoVersion\":\"\",\"TrustedPeer\":false,\"DeployManifests\":null,\"DeployArchive\":\"\",\"PerimeterOverride\":\"\",\"ExternalCommitSHA\":\"4dc4f534eed10a4b45b7475ebebaf99ab0056b35\",\"GoBin\":\"go\",\"Env\":null}",
+      "scope": "repository.Service.Snapshot (git/go probes + static release-evidence scan, no repo code executed)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "external_commit_sha": "4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+      "input_digest": "b95c38f4ff9e09ab307fd394f79a0537bbf4b00791c46e1202bc80e579281987",
+      "data_digest": "45cbbfa29ae2587e6383f615cc64e74e0b0244eca43378a0e67ac8fb2a81d4d2",
+      "artifact": {
+        "path": "artifacts/obs-0002.json",
+        "sha256": "7a44737cafe128c46664e9e8603b4ba5b7cb4e48beace63f1a9243a6b2a731fb",
+        "size_bytes": 1472,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0002",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:12:33Z"
+      },
+      "limitations": []
+    },
+    {
+      "id": "fact-obs-0003",
+      "statement": "frozen advisory CVE-2025-47914 resolved to GO-2025-4135 (1 affected entries, source frozen_file)",
+      "claim": "TRUE",
+      "tool": "advisory-load",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "advisory-load {\"cve\":\"CVE-2025-47914\",\"path\":\"eval/agent7/advisories/rancher-47914.json\",\"source\":\"frozen_file\"}",
+      "scope": "FileSource(eval/agent7/advisories/rancher-47914.json) with alias enrichment disabled; no network",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "external_commit_sha": null,
+      "input_digest": "c715ad9ae34009d861dc35f54bf870aabb7b15747b50773c6267d8ff5087220e",
+      "data_digest": "928121d54619c05875e86376701f9ab4392c5ebd186e4de531a0c8d30978f92c",
+      "artifact": {
+        "path": "artifacts/obs-0003.json",
+        "sha256": "13ab5f4b8ccead94685a035fa45596c6ae815b131a5c3cb962c79cd8aed1545d",
+        "size_bytes": 806,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0003",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:12:33Z"
+      },
+      "limitations": null
+    },
+    {
+      "id": "fact-obs-0004",
+      "statement": "snapshot 4dc4f534eed10a4b45b7475ebebaf99ab0056b35: content hash f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932, go directive 1.24.0, 50 replace directives",
+      "claim": "TRUE",
+      "tool": "get_product_snapshot",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_product_snapshot {}",
+      "scope": "this snapshot's build context and module manifest facts",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "external_commit_sha": "4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "818d6a746b3e2140f8370133c4ae70d53a4f86f4c73638ca9377f3153e4acd4c",
+      "artifact": {
+        "path": "artifacts/obs-0004.json",
+        "sha256": "841a94887c5e1ed2e5b532c17a180cad060ab9e384cfacac6c48b5c0b90d791f",
+        "size_bytes": 10644,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0004",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:12:33Z"
+      },
+      "limitations": null
+    },
+    {
+      "id": "fact-obs-0005",
+      "statement": "normalized advisory record for CVE-2025-47914 (resolved id GO-2025-4135)",
+      "claim": "TRUE",
+      "tool": "get_vulnerability",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_vulnerability {}",
+      "scope": "OSV-compatible advisory record for CVE-2025-47914",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "external_commit_sha": "4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "2cd2f751843bc4b33795a7014a4eb80fe5f4e422e047c103a7a4e897db1c1a9d",
+      "artifact": {
+        "path": "artifacts/obs-0005.json",
+        "sha256": "a47446c2fd77da02160096ef75cc57c60bf7eee207eb1a379c8cf20af896e0d0",
+        "size_bytes": 7161,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0005",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:12:33Z"
+      },
+      "limitations": [
+        "severity provenance not declared by the advisory source"
+      ]
+    },
+    {
+      "id": "fact-obs-0006",
+      "statement": "dependency graph: 670 module(s) resolved via go list -m -json all",
+      "claim": "TRUE",
+      "tool": "get_dependency_graph",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_dependency_graph {}",
+      "scope": "module list of <VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35 (go list -m -json all)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "external_commit_sha": "4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "bd5c28b3dd71599719a1ea6c065d22c3c60195be2ee4e5fcc4a6479068365330",
+      "artifact": {
+        "path": "artifacts/obs-0006.json",
+        "sha256": "a70e7842434f38bfef2b3cf4a793daf3d6ffe5c8d2a1f784815b13f9dd4dc9d0",
+        "size_bytes": 160870,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0006",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:12:33Z"
+      },
+      "limitations": null
+    },
+    {
+      "id": "fact-obs-0007",
+      "statement": "module golang.org/x/crypto resolved to version v0.43.0",
+      "claim": "TRUE",
+      "tool": "get_module_version",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_module_version {\"module\":\"golang.org/x/crypto\"}",
+      "scope": "resolved module list of <VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35 (go list -m -json all)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "external_commit_sha": null,
+      "input_digest": "da0fe30c67d727ac006dd0aff66217bd45756bf600385c77061f170265bcc83b",
+      "data_digest": "bce53bd809c579cbd7f8350110289db44d8bbb69eb1134255233f63772e559e0",
+      "artifact": {
+        "path": "artifacts/obs-0007.json",
+        "sha256": "71454c965f0a5cfdc0f39fa6d7054a983367c3cf62515a465352b8392e2d892a",
+        "size_bytes": 4192,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0007",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:12:33Z"
+      },
+      "limitations": null
+    },
+    {
+      "id": "fact-obs-0008",
+      "statement": "applicability chain for GO-2025-4135: module_present=TRUE version_affected=TRUE package_present=TRUE build_relevant=TRUE (selected [golang.org/x/crypto])",
+      "claim": "TRUE",
+      "tool": "affected-resolve",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "affected-resolve {\"vuln\":\"GO-2025-4135\"}",
+      "scope": "affected.GoResolver.Resolve over the snapshot module graph and import closure (go list -m, go list -deps under strict toolchain env)",
+      "status": "OK",
+      "coverage": "PARTIAL",
+      "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "external_commit_sha": "4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+      "input_digest": "f2b63576d010fc3fc3638c166adbd4d2726be5dc76c33a1a0d0ea7a8e7b38cca",
+      "data_digest": "eacbed2c4594040aa6c851e2eebf85a9cf41904be7232dcb5199756efc3c696b",
+      "artifact": {
+        "path": "artifacts/obs-0008.json",
+        "sha256": "c9855630715b54381dde58fb378438cac5d28ee31e57c1be69796a3e05122e31",
+        "size_bytes": 310839,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0008",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:12:33Z"
+      },
+      "limitations": [
+        "observation payload truncated at 262144 bytes (full payload 80988031 bytes, sha256 b55a02afb4cb4def16aef0b59fa8f47df24858d6c01378b33aabc292091f2264); stored bytes are a prefix of the tool result, not the full result"
+      ]
+    }
+  ],
+  "observations": 39,
+  "schema": "deterministic-facts/1",
+  "snapshot_root": "<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+  "verified_fact_ids": [
+    "fact-obs-0001",
+    "fact-obs-0002",
+    "fact-obs-0003",
+    "fact-obs-0004",
+    "fact-obs-0005",
+    "fact-obs-0006",
+    "fact-obs-0007",
+    "fact-obs-0008"
+  ]
+}

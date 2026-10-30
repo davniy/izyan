@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "decision-ready-review-event/1",
+  "title": "Decision-ready human review event",
+  "description": "One blinded reviewer event on one decision-ready artifact (R6, plan docs/dev/plans/2026-10-15-02-decision-ready-triage-plan.md Task 7). An event binds to an artifact only by the sha256 digest of the artifact's canonical decision-artifact.json bytes — never by file name, case path, ticket id, or reviewer identity. Reviewers are anonymous pseudonymous session ids at most; anything identifying a person or a private tracker must never appear in this document.",
+  "type": "object",
+  "required": [
+    "artifact_digest",
+    "started_at",
+    "finished_at",
+    "accepted",
+    "environment_answers",
+    "mandatory_fact_refs_read",
+    "repository_open_count",
+    "tool_rerun_count",
+    "technical_follow_up_count",
+    "returned_for_remediation",
+    "reopened"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "artifact_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "sha256 digest of the reviewed decision-artifact/1 canonical JSON (decision-artifact.json)."
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 / ISO-8601 timestamp with offset (Z or ±hh:mm). Wall-clock start of the review."
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "End of review; finished_at must be >= started_at."
+    },
+    "accepted": {
+      "type": "boolean",
+      "description": "Reviewer selected Accept. false = Reject (including returning the artifact for remediation work)."
+    },
+    "environment_answers": {
+      "type": "array",
+      "description": "Answers to the artifact's declared environment questions (0..2). An answer is never a code-level claim; it is an EnvironmentAssertion input.",
+      "items": {
+        "type": "object",
+        "required": ["variable", "value"],
+        "additionalProperties": false,
+        "properties": {
+          "variable": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Declared DecisionVariable id from the artifact (e.g. deployment_perimeter)."
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "description": "One of the variable's allowed_values, or the literal \"unknown\"."
+          }
+        }
+      }
+    },
+    "mandatory_fact_refs_read": {
+      "type": "array",
+      "description": "Fact ids from human_action.mandatory_fact_refs the reviewer actually opened/read.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "repository_open_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "How many times the reviewer opened the product repository/sources. Must be 0 for the decision-ready contract."
+    },
+    "tool_rerun_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "How many times the reviewer re-ran an analysis/evidence tool. Must be 0 for the decision-ready contract."
+    },
+    "technical_follow_up_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Technical follow-up questions the reviewer needed beyond declared environment questions."
+    },
+    "returned_for_remediation": {
+      "type": "boolean",
+      "description": "Reviewer sent the artifact back for more work instead of accepting/rejecting the proposal as presented."
+    },
+    "reopened": {
+      "type": "boolean",
+      "description": "The artifact's decision was later reopened/reversed (reversal of an accepted decision)."
+    },
+    "initial_branch_id": {
+      "type": "string",
+      "description": "Optional: branch the artifact's own evaluation selected before the reviewer's environment answers were applied."
+    },
+    "selected_branch_id": {
+      "type": "string",
+      "description": "Optional: branch selected after the reviewer's environment answers. Compared against initial_branch_id for the branch-change-after-answer rate."
+    },
+    "reviewer_session": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]{1,32}$",
+      "description": "Optional pseudonymous reviewer session token for inter-reviewer agreement analysis. Never a name, email, or employee id."
+    },
+    "event_schema": {
+      "type": "string",
+      "const": "decision-ready-review-event/1"
+    }
+  }
+}

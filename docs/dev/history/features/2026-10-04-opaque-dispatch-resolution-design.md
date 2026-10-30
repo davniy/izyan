@@ -3,7 +3,7 @@
 ## 1. Контекст и проблема
 
 В бэклоге [`docs/dev/gap-analysis.md`](../gap-analysis.md) пункт **B24** описывает непрямую внутреннюю диспетчеризацию вызовов в сторонних библиотеках:
-* В кейсе `real-micro-xds` (уязвимость [GO-2026-6441](https://pkg.go.dev/vuln/GO-2026-6441) в `google.golang.org/grpc v1.83.0`, продукт `eval/products/micro-xds`):
+* В кейсе `real-service-xds` (уязвимость [GO-2026-6441](https://pkg.go.dev/vuln/GO-2026-6441) в `google.golang.org/grpc v1.83.0`, продукт `eval/products/service-xds`):
   - Продукт инициализирует xDS gRPC сервер (`xds.NewGRPCServer`) и запускает обслуживание (`srv.Serve(ln)`).
   - Уязвимый синк находится в `google.golang.org/grpc/internal/xds/httpfilter/rbac`: методы `builder.ParseFilterConfig`, `builder.ParseFilterConfigOverride` и функция `parseConfig`.
   - В реальности синк достигается по цепочке длины 25 вызовов: `Serve` $\to$ `NewListenerWrapper` $\to$ `WatchListener` $\to$ `WatchResource` $\to$ `authority.watchResource` $\to$ `xdsChannelToUse` $\to$ `getChannelForADS` $\to$ `newXDSChannel` $\to$ `newADSStreamImpl` $\to$ `runner` $\to$ `recv` $\to$ `onResponse` $\to$ `decodeResponse` $\to$ `Decoder.Decode` $\to$ `listenerResourceDecoder.Decode` $\to$ `unmarshalListenerResource` $\to$ ... $\to$ `validateHTTPFilterConfig` $\to$ `httpfilter.Builder.ParseFilterConfig` $\to$ `rbac.builder.ParseFilterConfig` $\to$ `rbac.parseConfig`.
@@ -28,9 +28,9 @@
      getChannelForADS: c.getChannelForADS
      ```
      Поскольку `a.getChannelForADS` — это селектор по полю структуры, `calleeObject` возвращает `*types.Var` (поле типа `*types.Signature`), вызов не связывался с методом `XDSClient.getChannelForADS`, и цепочка обрывалась.
-* В результате `real-micro-xds` оставался единственным `INCONCLUSIVE` кейсом в корпусе `eval/corpus-real.json` (37/38 разрешено).
+* В результате `real-service-xds` оставался единственным `INCONCLUSIVE` кейсом в корпусе `eval/corpus-real.json` (37/38 разрешено).
 
-**Цель B24**: Реализовать общее детерминированное разрешение вызовов функциональных переменных, method values и функциональных полей структур в intra-module анализаторе графа вызовов (`moduleEdges`), полностью разрешая кейс `real-micro-xds` в истинный вердикт **`EXPLOITABLE`** без case-specific хардкода.
+**Цель B24**: Реализовать общее детерминированное разрешение вызовов функциональных переменных, method values и функциональных полей структур в intra-module анализаторе графа вызовов (`moduleEdges`), полностью разрешая кейс `real-service-xds` в истинный вердикт **`EXPLOITABLE`** без case-specific хардкода.
 
 ---
 
@@ -115,12 +115,12 @@
    - Тест на вызов локального method value: `m := recv.Method; m()`.
    - Тест на вызов поля структуры с func-сигнатурой: `s := &Struct{Fn: obj.Method}; s.Fn()`.
    - Тест на интерфейсную диспетчеризацию через переменную: `var f = iface.Method; f()`.
-2. **Интеграционный тест кейса `real-micro-xds`**:
+2. **Интеграционный тест кейса `real-service-xds`**:
    - `ModuleInternalReach` строит полную цепочку от `xds.NewGRPCServer` / `GRPCServer.Serve` до `rbac.parseConfig`.
    - `opaque` не блокирует найденную цепочку.
 3. **Корпусный тест `eval/corpus-real.json`**:
    - Запуск `izyan eval --corpus eval/corpus-real.json`.
-   - `real-micro-xds` переходит из `INCONCLUSIVE` в **`EXPLOITABLE`**.
+   - `real-service-xds` переходит из `INCONCLUSIVE` в **`EXPLOITABLE`**.
    - Общие метрики корпуса:
      - Total: 38
      - `EXPLOITABLE`: 18 (+1)

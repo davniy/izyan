@@ -1,0 +1,212 @@
+{
+  "id": "OBS-0005",
+  "tool": "get_vulnerability",
+  "fact": "normalized advisory record for CVE-2024-32473 (resolved id GO-2024-2737)",
+  "scope": "OSV-compatible advisory record for CVE-2024-32473",
+  "completeness": "COMPLETE",
+  "tool_status": "OK",
+  "evidence_refs": [
+    "sha256:161bc966c0e4db0416a3e8028e5513af46a1cc7534a09e69f3eee674d9769ba1"
+  ],
+  "limitations": [
+    "advisory declares no affected symbols; symbol-level queries need an explicit subject",
+    "severity provenance not declared by the advisory source"
+  ],
+  "scope_details": {
+    "snapshot_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+    "external_sha": "37da98df45f6014fcd5f1744e2e26351b61d2a02",
+    "subject": "CVE-2024-32473",
+    "profile": "strict",
+    "read_roots": [
+      "<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02",
+      "<VA_REPO>/eval/agent7/advisories"
+    ],
+    "toolchain_env": [
+      "GOENV=off",
+      "GOEXPERIMENT=",
+      "GOINSECURE=",
+      "GOWORK=off",
+      "GOPROXY=off",
+      "GOSUMDB=off",
+      "GONOSUMDB=",
+      "GONOPROXY=",
+      "GOPRIVATE=",
+      "GOFLAGS=-mod=readonly"
+    ],
+    "inherited_env_keys": [
+      "AGENT",
+      "AGY_CLI_DISABLE_AUTO_UPDATE",
+      "ALL_PROXY",
+      "AWS_PAGER",
+      "BAT_PAGER",
+      "BUN_INSTALL",
+      "CARGO_TERM_PROGRESS_WHEN",
+      "CI",
+      "CLAUDECODE",
+      "CLOUDSDK_CORE_DISABLE_PROMPTS",
+      "COLORTERM",
+      "COMMAND_MODE",
+      "COMPOSER_NO_INTERACTION",
+      "DEBIAN_FRONTEND",
+      "DEEPSEEK_API_KEY",
+      "DELTA_PAGER",
+      "DOCKER_HOME",
+      "EDITOR",
+      "FORCE_HYPERLINK",
+      "GH_PAGER",
+      "GH_PROMPT_DISABLED",
+      "GIT_EDITOR",
+      "GIT_PAGER",
+      "GIT_TERMINAL_PROMPT",
+      "GLAB_PAGER",
+      "GPG_TTY",
+      "HOME",
+      "HOMEBREW_PAGER",
+      "HTTPS_PROXY",
+      "HTTP_PROXY",
+      "LANG",
+      "LESS",
+      "LOGNAME",
+      "LSCOLORS",
+      "LS_COLORS",
+      "LaunchInstanceID",
+      "MANPAGER",
+      "MYSQL_PAGER",
+      "MallocNanoZone",
+      "NODE_EXTRA_CA_CERTS",
+      "NODE_OPTIONS",
+      "NODE_TLS_REJECT_UNAUTHORIZED",
+      "NO_COLOR",
+      "NO_PROXY",
+      "OMPCODE",
+      "OPENAI_API_KEY_OMNI_PROXY",
+      "OPENAI_API_KEY_QUOT",
+      "OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS",
+      "OPEN_API_KEY",
+      "ORCA_AGENT_HOOK_ENDPOINT",
+      "ORCA_AGENT_HOOK_ENV",
+      "ORCA_AGENT_HOOK_PORT",
+      "ORCA_AGENT_HOOK_TOKEN",
+      "ORCA_AGENT_HOOK_TRANSPORT",
+      "ORCA_AGENT_HOOK_VERSION",
+      "ORCA_AGENT_PANE",
+      "ORCA_APP_VERSION",
+      "ORCA_IMAGE_PROTOCOL",
+      "ORCA_OMP_FRESH_CONFIG",
+      "ORCA_OMP_SOURCE_AGENT_DIR",
+      "ORCA_OMP_STATUS_EXTENSION",
+      "ORCA_OPENCODE_AGENT",
+      "ORCA_PANE_KEY",
+      "ORCA_PI_SOURCE_AGENT_DIR",
+      "ORCA_PI_STATUS_OWNED",
+      "ORCA_TAB_ID",
+      "ORCA_TERMINAL_HANDLE",
+      "ORCA_USER_DATA_PATH",
+      "ORCA_WORKSPACE_ID",
+      "ORCA_WORKTREE_ID",
+      "OSLogRateLimit",
+      "PAGER",
+      "PATH",
+      "PIP_DISABLE_PIP_VERSION_CHECK",
+      "PIP_NO_INPUT",
+      "PNPM_DISABLE_SELF_UPDATE_CHECK",
+      "PNPM_UPDATE_NOTIFIER",
+      "POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD",
+      "PSQL_PAGER",
+      "PWD",
+      "PYTHONUNBUFFERED",
+      "SCCD_BASIC_TOKEN",
+      "SC_BASIC_TOKEN",
+      "SECURITYSESSIONID",
+      "SHLVL",
+      "SSH_ASKPASS",
+      "SSH_AUTH_SOCK",
+      "SSL_CERT_FILE",
+      "SWTR_BEARER_TOKEN",
+      "SYSTEMD_PAGER",
+      "TERM",
+      "TERM_PROGRAM",
+      "TERM_PROGRAM_VERSION",
+      "TF_INPUT",
+      "TF_IN_AUTOMATION",
+      "TMPDIR",
+      "USER",
+      "VEXBENCH_DURABLE_DIR",
+      "VISUAL",
+      "XPC_FLAGS",
+      "XPC_SERVICE_NAME",
+      "YARN_ENABLE_PROGRESS_BARS",
+      "YARN_ENABLE_TELEMETRY",
+      "ZSH",
+      "_",
+      "__CFBundleIdentifier",
+      "__CF_USER_TEXT_ENCODING",
+      "no_proxy",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_progress",
+      "npm_config_update_notifier",
+      "npm_config_yes"
+    ],
+    "coverage_rule": "single advisory document fetch (osv/v1/vulns/\u003cid\u003e)"
+  },
+  "data": {
+    "resolved_id": "GO-2024-2737",
+    "vulnerability": {
+      "affected_modules": [
+        {
+          "affected_versions": [
+            {
+              "fixed": "26.0.2+incompatible",
+              "introduced": "26.0.0+incompatible"
+            }
+          ],
+          "fixed_versions": [
+            "26.0.2+incompatible"
+          ],
+          "module": "github.com/docker/docker"
+        }
+      ],
+      "affected_versions": [
+        {
+          "fixed": "26.0.2+incompatible",
+          "introduced": "26.0.0+incompatible"
+        }
+      ],
+      "aliases": [
+        "CVE-2024-32473",
+        "GHSA-x84c-p2g9-rqv9"
+      ],
+      "description": "IPv6 enabled on IPv4-only network interfaces in github.com/docker/docker",
+      "fixed_versions": [
+        "26.0.2+incompatible"
+      ],
+      "id": "GO-2024-2737",
+      "modified": "2026-02-04T04:28:42.566154Z",
+      "module": "github.com/docker/docker",
+      "package": "github.com/docker/docker",
+      "provenance": {
+        "affected_symbols": "osv.affected[].ecosystem_specific.imports[].symbols",
+        "affected_versions": "osv.affected[].ranges[type=SEMVER].events",
+        "document": "file:eval/agent7/advisories/trivy-32473.json",
+        "id": "osv.id",
+        "module": "osv.affected[0].package.name"
+      },
+      "references": [
+        {
+          "type": "ADVISORY",
+          "url": "https://github.com/moby/moby/security/advisories/GHSA-x84c-p2g9-rqv9"
+        },
+        {
+          "type": "ADVISORY",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-32473"
+        },
+        {
+          "type": "WEB",
+          "url": "https://github.com/moby/moby/commit/7cef0d9cd1cf221d8c0b7b7aeda69552649e0642"
+        }
+      ],
+      "summary": "IPv6 enabled on IPv4-only network interfaces in github.com/docker/docker"
+    }
+  }
+}

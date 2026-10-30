@@ -5,11 +5,216 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
+	"sort"
 	"time"
 
+	"github.com/fedorovmv/izyan/internal/affected"
 	"github.com/fedorovmv/izyan/internal/domain"
 	"golang.org/x/tools/go/packages"
 )
+
+// SinkSetBasis returns the advisory-bound completeness contract for the
+// condition's declared sink set. The set is complete only when every sink
+// the exploit model declares is bound by the subjects and every
+// unresolved subject is proven absent from the linked build. Advisory
+// membership by itself is never a contract: a set that omits a declared
+// sink, carries an extra subject outside the advisory modules, or leaves
+// an unresolved non-absent subject returns ok=false so the sink closure
+// stays KNOWN_ONLY.
+func SinkSetBasis(c *domain.AnalysisCase, subjects []domain.SymbolRef, proof *domain.ContentAdmission) (string, bool) {
+	if c == nil || c.Exploit == nil || len(subjects) == 0 {
+		return "", false
+	}
+	if c.Vulnerability.ID == "" || c.Vulnerability.Module == "" {
+		return "", false
+	}
+	// The contract binds the sink set to a resolved, affected version —
+	// an undecided version cannot state which advisory subject set the
+	// closure is complete for.
+	if c.Affected == nil ||
+		c.Affected.ModulePresent != domain.ClaimTrue ||
+		c.Affected.VersionAffected != domain.ClaimTrue ||
+		c.Affected.ResolvedVersion == "" {
+		return "", false
+	}
+	mods := caseModules(c)
+	subjectSet := map[string]bool{}
+	for _, s := range subjects {
+		key := s.Package + "." + s.Symbol
+		if s.Package == "" || s.Symbol == "" {
+			return "", false
+		}
+		if !inCaseModules(s.Package, mods) {
+			return "", false
+		}
+		if subjectSet[key] {
+			return "", false
+		}
+		subjectSet[key] = true
+	}
+	absent := map[domain.SymbolRef]bool{}
+	// A subject counts as proven absent only when the single shared admission
+	// still establishes it. A saved AbsentSubjects entry is a conclusion, not
+	// evidence: without this the completeness contract could call an
+	// unadmitted subject absent and let a sink closure confirm a negative.
+	absenceAdmission := domain.AdmitAbsence(c, affected.AdmittedBuildGraph(c.Product, c.EvidenceGraph.EvidenceList()), proof)
+	for _, s := range c.Exploit.AbsentSubjects {
+		if absenceAdmission.Admits(s).Admitted {
+			absent[s] = true
+		}
+	}
+	// Every declared sink must be bound by the subject set or proven
+	// absent from the build: an omitted live sink is an enumeration gap.
+	declared := map[string]domain.SymbolRef{}
+	for _, s := range c.Exploit.RootCauses {
+		declared[s.Package+"."+s.Symbol] = s
+	}
+	for _, s := range c.Vulnerability.AffectedSymbols {
+		declared[s.Package+"."+s.Symbol] = s
+	}
+	if len(declared) == 0 {
+		return "", false
+	}
+	for key, s := range declared {
+		if subjectSet[key] || absent[s] {
+			continue
+		}
+		return "", false
+	}
+	for key := range subjectSet {
+		if _, ok := declared[key]; !ok {
+			return "", false
+		}
+	}
+	// An unresolved subject that is not proven absent could be a live
+	// sink outside the subject set — the declared set is then incomplete.
+	for _, s := range c.Exploit.UnresolvedSubjects {
+		if !absent[s] {
+			return "", false
+		}
+	}
+	keys := make([]string, 0, len(subjectSet))
+	for key := range subjectSet {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return fmt.Sprintf(
+		"advisory %s: %d declared sink subject(s) in %s@%s, all bound to the closure; no unresolved non-absent subject",
+		c.Vulnerability.ID, len(keys), c.Vulnerability.Module, c.Affected.ResolvedVersion), true
+}
+
+// ExploitLocusBindingBasis returns the deterministic completeness
+// contract for a symbol-less advisory whose condition subjects were
+// derived from a verified exploit-locus binding. Advisory membership or
+// an LLM proposal alone never yields a basis: the record must be
+// COMPLETE with no blocker, the advisory/module/version identities must
+// equal the case, the affected entry must declare no structured symbols,
+// the subject set must equal the binding's verified sink set exactly (no
+// added subject, no omitted sink), every sink must carry its verified
+// module identity, the trigger argument index must be the one the
+// condition binds, and any unresolved subject must either be proven
+// absent or be exactly a verified sink. Anything else returns ok=false
+// so the closure stays KNOWN_ONLY — a cross-module sink is admissible
+// only through this record, never by relaxing the ordinary basis.
+func ExploitLocusBindingBasis(c *domain.AnalysisCase, subjects []domain.SymbolRef,
+	binding *domain.ExploitLocusBinding, argIndex int, proof *domain.ContentAdmission) (string, bool) {
+	if c == nil || c.Exploit == nil || binding == nil || !binding.Complete || len(binding.Blockers) > 0 {
+		return "", false
+	}
+	if len(subjects) == 0 || len(binding.Sinks) == 0 {
+		return "", false
+	}
+	if c.Vulnerability.ID == "" || c.Vulnerability.Module == "" ||
+		c.Vulnerability.ID != binding.AdvisoryID || c.Vulnerability.Module != binding.Module {
+		return "", false
+	}
+	if c.Affected == nil ||
+		c.Affected.ModulePresent != domain.ClaimTrue ||
+		c.Affected.VersionAffected != domain.ClaimTrue ||
+		c.Affected.ResolvedVersion == "" ||
+		c.Affected.ResolvedVersion != binding.Version {
+		return "", false
+	}
+	if binding.VulnerablePackage == "" || binding.VulnerableSymbol == "" {
+		return "", false
+	}
+	if argIndex < 0 || binding.TriggerArgIndex != argIndex {
+		return "", false
+	}
+	// The route exists only for a genuinely symbol-less advisory entry:
+	// an advisory that declares symbols belongs to the ordinary route.
+	if len(c.Vulnerability.AffectedSymbols) > 0 {
+		return "", false
+	}
+	for _, ap := range c.Vulnerability.AffectedPackages {
+		if len(ap.Symbols) > 0 {
+			return "", false
+		}
+	}
+	bound := map[string]domain.ExploitLocusSink{}
+	for _, s := range binding.Sinks {
+		key := s.Package + "." + s.Symbol
+		if s.Package == "" || s.Symbol == "" || s.Module == "" {
+			return "", false
+		}
+		if _, dup := bound[key]; dup {
+			return "", false
+		}
+		bound[key] = s
+	}
+	subjectSet := map[string]bool{}
+	for _, s := range subjects {
+		key := s.Package + "." + s.Symbol
+		if s.Package == "" || s.Symbol == "" || subjectSet[key] {
+			return "", false
+		}
+		if _, ok := bound[key]; !ok {
+			// No extra subject may be added: a subject outside the
+			// verified sink set would claim coverage the binding never
+			// enumerated.
+			return "", false
+		}
+		subjectSet[key] = true
+	}
+	if len(subjectSet) != len(bound) {
+		return "", false
+	}
+	absent := map[domain.SymbolRef]bool{}
+	// A subject counts as proven absent only when the single shared admission
+	// still establishes it. A saved AbsentSubjects entry is a conclusion, not
+	// evidence: without this the completeness contract could call an
+	// unadmitted subject absent and let a sink closure confirm a negative.
+	absenceAdmission := domain.AdmitAbsence(c, affected.AdmittedBuildGraph(c.Product, c.EvidenceGraph.EvidenceList()), proof)
+	for _, s := range c.Exploit.AbsentSubjects {
+		if absenceAdmission.Admits(s).Admitted {
+			absent[s] = true
+		}
+	}
+	for _, s := range c.Exploit.UnresolvedSubjects {
+		key := s.Package + "." + s.Symbol
+		if absent[s] {
+			continue
+		}
+		if _, ok := bound[key]; !ok {
+			return "", false
+		}
+	}
+	for _, s := range c.Exploit.RootCauses {
+		key := s.Package + "." + s.Symbol
+		if _, ok := bound[key]; !ok && !absent[s] {
+			return "", false
+		}
+	}
+	keys := make([]string, 0, len(subjectSet))
+	for key := range subjectSet {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return fmt.Sprintf(
+		"advisory %s: symbol-less exploit-locus binding %s; vulnerable %s.%s; complete product-facing trigger sink set at ArgIndex %d; %d verified sink(s) %v; all sink-to-locus paths resolved; no unresolved candidate",
+		c.Vulnerability.ID, binding.ProposalID, binding.VulnerablePackage,
+		binding.VulnerableSymbol, argIndex, len(keys), keys), true
+}
 
 // SinkClosure enumerates every call site of each subject in the
 // completeness-declared sink set — product packages plus the reachable
@@ -54,6 +259,10 @@ func (ix *Index) SinkClosure(ctx context.Context, condID domain.ConditionID, mod
 		ix.loadBudget = 48
 	}
 	defer func() {
+		// Only the query-scoped budget is restored: later queries may
+		// load again, but a depletion recorded above stays in the
+		// session-scoped truncation record, so this session can never
+		// claim complete dependency coverage again.
 		ix.loadBudget = prevBudget
 		ix.loadBudgetExhausted = prevExhausted
 	}()
@@ -84,7 +293,7 @@ func (ix *Index) SinkClosure(ctx context.Context, condID domain.ConditionID, mod
 		ix.hopLimit = prev
 		ix.funcDeclCache = nil
 	}()
-	var livePos, dead, unsafePos, unresolved int
+	var livePos, configPos, dead, unsafePos, unresolved int
 	pinned := map[string]bool{}
 	cumulativeEvalBudget := maxEvalBudget * 8
 
@@ -186,6 +395,15 @@ func (ix *Index) SinkClosure(ctx context.Context, condID domain.ConditionID, mod
 				continue
 			}
 			call := r.call
+			// An exact payload position that the call does not supply is
+			// an enumeration gap, not a site with a safe origin: the
+			// declared argument index cannot be proven for this call.
+			if argIndex >= 0 && argIndex >= len(call.Args) {
+				cl.Blockers = append(cl.Blockers, fmt.Sprintf(
+					"call site %s:%d invokes %s with %d argument(s); declared payload position %d is absent",
+					r.Site.File, r.Site.Line, key, len(call.Args), argIndex))
+				continue
+			}
 			var positions []struct {
 				arg  int
 				expr ast.Expr
@@ -197,9 +415,7 @@ func (ix *Index) SinkClosure(ctx context.Context, condID domain.ConditionID, mod
 				}{arg, e})
 			}
 			if argIndex >= 0 {
-				if argIndex < len(call.Args) {
-					add(argIndex, call.Args[argIndex])
-				}
+				add(argIndex, call.Args[argIndex])
 			} else {
 				for i, a := range call.Args {
 					add(i, a)
@@ -207,10 +423,15 @@ func (ix *Index) SinkClosure(ctx context.Context, condID domain.ConditionID, mod
 			}
 			// The receiver of a method call is object state the callee
 			// reads — a payload position in its own right (a decoder's
-			// buffer never travels through an argument).
-			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-				if selection := r.pkg.TypesInfo.Selections[sel]; selection != nil && selection.Kind() == types.MethodVal {
-					add(-1, sel.X)
+			// buffer never travels through an argument). Exact-argument
+			// mode enumerates only the declared payload position: the
+			// post-reach contract binds one trigger argument, and a
+			// receiver record would not match that exact ArgIndex.
+			if argIndex < 0 {
+				if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+					if selection := r.pkg.TypesInfo.Selections[sel]; selection != nil && selection.Kind() == types.MethodVal {
+						add(-1, sel.X)
+					}
 				}
 			}
 			for _, p := range positions {
@@ -258,6 +479,12 @@ func (ix *Index) SinkClosure(ctx context.Context, condID domain.ConditionID, mod
 				livePos++
 				switch {
 				case domain.SafeOrigin(origin):
+				case origin == domain.OriginConfiguration:
+					// Configuration is a resolved, non-external origin:
+					// it keeps the enumeration complete, but the
+					// falsifier-specific gate (constant vs config basis)
+					// decides whether it may ground a claim.
+					configPos++
 				case origin == domain.OriginUnknown || origin == "":
 					unresolved++
 				default:
@@ -274,16 +501,26 @@ func (ix *Index) SinkClosure(ctx context.Context, condID domain.ConditionID, mod
 			}
 		}
 	}
+	// A budget exhausted anywhere in this verification session truncated
+	// dependency coverage. The gap belongs to every later closure claim of
+	// the session: a repeated, cleaner-looking enumeration must not discard
+	// the earlier unresolved state, so the named truncation rides every
+	// result as a blocker and keeps Complete false.
+	cl.Blockers = append(cl.Blockers, ix.sessionTruncationBlockersLocked()...)
 	cl.Complete = len(cl.Blockers) == 0 && unsafePos == 0 && unresolved == 0
+	content := fmt.Sprintf(
+		"cond=%s sinks=%d live-positions=%d config=%d unsafe=%d unresolved=%d dead-sites=%d blockers=%d complete=%v",
+		condID, len(subjects), livePos, configPos, unsafePos, unresolved, dead,
+		len(cl.Blockers), cl.Complete)
+	if cl.Basis != "" {
+		content += "; basis: " + cl.Basis
+	}
 	return cl, []domain.Evidence{{
 		Kind:    domain.EvidenceDataFlow,
 		Quality: domain.QualityDeterministic,
 		Source:  "dependency sink-closure inventory " + module,
 		Tool:    "goanalysis.Index.SinkClosure",
-		Content: fmt.Sprintf(
-			"cond=%s sinks=%d live-positions=%d unsafe=%d unresolved=%d dead-sites=%d blockers=%d complete=%v",
-			condID, len(subjects), livePos, unsafePos, unresolved, dead,
-			len(cl.Blockers), cl.Complete),
+		Content: content,
 	}}, nil
 }
 

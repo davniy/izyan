@@ -10,7 +10,7 @@ import (
 func TestCustomUnroutable(t *testing.T) {
 	cond := domain.Condition{ID: "C-X", Kind: domain.ConditionCustom,
 		Description: "some bespoke condition"}
-	cl := Custom{}.Evaluate(cond, &domain.AnalysisCase{})
+	cl := Custom{}.Evaluate(cond, &domain.AnalysisCase{Product: admittedProduct()})
 	if cl.Result != domain.ClaimUnknown {
 		t.Fatalf("result=%s, want UNKNOWN", cl.Result)
 	}
@@ -40,7 +40,7 @@ func TestCustomReadDirectionDelegates(t *testing.T) {
 			{Package: "example.com/dep/vuln", Symbol: "Conn.Secret"},
 		},
 	}
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.EvidenceGraph.AddEvidence(domain.Evidence{
 		Kind:    domain.EvidenceSourceSnippet,
 		Quality: domain.QualityDeterministic,
@@ -64,7 +64,7 @@ func TestCustomReachableNoSubjects(t *testing.T) {
 	// evaluator, which reports the missing subject honestly.
 	cond := domain.Condition{ID: "C-X", Kind: domain.ConditionCustom,
 		Params: map[string]string{domain.ParamCheck: domain.CheckReachable}}
-	cl := Custom{}.Evaluate(cond, &domain.AnalysisCase{})
+	cl := Custom{}.Evaluate(cond, &domain.AnalysisCase{Product: admittedProduct()})
 	if cl.Result != domain.ClaimUnknown {
 		t.Fatalf("result=%s", cl.Result)
 	}

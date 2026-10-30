@@ -18,6 +18,8 @@ import (
 // subject: composite-literal keys (`Type{Field: v}`) and selector
 // assignments (`x.Field = v`). The assigned value is resolved to a
 // literal or const value when statically determinable.
+// This declaration-wide projection does not establish the consumed object's
+// effective value. ConfigWriters retains object, copy, override and escape data.
 func (ix *Index) FieldAssignments(ctx context.Context, ref domain.SymbolRef) ([]domain.ConfigAssignment, error) {
 	ix.mu.Lock()
 	defer ix.mu.Unlock()
@@ -174,6 +176,9 @@ var configRefRe = regexp.MustCompile(`(?i)^(cfg|config|opts?|settings?|env|flags
 
 // CheckCallSiteGuard inspects the statement at site to determine if it sits inside an if statement,
 // and whether that guard condition is a configuration knob and/or statically dead code.
+// A position that is not an AST call expression yields ErrCallSiteNotFound
+// rather than a vacuous "not gated" — that answer is only meaningful for
+// positions that are calls.
 func (ix *Index) CheckCallSiteGuard(ctx context.Context, site domain.CallSite) (gated bool, deadCode bool, detail string, err error) {
 	ix.mu.Lock()
 	defer ix.mu.Unlock()
@@ -200,6 +205,9 @@ func (ix *Index) ConfigGated(ctx context.Context, site domain.CallSite) (bool, s
 }
 
 func (ix *Index) checkCallSiteGuardLocked(ctx context.Context, site domain.CallSite) (bool, bool, string, error) {
+	if _, _, _, err := ix.callAt(site); err != nil {
+		return false, false, "", err
+	}
 	for _, pkg := range ix.pkgs {
 		for _, f := range pkg.Syntax {
 			pos := ix.fset.Position(f.Pos())

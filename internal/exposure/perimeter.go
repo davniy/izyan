@@ -24,7 +24,12 @@ const (
 
 // ClassifyPerimeter analyzes resolved exposure facts from code and deployment
 // manifests to determine whether the product operates strictly in a
-// cluster-internal perimeter, is exposed publicly, or is unknown.
+// cluster-internal perimeter, is exposed publicly, or is unknown. It returns a
+// typed assessment that separates the exposure classification from its basis:
+// the classifier only ever observes exposure shape, so its basis is listener
+// locality or deployment topology — never trust. Only independent
+// deployment-policy evidence or an explicit operator declaration can establish
+// that peers are trusted.
 //
 // Attribution: productNames identifies the analyzed product (module
 // basename, binary name, repo basename). Deployment facts carry an
@@ -42,12 +47,17 @@ const (
 // unresolved inbound surfaces block a cluster-internal conclusion unless a
 // deployment manifest authoritatively scopes the workload (ClusterIP). An
 // absent manifest is never evidence of isolation.
-func ClassifyPerimeter(facts []domain.ExposureFact, productNames []string) (string, string) {
+func ClassifyPerimeter(facts []domain.ExposureFact, productNames []string) domain.PerimeterAssessment {
 	if len(facts) == 0 {
-		return domain.PerimeterUnknown, "no deployment exposure facts resolved; defaulting to zero-trust"
+		return domain.NewPerimeterAssessment(domain.PerimeterUnknown, domain.PerimeterBasisUnknown,
+			"no deployment exposure facts resolved; defaulting to zero-trust")
 	}
 
-	var publicReasons, clusterReasons, unexplained, unattributedPublic []string
+	var (
+		publicReasons, clusterReasons, unexplained, unattributedPublic []string
+		publicFromDeploy                                               bool
+		publicFromListener                                             bool
+	)
 	maxTier := tierNone
 
 	for _, f := range facts {
@@ -79,6 +89,11 @@ func ClassifyPerimeter(facts []domain.ExposureFact, productNames []string) (stri
 		}
 		if isPublic, reason := checkPublic(f); isPublic {
 			publicReasons = appendUnique(publicReasons, reason)
+			if isDeployFact(f) {
+				publicFromDeploy = true
+			} else {
+				publicFromListener = true
+			}
 			continue
 		}
 		if tier, reason := checkCluster(f); tier > tierNone {
@@ -94,31 +109,45 @@ func ClassifyPerimeter(facts []domain.ExposureFact, productNames []string) (stri
 	}
 
 	if len(publicReasons) > 0 {
-		return domain.PerimeterPublic, "public exposure detected: " + strings.Join(publicReasons, "; ")
+		basis := domain.PerimeterBasisListenerLocality
+		if publicFromDeploy {
+			basis = domain.PerimeterBasisDeploymentTopology
+		}
+		return domain.NewPerimeterAssessment(domain.PerimeterPublic, basis,
+			"public exposure detected: "+strings.Join(publicReasons, "; "))
 	}
 
 	switch maxTier {
 	case tierDeploy:
 		if len(unattributedPublic) > 0 {
-			return domain.PerimeterUnknown, "unattributed external-routing manifests may front the service: " + strings.Join(unattributedPublic, "; ")
+			return domain.NewPerimeterAssessment(domain.PerimeterUnknown, domain.PerimeterBasisDeploymentTopology,
+				"unattributed external-routing manifests may front the service: "+strings.Join(unattributedPublic, "; "))
 		}
 		rationale := "cluster-internal perimeter: " + strings.Join(clusterReasons, ", ") + "; no public ingress found"
 		if len(unexplained) > 0 {
 			rationale += "; unresolved inbound surfaces bounded by declared service scope: " + strings.Join(unexplained, "; ")
 		}
-		return domain.PerimeterClusterInternal, rationale
+		return domain.NewPerimeterAssessment(domain.PerimeterClusterInternal, domain.PerimeterBasisDeploymentTopology, rationale)
 	case tierListener:
 		if len(unexplained) == 0 && len(unattributedPublic) == 0 {
-			return domain.PerimeterClusterInternal, "cluster-internal perimeter: " + strings.Join(clusterReasons, ", ") + "; no public ingress found"
+			return domain.NewPerimeterAssessment(domain.PerimeterClusterInternal, domain.PerimeterBasisListenerLocality,
+				"cluster-internal perimeter: "+strings.Join(clusterReasons, ", ")+"; no public ingress found")
 		}
 		blockers := append(append([]string{}, unexplained...), unattributedPublic...)
-		return domain.PerimeterUnknown, "loopback/unix listeners present but inbound exposure unresolved: " + strings.Join(blockers, "; ")
+		return domain.NewPerimeterAssessment(domain.PerimeterUnknown, domain.PerimeterBasisListenerLocality,
+			"loopback/unix listeners present but inbound exposure unresolved: "+strings.Join(blockers, "; "))
 	default:
 		blockers := append(append([]string{}, unexplained...), unattributedPublic...)
-		if len(blockers) > 0 {
-			return domain.PerimeterUnknown, "unresolved inbound exposure: " + strings.Join(blockers, "; ")
+		basis := domain.PerimeterBasisUnknown
+		if publicFromListener || len(clusterReasons) > 0 || len(blockers) > 0 {
+			basis = domain.PerimeterBasisListenerLocality
 		}
-		return domain.PerimeterUnknown, "no structural cluster-isolation evidence (ClusterIP service or loopback/unix-only listeners); defaulting to zero-trust"
+		if len(blockers) > 0 {
+			return domain.NewPerimeterAssessment(domain.PerimeterUnknown, basis,
+				"unresolved inbound exposure: "+strings.Join(blockers, "; "))
+		}
+		return domain.NewPerimeterAssessment(domain.PerimeterUnknown, basis,
+			"no structural cluster-isolation evidence (ClusterIP service or loopback/unix-only listeners); defaulting to zero-trust")
 	}
 }
 

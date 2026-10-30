@@ -1,0 +1,521 @@
+--- a/src/evaluate/common.py
++++ b/src/evaluate/common.py
+@@ -4,7 +4,7 @@
+ from functools import lru_cache
+ from pathlib import Path
+ 
+-from pydantic import BaseModel, field_validator
++from pydantic import BaseModel, ValidationInfo, field_validator
+ 
+ from evaluate.agents import AGENTS, Agent
+ from evaluate.prompts import PROMPTS
+@@ -32,6 +32,11 @@
+     agent: str
+     benchmark: str
+     prompt: str
++    # Controller-supplied file overrides (research lane, one case per
++    # invocation). When set they replace the named registry entry for that
++    # invocation only; the registry path is unchanged.
++    benchmark_file: Path | None = None
++    prompt_file: Path | None = None
+     repeats: int = 1
+     timeout: int = 600
+     parallel: int = 1
+@@ -80,12 +85,46 @@
+             raise ValueError(f"parallel must be >= 1, got {v}")
+         return v
+ 
++    @field_validator("benchmark_file", "prompt_file")
++    @classmethod
++    def _validate_readable_file(
++        cls, v: Path | None, info: ValidationInfo
++    ) -> Path | None:
++        """Fail closed: an explicit controller file must exist and be readable."""
++        if v is None:
++            return v
++        try:
++            if not v.is_file():
++                raise ValueError(
++                    f"--{info.field_name.replace('_', '-')} is not a file: {v}"
++                )
++            with v.open("rb"):
++                pass
++        except OSError as exc:
++            raise ValueError(
++                f"--{info.field_name.replace('_', '-')} not readable: {v} ({exc})"
++            ) from exc
++        return v
++
+     @property
+     def benchmark_path(self) -> Path:
+-        return BENCHMARKS[self.benchmark]
++        return (
++            self.benchmark_file
++            if self.benchmark_file is not None
++            else BENCHMARKS[self.benchmark]
++        )
++
++    @property
++    def prompt_source(self) -> str:
++        """Human-facing label for logs (file path or registry name)."""
++        return (
++            str(self.prompt_file) if self.prompt_file is not None else self.prompt
++        )
+ 
+     @property
+     def prompt_text(self) -> str:
++        if self.prompt_file is not None:
++            return self.prompt_file.read_text(encoding="utf-8")
+         return PROMPTS[self.prompt]
+ 
+     @property
+@@ -100,7 +139,7 @@
+     @property
+     def benchmark_dir(self) -> Path:
+         """Per-benchmark scope inside this run (parsed.jsonl, future metrics.json, ...)."""
+-        return self.run_dir / self.benchmark
++        return self.run_dir / self.benchmark_path.stem
+ 
+ 
+ def make_agent(config: ExperimentConfig) -> Agent:
+@@ -166,12 +205,39 @@
+     )
+ 
+ 
++def add_run_file_args(parser: argparse.ArgumentParser) -> None:
++    """Register the run-stage-only controller file overrides.
++
++    These are intentionally NOT part of ``add_experiment_args``: they are
++    run-stage flags, so only ``evaluate run`` accepts them. Downstream
++    stages (parse/metrics) keep the registry-scoped flags.
++    """
++    parser.add_argument(
++        "--benchmark-file",
++        default=None,
++        metavar="PATH",
++        help="Single-invocation task file (JSONL) used instead of the named "
++        "--benchmark registry entry",
++    )
++    parser.add_argument(
++        "--prompt-file",
++        default=None,
++        metavar="PATH",
++        help="Prompt template file used instead of the named --prompt "
++        "registry entry; the same {task_id}/{cve_id}/{repo_url}/"
++        "{commit_sha} placeholders are rendered",
++    )
++
++
+ def config_from_args(args: argparse.Namespace) -> ExperimentConfig:
+     return ExperimentConfig(
+         model=args.model,
+         agent=args.agent,
+         benchmark=args.benchmark,
+         prompt=args.prompt,
++        # Run-stage-only flags; absent (None) on other stages' namespaces.
++        benchmark_file=getattr(args, "benchmark_file", None),
++        prompt_file=getattr(args, "prompt_file", None),
+         repeats=args.repeats,
+         timeout=args.timeout,
+         parallel=args.parallel,
+--- a/src/evaluate/run.py
++++ b/src/evaluate/run.py
+@@ -1,10 +1,12 @@
+ import logging
+ from concurrent.futures import ThreadPoolExecutor, as_completed
++from pathlib import Path
+ 
+ from evaluate.agents import Agent, RunContext
+ from evaluate.common import (
+     ExperimentConfig,
+     add_experiment_args,
++    add_run_file_args,
+     config_from_args,
+     load_tasks,
+     make_agent,
+@@ -18,6 +20,11 @@
+ 
+ logger = logging.getLogger(__name__)
+ 
++# Identity fields rendered into the prompt template. ``snapshot_path`` is
++# deliberately absent: it is a controller-only field that selects the
++# source tree but is never rendered into agent-visible input.
++PROMPT_TASK_FIELDS = ("task_id", "cve_id", "repo_url", "commit_sha")
++
+ 
+ def _run_one(task: dict, rep: int, *, config: ExperimentConfig, agent: Agent) -> None:
+     """Execute one (task, repeat) pair; write the agent's raw result on success."""
+@@ -30,8 +37,16 @@
+         logger.warning("%s [SKIP] Missing metadata.language", tag)
+         return
+ 
+-    owner, repo = parse_owner_repo(task["repo_url"])
+-    src_cwd = config.repos_dir / owner / repo / task["commit_sha"]
++    # ``snapshot_path`` is a controller-only escape hatch: when present it
++    # IS the snapshot directory and the GitHub owner/repo layout is
++    # bypassed. It is never rendered into the prompt (see below) and the
++    # agent only ever sees ctx.cwd as the mounted /work tree.
++    snapshot_path = task.get("snapshot_path")
++    if snapshot_path:
++        src_cwd = Path(snapshot_path).resolve()
++    else:
++        owner, repo = parse_owner_repo(task["repo_url"])
++        src_cwd = config.repos_dir / owner / repo / task["commit_sha"]
+     if not src_cwd.exists():
+         logger.warning("%s [SKIP] Source dir not found: %s", tag, src_cwd)
+         return
+@@ -47,7 +62,10 @@
+         logger.info("%s [RE-RUN] cached result unparseable: %s", tag, run_dir_per_rep)
+ 
+     run_dir_per_rep.mkdir(parents=True, exist_ok=True)
+-    prompt = config.prompt_text.replace("{cve_id}", task["cve_id"])
++    prompt = config.prompt_text
++    for field in PROMPT_TASK_FIELDS:
++        if field in task:
++            prompt = prompt.replace("{" + field + "}", str(task[field]))
+     logger.info("%s [RUN] src=%s lang=%s", tag, src_cwd, language)
+     ctx = RunContext(
+         cwd=src_cwd,
+@@ -100,7 +118,10 @@
+         prompt_file.write_text(config.prompt_text, encoding="utf-8")
+ 
+     logger.info(
+-        "prompt=%s hash=%s parallel=%d", config.prompt, config.prompt_hash, config.parallel
++        "prompt=%s hash=%s parallel=%d",
++        config.prompt_source,
++        config.prompt_hash,
++        config.parallel,
+     )
+ 
+     jobs = [(task, rep) for task in tasks for rep in range(1, config.repeats + 1)]
+@@ -128,4 +149,5 @@
+ def register_parser(subparsers) -> None:
+     p = subparsers.add_parser("run", help="Run vulnerability exploitability evaluation")
+     add_experiment_args(p)
++    add_run_file_args(p)
+     p.set_defaults(func=lambda args: run(config_from_args(args)))
+--- a/tests/test_single_case.py
++++ b/tests/test_single_case.py
+@@ -0,0 +1,322 @@
++"""Single-case controller files: --benchmark-file/--prompt-file overrides and
++the controller-only ``snapshot_path`` task field (agent7 research lane).
++
++Contract (e2e-slice1-design.md §2/§6):
++- ``--benchmark-file`` replaces the named BENCHMARKS registry entry for one
++  invocation; ``--prompt-file`` replaces the PROMPTS registry template.
++- A provided file must exist and be readable — otherwise fail closed.
++- ``snapshot_path`` selects the source tree directly (no owner/repo layout)
++  and is NEVER rendered into the agent prompt.
++- All four identity placeholders — {task_id}, {cve_id}, {repo_url},
++  {commit_sha} — are rendered; that is the complete allowlist.
++"""
++
++import argparse
++import json
++import sys
++from pathlib import Path
++
++import pytest
++from pydantic import ValidationError
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
++
++from evaluate import metrics as metrics_mod  # noqa: E402
++from evaluate import parse as parse_mod  # noqa: E402
++from evaluate import run as runmod  # noqa: E402
++from evaluate.common import (  # noqa: E402
++    ExperimentConfig,
++    config_from_args,
++    load_tasks,
++)
++
++
++def _run_parser() -> argparse.ArgumentParser:
++    """Mirror of ``evaluate run``'s parser registration in run.py."""
++    parser = argparse.ArgumentParser(prog="vex-bench evaluate run")
++    subs = parser.add_subparsers(dest="evaluate_cmd", required=True)
++    runmod.register_parser(subs)
++    return parser
++
++
++def _config(args: list[str]) -> ExperimentConfig:
++    return config_from_args(_run_parser().parse_args(args))
++
++
++def _one_case(snapshot: Path) -> dict:
++    return {
++        "task_id": "research-smoke1",
++        "cve_id": "CVE-2099-0001",
++        "repo_url": "https://local.invalid/research",
++        "commit_sha": "deadbeef" * 5,
++        "snapshot_path": str(snapshot),
++        "metadata": {"language": "go"},
++    }
++
++
++def _write_one_case(path: Path, task: dict) -> Path:
++    path.write_text(json.dumps(task) + "\n", encoding="utf-8")
++    return path
++
++
++class _FakeAgent:
++    """Records the prompt/ctx handed to run(); no docker, no model call."""
++
++    def __init__(self) -> None:
++        self.seen: list[tuple[str, object]] = []
++
++    def load_result(self, run_dir):
++        return None
++
++    def has_result(self, run_dir) -> bool:
++        return False
++
++    def run(self, prompt, ctx):
++        self.seen.append((prompt, ctx))
++        from evaluate.agents.base import AgentResult
++
++        return AgentResult(raw_output='{"category": "uncertain", "reasoning": "x"}')
++
++    def result_filename(self) -> str:
++        return "result.json"
++
++    def save_report(self, result_dir) -> None:
++        pass
++
++
++# ---------------------------------------------------------------------------
++# Flag surface
++# ---------------------------------------------------------------------------
++
++
++def test_run_parser_accepts_file_flags(tmp_path):
++    case = _write_one_case(tmp_path / "one.jsonl", _one_case(tmp_path))
++    prompt = tmp_path / "prompt.txt"
++    prompt.write_text("body {cve_id}", encoding="utf-8")
++    cfg = _config(
++        [
++            "run",
++            "--benchmark-file",
++            str(case),
++            "--prompt-file",
++            str(prompt),
++            "--output-dir",
++            str(tmp_path / "out"),
++        ]
++    )
++    assert cfg.benchmark_file == case
++    assert cfg.prompt_file == prompt
++    assert cfg.benchmark_path == case
++    assert cfg.benchmark_dir.name == "one"
++
++
++def test_parse_and_metrics_do_not_accept_file_flags():
++    """The overrides are run-stage-only; downstream stages keep registry args."""
++    for subcommand, register in (
++        ("parse", parse_mod.register_parser),
++        ("metrics", metrics_mod.register_parser),
++    ):
++        parser = argparse.ArgumentParser()
++        subs = parser.add_subparsers(dest="evaluate_cmd", required=True)
++        register(subs)
++        with pytest.raises(SystemExit):
++            parser.parse_args([subcommand, "--benchmark-file", "x.jsonl"])
++
++
++# ---------------------------------------------------------------------------
++# Fail-closed validation
++# ---------------------------------------------------------------------------
++
++
++def test_missing_benchmark_file_fails_closed(tmp_path):
++    with pytest.raises(ValidationError):
++        _config(
++            [
++                "run",
++                "--benchmark-file",
++                str(tmp_path / "nope.jsonl"),
++                "--output-dir",
++                str(tmp_path / "out"),
++            ]
++        )
++
++
++def test_missing_prompt_file_fails_closed(tmp_path):
++    with pytest.raises(ValidationError):
++        _config(
++            [
++                "run",
++                "--prompt-file",
++                str(tmp_path / "nope.txt"),
++                "--output-dir",
++                str(tmp_path / "out"),
++            ]
++        )
++
++
++def test_directory_is_not_a_benchmark_file(tmp_path):
++    with pytest.raises(ValidationError):
++        _config(["run", "--benchmark-file", str(tmp_path), "--output-dir",
++                 str(tmp_path / "out")])
++
++
++# ---------------------------------------------------------------------------
++# Rendering + snapshot_path
++# ---------------------------------------------------------------------------
++
++
++def test_file_run_renders_all_four_placeholders_and_snapshot_path(tmp_path):
++    snapshot = tmp_path / "snap"
++    snapshot.mkdir()
++    task = _one_case(snapshot)
++    case = _write_one_case(tmp_path / "one.jsonl", task)
++    prompt = tmp_path / "prompt.txt"
++    prompt.write_text(
++        "T={task_id} C={cve_id} R={repo_url} H={commit_sha} "
++        "S={snapshot_path} END",
++        encoding="utf-8",
++    )
++    cfg = _config(
++        [
++            "run",
++            "--model",
++            "m1",
++            "--agent",
++            "opencode",
++            "--benchmark-file",
++            str(case),
++            "--prompt-file",
++            str(prompt),
++            "--output-dir",
++            str(tmp_path / "out"),
++        ]
++    )
++
++    fake = _FakeAgent()
++    runmod._run_one(task, 1, config=cfg, agent=fake)
++
++    assert len(fake.seen) == 1
++    rendered, ctx = fake.seen[0]
++    # All four identity placeholders rendered from the task.
++    assert task["task_id"] in rendered
++    assert task["cve_id"] in rendered
++    assert task["repo_url"] in rendered
++    assert task["commit_sha"] in rendered
++    # snapshot_path is controller-only: value never reaches the prompt and
++    # the literal marker is left un-substituted.
++    assert str(snapshot) not in rendered
++    assert "{snapshot_path}" in rendered
++    # ...but it does select the source tree.
++    assert ctx.cwd == snapshot.resolve()
++
++    result = cfg.run_dir / task["task_id"] / "run_001" / "result.json"
++    assert result.exists()
++    # run_dir nests under the file-based prompt hash.
++    expected = (
++        tmp_path
++        / "out"
++        / cfg.prompt_hash
++        / "opencode"
++        / "m1"
++        / task["task_id"]
++        / "run_001"
++        / "result.json"
++    )
++    assert result == expected
++
++
++def test_registry_task_without_snapshot_path_uses_owner_repo(tmp_path, monkeypatch):
++    """Registry-style tasks keep the repos/<owner>/<repo>/<sha> layout."""
++    owner_repo = tmp_path / "repos" / "octo" / "widget" / "abc123"
++    owner_repo.mkdir(parents=True)
++    task = {
++        "task_id": "t1",
++        "cve_id": "CVE-1",
++        "repo_url": "https://github.com/octo/widget",
++        "commit_sha": "abc123",
++        "metadata": {"language": "go"},
++    }
++    cfg = _config(
++        [
++            "run",
++            "--agent",
++            "opencode",
++            "--repos-dir",
++            str(tmp_path / "repos"),
++            "--output-dir",
++            str(tmp_path / "out"),
++        ]
++    )
++    fake = _FakeAgent()
++    runmod._run_one(task, 1, config=cfg, agent=fake)
++    _, ctx = fake.seen[0]
++    assert ctx.cwd == owner_repo
++
++
++def test_snapshot_path_bypasses_owner_repo_layout(tmp_path):
++    """A non-GitHub repo_url must not break resolution when snapshot_path is set."""
++    snapshot = tmp_path / "snap"
++    snapshot.mkdir()
++    task = _one_case(snapshot)
++    task["repo_url"] = "not-a-url"  # parse_owner_repo would raise on this
++    cfg = _config(
++        [
++            "run",
++            "--agent",
++            "opencode",
++            "--output-dir",
++            str(tmp_path / "out"),
++        ]
++    )
++    fake = _FakeAgent()
++    runmod._run_one(task, 1, config=cfg, agent=fake)
++    _, ctx = fake.seen[0]
++    assert ctx.cwd == snapshot.resolve()
++
++
++def test_registry_benchmark_and_prompt_still_load():
++    """Named registry entries are untouched when no file overrides are given."""
++    cfg = _config(
++        [
++            "run",
++            "--agent",
++            "opencode",
++            "--benchmark",
++            "agent7_a2_smoke",
++            "--prompt",
++            "b1",
++        ]
++    )
++    tasks = load_tasks(cfg)
++    assert len(tasks) >= 1
++    assert cfg.benchmark_path.name == "agent7_a2_smoke.jsonl"
++    assert cfg.prompt_source == "b1"
++    assert "{cve_id}" in cfg.prompt_text
++
++
++# ---------------------------------------------------------------------------
++# Gate ordering: E6 gate fires before tasks are even loaded.
++# ---------------------------------------------------------------------------
++
++
++def test_e6_gate_closes_before_task_load(tmp_path, monkeypatch):
++    """Gated agent + no preflight report -> SystemExit before any run attempt."""
++    case = _write_one_case(tmp_path / "one.jsonl", _one_case(tmp_path))
++    cfg = ExperimentConfig(
++        model="qwen3.6-35b",
++        agent="opencode-b1p",
++        benchmark="vex_bench",
++        prompt="b1",
++        benchmark_file=case,
++        output_dir=tmp_path / "empty-out",
++    )
++
++    called = {"run_one": False}
++
++    def _spy(task, rep, *, config, agent):
++        called["run_one"] = True
++
++    monkeypatch.setattr(runmod, "_run_one", _spy)
++    with pytest.raises(SystemExit):
++        runmod.run(cfg)
++    assert called["run_one"] is False

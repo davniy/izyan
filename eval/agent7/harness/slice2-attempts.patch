@@ -1,0 +1,399 @@
+--- a/src/evaluate/run.py
++++ b/src/evaluate/run.py
+@@ -1,5 +1,7 @@
++import json
+ import logging
+ from concurrent.futures import ThreadPoolExecutor, as_completed
++from datetime import datetime, timezone
+ from pathlib import Path
+ 
+ from evaluate.agents import Agent, RunContext
+@@ -11,6 +13,7 @@
+     load_tasks,
+     make_agent,
+ )
++from evaluate.result_parser import parse_category
+ from utils.repo import parse_owner_repo
+ 
+ # Agent profiles that run under the A2 E6 sandbox. Only these require a
+@@ -26,8 +29,132 @@
+ PROMPT_TASK_FIELDS = ("task_id", "cve_id", "repo_url", "commit_sha")
+ 
+ 
++# Attempt/retry model (slice 2 design §2.7): the first attempt for a
++# (task, rep) pair runs in ``run_NNN`` and owns the plain attempt key.
++# Every re-invocation after that — invalid result, agent error, or an
++# interrupted attempt — runs in a distinct sibling ``run_NNN_r2``,
++# ``run_NNN_r3``, … directory. An unparseable result file is never
++# overwritten: it is renamed ``<name>.invalid-<utc><suffix>`` next to a
++# ``retry-reason.txt``, and every attempt is appended to
++# ``run_NNN/attempts.jsonl`` so the downstream reader can list the full
++# history. Nothing is ever retried inside the run stage itself — a new
++# attempt exists only because the stage was invoked again.
++ATTEMPT_HISTORY = "attempts.jsonl"
++RETRY_REASON_FILE = "retry-reason.txt"
++
++# Candidate result basenames, same set ``load_result``/``has_result``
++# probe: the agent's own ``result_filename`` plus the two names in use
++# across agent profiles. Anything outside this set is not a cached
++# result and is left untouched.
++_RESULT_BASENAMES = ("result.json", "result.jsonl")
++
++
++def _attempt_dirs(task_dir: Path, run_id: str) -> list[Path]:
++    """Existing attempt directories for one (task, rep) pair, oldest first.
++
++    ``run_id`` itself is ordinal 1; retries are ``run_id_r2`` and up,
++    numbered by attempt ordinal rather than a count of failures.
++    """
++    attempts = [task_dir / run_id] if (task_dir / run_id).is_dir() else []
++    ordinal = 2
++    while (task_dir / f"{run_id}_r{ordinal}").is_dir():
++        attempts.append(task_dir / f"{run_id}_r{ordinal}")
++        ordinal += 1
++    return attempts
++
++
++def _result_files(agent: Agent, attempt_dir: Path) -> list[Path]:
++    """Cached-result candidates present in an attempt directory."""
++    names = {agent.result_filename(), *_RESULT_BASENAMES}
++    return [
++        attempt_dir / name
++        for name in sorted(names)
++        if (attempt_dir / name).is_file()
++    ]
++
++
++def _parse_failure_reason(agent: Agent, path: Path) -> str:
++    """Why ``load_result`` rejects this file — mirrors ``_load_result_file``."""
++    try:
++        if path.stat().st_size == 0:
++            return "empty result file"
++        raw = path.read_text(encoding="utf-8")
++        text = agent.extract_text(raw)
++        category, _reasoning = parse_category(text)
++    except Exception as exc:
++        return f"{type(exc).__name__}: {exc}"
++    if category is None:
++        return "no category found in agent output"
++    return "result parses but was not accepted by load_result"
++
++
++def _preserve_attempt(agent: Agent, attempt_dir: Path) -> tuple[list[Path], str]:
++    """Move unparseable result files aside; return (preserved, reason)."""
++    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
++    preserved: list[Path] = []
++    reasons: list[str] = []
++    for path in _result_files(agent, attempt_dir):
++        reason = _parse_failure_reason(agent, path)
++        kept = attempt_dir / f"{path.stem}.invalid-{stamp}{path.suffix}"
++        path.rename(kept)
++        preserved.append(kept)
++        reasons.append(f"{path.name}: {reason} (preserved as {kept.name})")
++    if preserved:
++        (attempt_dir / RETRY_REASON_FILE).write_text(
++            "cached result preserved; next attempt runs in a new directory\n"
++            + "\n".join(reasons)
++            + "\n",
++            encoding="utf-8",
++        )
++    return preserved, "; ".join(reasons)
++
++
++def _retry_reason(attempt_dir: Path, preserved: list[Path], detail: str) -> tuple[str, str]:
++    """(reason_code, reason) for the attempt that replaces ``attempt_dir``."""
++    if preserved:
++        return "invalid_extraction", f"cached result unparseable: {detail}"
++    if (attempt_dir / "error.txt").is_file():
++        return "infrastructure_failure", "previous attempt ended in error.txt"
++    return "other", "previous attempt produced no result"
++
++
++def _record_attempt(
++    history_path: Path,
++    *,
++    attempt_id: str,
++    task_id: str,
++    ordinal: int,
++    reason_code: str,
++    reason: str,
++    retry_of: str | None,
++    preserved: list[Path],
++    run_dir: Path,
++) -> None:
++    """Append one attempt record to the JSONL history (design §2.7)."""
++    record = {
++        "id": attempt_id,
++        "kind": "agent",
++        "ordinal": ordinal,
++        "task_id": task_id,
++        "started_at": datetime.now(timezone.utc).isoformat(),
++        "reason_code": reason_code,
++        "reason": reason,
++        "retry_of": retry_of,
++        "original_preserved": bool(preserved),
++        "preserved_original_paths": [
++            str(p.relative_to(run_dir)) for p in preserved
++        ],
++    }
++    with history_path.open("a", encoding="utf-8") as f:
++        f.write(json.dumps(record, ensure_ascii=False) + "\n")
++
+ def _run_one(task: dict, rep: int, *, config: ExperimentConfig, agent: Agent) -> None:
+-    """Execute one (task, repeat) pair; write the agent's raw result on success."""
++    """Execute one attempt for a (task, repeat) pair.
++
++    Never reuses a previous attempt's directory: the first attempt runs
++    in ``run_NNN`` and every later invocation — invalid cached result,
++    ``error.txt``, or an interrupted attempt — runs in ``run_NNN_rK``.
++    """
+     task_id = task["task_id"]
+     run_id = f"run_{rep:03d}"
+     tag = f"[{task_id}/{run_id}]"
+@@ -51,17 +178,51 @@
+         logger.warning("%s [SKIP] Source dir not found: %s", tag, src_cwd)
+         return
+ 
+-    run_dir_per_rep = config.run_dir / task_id / run_id
+-    error_path = run_dir_per_rep / "error.txt"
+-    cached = agent.load_result(run_dir_per_rep)
+-    if cached is not None:
+-        error_path.unlink(missing_ok=True)
+-        logger.info("%s [CACHE] %s", tag, cached.path)
+-        return
+-    if agent.has_result(run_dir_per_rep):
+-        logger.info("%s [RE-RUN] cached result unparseable: %s", tag, run_dir_per_rep)
++    task_dir = config.run_dir / task_id
++    history_path = task_dir / run_id / ATTEMPT_HISTORY
++    attempts = _attempt_dirs(task_dir, run_id)
+ 
+-    run_dir_per_rep.mkdir(parents=True, exist_ok=True)
++    # A parseable result in ANY earlier attempt ends the line — retries
++    # are never merged back into the first attempt's key or data.
++    for attempt_dir in reversed(attempts):
++        cached = agent.load_result(attempt_dir)
++        if cached is not None:
++            (attempt_dir / "error.txt").unlink(missing_ok=True)
++            logger.info("%s [CACHE] %s", tag, cached.path)
++            return
++
++    preserved: list[Path] = []
++    reason_code, reason = "initial", "first attempt"
++    retry_of: str | None = None
++    attempt_dir = task_dir / run_id
++    if attempts:
++        # The latest attempt didn't yield a reusable result. Preserve its
++        # unparseable result file(s) in place and run the next attempt in
++        # its own directory — never an in-place overwrite.
++        prev = attempts[-1]
++        preserved, detail = _preserve_attempt(agent, prev)
++        reason_code, reason = _retry_reason(prev, preserved, detail)
++        retry_of = prev.name
++        attempt_dir = task_dir / f"{run_id}_r{len(attempts) + 1}"
++        logger.info(
++            "%s [RETRY] attempt %s reason=%s dir=%s",
++            tag, attempt_dir.name, reason_code, attempt_dir,
++        )
++
++    attempt_dir.mkdir(parents=True, exist_ok=True)
++    _record_attempt(
++        history_path,
++        attempt_id=attempt_dir.name,
++        task_id=task_id,
++        ordinal=len(attempts) + 1,
++        reason_code=reason_code,
++        reason=reason,
++        retry_of=retry_of,
++        preserved=preserved,
++        run_dir=config.run_dir,
++    )
++    error_path = attempt_dir / "error.txt"
++    run_dir_per_rep = attempt_dir
+     prompt = config.prompt_text
+     for field in PROMPT_TASK_FIELDS:
+         if field in task:
+--- a/tests/test_attempts.py
++++ b/tests/test_attempts.py
+@@ -0,0 +1,182 @@
++"""Slice-2 attempt/retry model (design §2.7).
++
++An unparseable cached result is preserved next to ``retry-reason.txt``
++and the retry lands in its own ``run_NNN_rK`` directory — never an
++in-place overwrite. A parseable result in any earlier attempt still
++cache-skips, and ``run_NNN`` keeps the first attempt's attempt key.
++"""
++
++import argparse
++import json
++import sys
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
++
++from evaluate import run as runmod  # noqa: E402
++from evaluate.agents.base import AgentResult  # noqa: E402
++from evaluate.agents.opencode import OpenCodeAgent  # noqa: E402
++from evaluate.common import ExperimentConfig, config_from_args  # noqa: E402
++
++
++def _config(tmp_path: Path, task_file: Path) -> ExperimentConfig:
++    prompt = tmp_path / "prompt.txt"
++    prompt.write_text("T={task_id} END", encoding="utf-8")
++    parser = argparse.ArgumentParser(prog="vex-bench evaluate run")
++    subs = parser.add_subparsers(dest="evaluate_cmd", required=True)
++    runmod.register_parser(subs)
++    args = parser.parse_args(
++        [
++            "run",
++            "--model",
++            "m1",
++            "--agent",
++            "opencode",
++            "--benchmark-file",
++            str(task_file),
++            "--prompt-file",
++            str(prompt),
++            "--output-dir",
++            str(tmp_path / "out"),
++        ]
++    )
++    return config_from_args(args)
++
++
++def _task(tmp_path: Path) -> dict:
++    snapshot = tmp_path / "snap"
++    snapshot.mkdir()
++    task = {
++        "task_id": "research-smoke1",
++        "cve_id": "CVE-2099-0001",
++        "repo_url": "https://local.invalid/research",
++        "commit_sha": "deadbeef" * 5,
++        "snapshot_path": str(snapshot),
++        "metadata": {"language": "go"},
++    }
++    (tmp_path / "one.jsonl").write_text(json.dumps(task) + "\n", encoding="utf-8")
++    return task
++
++
++_VALID_RAW = json.dumps(
++    {
++        "messages": [
++            {
++                "info": {"role": "assistant"},
++                "parts": [
++                    {
++                        "type": "text",
++                        "text": '{"category": "vulnerable", "reasoning": "r"}',
++                    }
++                ],
++            }
++        ]
++    }
++)
++
++
++class _ScriptedAgent(OpenCodeAgent):
++    """Real OpenCodeAgent parsing; run() replays scripted raw outputs."""
++
++    def __init__(self, outputs: list[str]) -> None:
++        self.outputs = list(outputs)
++        self.ran = 0
++
++    def run(self, prompt: str, ctx) -> AgentResult:
++        self.ran += 1
++        return AgentResult(raw_output=self.outputs.pop(0))
++
++
++def test_invalid_cached_result_preserved_and_retry_in_new_dir(tmp_path):
++    task = _task(tmp_path)
++    cfg = _config(tmp_path, tmp_path / "one.jsonl")
++    agent = _ScriptedAgent(["corrupted-bytes-not-a-result", _VALID_RAW])
++
++    # First attempt: the agent produces an unparseable result.
++    runmod._run_one(task, 1, config=cfg, agent=agent)
++    run_001 = cfg.run_dir / task["task_id"] / "run_001"
++    original = run_001 / "result.json"
++    assert original.exists()
++    original_bytes = original.read_bytes()
++
++    # Invoking the run stage again must NOT overwrite run_001.
++    runmod._run_one(task, 1, config=cfg, agent=agent)
++
++    # Original result preserved byte-identical under a moved-aside name.
++    assert not original.exists()
++    kept = sorted(run_001.glob("result.invalid-*.json"))
++    assert len(kept) == 1
++    assert kept[0].read_bytes() == original_bytes
++
++    # Reason file names the parse failure.
++    reason = (run_001 / "retry-reason.txt").read_text(encoding="utf-8")
++    assert "result.json" in reason
++    assert "no category" in reason
++
++    # Retry landed in its own directory with the valid second output.
++    run_r2 = cfg.run_dir / task["task_id"] / "run_001_r2"
++    assert (run_r2 / "result.json").exists()
++    assert agent.ran == 2
++
++    # History lists both attempts with reason + preserved path.
++    history = [
++        json.loads(line)
++        for line in (run_001 / "attempts.jsonl").read_text().splitlines()
++    ]
++    assert [h["id"] for h in history] == ["run_001", "run_001_r2"]
++    assert history[0]["reason_code"] == "initial"
++    retry = history[1]
++    assert retry["reason_code"] == "invalid_extraction"
++    assert retry["retry_of"] == "run_001"
++    assert retry["original_preserved"] is True
++    assert retry["preserved_original_paths"] == [
++        f"{task['task_id']}/run_001/{kept[0].name}"
++    ]
++
++    # Third invocation: the retry's result is parseable -> cache-skip.
++    runmod._run_one(task, 1, config=cfg, agent=agent)
++    assert agent.ran == 2
++    assert not (cfg.run_dir / task["task_id"] / "run_001_r3").exists()
++
++
++def test_parseable_cached_result_is_cache_skipped(tmp_path):
++    task = _task(tmp_path)
++    cfg = _config(tmp_path, tmp_path / "one.jsonl")
++    agent = _ScriptedAgent([_VALID_RAW])
++
++    runmod._run_one(task, 1, config=cfg, agent=agent)
++    first = cfg.run_dir / task["task_id"] / "run_001" / "result.json"
++    before = first.read_bytes()
++
++    runmod._run_one(task, 1, config=cfg, agent=agent)
++    assert agent.ran == 1
++    assert first.read_bytes() == before
++    assert not (cfg.run_dir / task["task_id"] / "run_001_r2").exists()
++
++
++def test_error_attempt_retries_into_new_dir(tmp_path):
++    """An agent error is also an attempt: the retry still gets its own dir."""
++    task = _task(tmp_path)
++    cfg = _config(tmp_path, tmp_path / "one.jsonl")
++
++    class _Failing(_ScriptedAgent):
++        def run(self, prompt, ctx):
++            self.ran += 1
++            raise RuntimeError("container boom")
++
++    agent = _Failing([_VALID_RAW])
++    runmod._run_one(task, 1, config=cfg, agent=agent)
++    run_001 = cfg.run_dir / task["task_id"] / "run_001"
++    assert (run_001 / "error.txt").exists()
++
++    agent2 = _ScriptedAgent([_VALID_RAW])
++    runmod._run_one(task, 1, config=cfg, agent=agent2)
++    assert (run_001 / "error.txt").exists()  # first attempt untouched
++    assert (cfg.run_dir / task["task_id"] / "run_001_r2" / "result.json").exists()
++
++    history = [
++        json.loads(line)
++        for line in (run_001 / "attempts.jsonl").read_text().splitlines()
++    ]
++    assert history[1]["reason_code"] == "infrastructure_failure"
++    assert history[1]["retry_of"] == "run_001"

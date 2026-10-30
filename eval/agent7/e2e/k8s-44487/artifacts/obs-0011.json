@@ -1,0 +1,1827 @@
+{
+  "id": "OBS-0011",
+  "tool": "find_entrypoints",
+  "fact": "208 entrypoint(s) recognized in product packages",
+  "scope": "product packages of <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+  "completeness": "PARTIAL",
+  "tool_status": "OK",
+  "evidence_refs": [
+    "sha256:34d605e6de07d7cbcee9d52664e4eed751bd7887707c6f24d2b35eb23745e5eb"
+  ],
+  "limitations": [
+    "entrypoint recognition covers main/init functions, exported symbols and net/http handlers; other transports (gRPC, message queues, CLI) are not enumerated by this scan"
+  ],
+  "scope_details": {
+    "snapshot_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+    "snapshot_root": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+    "external_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+    "build_context": {
+      "goos": "darwin",
+      "goarch": "arm64",
+      "cgo_enabled": false,
+      "go_version": "go1.21.3",
+      "vendor_mode": true
+    },
+    "profile": "strict",
+    "read_roots": [
+      "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+      "<VA_REPO>/eval/agent7/advisories"
+    ],
+    "toolchain_env": [
+      "GOENV=off",
+      "GOEXPERIMENT=",
+      "GOINSECURE=",
+      "GOWORK=off",
+      "GOPROXY=off",
+      "GOSUMDB=off",
+      "GONOSUMDB=",
+      "GONOPROXY=",
+      "GOPRIVATE=",
+      "GOFLAGS=-mod=readonly"
+    ],
+    "inherited_env_keys": [
+      "AGENT",
+      "AGY_CLI_DISABLE_AUTO_UPDATE",
+      "ALL_PROXY",
+      "AWS_PAGER",
+      "BAT_PAGER",
+      "BUN_INSTALL",
+      "CARGO_TERM_PROGRESS_WHEN",
+      "CI",
+      "CLAUDECODE",
+      "CLOUDSDK_CORE_DISABLE_PROMPTS",
+      "COLORTERM",
+      "COMMAND_MODE",
+      "COMPOSER_NO_INTERACTION",
+      "DEBIAN_FRONTEND",
+      "DEEPSEEK_API_KEY",
+      "DELTA_PAGER",
+      "DOCKER_HOME",
+      "EDITOR",
+      "FORCE_HYPERLINK",
+      "GH_PAGER",
+      "GH_PROMPT_DISABLED",
+      "GIT_EDITOR",
+      "GIT_PAGER",
+      "GIT_TERMINAL_PROMPT",
+      "GLAB_PAGER",
+      "GPG_TTY",
+      "HOME",
+      "HOMEBREW_PAGER",
+      "HTTPS_PROXY",
+      "HTTP_PROXY",
+      "LANG",
+      "LESS",
+      "LOGNAME",
+      "LSCOLORS",
+      "LS_COLORS",
+      "LaunchInstanceID",
+      "MANPAGER",
+      "MYSQL_PAGER",
+      "MallocNanoZone",
+      "NODE_EXTRA_CA_CERTS",
+      "NODE_OPTIONS",
+      "NODE_TLS_REJECT_UNAUTHORIZED",
+      "NO_COLOR",
+      "NO_PROXY",
+      "OMPCODE",
+      "OPENAI_API_KEY_OMNI_PROXY",
+      "OPENAI_API_KEY_QUOT",
+      "OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS",
+      "OPEN_API_KEY",
+      "ORCA_AGENT_HOOK_ENDPOINT",
+      "ORCA_AGENT_HOOK_ENV",
+      "ORCA_AGENT_HOOK_PORT",
+      "ORCA_AGENT_HOOK_TOKEN",
+      "ORCA_AGENT_HOOK_TRANSPORT",
+      "ORCA_AGENT_HOOK_VERSION",
+      "ORCA_AGENT_PANE",
+      "ORCA_APP_VERSION",
+      "ORCA_IMAGE_PROTOCOL",
+      "ORCA_OMP_FRESH_CONFIG",
+      "ORCA_OMP_SOURCE_AGENT_DIR",
+      "ORCA_OMP_STATUS_EXTENSION",
+      "ORCA_OPENCODE_AGENT",
+      "ORCA_PANE_KEY",
+      "ORCA_PI_SOURCE_AGENT_DIR",
+      "ORCA_PI_STATUS_OWNED",
+      "ORCA_TAB_ID",
+      "ORCA_TERMINAL_HANDLE",
+      "ORCA_USER_DATA_PATH",
+      "ORCA_WORKSPACE_ID",
+      "ORCA_WORKTREE_ID",
+      "OSLogRateLimit",
+      "PAGER",
+      "PATH",
+      "PIP_DISABLE_PIP_VERSION_CHECK",
+      "PIP_NO_INPUT",
+      "PNPM_DISABLE_SELF_UPDATE_CHECK",
+      "PNPM_UPDATE_NOTIFIER",
+      "POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD",
+      "PSQL_PAGER",
+      "PWD",
+      "PYTHONUNBUFFERED",
+      "SCCD_BASIC_TOKEN",
+      "SC_BASIC_TOKEN",
+      "SECURITYSESSIONID",
+      "SHLVL",
+      "SSH_ASKPASS",
+      "SSH_AUTH_SOCK",
+      "SSL_CERT_FILE",
+      "SWTR_BEARER_TOKEN",
+      "SYSTEMD_PAGER",
+      "TERM",
+      "TERM_PROGRAM",
+      "TERM_PROGRAM_VERSION",
+      "TF_INPUT",
+      "TF_IN_AUTOMATION",
+      "TMPDIR",
+      "USER",
+      "VEXBENCH_DURABLE_DIR",
+      "VISUAL",
+      "XPC_FLAGS",
+      "XPC_SERVICE_NAME",
+      "YARN_ENABLE_PROGRESS_BARS",
+      "YARN_ENABLE_TELEMETRY",
+      "ZSH",
+      "_",
+      "__CFBundleIdentifier",
+      "__CF_USER_TEXT_ENCODING",
+      "no_proxy",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_progress",
+      "npm_config_update_notifier",
+      "npm_config_yes"
+    ]
+  },
+  "data": {
+    "count": 208,
+    "entrypoints": [
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/build/pause/windows/wincat/wincat.go",
+        "function": "main",
+        "kind": "main",
+        "line": 30,
+        "package": "k8s.io/kubernetes/build/pause/windows/wincat"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cluster/gce/gci/mounter/mounter.go",
+        "function": "main",
+        "kind": "main",
+        "line": 37,
+        "package": "k8s.io/kubernetes/cluster/gce/gci/mounter"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/clicheck/check_cli_conventions.go",
+        "function": "main",
+        "kind": "main",
+        "line": 29,
+        "package": "k8s.io/kubernetes/cmd/clicheck"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/certificates/signer/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/certificates/signer/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/cronjob/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/cronjob/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/daemon/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/daemon/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/deployment/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/deployment/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/endpoint/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/endpoint/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/endpointslice/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/endpointslice/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/endpointslicemirroring/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/endpointslicemirroring/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/job/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/job/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/namespace/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/namespace/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/nodeipam/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/nodeipam/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/nodelifecycle/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/nodelifecycle/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/podautoscaler/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/podautoscaler/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/podgc/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/podgc/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/replicaset/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/replicaset/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/replication/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/replication/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/resourcequota/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/resourcequota/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/serviceaccount/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/serviceaccount/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/statefulset/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/statefulset/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/ttlafterfinished/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/ttlafterfinished/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/validatingadmissionpolicystatus/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/validatingadmissionpolicystatus/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/volume/attachdetach/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/volume/attachdetach/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/volume/ephemeral/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/controller/volume/ephemeral/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/apis/config/v1alpha1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 38,
+        "package": "k8s.io/kubernetes/pkg/controller/apis/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/apis/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 59,
+        "package": "k8s.io/kubernetes/pkg/controller/apis/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/controller/apis/config/scheme/scheme.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/controller/apis/config/scheme"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/features/kube_features.go",
+        "function": "init",
+        "kind": "init",
+        "line": 895,
+        "package": "k8s.io/kubernetes/pkg/features"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/core/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 29,
+        "package": "k8s.io/kubernetes/pkg/apis/core/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/dependencycheck/dependencycheck.go",
+        "function": "main",
+        "kind": "main",
+        "line": 46,
+        "package": "k8s.io/kubernetes/cmd/dependencycheck"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/dependencyverifier/dependencyverifier.go",
+        "function": "main",
+        "kind": "main",
+        "line": 167,
+        "package": "k8s.io/kubernetes/cmd/dependencyverifier"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/gendocs/gen_kubectl_docs.go",
+        "function": "main",
+        "kind": "main",
+        "line": 31,
+        "package": "k8s.io/kubernetes/cmd/gendocs"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/abac/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 38,
+        "package": "k8s.io/kubernetes/pkg/apis/abac"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/abac/v0/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/apis/abac/v0"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/abac/v0/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 51,
+        "package": "k8s.io/kubernetes/pkg/apis/abac/v0"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/abac/v0/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 30,
+        "package": "k8s.io/kubernetes/pkg/apis/abac/v0"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/abac/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/apis/abac/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/abac/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 51,
+        "package": "k8s.io/kubernetes/pkg/apis/abac/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/abac/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 30,
+        "package": "k8s.io/kubernetes/pkg/apis/abac/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/rbac/v1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 39,
+        "package": "k8s.io/kubernetes/pkg/apis/rbac/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/rbac/v1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 34,
+        "package": "k8s.io/kubernetes/pkg/apis/rbac/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/plugin/pkg/admission/eventratelimit/apis/eventratelimit/v1alpha1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/plugin/pkg/admission/eventratelimit/apis/eventratelimit/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/plugin/pkg/admission/eventratelimit/apis/eventratelimit/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/plugin/pkg/admission/eventratelimit/apis/eventratelimit/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/imagepolicy/v1alpha1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/imagepolicy/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/imagepolicy/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 33,
+        "package": "k8s.io/kubernetes/pkg/apis/imagepolicy/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/imagepolicy/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 29,
+        "package": "k8s.io/kubernetes/pkg/apis/imagepolicy/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/plugin/pkg/admission/podtolerationrestriction/apis/podtolerationrestriction/v1alpha1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/plugin/pkg/admission/podtolerationrestriction/apis/podtolerationrestriction/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/plugin/pkg/admission/podtolerationrestriction/apis/podtolerationrestriction/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 34,
+        "package": "k8s.io/kubernetes/plugin/pkg/admission/podtolerationrestriction/apis/podtolerationrestriction/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/node/v1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/apis/node/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/apps/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 31,
+        "package": "k8s.io/kubernetes/pkg/apis/apps/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/batch/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 40,
+        "package": "k8s.io/kubernetes/pkg/apis/batch/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/batch/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 37,
+        "package": "k8s.io/kubernetes/pkg/apis/batch/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/batch/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 30,
+        "package": "k8s.io/kubernetes/pkg/apis/batch/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/authentication/v1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 40,
+        "package": "k8s.io/kubernetes/pkg/apis/authentication/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/authentication/v1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/apis/authentication/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/admission/v1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/admission/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/admission/v1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 36,
+        "package": "k8s.io/kubernetes/pkg/apis/admission/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/admission/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/admission/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/admission/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 36,
+        "package": "k8s.io/kubernetes/pkg/apis/admission/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/admission/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 30,
+        "package": "k8s.io/kubernetes/pkg/apis/admission/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/admissionregistration/v1alpha1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/admissionregistration/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/admissionregistration/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/apis/admissionregistration/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/admissionregistration/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 29,
+        "package": "k8s.io/kubernetes/pkg/apis/admissionregistration/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/apiserverinternal/v1alpha1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/apiserverinternal/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/apiserverinternal/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 33,
+        "package": "k8s.io/kubernetes/pkg/apis/apiserverinternal/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/apiserverinternal/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 29,
+        "package": "k8s.io/kubernetes/pkg/apis/apiserverinternal/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/authentication/v1alpha1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/authentication/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/authentication/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/apis/authentication/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/authentication/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/authentication/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/authentication/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 34,
+        "package": "k8s.io/kubernetes/pkg/apis/authentication/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/authentication/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 31,
+        "package": "k8s.io/kubernetes/pkg/apis/authentication/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/authorization/v1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 43,
+        "package": "k8s.io/kubernetes/pkg/apis/authorization/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/authorization/v1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 33,
+        "package": "k8s.io/kubernetes/pkg/apis/authorization/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/authorization/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/authorization/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/authorization/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 33,
+        "package": "k8s.io/kubernetes/pkg/apis/authorization/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/authorization/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 30,
+        "package": "k8s.io/kubernetes/pkg/apis/authorization/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/autoscaling/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/pkg/apis/autoscaling/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/certificates/v1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 47,
+        "package": "k8s.io/kubernetes/pkg/apis/certificates/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/certificates/v1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/apis/certificates/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/certificates/v1alpha1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 38,
+        "package": "k8s.io/kubernetes/pkg/apis/certificates/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/certificates/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 33,
+        "package": "k8s.io/kubernetes/pkg/apis/certificates/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/certificates/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 45,
+        "package": "k8s.io/kubernetes/pkg/apis/certificates/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/certificates/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 36,
+        "package": "k8s.io/kubernetes/pkg/apis/certificates/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/certificates/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 31,
+        "package": "k8s.io/kubernetes/pkg/apis/certificates/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/coordination/v1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/coordination/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/coordination/v1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 34,
+        "package": "k8s.io/kubernetes/pkg/apis/coordination/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/coordination/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/coordination/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/coordination/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 34,
+        "package": "k8s.io/kubernetes/pkg/apis/coordination/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/coordination/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 30,
+        "package": "k8s.io/kubernetes/pkg/apis/coordination/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/discovery/v1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 40,
+        "package": "k8s.io/kubernetes/pkg/apis/discovery/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/discovery/v1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/apis/discovery/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/discovery/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 40,
+        "package": "k8s.io/kubernetes/pkg/apis/discovery/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/discovery/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/apis/discovery/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/discovery/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 30,
+        "package": "k8s.io/kubernetes/pkg/apis/discovery/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/events/v1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 40,
+        "package": "k8s.io/kubernetes/pkg/apis/events/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/events/v1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 34,
+        "package": "k8s.io/kubernetes/pkg/apis/events/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/events/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 40,
+        "package": "k8s.io/kubernetes/pkg/apis/events/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/events/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 34,
+        "package": "k8s.io/kubernetes/pkg/apis/events/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/events/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 30,
+        "package": "k8s.io/kubernetes/pkg/apis/events/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/extensions/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 40,
+        "package": "k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/extensions/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 40,
+        "package": "k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/extensions/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 29,
+        "package": "k8s.io/kubernetes/pkg/apis/extensions/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/flowcontrol/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/flowcontrol/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/flowcontrol/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 33,
+        "package": "k8s.io/kubernetes/pkg/apis/flowcontrol/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/flowcontrol/v1beta2/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/flowcontrol/v1beta2"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/flowcontrol/v1beta2/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 33,
+        "package": "k8s.io/kubernetes/pkg/apis/flowcontrol/v1beta2"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/flowcontrol/v1beta3/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/flowcontrol/v1beta3"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/flowcontrol/v1beta3/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 33,
+        "package": "k8s.io/kubernetes/pkg/apis/flowcontrol/v1beta3"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/flowcontrol/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 31,
+        "package": "k8s.io/kubernetes/pkg/apis/flowcontrol/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/networking/v1alpha1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 40,
+        "package": "k8s.io/kubernetes/pkg/apis/networking/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/networking/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 33,
+        "package": "k8s.io/kubernetes/pkg/apis/networking/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/networking/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 42,
+        "package": "k8s.io/kubernetes/pkg/apis/networking/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/networking/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/apis/networking/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/networking/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 31,
+        "package": "k8s.io/kubernetes/pkg/apis/networking/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/node/v1alpha1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/node/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/node/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/apis/node/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/node/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/apis/node/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/node/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 31,
+        "package": "k8s.io/kubernetes/pkg/apis/node/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/policy/v1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 40,
+        "package": "k8s.io/kubernetes/pkg/apis/policy/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/policy/v1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/apis/policy/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/policy/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 40,
+        "package": "k8s.io/kubernetes/pkg/apis/policy/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/policy/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/apis/policy/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/policy/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 30,
+        "package": "k8s.io/kubernetes/pkg/apis/policy/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/rbac/v1alpha1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 39,
+        "package": "k8s.io/kubernetes/pkg/apis/rbac/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/rbac/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 34,
+        "package": "k8s.io/kubernetes/pkg/apis/rbac/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/rbac/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 39,
+        "package": "k8s.io/kubernetes/pkg/apis/rbac/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/rbac/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 34,
+        "package": "k8s.io/kubernetes/pkg/apis/rbac/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/rbac/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 31,
+        "package": "k8s.io/kubernetes/pkg/apis/rbac/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/resource/v1alpha2/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 29,
+        "package": "k8s.io/kubernetes/pkg/apis/resource/v1alpha2"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/resource/v1alpha2/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 36,
+        "package": "k8s.io/kubernetes/pkg/apis/resource/v1alpha2"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/resource/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 29,
+        "package": "k8s.io/kubernetes/pkg/apis/resource/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/scheduling/v1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/scheduling/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/scheduling/v1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/apis/scheduling/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/scheduling/v1alpha1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/scheduling/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/scheduling/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/apis/scheduling/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/scheduling/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/pkg/apis/scheduling/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/scheduling/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/apis/scheduling/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/scheduling/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 31,
+        "package": "k8s.io/kubernetes/pkg/apis/scheduling/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/storage/v1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 40,
+        "package": "k8s.io/kubernetes/pkg/apis/storage/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/storage/v1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 38,
+        "package": "k8s.io/kubernetes/pkg/apis/storage/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/storage/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 38,
+        "package": "k8s.io/kubernetes/pkg/apis/storage/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/storage/v1beta1/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 40,
+        "package": "k8s.io/kubernetes/pkg/apis/storage/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/storage/v1beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 38,
+        "package": "k8s.io/kubernetes/pkg/apis/storage/v1beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/storage/install/install.go",
+        "function": "init",
+        "kind": "init",
+        "line": 31,
+        "package": "k8s.io/kubernetes/pkg/apis/storage/install"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/scheduler/apis/config/scheme/scheme.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/scheduler/apis/config/scheme"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/proxy/apis/config/scheme/scheme.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/pkg/proxy/apis/config/scheme"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kubeadm/app/apis/kubeadm/v1beta3/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 39,
+        "package": "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/v1beta3"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kubeadm/app/apis/kubeadm/v1beta3/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/v1beta3"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kubeadm/app/apis/kubeadm/v1beta4/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 39,
+        "package": "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/v1beta4"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kubeadm/app/apis/kubeadm/v1beta4/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 35,
+        "package": "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/v1beta4"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kubeadm/app/apis/kubeadm/scheme/scheme.go",
+        "function": "init",
+        "kind": "init",
+        "line": 37,
+        "package": "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/scheme"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kubeadm/app/apis/output/v1alpha2/register.go",
+        "function": "init",
+        "kind": "init",
+        "line": 39,
+        "package": "k8s.io/kubernetes/cmd/kubeadm/app/apis/output/v1alpha2"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kubeadm/app/apis/output/v1alpha2/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 32,
+        "package": "k8s.io/kubernetes/cmd/kubeadm/app/apis/output/v1alpha2"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kubeadm/app/apis/output/scheme/scheme.go",
+        "function": "init",
+        "kind": "init",
+        "line": 36,
+        "package": "k8s.io/kubernetes/cmd/kubeadm/app/apis/output/scheme"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/kubelet/apis/config/v1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 34,
+        "package": "k8s.io/kubernetes/pkg/kubelet/apis/config/v1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/kubelet/apis/config/v1alpha1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 34,
+        "package": "k8s.io/kubernetes/pkg/kubelet/apis/config/v1alpha1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/genkubedocs/gen_kube_docs.go",
+        "function": "main",
+        "kind": "main",
+        "line": 36,
+        "package": "k8s.io/kubernetes/cmd/genkubedocs"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/genman/gen_kube_man.go",
+        "function": "main",
+        "kind": "main",
+        "line": 40,
+        "package": "k8s.io/kubernetes/cmd/genman"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/genyaml/gen_kubectl_yaml.go",
+        "function": "main",
+        "kind": "main",
+        "line": 51,
+        "package": "k8s.io/kubernetes/cmd/genyaml"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/gotemplate/gotemplate.go",
+        "function": "main",
+        "kind": "main",
+        "line": 38,
+        "package": "k8s.io/kubernetes/cmd/gotemplate"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/importverifier/importverifier.go",
+        "function": "main",
+        "kind": "main",
+        "line": 172,
+        "package": "k8s.io/kubernetes/cmd/importverifier"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kube-apiserver/apiserver.go",
+        "function": "main",
+        "kind": "main",
+        "line": 32,
+        "package": "k8s.io/kubernetes/cmd/kube-apiserver"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kube-controller-manager/controller-manager.go",
+        "function": "main",
+        "kind": "main",
+        "line": 34,
+        "package": "k8s.io/kubernetes/cmd/kube-controller-manager"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kube-proxy/proxy.go",
+        "function": "main",
+        "kind": "main",
+        "line": 29,
+        "package": "k8s.io/kubernetes/cmd/kube-proxy"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kube-scheduler/scheduler.go",
+        "function": "main",
+        "kind": "main",
+        "line": 29,
+        "package": "k8s.io/kubernetes/cmd/kube-scheduler"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kubeadm/kubeadm.go",
+        "function": "main",
+        "kind": "main",
+        "line": 24,
+        "package": "k8s.io/kubernetes/cmd/kubeadm"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kubectl/kubectl.go",
+        "function": "main",
+        "kind": "main",
+        "line": 28,
+        "package": "k8s.io/kubernetes/cmd/kubectl"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kubectl-convert/kubectl-convert.go",
+        "function": "main",
+        "kind": "main",
+        "line": 31,
+        "package": "k8s.io/kubernetes/cmd/kubectl-convert"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kubelet/kubelet.go",
+        "function": "main",
+        "kind": "main",
+        "line": 34,
+        "package": "k8s.io/kubernetes/cmd/kubelet"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/kubemark/hollow-node.go",
+        "function": "main",
+        "kind": "main",
+        "line": 26,
+        "package": "k8s.io/kubernetes/cmd/kubemark"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/preferredimports/preferredimports.go",
+        "function": "main",
+        "kind": "main",
+        "line": 226,
+        "package": "k8s.io/kubernetes/cmd/preferredimports"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/prune-junit-xml/prunexml.go",
+        "function": "main",
+        "kind": "main",
+        "line": 30,
+        "package": "k8s.io/kubernetes/cmd/prune-junit-xml"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/cmd/yamlfmt/yamlfmt.go",
+        "function": "main",
+        "kind": "main",
+        "line": 28,
+        "package": "k8s.io/kubernetes/cmd/yamlfmt"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/hack/conformance/check_conformance_test_requirements.go",
+        "function": "main",
+        "kind": "main",
+        "line": 150,
+        "package": "k8s.io/kubernetes/hack/conformance"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/pkg/apis/apidiscovery/v2beta1/zz_generated.conversion.go",
+        "function": "init",
+        "kind": "init",
+        "line": 34,
+        "package": "k8s.io/kubernetes/pkg/apis/apidiscovery/v2beta1"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/conformance/image/go-runner/main.go",
+        "function": "main",
+        "kind": "main",
+        "line": 29,
+        "package": "k8s.io/kubernetes/test/conformance/image/go-runner"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/e2e/framework/providers/aws/aws.go",
+        "function": "init",
+        "kind": "init",
+        "line": 23,
+        "package": "k8s.io/kubernetes/test/e2e/framework/providers/aws"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/e2e/framework/providers/azure/azure.go",
+        "function": "init",
+        "kind": "init",
+        "line": 33,
+        "package": "k8s.io/kubernetes/test/e2e/framework/providers/azure"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/e2e/framework/providers/kubemark/kubemark.go",
+        "function": "init",
+        "kind": "init",
+        "line": 34,
+        "package": "k8s.io/kubernetes/test/e2e/framework/providers/kubemark"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/e2e/framework/providers/openstack/openstack.go",
+        "function": "init",
+        "kind": "init",
+        "line": 23,
+        "package": "k8s.io/kubernetes/test/e2e/framework/providers/openstack"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/e2e/framework/providers/vsphere/vsphere.go",
+        "function": "init",
+        "kind": "init",
+        "line": 23,
+        "package": "k8s.io/kubernetes/test/e2e/framework/providers/vsphere"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/e2e/dra/test-driver/dra-test-driver.go",
+        "function": "main",
+        "kind": "main",
+        "line": 31,
+        "package": "k8s.io/kubernetes/test/e2e/dra/test-driver"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/e2e/feature/feature.go",
+        "function": "init",
+        "kind": "init",
+        "line": 129,
+        "package": "k8s.io/kubernetes/test/e2e/feature"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/e2e/framework/internal/unittests/bugs/features/features.go",
+        "function": "init",
+        "kind": "init",
+        "line": 31,
+        "package": "k8s.io/kubernetes/test/e2e/framework/internal/unittests/bugs/features"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/e2e/nodefeature/nodefeature.go",
+        "function": "init",
+        "kind": "init",
+        "line": 52,
+        "package": "k8s.io/kubernetes/test/e2e/nodefeature"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/e2e_node/environment/conformance.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/test/e2e_node/environment"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/e2e_node/environment/conformance.go",
+        "function": "main",
+        "kind": "main",
+        "line": 48,
+        "package": "k8s.io/kubernetes/test/e2e_node/environment"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/guestbook/guestbook.go",
+        "function": "init",
+        "kind": "init",
+        "line": 62,
+        "package": "k8s.io/kubernetes/test/images/agnhost/guestbook"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/mounttest/mt.go",
+        "function": "init",
+        "kind": "init",
+        "line": 51,
+        "package": "k8s.io/kubernetes/test/images/agnhost/mounttest"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/net/main.go",
+        "function": "init",
+        "kind": "init",
+        "line": 75,
+        "package": "k8s.io/kubernetes/test/images/agnhost/net"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/nettest/nettest.go",
+        "function": "init",
+        "kind": "init",
+        "line": 86,
+        "package": "k8s.io/kubernetes/test/images/agnhost/nettest"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/no-snat-test-proxy/main.go",
+        "function": "init",
+        "kind": "init",
+        "line": 40,
+        "package": "k8s.io/kubernetes/test/images/agnhost/no-snat-test-proxy"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/resource-consumer-controller/controller.go",
+        "function": "init",
+        "kind": "init",
+        "line": 73,
+        "package": "k8s.io/kubernetes/test/images/agnhost/resource-consumer-controller"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/serve-hostname/serve_hostname.go",
+        "function": "init",
+        "kind": "init",
+        "line": 51,
+        "package": "k8s.io/kubernetes/test/images/agnhost/serve-hostname"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/tcp-reset/tcp_reset.go",
+        "function": "init",
+        "kind": "init",
+        "line": 46,
+        "package": "k8s.io/kubernetes/test/images/agnhost/tcp-reset"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/test-webserver/test-webserver.go",
+        "function": "init",
+        "kind": "init",
+        "line": 41,
+        "package": "k8s.io/kubernetes/test/images/agnhost/test-webserver"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/agnhost.go",
+        "function": "main",
+        "kind": "main",
+        "line": 55,
+        "package": "k8s.io/kubernetes/test/images/agnhost"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/busybox/hostname.go",
+        "function": "main",
+        "kind": "main",
+        "line": 37,
+        "package": "k8s.io/kubernetes/test/images/busybox"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/nonewprivs/nnp.go",
+        "function": "main",
+        "kind": "main",
+        "line": 24,
+        "package": "k8s.io/kubernetes/test/images/nonewprivs"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/pets/peer-finder/peer-finder.go",
+        "function": "main",
+        "kind": "main",
+        "line": 88,
+        "package": "k8s.io/kubernetes/test/images/pets/peer-finder"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/resource-consumer/resource_consumer.go",
+        "function": "main",
+        "kind": "main",
+        "line": 28,
+        "package": "k8s.io/kubernetes/test/images/resource-consumer"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/resource-consumer/consume-cpu/consume_cpu.go",
+        "function": "main",
+        "kind": "main",
+        "line": 29,
+        "package": "k8s.io/kubernetes/test/images/resource-consumer/consume-cpu"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/instrumentation/main.go",
+        "function": "main",
+        "kind": "main",
+        "line": 50,
+        "package": "k8s.io/kubernetes/test/instrumentation"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/instrumentation/documentation/main.go",
+        "function": "main",
+        "kind": "main",
+        "line": 126,
+        "package": "k8s.io/kubernetes/test/instrumentation/documentation"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/instrumentation/sort/main.go",
+        "function": "main",
+        "kind": "main",
+        "line": 29,
+        "package": "k8s.io/kubernetes/test/instrumentation/sort"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/integration/benchmark/extractlog/main.go",
+        "function": "main",
+        "kind": "main",
+        "line": 27,
+        "package": "k8s.io/kubernetes/test/integration/benchmark/extractlog"
+      },
+      {
+        "exposed": true,
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/list/main.go",
+        "function": "main",
+        "kind": "main",
+        "line": 249,
+        "package": "k8s.io/kubernetes/test/list"
+      }
+    ]
+  }
+}

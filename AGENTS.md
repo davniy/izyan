@@ -78,3 +78,34 @@ go test ./...
 
 Если задача затрагивает несколько областей, прочитай все соответствующие правила.
 Не загружай остальные без необходимости.
+
+## Definitive verdicts (authoritative)
+
+An analysis must earn a definitive verdict, name a specific external fact that
+changes the answer, or report that it failed. An unfinished code analysis is not
+a legitimate `INCONCLUSIVE`.
+
+- `assessment_outcome` is `DECIDED` (verdict present), `EXTERNAL_DEPENDENCY`
+  (`INCONCLUSIVE` + named, evidence-bound dependency) or `FAILED` (no verdict,
+  typed `AnalysisGap`s, diagnostic report still written). `FAILED` is not a fifth
+  verdict.
+- Claims keep `TRUE`/`FALSE`/`UNKNOWN`; a failed measurement leaves its claim
+  `UNKNOWN` and never fabricates evidence.
+- Tool limits, budgets, timeouts, skipped packages, unresolved root causes,
+  incomplete proofs, unverified mandatory `FALSE` and non-closing advisory scopes
+  are `FAILED`, never environmental.
+- Discovery, CVE attribution and product exploitability are three separate
+  propositions. `related` only discovers: it is not an alias, it confers no fact
+  inheritance and it never lifts a positive. Attribution requires the record's own
+  id/alias or captured publisher/CNA material bound to the implementation and fix.
+- Every assessment (including the primary) uses its own exact document bytes and
+  its own ranges, subjects, census, conditions, claims, review, severity and
+  remediation. Share immutable product measurements, never advisory conclusions.
+- Compose only independently earned positives, per profile and build:
+  `Positive(C,p) <=> exists R: Attributed(R,C) and IndependentlyExploitable(R,p)`.
+  Candidate negatives never close a CVE.
+- A CVE-wide negative requires a declared, digest-pinned, finished corpus and the
+  verbatim corpus boundary; otherwise `FAILED / UNSUPPORTED_NEGATIVE_SCOPE`.
+- `transport-peer` is an orthogonal scope set only from an admitted mandatory
+  `TRUE` transport-input claim. Locality does not establish trust.
+- Every publication surface renders the one `requested_finding` projection.

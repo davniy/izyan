@@ -1,0 +1,55 @@
+{
+  "schema": "retention-manifest/1",
+  "release": "<release-id>",
+  "pinned_at": "<RFC3339>",
+  "policy": "docs/dev/ownership-and-ci.md §3",
+  "artifacts": {
+    "baseline_corpus": {
+      "path": "eval/corpus-real.json",
+      "sha256": "<64-hex>",
+      "scope": "baseline-corpus",
+      "retention": "permanent",
+      "note": "38-case merged baseline; superseded only by a recorded replacement"
+    },
+    "baseline_run": {
+      "path": "<artifact-relative path>",
+      "sha256": "<64-hex>",
+      "scope": "baseline-run",
+      "retention": "2-release-cycles",
+      "note": "census output, corpus-baseline.txt, r6-guard-baseline.json, case-03/04/10 reports"
+    },
+    "sidecars": {
+      "path": "<run-dir>/",
+      "sha256": "<bundle sha256 over per-file digests>",
+      "scope": "sidecar",
+      "retention": "with-parent-run",
+      "note": "advisory freeze, intake audit, snapshot, materials, stage0, fact-gate, observation-archive"
+    },
+    "replay": {
+      "path": "<artifact-relative path>",
+      "sha256": "<64-hex>",
+      "scope": "replay",
+      "retention": "permanent",
+      "note": "heldout-gate.json, replay manifest, stability-runs.json — a gate decision must always re-derive"
+    },
+    "admission_evidence": {
+      "path": "<artifact-relative path>",
+      "sha256": "<64-hex>",
+      "scope": "admission",
+      "retention": "permanent-while-referenced",
+      "note": "falsifier-verification.json, decision.json, deployment-projection.json, declared-assumptions records"
+    },
+    "postport_census_inputs": {
+      "path": "<artifact-relative path to harness dir>",
+      "sha256": "<bundle sha256 over run_census.py + r6-corporate-baseline.json + r6-guard-baseline.json>",
+      "scope": "baseline-run",
+      "retention": "2-release-cycles",
+      "note": "postport-census inputs: census harness dir (vars.CENSUS_CORPUS) + guard baseline manifest (vars.CENSUS_BASELINE); provisioned inputs must hash-match this bundle"
+    }
+  },
+  "prohibited": [
+    "secrets, tokens, credentials",
+    "private filesystem paths",
+    "raw LLM transcripts or provider keys"
+  ]
+}

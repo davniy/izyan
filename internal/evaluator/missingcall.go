@@ -1,22 +1,22 @@
 package evaluator
 
 import (
-	"strings"
-
 	"github.com/fedorovmv/izyan/internal/domain"
 )
 
 // MissingCall evaluates MISSING_CALL conditions.
-// In exploit-model semantics, a MISSING_CALL condition asserts that a security
-// check method (e.g. MapClaims.VerifyAudience) is omitted across the active execution
-// path of a reached validation pipeline (e.g. MapClaims.Valid).
 //
-// Deterministic rules:
-//   - TRUE: EV-MISSING-CALL evidence is present in the evidence graph, proving
-//     the pipeline is reached from product code and the check has 0 invocations.
-//   - FALSE candidate: EV-CHECK-PRESENT evidence is present, proving the check
-//     is explicitly invoked. Uses FalsifierGuards.
-//   - UNKNOWN: neither evidence is present, or check failed.
+// The condition is only the structural shape: the admitted OMITTED_CHECK
+// contract decides that omission is this advisory's defect. TRUE requires a
+// typed MissingCallWitness bound to that contract — exact record, exact check,
+// exact anchored pipeline and the effective build — recording that the
+// pipeline is reached from product code and the check has zero invocations on
+// that active path.
+//
+// FALSE requires the same typed binding recording the check observed invoked.
+// UNKNOWN is every other case: no contract, an unadmitted legacy omission
+// model, a drifted condition or an unestablished measurement. An evidence-id
+// prefix or a content substring never decides this claim.
 type MissingCall struct{}
 
 func (MissingCall) CanEvaluate(cond domain.Condition) bool {
@@ -24,37 +24,46 @@ func (MissingCall) CanEvaluate(cond domain.Condition) bool {
 }
 
 func (MissingCall) Evaluate(cond domain.Condition, c *domain.AnalysisCase) domain.Claim {
+	return admitNegative(c, cond, evaluateMissingCall(cond, c))
+}
+
+func evaluateMissingCall(cond domain.Condition, c *domain.AnalysisCase) domain.Claim {
 	claim := domain.Claim{
 		ID:          domain.ClaimID("CL-" + string(cond.ID)),
 		ConditionID: cond.ID,
 		Result:      domain.ClaimUnknown,
 		Producer:    "evaluator.MissingCall",
 	}
-	if c == nil {
+	if c == nil || c.Exploit == nil {
+		claim.Limitations = append(claim.Limitations, "no exploit model: the omission observation has no admitted defect semantics")
 		return claim
 	}
+	contract := c.Exploit.DefectSemantics
+	evidence := c.EvidenceGraph.EvidenceList()
 
-	for _, e := range c.EvidenceGraph.Evidence {
-		if e.ID == "EV-MISSING-CALL" || strings.HasPrefix(string(e.ID), "EV-MISSING-CALL") {
-			if len(cond.Subjects) == 0 || strings.Contains(e.Content, cond.Subjects[0].Symbol) {
-				claim.Result = domain.ClaimTrue
-				claim.EvidenceIDs = appendUniqueID(claim.EvidenceIDs, e.ID)
-				claim.Explanation = e.Content
-				return claim
-			}
-		}
-		if e.ID == "EV-CHECK-PRESENT" || strings.HasPrefix(string(e.ID), "EV-CHECK-PRESENT") {
-			if len(cond.Subjects) == 0 || strings.Contains(e.Content, cond.Subjects[0].Symbol) {
-				claim.Result = domain.ClaimFalse
-				claim.Falsifier = domain.FalsifierGuards
-				claim.EvidenceIDs = appendUniqueID(claim.EvidenceIDs, e.ID)
-				claim.Explanation = e.Content
-				claim.Limitations = append(claim.Limitations, "FALSE is a candidate: check invocation presence does not guarantee path-specific effectiveness")
-				return claim
-			}
-		}
+	if match, reasons := domain.MatchOmissionWitness(contract, cond, evidence,
+		c.Product, domain.MissingCallOmitted); match != nil {
+		claim.Result = domain.ClaimTrue
+		claim.EvidenceIDs = appendUniqueID(claim.EvidenceIDs, match.EvidenceID)
+		claim.Explanation = "the admitted omission contract binds this pipeline, and the typed source observation records the check excluded from it: " +
+			match.Witness.Detail
+		return claim
+	} else {
+		claim.Limitations = append(claim.Limitations, reasons...)
 	}
 
-	claim.Limitations = append(claim.Limitations, "no deterministic missing-call evidence collected for condition")
+	if match, reasons := domain.MatchOmissionWitness(contract, cond, evidence,
+		c.Product, domain.MissingCallPresent); match != nil {
+		claim.Result = domain.ClaimFalse
+		claim.Falsifier = domain.FalsifierGuards
+		claim.EvidenceIDs = appendUniqueID(claim.EvidenceIDs, match.EvidenceID)
+		claim.Explanation = "the contracted check is observed invoked against the anchored pipeline: " +
+			match.Witness.Detail
+		claim.Limitations = append(claim.Limitations,
+			"FALSE is a candidate: check invocation presence does not guarantee path-specific effectiveness")
+		return claim
+	} else {
+		claim.Limitations = append(claim.Limitations, reasons...)
+	}
 	return claim
 }

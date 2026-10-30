@@ -2,10 +2,12 @@ package goanalysis
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/fedorovmv/izyan/internal/fixbinding"
 )
 
 // Verifier performs a bounded negative verification pass on FALSE claims.
@@ -24,8 +26,117 @@ type Verifier struct {
 
 // VerifyFalse attempts to falsify a FALSE claim for cond across all of its
 // subjects and returns the updated claim with its NegativeVerification.
+//
+// A build-dependent negative is admitted before any verification route runs,
+// including the locus/package early returns: the case must carry a valid
+// scoped product target, and a configured source index must describe the
+// same build context. The verification that does run is stamped with the
+// effective build context so a later persisted-verdict admission can tell
+// which build it observed.
 func (v Verifier) VerifyFalse(ctx context.Context, c *domain.AnalysisCase, claim domain.Claim,
 	cond domain.Condition) domain.Claim {
+
+	if domain.NegativeRequiresTarget(claim, cond) {
+		if err := domain.ValidateNegativeTarget(c.Product); err != nil {
+			out := setNeg(claim, &domain.NegativeVerification{
+				Status: domain.NegativeInsufficientScope,
+				Notes:  "build-dependent negative refused: " + err.Error(),
+			})
+			return stampVerificationContext(c.Product, claim, cond, withNegativeGap(out, v.Source == nil, claim.ConditionID))
+		}
+		if v.Source != nil {
+			if err := v.sourceContextMatches(c.Product); err != nil {
+				out := setNeg(claim, &domain.NegativeVerification{
+					Status: domain.NegativeInsufficientScope,
+					Notes:  err.Error(),
+				})
+				return stampVerificationContext(c.Product, claim, cond, withNegativeGap(out, false, claim.ConditionID))
+			}
+		}
+	}
+	out := v.verifyFalse(ctx, c, claim, cond)
+	return stampVerificationContext(c.Product, claim, cond, withNegativeGap(out, v.Source == nil, claim.ConditionID))
+}
+
+// withNegativeGap records the typed cause behind a non-verified negative.
+// Failed verification is analyzer work: it can neither weaken a claim to a
+// softer verdict nor hide behind an environmental abstention.
+func withNegativeGap(out domain.Claim, sourceMissing bool, condition domain.ConditionID) domain.Claim {
+	nv := out.NegativeVerification
+	if nv == nil || nv.Status == domain.NegativeVerified || len(nv.AnalysisGaps) > 0 {
+		return out
+	}
+	message := nv.Notes
+	if message == "" {
+		message = "negative verification did not reach a verified state (" + string(nv.Status) + ")"
+	}
+	code := domain.GapNegativeVerificationIncomplete
+	if sourceMissing {
+		code = domain.GapProofArtifactMissing
+		message = "negative verification requires the source index; it is not configured"
+	}
+	nv.AnalysisGaps = append(nv.AnalysisGaps, domain.AnalysisGap{
+		Owner:       domain.GapOwnerProof,
+		Code:        code,
+		Obligation:  domain.ObligationCondition,
+		ConditionID: condition,
+		Message:     message,
+	})
+	return out
+}
+
+// sourceContextMatches asserts that the configured source index describes the
+// same product build as the case. An index that was never bound still has to
+// carry the matching effective context — an unbound index is not evidence
+// about an identified build.
+func (v Verifier) sourceContextMatches(product domain.ProductSnapshot) error {
+	want := domain.EffectiveBuildContext(product)
+	if bound, ok := v.Source.BoundBuildContext(); ok {
+		if err := bound.Matches(want); err != nil {
+			return fmt.Errorf("source index build context does not match the case: %w", err)
+		}
+		return nil
+	}
+	if err := domain.EffectiveBuildContext(v.Source.Build).Matches(want); err != nil {
+		return fmt.Errorf("source index is not bound to the case build context: %w", err)
+	}
+	return nil
+}
+
+// stampVerificationContext records the effective build context on a
+// build-dependent verification result returned by any route, including the
+// early refusals and the locus/package returns.
+func stampVerificationContext(product domain.ProductSnapshot, claim domain.Claim,
+	cond domain.Condition, out domain.Claim) domain.Claim {
+	nv := out.NegativeVerification
+	if nv == nil || !domain.NegativeRequiresTarget(claim, cond) {
+		return out
+	}
+	ctx := domain.EffectiveBuildContext(product)
+	nv.BuildContext = &ctx
+	return out
+}
+
+func (v Verifier) verifyFalse(ctx context.Context, c *domain.AnalysisCase, claim domain.Claim,
+	cond domain.Condition) domain.Claim {
+	if claim.Falsifier == domain.FalsifierSafeConfigAssignment {
+		id, err := ValidateConfigCertificateEvidence(ConfigAdmissionForCase(c), claim, cond)
+		status := domain.NegativeVerified
+		notes := "all captured necessary boolean arguments have safe effective values; deployment/runtime configuration outside the anchored snapshot is not covered"
+		if err != nil {
+			status = domain.NegativeInsufficientScope
+			if errors.Is(err, ErrConfigWriterContradicted) { status = domain.NegativeContradicted }
+			notes = err.Error()
+		}
+		proof := &domain.NegativeVerification{Status:status,Notes:notes}
+		if id != "" { proof.EvidenceIDs=[]domain.EvidenceID{id} }
+		out := setNeg(claim,proof)
+		if err != nil { out.Result=domain.ClaimUnknown }
+		return out
+	}
+	if claim.Falsifier == domain.FalsifierZeroValueConfig || claim.Falsifier == domain.FalsifierSafeConfigKey {
+		return setNeg(claim,&domain.NegativeVerification{Status:domain.NegativeInsufficientScope,Notes:"configuration falsifier has no independent effective-object obligations"})
+	}
 
 	if claim.Falsifier == domain.FalsifierLocusFunctionUnreached {
 		out := v.verifyLocusFunctionUnreached(ctx, c, claim, cond)
@@ -49,7 +160,11 @@ func (v Verifier) VerifyFalse(ctx context.Context, c *domain.AnalysisCase, claim
 	if cond.Params[domain.ParamCheck] == domain.CheckLocus ||
 		claim.Falsifier == domain.FalsifierLocusPackageAbsent ||
 		claim.Falsifier == domain.FalsifierPackageAbsent {
-		return v.verifyLocusAbsent(c, claim, cond)
+		var proof *domain.ContentAdmission
+		if c != nil {
+			proof = fixbinding.AdmitModelProof(fixbinding.AdmissionForCase(c), c.RootCause)
+		}
+		return v.verifyLocusAbsent(c, claim, cond, proof)
 	}
 
 	nv := &domain.NegativeVerification{Status: domain.NegativeVerified}
@@ -63,14 +178,16 @@ func (v Verifier) VerifyFalse(ctx context.Context, c *domain.AnalysisCase, claim
 	if cond.Subject != nil {
 		subjects = append(subjects, *cond.Subject)
 	}
-	if len(subjects) == 0 && c.Exploit != nil {
-		subjects = append(subjects, c.Exploit.RootCauses...)
+	// A platform or runtime condition is decided by recorded snapshot facts,
+	// not by a subject-escape proof: it needs no subject set, and inventing one
+	// from the model would be exactly the fallback this gate forbids.
+	if cond.Kind == domain.ConditionPlatform || cond.Kind == domain.ConditionRuntime {
+		return verifySnapshotFalse(claim,
+			&domain.NegativeVerification{Status: domain.NegativeVerified})
 	}
-	if len(subjects) == 0 && c.RootCause != nil {
-		for _, rc := range c.RootCause.RootCauses {
-			subjects = append(subjects, domain.SymbolRef{Package: rc.Package, Symbol: rc.Symbol})
-		}
-	}
+	// No fallback to Model.RootCauses: a negative that names no subject has
+	// not measured the set it claims, so it cannot be re-checked here. The
+	// condition must bind the subjects it is about.
 	if len(subjects) == 0 {
 		return setNeg(claim, &domain.NegativeVerification{
 			Status: domain.NegativeInsufficientScope,
@@ -385,6 +502,30 @@ func (v Verifier) verifySequenceFalse(c *domain.AnalysisCase, claim domain.Claim
 			strings.Join(hidden, ", "))
 		return setNeg(claim, nv)
 	}
+	// A method that belongs to an interface in the build can be invoked
+	// through dynamic dispatch without any static product reference (e.g. a
+	// String() method called by fmt, or a callback registered inside the
+	// dependency). A zero-reference scan therefore cannot exclude it — the
+	// same rule the locus verifier applies to the same subjects.
+	var interfaceMethods []string
+	if v.Source != nil {
+		for _, s := range missingRefs {
+			if !symbolIsMethod(s) {
+				continue
+			}
+			_, name := splitSymbol(s.Symbol)
+			if v.Source.methodInAnyInterface(name) {
+				interfaceMethods = append(interfaceMethods, s.Package+"."+s.Symbol)
+			}
+		}
+	}
+	if len(interfaceMethods) > 0 {
+		nv.Status = domain.NegativeInsufficientScope
+		nv.Notes = fmt.Sprintf("never-invoked member(s) %s are methods of build interfaces — interface "+
+			"dispatch may invoke them without a static product reference, so the missing pair is not established",
+			strings.Join(interfaceMethods, ", "))
+		return setNeg(claim, nv)
+	}
 	if refs == 0 {
 		nv.Notes = fmt.Sprintf("never-invoked member(s) %s have no product references",
 			strings.Join(missing, ", "))
@@ -469,14 +610,18 @@ func (v Verifier) verifyReachableFalse(ctx context.Context, c *domain.AnalysisCa
 }
 
 // checkDepInvocation widens a zero-product-references result to the
-// dependency's own call graph. Two findings weaken the falsifier:
-// dep-internal call sites of the subject exist — invocation is live,
-// just not product-driven — or the subject is a method dead in the whole
-// build while sibling methods on the same receiver type run inside the
-// dep. The second is the missing-call shape: the check member never
-// executes while the validation pipeline around it does, which is
-// precisely the vulnerable behavior for missing-validation advisories —
-// so deadness cannot ground a negative verdict.
+// dependency's own call graph — the same dep-internal gates
+// Index.VerifyUnreachable (unreachability.go) reuses for the bounded
+// symbol-unreachability proof: live dep-internal call sites and an
+// unbounded exported call surface weaken a no-refs observation.
+//
+// Sibling-method liveness is deliberately NOT a blocker here. It is a
+// source observation (DepInvocationState still records it), not defect
+// semantics: a dead check member beside a live receiver pipeline may be the
+// advisory's defect for one contract and unrelated for another. The admitted
+// defect-semantics contract decides whether the dead symbol's invocation is
+// necessary (domain.ValidateDeadnessPremise / RequireDeadnessPremise); the
+// physical measurement must not pre-empt that decision.
 func (v Verifier) checkDepInvocation(ctx context.Context, c *domain.AnalysisCase, subjects []domain.SymbolRef) string {
 	mods := caseModules(c)
 	if len(mods) == 0 {
@@ -493,7 +638,7 @@ func (v Verifier) checkDepInvocation(ctx context.Context, c *domain.AnalysisCase
 		if !inScope {
 			continue
 		}
-		callers, siblingLive, unbounded, err := v.Source.DepInvocationState(ctx, subj)
+		callers, _, unbounded, err := v.Source.DepInvocationState(ctx, subj)
 		if err != nil {
 			return fmt.Sprintf("dep invocation scan failed for %s.%s: %v", subj.Package, subj.Symbol, err)
 		}
@@ -506,12 +651,6 @@ func (v Verifier) checkDepInvocation(ctx context.Context, c *domain.AnalysisCase
 			return fmt.Sprintf("subject %s.%s has %d call site(s) inside the dependency — "+
 				"zero product references cannot exclude dep-internal invocation",
 				subj.Package, subj.Symbol, callers)
-		}
-		if siblingLive {
-			return fmt.Sprintf("subject %s.%s is never invoked anywhere in the build, but sibling "+
-				"methods on the same receiver type are invoked inside the dependency — a missing-call "+
-				"shape: absence of the check is itself the vulnerable behavior, so a dead member "+
-				"cannot ground a negative verdict", subj.Package, subj.Symbol)
 		}
 	}
 	return ""
@@ -558,6 +697,21 @@ func (v Verifier) verifyInputFalse(ctx context.Context, c *domain.AnalysisCase, 
 	totalCallers := 0
 	absorbed := 0
 	mods := caseModules(c)
+	// Configuration-origin claims (post-reach route) are verified against
+	// the exact sink closure first: the per-caller trace below covers only
+	// statically resolved product call sites, while the closure enumerates
+	// every live payload position of the declared sink set.
+	configRoute := claim.Falsifier == domain.FalsifierTrustedInfrastructure &&
+		claim.FalsifierBasis == domain.BasisConfigOrigin && argIndex >= 0
+	if configRoute {
+		var proof *domain.ContentAdmission
+		if c != nil {
+			proof = fixbinding.AdmitModelProof(fixbinding.AdmissionForCase(c), c.RootCause)
+		}
+		if note := v.verifySinkClosure(ctx, c, claim, nv, subjects, argIndex, proof); note != "" {
+			return setNeg(claim, nv)
+		}
+	}
 	for _, subj := range subjects {
 		callers, err := v.Source.FindCallers(ctx, subj)
 		if err != nil {
@@ -566,13 +720,14 @@ func (v Verifier) verifyInputFalse(ctx context.Context, c *domain.AnalysisCase, 
 			return setNeg(claim, nv)
 		}
 		if len(callers) == 0 && inCaseModules(subj.Package, mods) &&
-			claim.Falsifier != domain.FalsifierConstantOrGeneratedInput &&
-			claim.Falsifier != domain.FalsifierTrustedInfrastructure {
+			claim.Falsifier != domain.FalsifierConstantOrGeneratedInput {
 			// Unexported dependency subjects have no product callers — the
 			// FALSE under verification may have been produced by dep-internal
 			// provenance; re-trace the same dep scope. Membership is checked
 			// against every linked module — a second-module subject must not
-			// be skipped by a single-module prefix test.
+			// be skipped by a single-module prefix test. The config-trust
+			// route needs the same scope: its trigger can live in an
+			// unexported dependency method called only inside the module.
 			depCallers, derr := v.Source.FindDepCallers(ctx, subj)
 			if derr != nil {
 				nv.Status = domain.NegativeInsufficientScope
@@ -634,6 +789,17 @@ func (v Verifier) verifyInputFalse(ctx context.Context, c *domain.AnalysisCase, 
 		}
 	}
 	if totalCallers == 0 {
+		if configRoute {
+			// The sink closure already enumerated every live payload
+			// position (including dep-internal callers); zero direct
+			// per-subject callers is not an enumeration gap when the
+			// closure is complete.
+			nv.Status = domain.NegativeVerified
+			nv.Notes = fmt.Sprintf(
+				"sink closure verified complete for %d subject(s); trigger arg %d traced to administrator configuration at every live site",
+				len(subjects), argIndex)
+			return setNeg(claim, nv)
+		}
 		nv.Status = domain.NegativeInsufficientScope
 		nv.Notes = "no direct call sites found for any subject; indirect invocation possible"
 		return setNeg(claim, nv)
@@ -645,6 +811,17 @@ func (v Verifier) verifyInputFalse(ctx context.Context, c *domain.AnalysisCase, 
 		return setNeg(claim, nv)
 	}
 	if claim.Falsifier == domain.FalsifierTrustedInfrastructure && totalCallers > 0 {
+		// Configuration-origin claims (post-reach route) carry a stricter
+		// contract than the code-level trace: the exact trigger argument
+		// must be bound at every live sink site of a complete,
+		// advisory-bound closure (already re-enumerated above). The
+		// per-caller trace is the independent second check.
+		if configRoute {
+			nv.Status = domain.NegativeVerified
+			nv.Notes = fmt.Sprintf("all %d exact call site(s) across %d subject(s) consume administrator configuration at trigger arg %d; sink closure verified complete",
+				totalCallers, len(subjects), argIndex)
+			return setNeg(claim, nv)
+		}
 		nv.Status = domain.NegativeVerified
 		nv.Notes = fmt.Sprintf("all %d call site(s) across %d subject(s) consume local configuration files (trusted infrastructure)",
 			totalCallers, len(subjects))
@@ -661,7 +838,11 @@ func (v Verifier) verifyInputFalse(ctx context.Context, c *domain.AnalysisCase, 
 		}
 		return setNeg(claim, nv)
 	}
-	if note := v.verifySinkClosure(ctx, c, claim, nv, subjects, argIndex); note == "" {
+	var proof *domain.ContentAdmission
+	if c != nil {
+		proof = fixbinding.AdmitModelProof(fixbinding.AdmissionForCase(c), c.RootCause)
+	}
+	if note := v.verifySinkClosure(ctx, c, claim, nv, subjects, argIndex, proof); note == "" {
 		nv.Status = domain.NegativeVerified
 		nv.Notes = fmt.Sprintf("all %d call site(s) across %d subject(s) pass non-external input",
 			totalCallers, len(subjects))
@@ -682,13 +863,24 @@ func (v Verifier) verifyInputFalse(ctx context.Context, c *domain.AnalysisCase, 
 // contradictions. nv is mutated; "" means the closure confirms the
 // FALSE candidate.
 func (v Verifier) verifySinkClosure(ctx context.Context, c *domain.AnalysisCase, claim domain.Claim,
-	nv *domain.NegativeVerification, subjects []domain.SymbolRef, argIndex int) string {
+	nv *domain.NegativeVerification, subjects []domain.SymbolRef, argIndex int, proof *domain.ContentAdmission) string {
 
 	module := c.Vulnerability.Module
 	if module == "" || len(subjects) == 0 {
 		return "no module/subjects for sink closure"
 	}
-	cl, evs, err := v.Source.SinkClosure(ctx, claim.ConditionID, module, "", subjects, argIndex, verifyHops)
+	// The post-reach configuration route requires an advisory-bound
+	// contract for its sink set; without one the closure is KNOWN_ONLY
+	// and cannot confirm the claim.
+	basis := ""
+	configRoute := claim.Falsifier == domain.FalsifierTrustedInfrastructure &&
+		claim.FalsifierBasis == domain.BasisConfigOrigin && argIndex >= 0
+	if configRoute {
+		if b, ok := SinkSetBasis(c, subjects, proof); ok {
+			basis = b
+		}
+	}
+	cl, evs, err := v.Source.SinkClosure(ctx, claim.ConditionID, module, basis, subjects, argIndex, verifyHops)
 	if err != nil {
 		nv.Status = domain.NegativeInsufficientScope
 		nv.Notes = "sink-closure inventory failed: " + err.Error()
@@ -698,19 +890,45 @@ func (v Verifier) verifySinkClosure(ctx context.Context, c *domain.AnalysisCase,
 		nv.EvidenceIDs = append(nv.EvidenceIDs, c.EvidenceGraph.AddEvidence(e))
 	}
 	c.EvidenceGraph.AddSinkClosure(cl)
-	if !cl.Complete {
-		var unsafe *domain.SinkSite
-		var dead int
-		for i := range cl.Sites {
-			s := &cl.Sites[i]
-			if !s.Live {
-				dead++
-				continue
-			}
-			if s.Origin == domain.OriginExternalUntrusted || s.Origin == domain.OriginExternalAuthenticated {
-				unsafe = s
-			}
+	var unsafe *domain.SinkSite
+	var dead, live int
+	for i := range cl.Sites {
+		s := &cl.Sites[i]
+		if !s.Live {
+			dead++
+			continue
 		}
+		live++
+		switch {
+		case s.Origin == domain.OriginExternalUntrusted || s.Origin == domain.OriginExternalAuthenticated:
+			unsafe = s
+		case configRoute && s.Origin != domain.OriginConfiguration:
+			// A live position not traced to configuration cannot support
+			// the config-origin falsifier; it is an unresolved origin,
+			// not a contradiction.
+			if s.Origin == domain.OriginUnknown || s.Origin == "" {
+				nv.Status = domain.NegativeInsufficientScope
+				nv.Notes = fmt.Sprintf("live sink site %s:%d (%s) arg %d has unresolved origin at verification depth",
+					s.File, s.Line, s.Sink, s.Arg)
+				return nv.Notes
+			}
+		case !configRoute && !domain.SafeOrigin(s.Origin):
+			// Constant/generated falsifiers need every live position to
+			// be a safe origin; configuration is non-external but not
+			// constant.
+			nv.Status = domain.NegativeInsufficientScope
+			nv.Notes = fmt.Sprintf("live sink site %s:%d (%s) arg %d has origin %s, not a safe origin",
+				s.File, s.Line, s.Sink, s.Arg, s.Origin)
+			return nv.Notes
+		}
+		if configRoute && argIndex >= 0 && s.Arg != argIndex {
+			nv.Status = domain.NegativeInsufficientScope
+			nv.Notes = fmt.Sprintf("live sink site %s:%d (%s) is bound to arg %d, not the exact trigger arg %d",
+				s.File, s.Line, s.Sink, s.Arg, argIndex)
+			return nv.Notes
+		}
+	}
+	if !cl.Complete {
 		if unsafe != nil {
 			nv.Status = domain.NegativeContradicted
 			nv.Notes = fmt.Sprintf("live sink site %s:%d (%s) receives %s input; FALSE contradicted",
@@ -721,6 +939,22 @@ func (v Verifier) verifySinkClosure(ctx context.Context, c *domain.AnalysisCase,
 		nv.Notes = fmt.Sprintf("sink closure incomplete at verification depth: %d blocker(s), %d dead site(s) excluded",
 			len(cl.Blockers), dead)
 		return nv.Notes
+	}
+	if configRoute {
+		if live == 0 {
+			nv.Status = domain.NegativeInsufficientScope
+			nv.Notes = "complete sink closure has no live payload site: no positive sink reach"
+			return nv.Notes
+		}
+		for i := range cl.Sites {
+			s := &cl.Sites[i]
+			if s.Live && s.Origin != domain.OriginConfiguration {
+				nv.Status = domain.NegativeInsufficientScope
+				nv.Notes = fmt.Sprintf("live sink site %s:%d (%s) arg %d has origin %s, not CONFIGURATION",
+					s.File, s.Line, s.Sink, s.Arg, s.Origin)
+				return nv.Notes
+			}
+		}
 	}
 	return ""
 }

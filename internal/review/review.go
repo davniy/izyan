@@ -139,7 +139,7 @@ func (Structural) Review(c *domain.AnalysisCase, proposed domain.VerdictResult) 
 	// legitimate bind skip (recorded in graph limitations) or a dropped
 	// check in a hand/LLM-built model — medium severity, never blocking.
 	if c.Exploit != nil && c.Exploit.Class != "" {
-		if pat := exploit.Lookup(exploit.Class(c.Exploit.Class)); pat != nil {
+		if pat := exploit.Lookup(exploit.Class(c.Exploit.Class), exploit.InputRoute(c.Exploit.InputRoute)); pat != nil {
 			present := map[string]bool{}
 			for _, cond := range c.Exploit.MandatoryConditions {
 				present[string(cond.ID)] = true
@@ -163,6 +163,26 @@ func (Structural) Review(c *domain.AnalysisCase, proposed domain.VerdictResult) 
 					TargetType: "model", TargetID: t.ID, Severity: sev,
 					Problem: fmt.Sprintf("class %s pattern expects mandatory %s; model lacks it (skipped=%v)",
 						c.Exploit.Class, t.ID, skipped),
+				})
+			}
+		}
+	}
+
+	if c.Exploit != nil && c.Exploit.Class == string(exploit.ClassCryptoDowngrade) {
+		if bound := exploit.TLSFloorBound(c.Vulnerability, c.RootCause); bound != "" {
+			present := false
+			for _, cond := range c.Exploit.MandatoryConditions {
+				if (cond.Kind == domain.ConditionPlatform || cond.Kind == domain.ConditionRuntime) &&
+					cond.Params["go_version"] != "" &&
+					exploit.ValidateConditionApplicability(c.Vulnerability, c.RootCause, cond) == "" {
+					present = true
+					break
+				}
+			}
+			if !present {
+				findings = append(findings, domain.ReviewFinding{
+					TargetType: "model", TargetID: "C-PLATFORM", Severity: "high",
+					Problem: fmt.Sprintf("declared TLS floor requires mandatory toolchain boundary %s; model lacks it", bound),
 				})
 			}
 		}

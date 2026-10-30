@@ -1,0 +1,214 @@
+{
+  "id": "OBS-0012",
+  "tool": "listen-sites",
+  "fact": "18 inbound listener binds in product packages observed",
+  "scope": "inbound listener binds in product packages (static source scan; runtime reachability is out of scope)",
+  "completeness": "PARTIAL",
+  "tool_status": "OK",
+  "limitations": [
+    "static exposure scan: a listener/dial site is a code fact, not runtime reachability"
+  ],
+  "scope_details": {
+    "snapshot_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+    "snapshot_root": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+    "external_sha": "e196d2491087e93bd29f0e5a538aab60667021e3"
+  },
+  "data": {
+    "count": 18,
+    "facts": [
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/audit-proxy/main.go",
+        "line": 56,
+        "function": "main",
+        "package": "k8s.io/kubernetes/test/images/agnhost/audit-proxy",
+        "callee": "ListenAndServe",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net/http.ListenAndServe",
+        "address": ":8080",
+        "address_source": "literal",
+        "scope": "all-interfaces"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/fakegitserver/gitserver.go",
+        "line": 45,
+        "function": "main",
+        "package": "k8s.io/kubernetes/test/images/agnhost/fakegitserver",
+        "callee": "ListenAndServe",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net/http.ListenAndServe",
+        "address": ":8000",
+        "address_source": "literal",
+        "scope": "all-interfaces"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/guestbook/guestbook.go",
+        "line": 129,
+        "function": "startHTTPServer",
+        "package": "k8s.io/kubernetes/test/images/agnhost/guestbook",
+        "callee": "ListenAndServe",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net/http.ListenAndServe"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/liveness/server.go",
+        "line": 66,
+        "function": "main",
+        "package": "k8s.io/kubernetes/test/images/agnhost/liveness",
+        "callee": "ListenAndServe",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net/http.ListenAndServe",
+        "address": ":8080",
+        "address_source": "literal",
+        "scope": "all-interfaces"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/net/nat/closewait.go",
+        "line": 82,
+        "function": "Run",
+        "package": "k8s.io/kubernetes/test/images/agnhost/net/nat",
+        "callee": "ListenTCP",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net.ListenTCP",
+        "address_source": "var:addr"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/net/main.go",
+        "line": 120,
+        "function": "main",
+        "package": "k8s.io/kubernetes/test/images/agnhost/net",
+        "callee": "ListenAndServe",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net/http.ListenAndServe",
+        "address_source": "field:.Serve"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/nettest/nettest.go",
+        "line": 244,
+        "function": "main",
+        "package": "k8s.io/kubernetes/test/images/agnhost/nettest",
+        "callee": "ListenAndServe",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net/http.ListenAndServe"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/no-snat-test-proxy/main.go",
+        "line": 69,
+        "function": "Run",
+        "package": "k8s.io/kubernetes/test/images/agnhost/no-snat-test-proxy",
+        "callee": "ListenAndServe",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net/http.ListenAndServe"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/port-forward-tester/portforwardtester.go",
+        "line": 94,
+        "function": "main",
+        "package": "k8s.io/kubernetes/test/images/agnhost/port-forward-tester",
+        "callee": "ListenTCP",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net.ListenTCP",
+        "address_source": "var:addr"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/resource-consumer-controller/controller.go",
+        "line": 82,
+        "function": "main",
+        "package": "k8s.io/kubernetes/test/images/agnhost/resource-consumer-controller",
+        "callee": "ListenAndServe",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net/http.ListenAndServe"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/serve-hostname/serve_hostname.go",
+        "line": 70,
+        "function": "main",
+        "package": "k8s.io/kubernetes/test/images/agnhost/serve-hostname",
+        "callee": "Listen",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net.Listen"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/serve-hostname/serve_hostname.go",
+        "line": 76,
+        "function": "main",
+        "package": "k8s.io/kubernetes/test/images/agnhost/serve-hostname",
+        "callee": "Accept",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net.Listener.Accept"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/serve-hostname/serve_hostname.go",
+        "line": 91,
+        "function": "main",
+        "package": "k8s.io/kubernetes/test/images/agnhost/serve-hostname",
+        "callee": "ListenUDP",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net.ListenUDP",
+        "address_source": "var:addr"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/serve-hostname/serve_hostname.go",
+        "line": 120,
+        "function": "main",
+        "package": "k8s.io/kubernetes/test/images/agnhost/serve-hostname",
+        "callee": "ListenAndServe",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net/http.ListenAndServe"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/tcp-reset/tcp_reset.go",
+        "line": 52,
+        "function": "main",
+        "package": "k8s.io/kubernetes/test/images/agnhost/tcp-reset",
+        "callee": "Listen",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net.Listen"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/tcp-reset/tcp_reset.go",
+        "line": 58,
+        "function": "main",
+        "package": "k8s.io/kubernetes/test/images/agnhost/tcp-reset",
+        "callee": "Accept",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net.Listener.Accept"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/agnhost/test-webserver/test-webserver.go",
+        "line": 60,
+        "function": "main",
+        "package": "k8s.io/kubernetes/test/images/agnhost/test-webserver",
+        "callee": "ListenAndServe",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net/http.ListenAndServe"
+      },
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/images/resource-consumer/resource_consumer.go",
+        "line": 31,
+        "function": "main",
+        "package": "k8s.io/kubernetes/test/images/resource-consumer",
+        "callee": "ListenAndServe",
+        "direction": "inbound",
+        "kind": "listener",
+        "target": "net/http.ListenAndServe"
+      }
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "OBS-0003",
+  "tool": "advisory-load",
+  "fact": "frozen advisory CVE-2024-32473 resolved to GO-2024-2737 (1 affected entries, source frozen_file)",
+  "scope": "FileSource(eval/agent7/advisories/trivy-32473.json) with alias enrichment disabled; no network",
+  "completeness": "COMPLETE",
+  "tool_status": "OK",
+  "scope_details": {
+    "snapshot_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+    "snapshot_root": "<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02",
+    "subject": "CVE-2024-32473",
+    "coverage_rule": "single frozen advisory document load"
+  },
+  "data": {
+    "entries": 1,
+    "outcome": "frozen_file",
+    "requested_id": "CVE-2024-32473",
+    "resolved_id": "GO-2024-2737"
+  }
+}

@@ -17,16 +17,12 @@ var locusCond = domain.Condition{
 }
 
 func caseWithPackages(paths ...string) *domain.AnalysisCase {
-	c := &domain.AnalysisCase{EvidenceGraph: domain.EvidenceGraph{}}
+	c := &domain.AnalysisCase{Product: admittedProduct(), EvidenceGraph: domain.EvidenceGraph{}}
 	content := ""
 	for _, p := range paths {
 		content += `{"ImportPath":"` + p + `"}`
 	}
-	c.EvidenceGraph.Evidence = append(c.EvidenceGraph.Evidence, domain.Evidence{
-		ID:      "EV-PKGS",
-		Kind:    domain.EvidencePackageList,
-		Content: content,
-	})
+	addCompletePackageList(c, content)
 	return c
 }
 
@@ -47,6 +43,7 @@ func TestEvalLocusAbsentFalsifier(t *testing.T) {
 // the candidate FALSE with the locus-function-unreached falsifier.
 func TestEvalLocusPackagePresentCandidateFalse(t *testing.T) {
 	c := caseWithPackages("example.com/lib/internal/xds/server", "example.com/prod")
+	addSourceScan(c, locusCond.Subjects, true, false)
 	claim := (SymbolReachable{}).Evaluate(locusCond, c)
 	if claim.Result != domain.ClaimFalse || claim.Falsifier != domain.FalsifierLocusFunctionUnreached {
 		t.Fatalf("expected candidate ClaimFalse with locus-function-unreached, got %+v", claim)
@@ -56,7 +53,7 @@ func TestEvalLocusPackagePresentCandidateFalse(t *testing.T) {
 // No package-list evidence, no FALSE: a missing build graph is UNKNOWN, not
 // absence.
 func TestEvalLocusNoPackageListUnknown(t *testing.T) {
-	c := &domain.AnalysisCase{EvidenceGraph: domain.EvidenceGraph{}}
+	c := &domain.AnalysisCase{Product: admittedProduct(), EvidenceGraph: domain.EvidenceGraph{}}
 	claim := (SymbolReachable{}).Evaluate(locusCond, c)
 	if claim.Result != domain.ClaimUnknown {
 		t.Fatalf("expected UNKNOWN, got %+v", claim)
@@ -65,10 +62,8 @@ func TestEvalLocusNoPackageListUnknown(t *testing.T) {
 
 // Undecodable package-list evidence is equally UNKNOWN.
 func TestEvalLocusCorruptPackageListUnknown(t *testing.T) {
-	c := &domain.AnalysisCase{EvidenceGraph: domain.EvidenceGraph{}}
-	c.EvidenceGraph.Evidence = append(c.EvidenceGraph.Evidence, domain.Evidence{
-		ID: "EV-PKGS", Kind: domain.EvidencePackageList, Content: `{garbage`,
-	})
+	c := &domain.AnalysisCase{Product: admittedProduct(), EvidenceGraph: domain.EvidenceGraph{}}
+	addCompletePackageList(c, `{garbage`)
 	claim := (SymbolReachable{}).Evaluate(locusCond, c)
 	if claim.Result != domain.ClaimUnknown {
 		t.Fatalf("expected UNKNOWN, got %+v", claim)
@@ -90,6 +85,7 @@ func TestEvalLocusTwoDefectsPartialCoverage(t *testing.T) {
 		},
 	}
 	c := caseWithPackages("example.com/lib/internal/transport", "example.com/prod")
+	addSourceScan(c, twoLocus.Subjects, true, false)
 	claim := (SymbolReachable{}).Evaluate(twoLocus, c)
 	if claim.Result != domain.ClaimFalse || claim.Falsifier != domain.FalsifierLocusFunctionUnreached {
 		t.Fatalf("expected candidate ClaimFalse with locus-function-unreached, got %+v", claim)
@@ -121,17 +117,11 @@ func TestEvalLocusFunctionUnreachedCandidate(t *testing.T) {
 		ID:       "C-LOCUS",
 		Subjects: []domain.SymbolRef{{Package: "example.com/dep/internal/pkg", Symbol: "VulnerableFunc"}},
 	}
-	c := &domain.AnalysisCase{
-		EvidenceGraph: domain.EvidenceGraph{
-			Evidence: []domain.Evidence{
-				{
-					ID:      "EV-PACKAGE-LIST",
-					Kind:    domain.EvidencePackageList,
-					Content: `[{"ImportPath":"example.com/dep/internal/pkg"}]`,
-				},
-			},
-		},
+	c := &domain.AnalysisCase{Product: admittedProduct(),
+		EvidenceGraph: domain.EvidenceGraph{},
 	}
+	addCompletePackageList(c, `[{"ImportPath":"example.com/dep/internal/pkg"}]`)
+	addSourceScan(c, cond.Subjects, true, false)
 	claim := evalLocus(cond, c)
 	if claim.Result != domain.ClaimFalse {
 		t.Fatalf("expected candidate ClaimFalse, got %v", claim.Result)
@@ -153,6 +143,12 @@ func TestEvalReachableAbsentFalsifier(t *testing.T) {
 		},
 	}
 	c := caseWithPackages("example.com/lib", "example.com/prod")
+	// Package absence is evidence about subjects the record declares; the
+	// declaration is the affirmative basis this negative rests on.
+	c.Vulnerability = domain.Vulnerability{ID: "GO-TEST", AffectedPackages: []domain.AffectedPackage{
+		{Path: "example.com/lib/internal/xds/server"},
+		{Path: "example.com/lib/xds/httpfilter/rbac"},
+	}}
 	claim := (SymbolReachable{}).Evaluate(cond, c)
 	if claim.Result != domain.ClaimFalse || claim.Falsifier != domain.FalsifierPackageAbsent {
 		t.Fatalf("claim=%+v", claim)
@@ -188,7 +184,7 @@ func TestEvalReachableNoPackageListNotAbsent(t *testing.T) {
 			{Package: "example.com/lib/internal/xds/server", Symbol: "RouteAndProcess"},
 		},
 	}
-	c := &domain.AnalysisCase{EvidenceGraph: domain.EvidenceGraph{}}
+	c := &domain.AnalysisCase{Product: admittedProduct(), EvidenceGraph: domain.EvidenceGraph{}}
 	claim := (SymbolReachable{}).Evaluate(cond, c)
 	if claim.Falsifier == domain.FalsifierPackageAbsent || claim.Result == domain.ClaimFalse {
 		t.Fatalf("missing build graph must not ground absence: %+v", claim)

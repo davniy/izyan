@@ -1,0 +1,13 @@
+{
+  "id": "GO-EVAL-RI-READER",
+  "summary": "Unreachable method in dep/vuln.Reader",
+  "affected": [
+    {
+      "package": {"name": "example.com/dep", "ecosystem": "Go"},
+      "ranges": [{"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "1.0.1"}]}],
+      "ecosystem_specific": {
+        "imports": [{"path": "example.com/dep/vuln", "symbols": ["Reader.Read"]}]
+      }
+    }
+  ]
+}

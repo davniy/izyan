@@ -1,0 +1,12 @@
+{
+  "basis": "publisher",
+  "advisory_id": "GHSA-m425-mq94-257g",
+  "cve_ids": [
+    "CVE-2023-44487"
+  ],
+  "module": "google.golang.org/grpc",
+  "repository": "github.com/grpc/grpc-go",
+  "fix_refs": [
+    "https://github.com/grpc/grpc-go/pull/6703"
+  ]
+}

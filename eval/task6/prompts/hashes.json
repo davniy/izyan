@@ -1,0 +1,35 @@
+{
+  "schema": "task6-prompts/1",
+  "official_prefix": {
+    "file": "eval/vexbench-prompts/official-vuln-c0a5c8458b77.txt",
+    "sha256_12": "c0a5c8458b77",
+    "sha256": "c0a5c8458b77015d57b82eefca563d01c870ea027562381715c8ab9d70ffabda"
+  },
+  "blocks": {
+    "safety_rules": "eval.task5.protocol.SAFETY_RULES_BLOCK (verbatim)",
+    "structured_assessment": "eval.task6.protocol.STRUCTURED_ASSESSMENT_BLOCK (new)",
+    "evidence_tools": "eval.task6.protocol.EVIDENCE_TOOLS_BLOCK_TASK6 (task6-local copy of the C1 binding-rules block; evidence-ref field names aligned to agent-assessment/2)"
+  },
+  "prompts": {
+    "vuln_safety_v2": {
+      "file": "vuln_safety_v2.txt",
+      "sha256_12": "c38c362e139f",
+      "sha256": "c38c362e139f243fa885645b3285e658c657433b0a6613016e39c37899e6d78c",
+      "bytes": 11033
+    },
+    "vuln_safety_v2_tools": {
+      "file": "vuln_safety_v2_tools.txt",
+      "sha256_12": "bcc28c1264d8",
+      "sha256": "bcc28c1264d89f03278930fd11e1ba3a416b1d4f5a81490fcbb6934dbe621c78",
+      "bytes": 12768
+    }
+  },
+  "diff_file": "p2-t2.diff",
+  "t2_minus_p2": "two LF bytes + task6-local <EVIDENCE_TOOLS> block + LF",
+  "assertions": {
+    "p2_prefix_is_official_file_bytes": true,
+    "t2_minus_p2_is_exact_tool_block": true,
+    "prohibited_identifiers": "none"
+  },
+  "harness_registry": null
+}

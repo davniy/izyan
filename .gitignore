@@ -4,8 +4,11 @@
 # built binary
 /izyan
 /vuln-analyzer
+/zzscratch
+/testdata/transportresetprod/transportresetprod
 
 # LLM env files (may contain API keys)
+.env
 .env.*
 !.env.example
 # built binaries at repo root (bare "analyzer" would ignore cmd/analyzer/)
@@ -18,3 +21,11 @@ eval/corpus-reviewed.json
 tmp/*
 dist/
 bin/
+# Task 4 C1: local tool binary builds + python caches
+/izyan-evidence-tools
+__pycache__/
+*.pyc
+
+# Task 4 C1: raw attempt outputs under results/task4-c1/ are local
+# artifacts; only the frozen manifest + summaries (eval/c1/freeze/) commit
+/results/

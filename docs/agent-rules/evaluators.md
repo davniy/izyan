@@ -5,15 +5,25 @@
 
 - Цепочка — first-match wins; `Custom` обязан быть последним
   (обрабатывает unroutable shapes). Порядок: `SymbolReachable`,
-  `ServerTransportInput`, `ArgumentOrigin`, `Validation`, `Exposure`,
-  `Authentication`, `ConfigFlag`, `Presence`, `VersionFact`,
-  `Platform`, `Custom`.
+  `ServerTransportInput`, `ArgumentOrigin`, `CheckTrigger`, `Validation`,
+  `MissingCall`, `Exposure`, `Authentication`, `ConfigFlag`, `Presence`,
+  `VersionFact`, `Platform`, `Custom`.
 - `SymbolReachable`: проверяет как стандартную достижимость символов,
   так и defect locus условия (`C-LOCUS`) через `evalLocus`.
   При отсутствии пакета дефекта в графе сборки выставляет
   `FalsifierLocusPackageAbsent`; при наличии пакета, но недостижимости
   функции дефекта в callgraph продукта — `FalsifierLocusFunctionUnreached`.
-  Оба являются строгими валидными фальсификаторами для safe-negative вердикта.
+  Оба являются строгими валидными фальсификаторами для safe-negative
+  вердикта **только после допущенной invocation-necessity premise**:
+  deadness контрактной проверки требует admitted
+  `DEFECTIVE_CHECK`/`OMITTED_CHECK` контракт
+  (`ValidateDeadnessPremise`/`RequireDeadnessPremise`); без него FALSE не
+  ставится. Устаревшее `EV-MISSING-CALL` evidence и sibling-liveness не
+  дают ни позитивного, ни отрицательного вывода.
+- `CheckTrigger`: `CHECK_TRIGGER`/`CHECK_INPUT` — только typed witness,
+  привязанный к контракту (`operation`, `argument`, receiver field/shape,
+  control), на одном вызове и ресивере; external origin сам по себе
+  trigger не удовлетворяет.
 - `ArgumentOrigin`: INPUT_CONSTRAINT falsified by guards только при
   `unknown == 0` по всем flows и полном покрытии mutable-аргументов;
   const/GENERATED не требуют Covers. При отсутствии внешних и неизвестных

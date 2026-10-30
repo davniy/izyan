@@ -43,11 +43,7 @@ func presentCond() domain.Condition {
 }
 
 func usageCheck(c *domain.AnalysisCase) {
-	c.EvidenceGraph.Evidence = append(c.EvidenceGraph.Evidence, domain.Evidence{
-		ID:   "EV-USE",
-		Kind: domain.EvidenceSourceSnippet,
-		Tool: "goanalysis.Index.ModuleUsage",
-	})
+	addUsageScan(c, seqCond().Subjects)
 }
 
 func readCheck(c *domain.AnalysisCase) {
@@ -69,7 +65,7 @@ func presenceCheck(c *domain.AnalysisCase) {
 }
 
 func TestSequenceTrue(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	usageCheck(c)
 	c.EvidenceGraph.ModuleUsages = []domain.CallSite{
 		{File: "cmd/app/main.go", Line: 10, Function: "main", Callee: "mod/amqp.URI.String"},
@@ -86,7 +82,7 @@ func TestSequenceTrue(t *testing.T) {
 
 // Partial invocation through module internals also counts.
 func TestSequenceTrueViaModuleChain(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	usageCheck(c)
 	c.EvidenceGraph.ModuleUsages = []domain.CallSite{
 		{File: "cmd/app/main.go", Line: 10, Function: "main", Callee: "mod/amqp.URI.String"},
@@ -103,7 +99,7 @@ func TestSequenceTrueViaModuleChain(t *testing.T) {
 // GHSA-465g scenario: usage was checked, the pair is not exercised -> FALSE
 // candidate (needs negative verification downstream).
 func TestSequenceFalseCandidate(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	usageCheck(c)
 	c.EvidenceGraph.ModuleUsages = []domain.CallSite{
 		{File: "cmd/app/main.go", Line: 10, Function: "main", Callee: "mod/amqp.Dial"},
@@ -115,14 +111,14 @@ func TestSequenceFalseCandidate(t *testing.T) {
 }
 
 func TestSequenceUnknownWhenUsageNeverChecked(t *testing.T) {
-	claim := SymbolReachable{}.Evaluate(seqCond(), &domain.AnalysisCase{})
+	claim := SymbolReachable{}.Evaluate(seqCond(), &domain.AnalysisCase{Product: admittedProduct()})
 	if claim.Result != domain.ClaimUnknown {
 		t.Fatalf("got %s, want UNKNOWN", claim.Result)
 	}
 }
 
 func TestReadDirectionTrue(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	readCheck(c)
 	c.EvidenceGraph.AddSymbolRefs("mod/amqp.PlainAuth.Password",
 		domain.CallSite{File: "cmd/app/main.go", Line: 42, Function: "main"})
@@ -134,7 +130,7 @@ func TestReadDirectionTrue(t *testing.T) {
 
 // No product reader observed -> FALSE candidate, not silence.
 func TestReadDirectionFalseCandidate(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	readCheck(c)
 	claim := SymbolReachable{}.Evaluate(readCond(), c)
 	if claim.Result != domain.ClaimFalse {
@@ -143,14 +139,14 @@ func TestReadDirectionFalseCandidate(t *testing.T) {
 }
 
 func TestReadDirectionUnknownWhenUnscanned(t *testing.T) {
-	claim := SymbolReachable{}.Evaluate(readCond(), &domain.AnalysisCase{})
+	claim := SymbolReachable{}.Evaluate(readCond(), &domain.AnalysisCase{Product: admittedProduct()})
 	if claim.Result != domain.ClaimUnknown {
 		t.Fatalf("got %s, want UNKNOWN", claim.Result)
 	}
 }
 
 func TestPresenceTrue(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	presenceCheck(c)
 	c.EvidenceGraph.AddSymbolDecl("mod/amqp.PlainAuth",
 		&domain.CallSite{File: "mod/amqp/auth.go", Line: 9})
@@ -162,7 +158,7 @@ func TestPresenceTrue(t *testing.T) {
 
 // Checked but absent (nil decl recorded) -> FALSE candidate.
 func TestPresenceFalseCandidate(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	presenceCheck(c)
 	c.EvidenceGraph.AddSymbolDecl("mod/amqp.PlainAuth", nil)
 	claim := Presence{}.Evaluate(presentCond(), c)
@@ -172,7 +168,7 @@ func TestPresenceFalseCandidate(t *testing.T) {
 }
 
 func TestPresenceUnknownWhenUnchecked(t *testing.T) {
-	claim := Presence{}.Evaluate(presentCond(), &domain.AnalysisCase{})
+	claim := Presence{}.Evaluate(presentCond(), &domain.AnalysisCase{Product: admittedProduct()})
 	if claim.Result != domain.ClaimUnknown {
 		t.Fatalf("got %s, want UNKNOWN", claim.Result)
 	}

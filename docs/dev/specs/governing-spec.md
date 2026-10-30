@@ -116,7 +116,7 @@ type RootCause struct {
 4. vendor advisory;
 5. CVE description/CWE.
 
-LLM формирует кандидатов, но кандидат обязан пройти verification: symbol exists, принадлежит affected package, patch/source подтверждают механизм. Неоднозначный root cause приводит к `INCONCLUSIVE`.
+LLM формирует кандидатов, но кандидат обязан пройти verification: symbol exists, принадлежит affected package, patch/source подтверждают механизм. Неоднозначный root cause — это незавершённый анализ кода, поэтому он даёт `assessment_outcome=FAILED` с типизированной причиной (`ROOT_CAUSE_UNRESOLVED`), а не `INCONCLUSIVE` (см. §28).
 
 ## 8. ExploitModel
 
@@ -358,7 +358,7 @@ select UNKNOWN condition
 Verdict вычисляется чистой Go-функцией:
 
 ```text
-affected version FALSE
+affected version FALSE (в пределах admitted scope)
     -> NOT_AFFECTED
 
 all mandatory TRUE
@@ -367,11 +367,16 @@ all mandatory TRUE
 mandatory FALSE + negative verification VERIFIED
     -> NO_EXPLOIT_PATH_FOUND
 
-otherwise
-    -> INCONCLUSIVE
+атрибутированный к CVE независимо доказанный positive другого record
+    -> EXPLOITABLE (тот же profile/build; scope = transport-peer или library-api)
 ```
 
 Confidence, CVSS, EPSS, KEV и PoC availability не участвуют в этом вычислении.
+
+Последний `otherwise` больше не превращается в `INCONCLUSIVE`: вердикт-движок
+возвращает отсутствие вердикта вместе со структурированными причинами, а
+terminal outcome классифицируется отдельным контрактом (три исхода, §28).
+`FAILED` — не пятый вердикт, а отказ анализа ответить.
 
 ## 21. Reviewer
 
@@ -430,7 +435,7 @@ case/
 - MaxSourceReads;
 - MaxReviewIterations.
 
-Исчерпание аналитического бюджета приводит к `INCONCLUSIVE`, а не к догадке.
+Исчерпание аналитического бюджета приводит к `assessment_outcome=FAILED` с причиной `ANALYSIS_BUDGET_EXHAUSTED`, а не к догадке и не к `INCONCLUSIVE`: бюджет — ограничение инструмента, а не внешний факт. Диагностический отчёт при этом пишется (см. §28).
 
 ## 24. Remediation
 
@@ -472,7 +477,7 @@ MVP готов, если:
 10. confidence/CVSS/EPSS/KEV не участвуют в verdict;
 11. LLM не может напрямую задать итоговый verdict;
 12. Reviewer проверяет root cause/conditions/claims;
-13. `INCONCLUSIVE` является штатным результатом;
+13. `INCONCLUSIVE` — штатный результат, но только для `EXTERNAL_DEPENDENCY`: незавершённый анализ кода даёт `FAILED` без вердикта (§28);
 14. persisted state позволяет продолжить анализ без LLM chat history;
 15. evidence воспроизводимо;
 16. формируется tracker-ready rationale.
@@ -488,3 +493,98 @@ high confidence != proof
 ```
 
 Безопасный verdict требует положительного доказательства невозможности хотя бы одного обязательного условия эксплуатации.
+
+## 28. Terminal outcome, requested finding and record isolation
+
+Настоящий раздел заменяет прежнюю трактовку, в которой ограничение инструмента
+или исчерпанный бюджет становились terminal `INCONCLUSIVE`.
+
+### 28.1 Три исхода
+
+| `assessment_outcome` | Публикуемый вердикт | Смысл |
+|---|---|---|
+| `DECIDED` | `EXPLOITABLE`, `NOT_AFFECTED`, `NO_EXPLOIT_PATH_FOUND` | Правила доказательства дали ответ. |
+| `EXTERNAL_DEPENDENCY` | `INCONCLUSIVE` | Названный факт, меняющий ответ, лежит вне артефакта и выбранного профиля. |
+| `FAILED` | нет вердикта | Анализ, разрешение входа, возможность доказательства или authority scope недостаточны. |
+
+`FAILED` — не пятый вердикт, а отказ анализа ответить; он несёт
+структурированные причины (`AnalysisGap`: owner + code) и диагностический отчёт.
+Claim-значения остаются `TRUE`/`FALSE`/`UNKNOWN`: неудавшееся измерение
+оставляет claim `UNKNOWN`, а terminal outcome меняет классификация, не evidence.
+
+Правило: незавершённая работа по коду (`• ReACHABILITY_PROOF_INCOMPLETE`,
+`• INPUT_TRACE_INCOMPLETE`, `• TRIGGER_PROOF_INCOMPLETE`,
+`• NEGATIVE_VERIFICATION_INCOMPLETE`, `• REVIEW_UNRESOLVED`,
+`• ANALYSIS_BUDGET_EXHAUSTED`, `• ROOT_CAUSE_UNRESOLVED`,
+`• MEASUREMENT_NOT_COMPLETED`, `• UNSUPPORTED_NEGATIVE_SCOPE`) — это `FAILED`.
+`EXTERNAL_DEPENDENCY` требует именованного внешнего факта, доказательства
+границы, объяснения, почему артефакт его не даёт, и какие варианты меняют ответ.
+LLM не может объявить пробел внешним, присвоив ярлык.
+
+### 28.2 Discovery, attribution и изоляция записей
+
+Для запроса CVE `C` discover и attribution — разные propositions:
+
+- discovery номинирует record'ы, чьи собственные `id`/`aliases`/прямые `related`
+  называют `C` (без транзитивного замыкания `related` и без объединения
+  aliases+related в один класс эквивалентности);
+- attribution доказывает «C покрывает именно эту реализацию/механизм» через
+  собственный `id`/alias записи **или** захваченный publisher/CNA материал,
+  связывающий C с реализацией и fix. Persist: CVE, candidate + digest
+  документа, covered entry/mechanism, basis, source URI + digest, поле/цитата,
+  implementation/fix binding, admission result. Bare `related` недостаточно и
+  никогда не поднимает positive.
+
+Каждая assessment — включая primary — использует собственные точные байты
+документа и собственные ranges/modules/packages/symbols, original census,
+root cause, mandatory conditions, claims, review, severity и remediation.
+Alias/feed-обогащение не является механизмом загрузки assessment. Общими
+являются только immutable измерения продукта, которые перепроецируются на
+subject'ы каждой записи.
+
+Композиция — только независимо доказанные positives, по profile/build:
+
+```text
+Positive(C, p) <=> exists R: Attributed(R, C) and IndependentlyExploitable(R, p)
+```
+
+Один admitted positive решает CVE. Кандидатные negatives никогда не закрывают
+CVE. Zero-trust positive не устанавливает cluster-perimeter positive.
+
+### 28.3 Границы corpus (Addendum A)
+
+Пустой результат или завершённый scan сами по себе не являются authority
+закрытия. CVE-запрос может дать `NOT_AFFECTED` только если: (1) discovery
+выполнен по явно сконфигурированному, digest-pinned corpus с завершённой
+нумерацией; (2) каждый номинированный candidate оценён независимо; (3) нет
+независимо `EXPLOITABLE` кандидата для профиля запроса; (4) нет неразрешённой
+атрибуции, способной изменить ответ; (5) результат дословно сообщает corpus,
+его digest, дату захвата и что реализации вне corpus не исследовались.
+Отсутствующий/частичный/необъявленный corpus даёт
+`FAILED / UNSUPPORTED_NEGATIVE_SCOPE`. `AllowsNegativeClosure()` не ослабляется.
+Полнота corpus не заменяет семантическое доказательство: неизвестный или
+проваленный child — не negative, а `NO_EXPLOIT_PATH_FOUND` не переименовывается
+в `NOT_AFFECTED`.
+
+### 28.4 transport-peer scope и «локальный ≠ доверенный»
+
+`transport-peer` — ортогональный scope, а не новый вердикт или профиль. Он
+устанавливается только admitted mandatory `TRUE` transport-input claim и
+означает: клиент затронутого транспорта продукта может подать триггерные байты.
+Вопрос доступа adversary к этому транспорту (права на сокет, размещение,
+ingress, аутентификация) остаётся отдельным внешним вопросом и не
+устанавливается. Локальность (Unix/loopback binding, ClusterIP, отсутствие
+фактов экспозиции) не устанавливает доверенного peer'а: trusted actual profile
+требует admitted deployment-policy basis или явного выбора оператора.
+`transport-peer` не освобождается от cluster-perimeter перезаписи так, как
+освобождаются library-public-api claims.
+
+### 28.5 Один requested finding для всех публикаций
+
+JSON, Markdown, CLI, scan/eval, tracker, justification, remediation, research,
+OpenVEX и CycloneDX читают одну авторитетную проекцию `requested_finding`
+(FINAL envelope — publish authority, а не позиция в workflow). Для composed
+positive экспорт указывает CVE и witness конкретной записи/подкомпонента/
+remediation, а не fix primary-записи. OpenVEX/CycloneDX могут использовать
+`under_investigation`/`in_triage` и для внешней зависимости, и для failure, но
+companion-проекция обязана их различать.

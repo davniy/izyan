@@ -444,7 +444,7 @@ func (s *ingressScan) objectState(e ingressEntry, expr ast.Expr, argIdx int) {
 		return
 	}
 	info := e.pkg.TypesInfo
-	ast.Inspect(e.enc.Body, func(n ast.Node) bool {
+	inspectBody(e.enc, func(n ast.Node) bool {
 		as, ok := n.(*ast.AssignStmt)
 		if !ok {
 			return true
@@ -631,6 +631,27 @@ func (s *ingressScan) scanCone() {
 		}
 		s.scanned[d.decl] = true
 		s.scanDecl(d, push)
+	}
+}
+
+// funcBody returns the body of a function declaration, or nil when the
+// declaration has none. The analyzer builds synthetic FuncDecls (e.g. the
+// "package initializer" pseudo-declaration) and also sees real declarations
+// without a body — assembly and //go:linkname stubs. Passing such a nil
+// Body to ast.Inspect panics inside go/ast.Walk on a typed-nil node, so
+// every traversal of a FuncDecl body goes through these helpers.
+func funcBody(decl *ast.FuncDecl) *ast.BlockStmt {
+	if decl == nil {
+		return nil
+	}
+	return decl.Body
+}
+
+// inspectBody walks decl's body, if any. A declaration without a body is a
+// no-op rather than a panic.
+func inspectBody(decl *ast.FuncDecl, f func(ast.Node) bool) {
+	if body := funcBody(decl); body != nil {
+		ast.Inspect(body, f)
 	}
 }
 
@@ -1124,7 +1145,7 @@ func (s *ingressScan) paramFuncValues(pkg *packages.Package, d fnDeclRef, v *typ
 		if !ok || cd.pkg == nil || cd.pkg.TypesInfo == nil {
 			continue
 		}
-		ast.Inspect(cd.decl.Body, func(n ast.Node) bool {
+		inspectBody(cd.decl, func(n ast.Node) bool {
 			ce, ok := n.(*ast.CallExpr)
 			if !ok {
 				return true
@@ -1163,7 +1184,7 @@ func (s *ingressScan) paramFuncValues(pkg *packages.Package, d fnDeclRef, v *typ
 func (s *ingressScan) returnExprs(callerPkg *packages.Package, fn *types.Func) []rhsRef {
 	var out []rhsRef
 	push := func(pkg *packages.Package, decl *ast.FuncDecl) {
-		ast.Inspect(decl.Body, func(n ast.Node) bool {
+		inspectBody(decl, func(n ast.Node) bool {
 			rs, ok := n.(*ast.ReturnStmt)
 			if !ok {
 				return true
@@ -1211,7 +1232,7 @@ func (s *ingressScan) ifaceCallArgs(d fnDeclRef, idx int) []rhsRef {
 			if cd.pkg == nil || cd.pkg.TypesInfo == nil {
 				continue
 			}
-			ast.Inspect(cd.decl.Body, func(n ast.Node) bool {
+			inspectBody(cd.decl, func(n ast.Node) bool {
 				ce, ok := n.(*ast.CallExpr)
 				if !ok {
 					return true
@@ -1488,7 +1509,7 @@ func sigHasReceiver(fn *types.Func) bool {
 // closure — the invoked code may contain sources the inventory never saw.
 func (s *ingressScan) reflectCall(pkg *packages.Package, d fnDeclRef, call *ast.CallExpr, fn *types.Func, push func(fnDeclRef)) {
 	var names []string
-	ast.Inspect(d.decl.Body, func(n ast.Node) bool {
+	inspectBody(d.decl, func(n ast.Node) bool {
 		c, ok := n.(*ast.CallExpr)
 		if !ok {
 			return true
@@ -1970,7 +1991,7 @@ func (s *ingressScan) scanDeclVarEvents(pkg *packages.Package, enc *ast.FuncDecl
 		}
 	}
 
-	ast.Inspect(enc.Body, func(n ast.Node) bool {
+	inspectBody(enc, func(n ast.Node) bool {
 		switch node := n.(type) {
 		case *ast.AssignStmt:
 			// Alias binding first: `x := v` / `x.f = v` must register
@@ -2203,7 +2224,7 @@ func (s *ingressScan) scanCalleeParamWrites(pkg *packages.Package, fn *types.Fun
 					return false
 				}
 				found := false
-				ast.Inspect(fd.Body, func(n ast.Node) bool {
+				inspectBody(fd, func(n ast.Node) bool {
 					as, ok := n.(*ast.AssignStmt)
 					if !ok {
 						return true

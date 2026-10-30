@@ -3,7 +3,7 @@
 ## 1. Overview and Motivation
 
 In the current baseline evaluation (`eval/README.md` and `eval/corpus-real.json`), several cases terminate in `INCONCLUSIVE` against `govulncheck`'s `reachable` reports:
-1. `real-micro-pkg-6443` (advisory `GO-2026-6443`): The defect locus is `google.golang.org/grpc/internal/xds/server.RouteAndProcess`. The product imports `google.golang.org/grpc/xds` for bootstrap/client types, which links the `internal/xds/server` package into the build graph. The current analyzer only checks for total package absence (`locus-package-absent`). When the package is linked but the function is uncalled, it stops at `INCONCLUSIVE`.
+1. `real-service-pkg-6443` (advisory `GO-2026-6443`): The defect locus is `google.golang.org/grpc/internal/xds/server.RouteAndProcess`. The product imports `google.golang.org/grpc/xds` for bootstrap/client types, which links the `internal/xds/server` package into the build graph. The current analyzer only checks for total package absence (`locus-package-absent`). When the package is linked but the function is uncalled, it stops at `INCONCLUSIVE`.
 2. `real-yaml-const`, `real-yaml3-const`, `real-protojson-const` (advisories `GO-2021-0061`, `GO-2022-0603`, `GO-2024-2611`): The product passes compile-time constants (e.g. `[]byte(baseline)`) to `yaml.Unmarshal` or `protojson.Unmarshal`. The provenance engine resolves the input bytes to `CONSTANT`, but because the parser internally uses `reflect` to decode into the target struct `out`, `ingress.go` flags reflective operations in the decoding cone as untrusted/unresolved, demoting the claim to `INCONCLUSIVE`.
 
 In ground truth, all four cases are completely unexploitable (`NO_EXPLOIT_PATH_FOUND`). This design adds deterministic falsifiers and negative verifications to prove safety in both scenarios without violating the `false-safe=0` invariant.
@@ -74,7 +74,7 @@ In ground truth, all four cases are completely unexploitable (`NO_EXPLOIT_PATH_F
    - `internal/goanalysis/ingress_test.go`: Test that constant payload passed to `yaml.Unmarshal` or `protojson.Unmarshal` is not invalidated by internal decoding reflection.
 
 2. **Corpus Verification**:
-   - Run `real-micro-pkg-6443` -> must output `NO_EXPLOIT_PATH_FOUND` (`cleared: ДА`).
+   - Run `real-service-pkg-6443` -> must output `NO_EXPLOIT_PATH_FOUND` (`cleared: ДА`).
    - Run `real-yaml-const`, `real-yaml3-const`, `real-protojson-const` -> must output `NO_EXPLOIT_PATH_FOUND` (`cleared: ДА`).
    - Run full 38-case real corpus -> cleared rate increases to 19/38, with `false-safe = 0`.
    - Run standard regression suite: `gofmt`, `go vet ./...`, `go test ./...`.

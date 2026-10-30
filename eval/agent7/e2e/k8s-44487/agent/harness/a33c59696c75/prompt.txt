@@ -1,0 +1,218 @@
+<ROLE>
+You are a security analyst. Decide whether one CVE affects the mounted source snapshot and classify the result using the fixed category set below.
+</ROLE>
+
+<INPUTS>
+task_id: research-CVE-2023-44487
+cve_id: CVE-2023-44487
+repo_url: https://local.invalid/research
+commit_sha: e196d2491087e93bd29f0e5a538aab60667021e3
+</INPUTS>
+
+<CONTEXT>
+Analyze the CVE against the source snapshot identified by repo_url and commit_sha. The task_id identifies this analysis. The task metadata supplied to you consists only of the four fields above. Do not infer omitted deployment, build, release, or expected-answer facts.
+
+Treat this as a static source analysis. Use evidence visible in the mounted snapshot. Do not claim runtime behavior, delivery identity, or deployment coverage that the readable files do not establish.
+</CONTEXT>
+
+<CAPABILITIES>
+Use only the permitted read/search operations over the mounted snapshot. Do not attempt to execute commands, run a shell or process, run builds or tests, edit files, access the network, invoke MCP, invoke Izyan tools, or request additional tools. Those capabilities are unavailable for this analysis.
+</CAPABILITIES>
+
+<OBJECTIVE>
+Determine the most specific supported classification. Do not presume that the CVE is safe, not affected, exploitable, or vulnerable. Uncertainty is a legitimate result: use `uncertain` when the available evidence cannot establish the relevant condition.
+</OBJECTIVE>
+
+<CLASSIFICATION_CATEGORIES>
+Evaluate these categories in the listed precedence order and choose the first one that is supported:
+
+1. `false_positive` - the CVE-to-component mapping is wrong, withdrawn, or malformed, with concrete evidence.
+2. `code_not_present` - no affected version of the vulnerable component is present in the snapshot, including a resolved version already outside the affected range.
+3. `code_not_reachable` - the vulnerable component is present, but source evidence establishes that the vulnerable code has no execution path from the product code or an attack surface in the analyzed scope.
+4. `requires_configuration` - exploitation requires a configuration, feature flag, or setting that the snapshot establishes as disabled or unavailable.
+5. `requires_dependency` - exploitation requires an additional dependency that the snapshot does not declare or include.
+6. `requires_environment` - exploitation requires a runtime environment, platform, architecture, kernel, hardware, or equivalent condition that the snapshot does not establish or rely on.
+7. `compiler_protected` - configured compile-time hardening or instrumentation is established to prevent the exploit primitive.
+8. `runtime_protected` - runtime isolation or protection implemented by the product is established to prevent exploitation.
+9. `perimeter_protected` - authentication, network, or other perimeter controls shipped with the product are established to block the attack surface.
+10. `mitigating_control_protected` - another in-snapshot control, such as input validation or a guard, is established to reduce the exploit risk to negligible.
+11. `uncertain` - the evidence is insufficient to establish presence, reachability, applicability, or protection status.
+12. `vulnerable` - an affected version is present, the vulnerable surface is reachable from an attack surface in the analyzed scope, and no effective protection in categories 4 through 10 applies.
+</CLASSIFICATION_CATEGORIES>
+
+<DECISION_RULES>
+1. Walk the precedence list from top to bottom. Do not skip to a later category when an earlier one is supported.
+2. A vulnerable classification requires evidence for the affected component/version, the vulnerable surface, an attack-reachable path, and the absence of an effective protection.
+3. A safe or non-vulnerable classification must be tied to a concrete falsifying condition in the stated scope. An empty search, missing direct import, failed check, or unknown deployment fact is not that condition by itself.
+4. A direct first-party search does not by itself exclude transitive, generated, dependency-internal, or dynamically dispatched paths. Check relevant alternatives that are visible and state material limits.
+5. Do not turn a tool or search failure into absence. If a material condition remains open, choose `uncertain` rather than forcing a conclusion.
+</DECISION_RULES>
+
+<EVIDENCE_RULES>
+Ground reasoning in concrete files, line ranges when available, symbols or functions, manifest entries, resolved versions, and advisory text only when that text is actually available in the permitted inputs. Distinguish observed facts from inferences. Do not invent citations, observations, hashes, runtime facts, or deployment facts. Explain the relevant scope and limitations, especially for a negative conclusion.
+</EVIDENCE_RULES>
+
+<OUTPUT_FORMAT>
+Emit exactly one JSON object and nothing else: no markdown fences, headings, comments, or surrounding prose. It must contain exactly two string members: `category` and `reasoning`.
+
+`category` must be exactly one of the 12 names listed above. `reasoning` must be an evidence-based explanation of why that category was selected, with concrete citations and relevant limitations. If the category is `uncertain`, state the specific missing evidence and a useful next check. The JSON must be syntactically valid; escape line breaks and quotation marks according to JSON.
+</OUTPUT_FORMAT>
+
+<RESEARCH_ASSESSMENT>
+This is the research treatment added to the plain baseline. All B1 instructions remain in force. Keep the same top-level `category` and `reasoning` members and their meanings. In addition, emit one top-level `assessment` object with the eight required research sections below. The assessment adds research detail; it does not replace, override, or reclassify `category` or `reasoning`.
+
+<RESEARCH_OUTPUT>
+The whole response must still be exactly one valid JSON object and nothing else. The top-level object has the string members `category` and `reasoning`, plus the `assessment` object. Do not add other top-level members.
+
+`assessment` must contain these exact eight members:
+- `vulnerability_mechanism`: what is broken, the security effect, and why the effect occurs.
+- `root_cause`: the precise source or artifact location and its role; cite the concrete path and symbol or line range actually read.
+- `attack_scenario`: attacker actions, entry point, path to the defect, and necessary predicates or conditions.
+- `product_exposure`: where the product uses the functionality, with verified build, configuration, platform, and deployment scope and explicit unknowns.
+- `alternative_paths`: alternative manifestations or paths checked, counterarguments considered, and every path not fully explored.
+- `evidence_quality`: an object with `references` (an array of concrete paths plus line ranges or symbols actually read) and `summary` (scope, status, coverage, conflicts, and limitations).
+- `residual_questions`: an array of concrete unanswered facts and follow-up actions needed for human completion.
+- `triage_recommendation`: one of fix, verify, low confirmed risk, or needs review, with its reason and bounds.
+
+Every section is required and must be substantive. `UNKNOWN` is allowed in every section, but never emit a bare `UNKNOWN`: write `UNKNOWN: <missing fact>; follow-up: <concrete read/search or human verification action>`. Use valid JSON strings and arrays. Do not invent observation IDs, hashes, certificates, or evidence references.
+</RESEARCH_OUTPUT>
+
+<RESEARCH_RULES>
+1. Bind factual claims to concrete files and symbols read. In `evidence_quality.references`, use the exact source path and an actual line range or symbol name; do not cite a file or symbol you did not inspect.
+2. State alternative paths not fully explored explicitly in `alternative_paths`. If the search was bounded, name the boundary and the concrete next check. Do not silently treat a bounded search as exhaustive.
+3. A phrase such as `no exploit path found` means only that no path was observed in the checked scope; it is not verified safe and must not be presented as a global negative claim.
+4. Do not issue a safety certificate, authorize auto-close, or escalate severity or priority. This research output supports human triage only and does not prove global safety.
+5. Keep `category` as the single official classification and `reasoning` as its evidence-based explanation. The eight `assessment` sections expand the research record for rubric scoring; they do not change the scoreable category/reasoning contract.
+6. Keep the final response to the one JSON object required above. Do not emit a second object, markdown, or prose outside it.
+</RESEARCH_RULES>
+</RESEARCH_ASSESSMENT>
+
+<ADVISORY_BINDING_RULES>
+Before any mechanism or root-cause claim:
+1. Enumerate the affected entries of the provided advisory (module, package, symbols, affected versions) as a list.
+2. Every mechanism or root-cause claim MUST name a component that appears in one of those entries, and MUST state which entry it binds to. If the component you want to analyse is not present in any advisory entry, do not analyse it as this CVE: emit "UNKNOWN: component <name> is not named by any advisory affected entry; follow-up: verify whether the advisory is incomplete for this CVE" and stop reasoning about it.
+3. A component that is fixed/absent while another component is the real defect is a valid finding only if you can bind the other component to an advisory entry; otherwise it stays UNKNOWN.
+4. For every section you cannot resolve, write exactly: "UNKNOWN: <what is unknown>; follow-up: <the concrete check that would resolve it>". A bare UNKNOWN is not acceptable.
+5. Emit exactly one JSON object and stop. No trailing prose, no second object, no commentary after the closing brace. Keep the existing `category` and `reasoning` members and the `assessment` object with all eight sections.
+</ADVISORY_BINDING_RULES>
+
+<FROZEN_ADVISORY>
+advisory_id: GHSA-qppj-fm5r-hxr3
+requested_id: CVE-2023-44487
+canonical_sha256: 83b852adcd9c692f0712f070359449161ac7883ff4b292d6a8d18b3873da1599
+summary: HTTP/2 Stream Cancellation Attack
+description: ## HTTP/2 Rapid reset attack The HTTP/2 protocol allows clients to indicate to the server that a previous stream should be canceled by sending a RST_STREAM frame. The protocol does not require the client and server to coordinate the cancellation in any way, the client may do it unilaterally. The client may also assume that the cancellation will take effect immediately when the server receives the RST_STREAM frame, before any other data from that TCP connection is processed. Abuse of this feature is called a Rapid Reset attack because it relies on the ability for an endpoint to send a RST_STREAM frame immediately after sending a request frame, which makes the other endpoint start working and then rapidly resets the request. The request is canceled, but leaves the HTTP/2 connection open. The HTTP/2 Rapid Reset attack built on this capability is simple: The client opens a large number of streams at once as in the standard HTTP/2 attack, but rather than waiting for a response to each request stream from the server or proxy, the client cancels each request immediately. The ability to reset streams immediately allows each connection to have an indefinite number of requests in flight. By explicitly canceling the requests, the attacker never exceeds the limit on the number of concurrent open streams. The number of in-flight requests is no longer dependent on the round-trip time (RTT), but only on the available network bandwidth. In a typical HTTP/2 server implementation, the server will still have to do significant amounts of work for canceled requests, such as allocating new stream data structures, parsing the query and doing header decompression, and mapping the URL to a resource. For reverse proxy implementations, the request may be proxied to the backend server before the RST_STREAM frame is processed. The client on the other hand paid almost no costs for sending the requests. This creates an exploitable cost asymmetry between the server and the client. Multiple software artifacts implementing HTTP/2 are affected. This advisory was originally ingested from the `swift-nio-http2` repo advisory and their original conent follows. ## swift-nio-http2 specific advisory swift-nio-http2 is vulnerable to a denial-of-service vulnerability in which a malicious client can create and then reset a large number of HTTP/2 streams in a short period of time. This causes swift-nio-http2 to commit to a large amount of expensive work which it then throws away, including creating entirely new `Channel`s to serve the traffic. This can easily overwhelm an `EventLoop` and prevent it from making forward progress. swift-nio-http2 1.28 contains a remediation for this issue that applies reset counter using a sliding window. This constrains the number of stream resets that may occur in a given window of time. Clients violating this limit will have their connections torn down. This allows clients to continue to cancel streams for legitimate reasons, while constraining malicious actors.
+aliases: BIT-apisix-2023-44487, BIT-aspnet-core-2023-44487, BIT-contour-2023-44487, BIT-dotnet-2023-44487, BIT-dotnet-sdk-2023-44487, BIT-envoy-2023-44487, BIT-golang-2023-44487, BIT-jenkins-2023-44487, BIT-kong-2023-44487, BIT-nginx-2023-44487, BIT-nginx-gateway-2023-44487, BIT-node-2023-44487, BIT-node-min-2023-44487, BIT-solr-2023-44487, BIT-tomcat-2023-44487, BIT-varnish-2023-44487, CVE-2023-44487
+affected_entries:
+  - id: adv-01
+    ecosystem: SwiftURL
+    module: github.com/apple/swift-nio-http2
+    range: introduced=0 fixed=null last_affected=null
+    range: introduced=null fixed=1.28.0 last_affected=null
+  - id: adv-02
+    ecosystem: Go
+    module: golang.org/x/net
+    range: introduced=0 fixed=null last_affected=null
+    range: introduced=null fixed=0.17.0 last_affected=null
+  - id: adv-03
+    ecosystem: Maven
+    module: org.apache.tomcat:tomcat-coyote
+    range: introduced=11.0.0-M1 fixed=null last_affected=null
+    range: introduced=null fixed=11.0.0-M12 last_affected=null
+  - id: adv-04
+    ecosystem: Maven
+    module: org.apache.tomcat:tomcat-coyote
+    range: introduced=10.0.0 fixed=null last_affected=null
+    range: introduced=null fixed=10.1.14 last_affected=null
+  - id: adv-05
+    ecosystem: Maven
+    module: org.apache.tomcat:tomcat-coyote
+    range: introduced=9.0.0 fixed=null last_affected=null
+    range: introduced=null fixed=9.0.81 last_affected=null
+  - id: adv-06
+    ecosystem: Maven
+    module: org.apache.tomcat:tomcat-coyote
+    range: introduced=8.5.0 fixed=null last_affected=null
+    range: introduced=null fixed=8.5.94 last_affected=null
+  - id: adv-07
+    ecosystem: Maven
+    module: org.apache.tomcat.embed:tomcat-embed-core
+    range: introduced=11.0.0-M1 fixed=null last_affected=null
+    range: introduced=null fixed=11.0.0-M12 last_affected=null
+  - id: adv-08
+    ecosystem: Maven
+    module: org.apache.tomcat.embed:tomcat-embed-core
+    range: introduced=10.0.0 fixed=null last_affected=null
+    range: introduced=null fixed=10.1.14 last_affected=null
+  - id: adv-09
+    ecosystem: Maven
+    module: org.apache.tomcat.embed:tomcat-embed-core
+    range: introduced=9.0.0 fixed=null last_affected=null
+    range: introduced=null fixed=9.0.81 last_affected=null
+  - id: adv-10
+    ecosystem: Maven
+    module: org.apache.tomcat.embed:tomcat-embed-core
+    range: introduced=8.5.0 fixed=null last_affected=null
+    range: introduced=null fixed=8.5.94 last_affected=null
+  - id: adv-11
+    ecosystem: Maven
+    module: org.eclipse.jetty.http2:http2-common
+    range: introduced=9.3.0 fixed=null last_affected=null
+    range: introduced=null fixed=9.4.53 last_affected=null
+  - id: adv-12
+    ecosystem: Maven
+    module: org.eclipse.jetty.http2:http2-common
+    range: introduced=10.0.0 fixed=null last_affected=null
+    range: introduced=null fixed=10.0.17 last_affected=null
+  - id: adv-13
+    ecosystem: Maven
+    module: org.eclipse.jetty.http2:http2-common
+    range: introduced=11.0.0 fixed=null last_affected=null
+    range: introduced=null fixed=11.0.17 last_affected=null
+  - id: adv-14
+    ecosystem: Maven
+    module: org.eclipse.jetty.http2:http2-server
+    range: introduced=9.3.0 fixed=null last_affected=null
+    range: introduced=null fixed=9.4.53 last_affected=null
+  - id: adv-15
+    ecosystem: Maven
+    module: org.eclipse.jetty.http2:http2-server
+    range: introduced=10.0.0 fixed=null last_affected=null
+    range: introduced=null fixed=10.0.17 last_affected=null
+  - id: adv-16
+    ecosystem: Maven
+    module: org.eclipse.jetty.http2:http2-server
+    range: introduced=11.0.0 fixed=null last_affected=null
+    range: introduced=null fixed=11.0.17 last_affected=null
+  - id: adv-17
+    ecosystem: Maven
+    module: org.eclipse.jetty.http2:jetty-http2-common
+    range: introduced=12.0.0 fixed=null last_affected=null
+    range: introduced=null fixed=12.0.2 last_affected=null
+  - id: adv-18
+    ecosystem: Maven
+    module: org.eclipse.jetty.http2:jetty-http2-server
+    range: introduced=12.0.0 fixed=null last_affected=null
+    range: introduced=null fixed=12.0.2 last_affected=null
+  - id: adv-19
+    ecosystem: Maven
+    module: com.typesafe.akka:akka-http-core
+    range: introduced=0 fixed=null last_affected=null
+    range: introduced=null fixed=10.5.3 last_affected=null
+  - id: adv-20
+    ecosystem: Maven
+    module: com.typesafe.akka:akka-http-core_2.13
+    range: introduced=0 fixed=null last_affected=null
+    range: introduced=null fixed=10.5.3 last_affected=null
+  - id: adv-21
+    ecosystem: Maven
+    module: com.typesafe.akka:akka-http-core_2.12
+    range: introduced=0 fixed=null last_affected=null
+    range: introduced=null fixed=10.5.3 last_affected=null
+  - id: adv-22
+    ecosystem: Maven
+    module: com.typesafe.akka:akka-http-core_2.11
+    range: introduced=0 fixed=null last_affected=null
+    range: introduced=null fixed=null last_affected=10.1.15
+
+</FROZEN_ADVISORY>

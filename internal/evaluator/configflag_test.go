@@ -6,6 +6,17 @@ import (
 	"github.com/fedorovmv/izyan/internal/domain"
 )
 
+func TestConfigWriterObservationDoesNotProveSafety(t *testing.T) {
+	c := &domain.AnalysisCase{Product: admittedProduct()}
+	key := "crypto/tls.Config.InsecureSkipVerify"
+	c.EvidenceGraph.AddConfigWriters(key, domain.ConfigWriterEvidence{
+		Subject: domain.SymbolRef{Package:"crypto/tls",Symbol:"Config.InsecureSkipVerify"}, FieldType:"bool",
+		Objects: []domain.ConfigObject{{ID:"local", Events:[]domain.ConfigWriterEvent{{Kind:"default",Value:"false",ValueSource:"literal"}}}},
+	})
+	cl := ConfigFlag{}.Evaluate(tlsCond(), c)
+	if cl.Result != domain.ClaimUnknown { t.Fatalf("writer observation became safety authority: %+v", cl) }
+}
+
 func tlsCond() domain.Condition {
 	return domain.Condition{
 		ID:   "C-TLS-VERIFY",
@@ -20,7 +31,7 @@ func tlsCond() domain.Condition {
 }
 
 func TestConfigFlagInsecureAssignment(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	key := "crypto/tls.Config.InsecureSkipVerify"
 	c.EvidenceGraph.AddConfigFlag(key, domain.ConfigAssignment{
 		Subject: key, Value: "true", Source: "literal",
@@ -32,32 +43,32 @@ func TestConfigFlagInsecureAssignment(t *testing.T) {
 	}
 }
 
-func TestConfigFlagSafeAssignmentFalse(t *testing.T) {
-	c := &domain.AnalysisCase{}
+func TestConfigFlagSafeAssignmentUnknown(t *testing.T) {
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	key := "crypto/tls.Config.InsecureSkipVerify"
 	c.EvidenceGraph.AddConfigFlag(key, domain.ConfigAssignment{
 		Subject: key, Value: "false", Source: "literal",
 		CallSite: domain.CallSite{File: "x.go", Line: 3},
 	})
 	cl := ConfigFlag{}.Evaluate(tlsCond(), c)
-	if cl.Result != domain.ClaimFalse {
+	if cl.Result != domain.ClaimUnknown {
 		t.Fatalf("result=%s", cl.Result)
 	}
 }
 
 func TestConfigFlagNeverSetBoolZeroValue(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	key := "crypto/tls.Config.InsecureSkipVerify"
 	c.EvidenceGraph.AddConfigFlag(key) // checked, none found
 	c.EvidenceGraph.AddConfigFieldKind(key, "bool")
 	cl := ConfigFlag{}.Evaluate(tlsCond(), c)
-	if cl.Result != domain.ClaimFalse {
+	if cl.Result != domain.ClaimUnknown {
 		t.Fatalf("result=%s lim=%v", cl.Result, cl.Limitations)
 	}
 }
 
 func TestConfigFlagNeverSetUnknownKind(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	key := "crypto/tls.Config.InsecureSkipVerify"
 	c.EvidenceGraph.AddConfigFlag(key)
 	cl := ConfigFlag{}.Evaluate(tlsCond(), c)
@@ -67,7 +78,7 @@ func TestConfigFlagNeverSetUnknownKind(t *testing.T) {
 }
 
 func TestConfigFlagNonLiteral(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	key := "crypto/tls.Config.InsecureSkipVerify"
 	c.EvidenceGraph.AddConfigFlag(key, domain.ConfigAssignment{
 		Subject: key, CallSite: domain.CallSite{File: "x.go", Line: 3},
@@ -88,21 +99,21 @@ func TestConfigKeyEvaluation(t *testing.T) {
 			domain.ParamInsecure:  "true",
 		},
 	}
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.EvidenceGraph.AddConfigItem(domain.ConfigItem{Key: "server.debug", Value: "true", File: "app.yaml", Line: 4})
 	cl := ConfigFlag{}.Evaluate(cond, c)
 	if cl.Result != domain.ClaimTrue {
 		t.Fatalf("result=%s", cl.Result)
 	}
 
-	c2 := &domain.AnalysisCase{}
+	c2 := &domain.AnalysisCase{Product: admittedProduct()}
 	c2.EvidenceGraph.AddConfigItem(domain.ConfigItem{Key: "server.debug", Value: "false"})
 	cl = ConfigFlag{}.Evaluate(cond, c2)
-	if cl.Result != domain.ClaimFalse {
+	if cl.Result != domain.ClaimUnknown {
 		t.Fatalf("safe value: result=%s", cl.Result)
 	}
 
-	cl = ConfigFlag{}.Evaluate(cond, &domain.AnalysisCase{})
+	cl = ConfigFlag{}.Evaluate(cond, &domain.AnalysisCase{Product: admittedProduct()})
 	if cl.Result != domain.ClaimUnknown {
 		t.Fatalf("no items: result=%s", cl.Result)
 	}
@@ -118,11 +129,8 @@ func TestConfigFlagPackageAbsent(t *testing.T) {
 			domain.ParamConfigSymbol:  "NewGRPCServer",
 		},
 	}
-	c := &domain.AnalysisCase{}
-	c.EvidenceGraph.Evidence = append(c.EvidenceGraph.Evidence, domain.Evidence{
-		ID: "EV-PKGS", Kind: domain.EvidencePackageList,
-		Content: `{"ImportPath":"example.com/app"}{"ImportPath":"google.golang.org/grpc"}`,
-	})
+	c := &domain.AnalysisCase{Product: admittedProduct()}
+	addCompletePackageList(c, `{"ImportPath":"example.com/app"}{"ImportPath":"google.golang.org/grpc"}`)
 	cl := ConfigFlag{}.Evaluate(cond, c)
 	if cl.Result != domain.ClaimFalse || cl.Falsifier != domain.FalsifierPackageAbsent {
 		t.Fatalf("got claim=%+v, want FALSE package-absent", cl)

@@ -1,0 +1,60 @@
+{
+  "schema": "captured-source-manifest/1",
+  "note": "Provenance for the worked-case fixtures. Every digest is over the exact fixture bytes; the test re-verifies each one before any analysis runs, and it verifies every normalized capture field against the anchor text of the raw capture it was derived from. No publisher quotation is manufactured here: the normalized document is an extraction from the captured page, and the anchors are substrings of it.",
+  "sources": [
+    {
+      "role": "publisher-advisory-raw",
+      "uri": "https://github.com/grpc/grpc-go/security/advisories/GHSA-m425-mq94-257g",
+      "path": "grpc-publisher-advisory.html",
+      "sha256": "sha256:7cb79233e8514ecb82bfef7b76a9e07c2c5f0345274b0dadc9b8c15728915f00",
+      "retrieved_at": "2026-10-26T15:21:00Z",
+      "content_type": "text/html"
+    },
+    {
+      "role": "publisher-advisory-normalized",
+      "uri": "https://github.com/grpc/grpc-go/security/advisories/GHSA-m425-mq94-257g",
+      "path": "grpc-publisher-advisory.json",
+      "sha256": "sha256:e966035413d3214956c488660891bdc300f01b43526d284acc967ec15a064b4f",
+      "derived_from": "grpc-publisher-advisory.html",
+      "derivation": [
+        {
+          "field": "advisory_id",
+          "value": "GHSA-m425-mq94-257g",
+          "anchor": "GHSA-m425-mq94-257g"
+        },
+        {
+          "field": "cve_ids[0]",
+          "value": "CVE-2023-44487",
+          "anchor": "CVE-2023-44487"
+        },
+        {
+          "field": "module",
+          "value": "google.golang.org/grpc",
+          "anchor": "google.golang.org/grpc"
+        },
+        {
+          "field": "repository",
+          "value": "github.com/grpc/grpc-go",
+          "anchor": "grpc/grpc-go"
+        },
+        {
+          "field": "fix_refs[0]",
+          "value": "https://github.com/grpc/grpc-go/pull/6703",
+          "anchor": "pull/6703"
+        }
+      ]
+    },
+    {
+      "role": "fix-patch",
+      "uri": "https://github.com/grpc/grpc-go/commit/f2180b4d5403d2210b30b93098eb7da31c05c721",
+      "path": "grpc-handler-quota.patch",
+      "sha256": "sha256:ad694cac7672ec2a119b7ecfafbd5dc6a7d3b9877b519e9fbc56aa4bbdad79fa",
+      "retrieved_at": "2026-10-26T15:21:00Z",
+      "content_type": "text/x-diff",
+      "enforcement": [
+        "atomicSemaphore",
+        "newHandlerQuota"
+      ]
+    }
+  ]
+}

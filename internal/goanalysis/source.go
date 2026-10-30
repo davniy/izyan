@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
+	"go/parser"
 	"go/token"
 	"go/types"
 	"os"
@@ -13,6 +14,8 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
+	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -20,11 +23,26 @@ import (
 	"golang.org/x/tools/go/packages"
 
 	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/fedorovmv/izyan/internal/readgate"
 )
 
 // ErrSymbolNotFoundInPackage indicates that the package was loaded and typed,
 // but the requested symbol does not exist in that package version.
 var ErrSymbolNotFoundInPackage = errors.New("symbol not found in package")
+
+// ErrAmbiguousSymbol indicates the bare (unqualified) symbol name denotes
+// more than one declaration in the resolved package — absence is not
+// proven either way, so callers must treat it as an open result, never
+// as not-found.
+var ErrAmbiguousSymbol = errors.New("symbol name is ambiguous in package")
+
+// ErrSnapshotMutated reports that a product or dependency source changed on
+// disk after the index loaded it. The loaded AST, type information and
+// importer census describe the pre-mutation bytes, so no scope, closure or
+// unreachability answer may be derived from them: every affected query fails
+// closed and the caller must reload the snapshot (a fresh Index) before any
+// verdict is computed.
+var ErrSnapshotMutated = errors.New("snapshot mutated after load")
 
 // Index is a lazily loaded go/packages view of the analyzed product.
 // It backs the targeted source tools (find_symbol, find_callers,
@@ -41,6 +59,9 @@ type Index struct {
 	// use. Set it before the first query — reconfiguring mid-analysis is
 	// not supported.
 	KB *Knowledge
+	// moduleUsageOverride is a hermetic seam for unreachability tests. When set,
+	// module entry enumeration uses it instead of loading product usage.
+	moduleUsageOverride func(context.Context, string) ([]domain.CallSite, error)
 	// hopLimit overrides the default caller-climb bound during a single
 	// TraceArgumentBound call; 0 = maxTraceHops.
 	hopLimit int
@@ -88,6 +109,11 @@ type Index struct {
 	// trace-scoped). Without it the caller fan-out re-walks the same
 	// (expr, enc, depth) subtrees exponentially.
 	classifyCache map[classifyKey]classifyResult
+	// dispatch predicate caches avoid repeated whole-linked-AST walks.
+	// They are cleared whenever extras generation changes.
+	methodDispatchCache map[string]bool
+	reflectLookupCache  map[string]bool
+	marshalAPICache     map[string]bool
 	// assignCache memoizes localAssigns scans per (function, object);
 	// callListCache memoizes the call-list walk in populatedByCall per
 	// function. Both hold AST pointers — bounded like the other caches.
@@ -125,10 +151,40 @@ type Index struct {
 	// principle — past the budget the origin degrades to UNKNOWN rather
 	// than burning unbounded time. 0 = inactive.
 	evalBudget int
-	// loadBudget bounds total packages.Load calls during a closure query session;
-	// 0 = unconstrained. loadBudgetExhausted tracks when the budget was depleted.
+	// loadBudget bounds total packages.Load calls during one closure query;
+	// 0 = unconstrained. loadBudgetExhausted is the query-scoped depletion
+	// flag — a scoped query restores its own budget so the next query can
+	// load again, which is why the session-scoped evidence lives in
+	// sessionTruncations instead.
 	loadBudget          int
 	loadBudgetExhausted bool
+	// sessionTruncations records, sorted and deduplicated, the named
+	// budget truncations this index observed while verifying one product
+	// advisory — the session-scoped evidence that dependency coverage was
+	// cut short. Entries are never removed inside a session: restoring a
+	// query-scoped load budget must not turn a truncated session back into
+	// a complete-looking one, so every completeness claim that could cover
+	// the truncated region reads it through budgetTruncatedLocked /
+	// LoadBudgetExhausted / BudgetLimitations.
+	sessionTruncations []string
+	// sessionCaseID identifies the advisory that opened the verification
+	// session owning sessionTruncations. One index is shared across
+	// advisories in scan/eval mode (eval runs cases concurrently), so the
+	// record is append-only for the index lifetime: a truncation recorded by
+	// any case stays visible to every later query rather than being reset on
+	// a case switch, which a concurrent second case would otherwise do
+	// between the first case's queries and silently restore completeness.
+	sessionCaseID domain.CaseID
+	// sessionShared records that more than one case used this index without
+	// a stable per-case binding. Truncation evidence then belongs to the
+	// index, not to a case, and stays sticky for the whole index lifetime.
+	sessionShared bool
+	// loadedFingerprint is the snapshot content fingerprint captured at load
+	// time. A later query recomputes the fingerprint and fails closed with
+	// ErrSnapshotMutated when it moved: the loaded AST, types and importer
+	// census describe the pre-mutation bytes, so rebuilding a scope from
+	// them would publish DEAD/Complete over sources nobody analyzed.
+	loadedFingerprint string
 	// funcDeclCache memoizes function-declaration lookups — uncached,
 	// each dep-internal call trace re-walks every file of the callee's
 	// package.
@@ -144,7 +200,13 @@ type Index struct {
 	fieldWritesCache map[*types.Var]cachedFieldWrites
 	fieldOriginCache map[fieldOriginKey]cachedFieldOrigin
 	mu               sync.Mutex // serializes queries; shared across cases in scan mode
-	pkgs             []*packages.Package
+	// boundCtx/boundSet record the build context the index actually loaded
+	// and queries under. They are set by BindBuild or captured at the first
+	// load; any later mutation of the public Build field fails the guard
+	// instead of relabelling already-loaded ASTs.
+	boundCtx domain.BuildContext
+	boundSet bool
+	pkgs     []*packages.Package
 	// extraPkgs caches dependency packages loaded on demand via loadExtra
 	// (keyed by package path), so dep-internal scans (call sites, provenance)
 	// can reuse their syntax without re-running packages.Load. extraOrder
@@ -177,19 +239,31 @@ type Index struct {
 	fvIdx        map[*packages.Package]*fvPkgIndex
 	fvIdxGen     int
 	fvBuildDepth int
-	// callersIn guards against recursive caller scans — a scan for the
-	// same key mid-flight returns empty rather than looping.
-	callersIn map[callerKey]bool
-	extrasGen int
+	callersIn    map[callerKey]bool
+	extrasGen    int
 	// lastFreeOS throttles the post-eviction FreeOSMemory sweep — it is
 	// a full GC plus madvise, far too expensive to run per load.
-	lastFreeOS     time.Time
-	fset           *token.FileSet
-	loaded         bool
-	loadErr        error
-	skippedImports map[string][]string
-	modCacheOnce   sync.Once
-	modCache       string
+	lastFreeOS time.Time
+	fset       *token.FileSet
+	loaded     bool
+	loadErr    error
+	// skippedUnscanned lists failed product packages whose import set
+	// could not be recovered even syntactically — their edges are fully
+	// invisible, so no negative query can call the scope closed.
+	// skipped is the canonical structured record behind both: every
+	// product package dropped from typed scans appears exactly once,
+	// with recovered imports and the loader's own error text.
+	skippedUnscanned []string
+	skippedImports   map[string][]string
+	skipped          []SkippedPackage
+	// skippedPkgs retains the raw *packages.Package of every product
+	// package dropped by load(): the shipping-scope builder needs their
+	// declared name (a failed package can still be a `main` package and
+	// therefore a shipping root), their package clauses and their partial
+	// syntax. Keyed by the same path spelling skippedImports reports.
+	skippedPkgs  map[string]*packages.Package
+	modCacheOnce sync.Once
+	modCache     string
 	// importers caches the reverse import index of the full dependency
 	// closure for depSiteLive's cross-module-caller bound (lazily built,
 	// no syntax — import edges only).
@@ -198,22 +272,240 @@ type Index struct {
 	// to its owning module path ("" = stdlib) — built in the same "all"
 	// load as importers.
 	pkgModules map[string]string
+	// importEdges caches the forward import edges of the same "all" load —
+	// the transitive closure walk EnumerateImportClosure performs starts
+	// from these edges.
+	importEdges map[string][]string
+	// pkgMeta records per-package facts of the same "all" load needed to
+	// judge closure completeness and hidden edge-forging mechanisms:
+	// source dir, build-selected Go files, cgo/plugin imports, vendor
+	// residency and whether the package carried load errors (its edge set
+	// is then untrusted).
+	pkgMeta map[string]closurePkgMeta
+	// importerLoads counts "all" dependency-graph loads — one per index is
+	// the reuse contract EnumerateImportClosure depends on.
+	importerLoads int
+	// scopeCachePackage/scopeCacheFull memoize the shipping-scope
+	// construction — package graph alone, and package+function graph — for
+	// the loaded snapshot. Both are deterministic functions of the loaded
+	// product packages (extras never enter the scope), so one construction
+	// serves every subject, condition and case of the session. A
+	// construction interrupted by the caller's context is never published:
+	// a partially built scope must not later read as complete.
+	scopeCachePackage *unreachabilityScope
+	scopeCacheFull    *unreachabilityScope
+	// scopeCacheFingerprint is the content fingerprint of the snapshot the
+	// memoized scope was built over (see snapshotFingerprintLocked); a
+	// moved fingerprint drops both cached halves instead of serving a
+	// verdict set derived from different source bytes or inventory.
+	scopeCacheFingerprint string
+	// scopePackageBuilds/scopeFunctionBuilds count real constructions
+	// (cache misses), the observable behind the scope-reuse regression
+	// tests.
+	scopePackageBuilds  int
+	scopeFunctionBuilds int
+	// productShapeCache memoizes the product-shape census — module
+	// ownership, the manifest-aware non-test source inventory and the
+	// classification derived from them — for the loaded snapshot. The
+	// census is a deterministic function of the manifests, the build
+	// context and the product source bytes; buildProductShapeLocked
+	// revalidates that identity on every public query and drops the entry
+	// when it moves. EvidenceIDs inside the cached shape stay empty: they
+	// are case-scoped and assigned by the collector, never cached.
+	productShapeCache    *productCensus
+	productShapeIdentity string
+	// productShapeBuilds counts published census constructions (cache
+	// misses) — the observable behind the census-reuse tests.
+	productShapeBuilds int
+	// libraryShapeSettled records that the lazy library proof was attempted,
+	// so a non-library product does not rebuild the census on every traced
+	// parameter. libraryPackageSet indexes the proven census by import path
+	// (presence = product-owned, value = importable); it is keyed by the
+	// fingerprint so a moved census cannot serve a stale membership set.
+	libraryShapeSettled       bool
+	libraryPackageFingerprint string
+	libraryPackageSet         map[string]bool
+	// closureCache memoizes the enumerated import closure of the loaded
+	// snapshot; closureCacheKey binds it to the snapshot fingerprint and the
+	// truncation record, so a rewrite, an inventory change or a truncation
+	// recorded afterwards invalidates it instead of hiding inside the cached
+	// Complete verdict. closureMemberInventory is the member directory
+	// inventory the record was enumerated over (detects added/removed files).
+	// Callers always receive a deep copy — the cached value is never handed
+	// out for mutation.
+	closureCache           *ImportClosure
+	closureCacheKey        string
+	closureMemberInventory map[string]string
+	// closureEnumerations counts full enumeration walks (cache misses) and
+	// closureValidations counts cache hits that revalidated member sources
+	// without walking the graph — the honest split behind the closure-reuse
+	// regression tests.
+	closureEnumerations int
+	closureValidations  int
+	// dynScanOverride is a hermetic seam for scoped dynamic-relevance tests.
+	dynScanOverride func(domain.SymbolRef) ([]DynamicMarker, error)
+	// Confine, when set, confines every source read to the analyzed
+	// directory and ConfineRoots — plus the module cache unless
+	// ExcludeAmbientModCache is set (benchmark isolation).
+	// The gate is built once at load time.
+	Confine bool
+	// ConfineRoots lists extra canonical roots allowed under Confine
+	// (e.g. a prepared advisory directory or an explicitly declared
+	// per-run module cache).
+	ConfineRoots []string
+	// ExcludeAmbientModCache keeps the ambient module cache out of the
+	// confinement roots: reads stay limited to Dir + ConfineRoots. The
+	// default (false) adds modCacheDir so loaded dependency sources remain
+	// readable; strict agent profiles set it because the host cache may
+	// hold code foreign to the snapshot.
+	ExcludeAmbientModCache bool
+	// ReplaceEnv makes package loading use only buildEnv+Env, without
+	// inheriting the ambient process environment (benchmark isolation).
+	ReplaceEnv bool
+	// gateOnce/gateCache memoize the confinement gate for the index.
+	gateOnce  sync.Once
+	gateCache *readgate.Gate
 }
 
-// buildEnv derives GOOS/GOARCH/CGO env for tool invocations.
-func buildEnv(build domain.ProductSnapshot) []string {
+// gate returns the confinement gate, or nil when Confine is off. The nil
+// gate permits every read, preserving the non-benchmark behaviour.
+func (ix *Index) gate() *readgate.Gate {
+	if !ix.Confine {
+		return nil
+	}
+	ix.gateOnce.Do(func() { ix.gateCache = ix.buildGate() })
+	return ix.gateCache
+}
+
+// buildGate assembles the read gate from the analyzed directory, the module
+// cache (unless excluded) and any extra confined roots.
+func (ix *Index) buildGate() *readgate.Gate {
+	roots := append([]string{ix.Dir}, ix.ConfineRoots...)
+	if !ix.ExcludeAmbientModCache {
+		if mc := ix.modCacheDir(); mc != "" {
+			roots = append(roots, mc)
+		}
+	}
+	return readgate.New(roots...)
+}
+
+// GateRoots returns the canonical roots the confinement gate currently
+// allows — nil when confinement is off. The result is a resolved copy for
+// scope/audit records.
+func (ix *Index) GateRoots() []string {
+	return ix.gate().Roots()
+}
+
+// BindBuild binds one resolved product build to the index. It is
+// synchronized and idempotent:
+//
+//   - a matching context succeeds;
+//   - a different context before the first load replaces the index's build
+//     selection with the resolved snapshot;
+//   - a different context after a load returns ErrBuildContextMismatch and
+//     mutates nothing: a loaded AST is never relabelled.
+func (ix *Index) BindBuild(snap domain.ProductSnapshot) error {
+	ix.mu.Lock()
+	defer ix.mu.Unlock()
+	want := domain.EffectiveBuildContext(snap)
+	if ix.loaded {
+		if !ix.boundSet {
+			ix.boundCtx = domain.EffectiveBuildContext(ix.Build)
+			ix.boundSet = true
+		}
+		if err := ix.boundCtx.Matches(want); err != nil {
+			return fmt.Errorf("bind build: %w", err)
+		}
+		return nil
+	}
+	ix.Build = snap
+	ix.boundCtx = want
+	ix.boundSet = true
+	return nil
+}
+
+// BoundBuildContext returns the build context the index is bound to. A
+// fresh index that has neither loaded nor been bound reports ok=false.
+func (ix *Index) BoundBuildContext() (domain.BuildContext, bool) {
+	ix.mu.Lock()
+	defer ix.mu.Unlock()
+	if !ix.boundSet {
+		return domain.BuildContext{}, false
+	}
+	out := ix.boundCtx
+	out.BuildTags = slices.Clone(out.BuildTags)
+	out.ReplaceDirectives = slices.Clone(out.ReplaceDirectives)
+	return out, true
+}
+
+// checkBuildContextLocked captures the bound context on first use and fails
+// closed when the public Build field no longer matches it. Callers MUST hold
+// ix.mu.
+func (ix *Index) checkBuildContextLocked() error {
+	current := domain.EffectiveBuildContext(ix.Build)
+	if !ix.boundSet {
+		ix.boundCtx = current
+		ix.boundSet = true
+		return nil
+	}
+	if err := ix.boundCtx.Matches(current); err != nil {
+		return fmt.Errorf("build context changed after binding: %w", err)
+	}
+	return nil
+}
+
+// loadEnv assembles the environment for package loading: the ambient (or
+// whitelisted) environment first, then the toolchain policy carried by
+// Index.Env, then the snapshot's resolved build selection — so the last word
+// on GOOS/GOARCH/CGO/workspace/GOFLAGS is the bound build context.
+func (ix *Index) loadEnv() []string {
+	var base []string
+	if ix.ReplaceEnv {
+		// The whitelist keeps an inherited GOWORK/GOFLAGS (or any other
+		// overlay) from widening the load scope.
+		base = ambientLoaderEnv()
+	} else {
+		base = os.Environ()
+	}
+	env := make([]string, 0, len(base)+len(ix.Env)+5)
+	env = append(env, base...)
+	env = append(env, ix.Env...)
+	env = append(env, domain.BuildEnv(ix.Build)...)
+	return env
+}
+
+// loaderEnvWhitelist lists the ambient variables package loading may
+// inherit under ReplaceEnv. Overlay inputs that can retarget the build
+// (GOWORK, GOFLAGS, GOENV, GOEXPERIMENT, GOINSECURE, GOTOOLCHAIN,
+// GOOS/GOARCH/CGO_ENABLED) are never inherited — the caller supplies the
+// allowed overrides through Index.Env. GOCACHE is excluded the same way:
+// the strict session pins it explicitly, so a caller's ambient build
+// cache can never reach the loader. Everything else needed by the go
+// tool (module cache, proxies, HOME) passes through.
+var loaderEnvWhitelist = map[string]bool{
+	"PATH": true, "HOME": true, "USER": true, "LOGNAME": true,
+	"USERPROFILE": true, "HOMEDRIVE": true, "HOMEPATH": true, "APPDATA": true,
+	"TMPDIR": true, "TEMP": true, "TMP": true,
+	"XDG_CACHE_HOME": true, "XDG_CONFIG_HOME": true, "XDG_DATA_HOME": true,
+	"LANG": true, "LC_ALL": true, "LC_CTYPE": true, "TZ": true, "TERM": true,
+	"SystemRoot": true, "COMSPEC": true, "PATHEXT": true,
+	"SSL_CERT_FILE": true, "SSL_CERT_DIR": true,
+	"HTTP_PROXY": true, "HTTPS_PROXY": true, "NO_PROXY": true, "ALL_PROXY": true,
+	"http_proxy": true, "https_proxy": true, "no_proxy": true, "all_proxy": true,
+	"GOPATH": true, "GOMODCACHE": true, "GOROOT": true,
+	"GOPROXY": true, "GOSUMDB": true, "GOPRIVATE": true, "GONOPROXY": true,
+	"GONOSUMDB": true, "GOVCS": true,
+}
+
+// ambientLoaderEnv returns the whitelisted slice of os.Environ.
+func ambientLoaderEnv() []string {
 	var env []string
-	if build.GOOS != "" {
-		env = append(env, "GOOS="+build.GOOS)
+	for _, e := range os.Environ() {
+		k, _, ok := strings.Cut(e, "=")
+		if ok && loaderEnvWhitelist[k] {
+			env = append(env, e)
+		}
 	}
-	if build.GOARCH != "" {
-		env = append(env, "GOARCH="+build.GOARCH)
-	}
-	cgo := "0"
-	if build.CGOEnabled {
-		cgo = "1"
-	}
-	env = append(env, "CGO_ENABLED="+cgo)
 	return env
 }
 
@@ -229,50 +521,189 @@ func buildEnv(build domain.ProductSnapshot) []string {
 const loadMode = packages.NeedName | packages.NeedFiles | packages.NeedSyntax |
 	packages.NeedTypes | packages.NeedTypesInfo | packages.NeedModule
 
+// loadConfig builds the single packages.Config every index load shares:
+// one environment, one flag set, one cancellation context. fset is nil
+// for loads that must not attach the index fileset (the no-syntax
+// importer census; the standalone module-reach load). Centralizing the
+// construction is the guarantee that product roots, dependency extras
+// and census loads cannot silently diverge in GOOS/GOARCH/CGO_ENABLED,
+// vendor mode, build tags or toolchain environment.
+func (ix *Index) loadConfig(mode packages.LoadMode, fset *token.FileSet, ctx context.Context) *packages.Config {
+	cfg := &packages.Config{
+		Mode:    mode,
+		Dir:     ix.Dir,
+		Fset:    fset,
+		Env:     ix.loadEnv(),
+		Context: ix.ctxOr(ctx),
+	}
+	if len(ix.Build.BuildTags) > 0 {
+		cfg.BuildFlags = []string{"-tags", strings.Join(ix.Build.BuildTags, ",")}
+	}
+	return cfg
+}
+
+// maxSkippedErrors bounds the loader diagnostics retained per skipped
+// package — evidence detail, never scope.
+const maxSkippedErrors = 8
+
 func (ix *Index) load(ctx context.Context) error {
 	if ctx != nil {
 		ix.activeCtx = ctx
+	}
+	if err := ix.checkBuildContextLocked(); err != nil {
+		return err
 	}
 	if ix.loaded {
 		return ix.loadErr
 	}
 	ix.loaded = true
 	ix.fset = token.NewFileSet()
-	cfg := &packages.Config{
-		Mode:    loadMode,
-		Dir:     ix.Dir,
-		Fset:    ix.fset,
-		Env:     append(os.Environ(), append(buildEnv(ix.Build), ix.Env...)...),
-		Context: ctx,
-	}
-	if len(ix.Build.BuildTags) > 0 {
-		cfg.BuildFlags = []string{"-tags", strings.Join(ix.Build.BuildTags, ",")}
-	}
-	rawPkgs, err := packages.Load(cfg, "./...")
+	rawPkgs, err := packages.Load(ix.loadConfig(loadMode, ix.fset, ctx), "./...")
 	if err != nil {
 		ix.loadErr = err
 		return ix.loadErr
 	}
 	var validPkgs []*packages.Package
 	skippedImports := make(map[string][]string)
+	var skippedUnscanned []string
+	var skipped []SkippedPackage
+	skippedPkgs := make(map[string]*packages.Package)
 
 	for _, p := range rawPkgs {
 		if len(p.Errors) > 0 || p.TypesInfo == nil {
-			for impPath := range p.Imports {
-				skippedImports[impPath] = append(skippedImports[impPath], p.PkgPath)
+			// p.Imports is not populated under loadMode (NeedImports is
+			// deliberately excluded), so recover the failed package's
+			// import edges from its syntax or listed Go files. A package
+			// whose files cannot even be parsed contributes no recoverable
+			// edges at all — mark it unscanned: negative checks must not
+			// claim its references were covered. Every failed package
+			// also lands in the structured skipped census — including
+			// zero-import failures, which used to vanish from the scope
+			// denominator entirely.
+			d := skippedPackageDiagnostic(ix.fset, p)
+			skipped = append(skipped, d)
+			for _, impPath := range d.Imports {
+				skippedImports[impPath] = append(skippedImports[impPath], d.Path)
 			}
+			if !d.SourceVisible {
+				skippedUnscanned = append(skippedUnscanned, d.Path)
+			}
+			// The raw package record stays with the skipped set: the
+			// shipping-scope builder needs its declared name and clause
+			// inventory — a failed package can still link a main.
+			skippedPkgs[d.Path] = p
 			continue
 		}
 		validPkgs = append(validPkgs, p)
 	}
 
+	ix.skipped = skipped
+	ix.skippedPkgs = skippedPkgs
+	ix.skippedImports = skippedImports
+	ix.skippedUnscanned = skippedUnscanned
 	if len(validPkgs) == 0 && len(rawPkgs) > 0 {
 		ix.loadErr = fmt.Errorf("all %d packages failed to load (incomplete type information)", len(rawPkgs))
 		return ix.loadErr
 	}
 	ix.pkgs = validPkgs
-	ix.skippedImports = skippedImports
+	// Baseline the snapshot content identity: every later scope/closure
+	// query re-derives the fingerprint and fails closed when the bytes,
+	// the build selection or the file inventory moved.
+	ix.loadedFingerprint = ix.snapshotFingerprintLocked()
 	return nil
+}
+
+// skippedPackageDiagnostic uses the same bounded diagnostic shape for product
+// and dependency loads. A missing type inventory is itself a scope failure.
+func skippedPackageDiagnostic(fset *token.FileSet, p *packages.Package) SkippedPackage {
+	imports, complete, visible := failedPackageImports(fset, p)
+	d := SkippedPackage{Path: p.PkgPath, Imports: imports, ImportsComplete: complete, SourceVisible: visible}
+	if d.Path == "" {
+		d.Path = p.ID
+	}
+	for _, e := range p.Errors {
+		if len(d.Errors) >= maxSkippedErrors {
+			break
+		}
+		d.Errors = append(d.Errors, e.Error())
+	}
+	return d
+}
+
+// failedLoadDiagnostics caps retained package records even when a single
+// module load exceeds the extras cache package budget. The total remains
+// visible so omitted diagnostics cannot be mistaken for a closed inventory.
+func failedLoadDiagnostics(fset *token.FileSet, pkgs []*packages.Package) ([]SkippedPackage, int) {
+	var skipped []SkippedPackage
+	total := 0
+	for _, p := range pkgs {
+		if len(p.Errors) == 0 && p.TypesInfo != nil {
+			continue
+		}
+		total++
+		if len(skipped) < maxTotalExtraPkgs {
+			skipped = append(skipped, skippedPackageDiagnostic(fset, p))
+		}
+	}
+	return skipped, total
+}
+
+// failedPackageImports recovers the import paths a failed package still
+// exposes: type-checking may die mid-pass but partial Syntax usually
+// survives, and every file carries its own import specs. The second
+// result reports whether the recovered import set is complete — every
+// listed non-test source file of the package contributed its imports
+// (Syntax files plus a fallback parse of whatever GoFiles the loader
+// listed but never attached). The third result is false when no file
+// could be parsed at all: the package's references are then fully
+// invisible. An incomplete import set must never ground "this package
+// cannot reference the target" — the unparsed file may carry the edge.
+func failedPackageImports(fset *token.FileSet, p *packages.Package) (imports []string, complete, sourceVisible bool) {
+	seen := map[string]bool{}
+	parsed := map[string]bool{}
+	addFile := func(f *ast.File) {
+		if pos := fset.Position(f.Package); pos.Filename != "" {
+			parsed[pos.Filename] = true
+		}
+		for _, imp := range f.Imports {
+			path := strings.Trim(imp.Path.Value, `"`)
+			if !seen[path] {
+				seen[path] = true
+				imports = append(imports, path)
+			}
+		}
+	}
+	for _, f := range p.Syntax {
+		addFile(f)
+	}
+	// Listed non-test sources the loader never attached syntax for: a
+	// package can fail before or during parsing while its files still
+	// declare imports. Package.GoFiles already merges cgo files, so the
+	// missing-C-header failure shape still yields its sources for
+	// import recovery.
+	var want []string
+	for _, path := range p.GoFiles {
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			continue
+		}
+		want = append(want, path)
+		if !parsed[path] {
+			if f, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly); err == nil {
+				addFile(f)
+			}
+		}
+	}
+	// Complete means every listed source file actually parsed — a count
+	// comparison would cheat: cgo loads attach generated files outside
+	// GoFiles that must not stand in for a missing product source.
+	complete = true
+	for _, path := range want {
+		if !parsed[path] {
+			complete = false
+			break
+		}
+	}
+	return imports, complete, len(parsed) > 0
 }
 
 // SkippedPackagesImporting returns the names of any product packages that failed to
@@ -300,6 +731,77 @@ func (ix *Index) ctxOr(ctx context.Context) context.Context {
 	return ctx
 }
 
+// truncationPackageLoad is the recorded name of a depleted closure-query
+// package-load budget. The record is session-scoped; every consumer appends
+// the coverage consequence it can speak to, so the name stays stable and the
+// limitation text reads naturally per surface.
+const truncationPackageLoad = "package-load budget exhausted"
+
+// BeginVerificationSession binds the advisory whose verification session is
+// being opened on this index. One index serves many advisories in scan/eval
+// mode, and eval runs cases concurrently from the same pointer — a single
+// mutable "current case" slot cannot represent that, and resetting the
+// truncation record on a case switch would let a concurrent second case erase
+// the first case's unresolved state between two of its queries (a silent
+// path back to Complete).
+//
+// The record is therefore append-only for the index lifetime: the first case
+// identity is remembered, a second identity marks the index as shared, and
+// truncation evidence stays visible to every query of every case. That is the
+// fail-closed behaviour when no stable per-case binding exists; a case that
+// needs a clean record must use a fresh Index (which reloads the snapshot
+// anyway). Resetting budgets here would also be unsafe: a concurrent query
+// may hold the only remaining load budget of its own case.
+func (ix *Index) BeginVerificationSession(caseID domain.CaseID) {
+	ix.mu.Lock()
+	defer ix.mu.Unlock()
+	if caseID == "" {
+		return
+	}
+	if ix.sessionCaseID == "" {
+		ix.sessionCaseID = caseID
+		return
+	}
+	if ix.sessionCaseID != caseID {
+		ix.sessionShared = true
+	}
+}
+
+// recordTruncationLocked records one named, session-scoped coverage
+// truncation. Recording is idempotent and order-stable; entries are never
+// removed. Callers MUST hold ix.mu.
+func (ix *Index) recordTruncationLocked(name string) {
+	if name == "" {
+		return
+	}
+	for _, existing := range ix.sessionTruncations {
+		if existing == name {
+			return
+		}
+	}
+	ix.sessionTruncations = append(ix.sessionTruncations, name)
+	sort.Strings(ix.sessionTruncations)
+}
+
+// budgetTruncatedLocked reports whether the verification session ever cut
+// its coverage short: the query-scoped depletion flag or any recorded
+// session truncation. Callers MUST hold ix.mu.
+func (ix *Index) budgetTruncatedLocked() bool {
+	return ix.loadBudgetExhausted || len(ix.sessionTruncations) > 0
+}
+
+// sessionTruncationBlockersLocked renders the recorded truncations as
+// closure blockers — the session-scoped gap statement a closure result
+// carries so a repeated, cleaner-looking query cannot absorb it. Callers
+// MUST hold ix.mu.
+func (ix *Index) sessionTruncationBlockersLocked() []string {
+	out := make([]string, 0, len(ix.sessionTruncations))
+	for _, t := range ix.sessionTruncations {
+		out = append(out, "session coverage truncated: "+t)
+	}
+	return out
+}
+
 // loadExtra loads additional root patterns (e.g. the vulnerable dependency
 // package) into the same fileset so its syntax is available for reading.
 // Results are cached per pattern: dep packages are reused by dep-internal
@@ -319,22 +821,16 @@ func (ix *Index) loadExtra(ctx context.Context, patterns ...string) ([]*packages
 	if ix.loadBudget > 0 {
 		ix.loadBudget--
 		if ix.loadBudget == 0 {
+			// Depletion is both query-scoped (further loads in this query
+			// are refused) and session-scoped evidence (the truncated
+			// coverage stays named for every later completeness claim).
 			ix.loadBudgetExhausted = true
+			ix.recordTruncationLocked(truncationPackageLoad)
 		}
 	} else if ix.loadBudgetExhausted {
 		return nil, fmt.Errorf("closure query package load budget exhausted")
 	}
-	cfg := &packages.Config{
-		Mode:    loadMode,
-		Dir:     ix.Dir,
-		Fset:    ix.fset,
-		Env:     append(os.Environ(), append(buildEnv(ix.Build), ix.Env...)...),
-		Context: ctx,
-	}
-	if len(ix.Build.BuildTags) > 0 {
-		cfg.BuildFlags = []string{"-tags", strings.Join(ix.Build.BuildTags, ",")}
-	}
-	pkgs, err := packages.Load(cfg, patterns...)
+	pkgs, err := packages.Load(ix.loadConfig(loadMode, ix.fset, ctx), patterns...)
 	if err != nil {
 		return nil, err
 	}
@@ -364,6 +860,9 @@ func (ix *Index) loadExtra(ctx context.Context, patterns ...string) ([]*packages
 	ix.extrasGen++
 	ix.classifyCache = nil
 	ix.paramCache = nil
+	ix.methodDispatchCache = nil
+	ix.reflectLookupCache = nil
+	ix.marshalAPICache = nil
 	return pkgs, nil
 }
 
@@ -583,6 +1082,9 @@ func (ix *Index) findSymbol(ctx context.Context, ref domain.SymbolRef) (*domain.
 		if cs := findObjectInPkg(ix.fset, pkg, typeName, meth); cs != nil {
 			return cs, nil
 		}
+		if symbolLookupAmbiguous(pkg, typeName, meth) {
+			return nil, fmt.Errorf("%w: %s.%s", ErrAmbiguousSymbol, ref.Package, ref.Symbol)
+		}
 		return nil, fmt.Errorf("%w: %s.%s", ErrSymbolNotFoundInPackage, ref.Package, ref.Symbol)
 	}
 	// symbol may live in a dependency that is not a loaded root
@@ -596,6 +1098,9 @@ func (ix *Index) findSymbol(ctx context.Context, ref domain.SymbolRef) (*domain.
 		}
 		if cs := findObjectInPkg(ix.fset, pkg, typeName, meth); cs != nil {
 			return cs, nil
+		}
+		if symbolLookupAmbiguous(pkg, typeName, meth) {
+			return nil, fmt.Errorf("%w: %s.%s", ErrAmbiguousSymbol, ref.Package, ref.Symbol)
 		}
 		return nil, fmt.Errorf("%w: %s.%s", ErrSymbolNotFoundInPackage, ref.Package, ref.Symbol)
 	}
@@ -770,6 +1275,40 @@ func findMethodInPkg(fset *token.FileSet, pkg *packages.Package, name string) *d
 	return found
 }
 
+// symbolLookupAmbiguous reports whether a bare-name lookup (typeName == "")
+// hit the ambiguous case findMethodInPkg silently drops: several named
+// types declare a method with this name. The caller turns the nil result
+// into ErrAmbiguousSymbol instead of ErrSymbolNotFoundInPackage — absence
+// was never proven.
+func symbolLookupAmbiguous(pkg *packages.Package, typeName, name string) bool {
+	if typeName != "" || pkg.Types == nil {
+		return false
+	}
+	if pkg.Types.Scope().Lookup(name) != nil {
+		return false // a package-level declaration resolved the name
+	}
+	matches := 0
+	for _, n := range pkg.Types.Scope().Names() {
+		tn, ok := pkg.Types.Scope().Lookup(n).(*types.TypeName)
+		if !ok {
+			continue
+		}
+		nt := mustNamed(tn)
+		if nt == nil {
+			continue
+		}
+		for i := range nt.NumMethods() {
+			if nt.Method(i).Name() == name {
+				matches++
+				if matches > 1 {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func mustNamed(tn *types.TypeName) *types.Named {
 	if n, ok := tn.Type().(*types.Named); ok {
 		return n
@@ -830,11 +1369,7 @@ func (ix *Index) productRefsTo(ref domain.SymbolRef) []domain.CallSite {
 				}
 				return true
 			})
-			var enc *ast.FuncDecl
-			ast.Inspect(f, func(n ast.Node) bool {
-				if fn, ok := n.(*ast.FuncDecl); ok {
-					enc = fn
-				}
+			inspectDecls(f, func(n ast.Node, enc *ast.FuncDecl) bool {
 				match := false
 				switch e := n.(type) {
 				case *ast.Ident:
@@ -863,6 +1398,24 @@ func (ix *Index) productRefsTo(ref domain.SymbolRef) []domain.CallSite {
 		}
 	}
 	return out
+}
+
+// inspectDecls walks every declaration of f with the true enclosing
+// function: enc is the FuncDecl inside function bodies and nil at package
+// level. Whole-file ast.Inspect with a sticky `enc` misattributes
+// package-level nodes (var initializers, interface decls) to the last
+// function above them — a misattributed site can then carry the wrong
+// function's liveness verdict. FuncLit bodies nested under a package-level
+// declaration are attributed to the package init: their calls run only
+// through stored invocation, and init-machinery edges stay the
+// conservative answer.
+func inspectDecls(f *ast.File, visit func(n ast.Node, enc *ast.FuncDecl) bool) {
+	for _, decl := range f.Decls {
+		enc, _ := decl.(*ast.FuncDecl)
+		ast.Inspect(decl, func(n ast.Node) bool {
+			return visit(n, enc)
+		})
+	}
 }
 
 // CallSiteRef pairs the exported CallSite with its internal AST handle.
@@ -957,11 +1510,7 @@ func (ix *Index) findCallSitesIn(pkgs []*packages.Package, ref domain.SymbolRef)
 func (ix *Index) scanFileForCalls(pkg *packages.Package, f *ast.File, ref domain.SymbolRef) []CallSiteRef {
 	var out []CallSiteRef
 	info := pkg.TypesInfo
-	var enc *ast.FuncDecl
-	ast.Inspect(f, func(n ast.Node) bool {
-		if fn, ok := n.(*ast.FuncDecl); ok {
-			enc = fn
-		}
+	inspectDecls(f, func(n ast.Node, enc *ast.FuncDecl) bool {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
 			return true
@@ -1020,10 +1569,13 @@ func (ix *Index) findDepCallSites(ctx context.Context, ref domain.SymbolRef) ([]
 // reach (a dead caller cannot resurrect the subject — deadness is
 // decided transitively, see depSiteLive), and — when the subject is a
 // method never invoked there — whether sibling methods on the same
-// receiver type ARE invoked inside the dependency. A live receiver
-// pipeline whose check member is never called is a missing-call shape
-// (the validation does not run), not dead code: deadness of that member
-// cannot prove the absence of the vulnerable behavior.
+// receiver type ARE invoked inside the dependency.
+//
+// siblingLive is a source observation only. It identifies a candidate
+// shape for investigation (a live receiver pipeline beside a never-called
+// member); it is not defect semantics and must not veto a deadness
+// measurement. The admitted defect-semantics contract decides whether the
+// dead member's invocation is necessary (domain.ValidateDeadnessPremise).
 //
 // Callers are enumerated across the subject's whole module; when the
 // subject is exported and other dep modules import its package, the
@@ -1402,47 +1954,169 @@ type depImporter struct {
 	module string
 }
 
+// closurePkgMeta records the per-package facts the import-closure facade
+// needs beyond the edge lists: module ownership, the build-selected source
+// directory and files (for the linkname scan), vendor residency and
+// edge-forging imports (plugin, cgo). broken marks packages the loader
+// reported errors for — their recovered edge set is untrusted.
+type closurePkgMeta struct {
+	dir        string
+	goFiles    []string
+	cgo        bool
+	plugin     bool
+	reflect    bool // imports reflect: dispatch over linked code
+	usesUnsafe bool // imports unsafe: dispatch over linked code
+	vendored   bool
+	broken     bool
+	hasImports bool     // whether p.Imports was populated at all
+	modBind    string   // resolved module identity: path@version plus replacement
+	hashFiles  []string // every file the loader selected for the package
+}
+
 // depImporters builds the reverse import index of the whole dependency
 // closure (product + deps, no syntax) so deadness checks can tell
 // whether an exported dep function could be invoked from another
 // module. Loaded once per index — the import graph does not change
-// while extras come and go.
+// while extras come and go. The same load also retains the forward
+// edges, module ownership and per-package inventory facts
+// (closurePkgMeta) EnumerateImportClosure reports.
 func (ix *Index) depImporters(ctx context.Context) (map[string][]depImporter, error) {
 	if ix.importers != nil {
 		return ix.importers, nil
 	}
 	ctx = ix.ctxOr(ctx)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if err := ix.load(ctx); err != nil {
 		return nil, err
 	}
-	cfg := &packages.Config{
-		Mode:    packages.NeedName | packages.NeedImports | packages.NeedModule,
-		Dir:     ix.Dir,
-		Env:     append(os.Environ(), append(buildEnv(ix.Build), ix.Env...)...),
-		Context: ctx,
+	pkgs, err := packages.Load(ix.loadConfig(
+		packages.NeedName|packages.NeedImports|packages.NeedModule|
+			packages.NeedFiles|packages.NeedForTest|packages.NeedCompiledGoFiles|
+			packages.NeedEmbedFiles, nil, ctx), "all")
+	if importerLoadHook != nil {
+		importerLoadHook(ix, "loaded")
 	}
-	if len(ix.Build.BuildTags) > 0 {
-		cfg.BuildFlags = []string{"-tags", strings.Join(ix.Build.BuildTags, ",")}
-	}
-	pkgs, err := packages.Load(cfg, "all")
 	if err != nil {
 		return nil, err
 	}
+	// A cancelled load may return a partial package set: publishing it
+	// would poison the once-per-index importer cache with an incomplete
+	// graph that every later completeness claim reads as authoritative.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	vendorRoot := filepath.Join(ix.Dir, "vendor")
 	m := map[string][]depImporter{}
 	pm := map[string]string{}
+	edges := map[string][]string{}
+	meta := map[string]closurePkgMeta{}
+	assembled := 0
 	for _, p := range pkgs {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		if p.ForTest != "" {
+			// Test-variant packages ("pkg [pkg.test]") drag test-only
+			// dependencies into the graph — none of that code links
+			// into the product build, so their edges never belong to
+			// the shipping import closure.
+			continue
+		}
 		mod := ""
+		cm := closurePkgMeta{broken: len(p.Errors) > 0}
 		if p.Module != nil {
 			mod = p.Module.Path
+			cm.modBind = moduleBinding(p.Module)
 		}
 		pm[p.PkgPath] = mod
-		for imp := range p.Imports {
-			m[imp] = append(m[imp], depImporter{path: p.PkgPath, module: mod})
+		for impPath, impPkg := range p.Imports {
+			// The map key is the spelling source files use, which may be
+			// the canonical path for a vendored package (source says
+			// "golang.org/x/net/..." while the build resolves the
+			// vendor/… shadow). Edges and reverse importers must key on
+			// the resolved package path or vendored members ghost into
+			// unresolvable phantom nodes.
+			target := impPath
+			if impPkg != nil && impPkg.PkgPath != "" {
+				target = impPkg.PkgPath
+			}
+			m[target] = append(m[target], depImporter{path: p.PkgPath, module: mod})
+			edges[p.PkgPath] = append(edges[p.PkgPath], target)
+			cm.hasImports = true
+			switch target {
+			case "plugin":
+				cm.plugin = true
+			case "C":
+				cm.cgo = true
+			case "reflect":
+				cm.reflect = true
+			case "unsafe":
+				cm.usesUnsafe = true
+			}
+		}
+		// p.Dir is the build-selected source directory (module cache or
+		// vendored shadow); vendored residency keys off it.
+		cm.dir = p.Dir
+		cm.goFiles = append([]string(nil), p.GoFiles...)
+		// The closure hash binds every file the loader selected — Go
+		// sources, generated/compiled variants, C/asm/headers and embeds —
+		// so mutating a non-Go member file can never replay a prior hash.
+		cm.hashFiles = dedupStrings(append(append(append(append([]string(nil),
+			p.GoFiles...), p.CompiledGoFiles...), p.OtherFiles...), p.EmbedFiles...))
+		if cm.dir != "" {
+			rel, rerr := filepath.Rel(vendorRoot, cm.dir)
+			if rerr == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				cm.vendored = true
+			}
+		}
+		meta[p.PkgPath] = cm
+		assembled++
+		if assembled == 1 && importerLoadHook != nil {
+			// Progress seam: metadata assembly has begun.
+			importerLoadHook(ix, "metadata")
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 		}
 	}
+	// Final cancellation gate: a context cancelled during metadata assembly
+	// must not publish a partial census.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	// Count only published censuses: an interrupted load is not a
+	// completed dependency closure.
+	ix.importerLoads++
 	ix.importers = m
+	ix.importEdges = edges
 	ix.pkgModules = pm
+	ix.pkgMeta = meta
 	return m, nil
+}
+
+// moduleBinding renders the resolved identity of the module a package was
+// loaded from: the canonical path@version plus, when the build rewrote it,
+// the replacement module and the directory the loader actually read. A
+// module cache substitution changes the directory component, so the
+// closure hash cannot survive a swapped external source.
+func moduleBinding(m *packages.Module) string {
+	if m == nil {
+		return ""
+	}
+	b := m.Path + "@" + m.Version
+	if m.Replace != nil {
+		r := m.Replace.Path + "@" + m.Replace.Version
+		b += "=>" + r
+		if m.Replace.Dir != "" {
+			b += "=>" + m.Replace.Dir
+		}
+	}
+	if m.Dir != "" {
+		b += "@" + m.Dir
+	}
+	return b
 }
 
 // depModuleOf returns the module a package belongs to, loading the
@@ -1546,20 +2220,153 @@ type cachedCallers struct {
 // callersOf scans for call sites of ref across pkg's caller scope,
 // memoized. Deep traces revisit the same enclosing functions repeatedly;
 // without this every hop re-walked every loaded package's syntax.
+//
+// Closure rule: the dep-scope caller set is closed only when a complete,
+// reconciled caller scope was scanned on one frozen extras generation.
+// A mid-scan generation change (a nested on-demand dependency load) discards
+// that pass and retries. The settle cycle reconciles the full eligible scope;
+// an evicted package or unretained scope remains open. maxMayCallSettle
+// bounds retries; exhausting it reports the union as possible, never a
+// false-empty closed scan. Re-entry on the same key returns the open
+// sentinel.
+const maxMayCallSettle = 4
+
+// callerSettleHook is a package-local test seam for forcing an eviction
+// between caller-settle passes. Production leaves it nil; tests use it to
+// exercise the same extras-generation transition as a nested load without
+// adding an injectable production loader.
+var callerSettleHook func(*Index)
+
+// importerLoadHook is a package-local test seam invoked at named stages of
+// the dependency census ("loaded" right after packages.Load returns,
+// "metadata" once assembly of the first package is done). Production leaves
+// it nil; tests use it to cancel the caller's context mid-load or
+// mid-assembly and prove that no partial census reaches the cache.
+var importerLoadHook func(*Index, string)
+
 func (ix *Index) callersOf(pkg *packages.Package, ref domain.SymbolRef) []CallSiteRef {
 	dep := !ix.isProductPkg(pkg)
-	gen := ix.extrasGen
 	key := callerKey{ref: ref, dep: dep}
 	if c, ok := ix.callerCache[key]; ok && (!dep || c.gen == ix.extrasGen) {
+		// A frozen cache entry satisfies a re-entrant lookup too —
+		// serving it beats fabricating open coverage.
 		return c.refs
 	}
 	if ix.callersIn == nil {
 		ix.callersIn = map[callerKey]bool{}
 	}
 	if ix.callersIn[key] {
-		return nil
+		return []CallSiteRef{{possible: true}}
 	}
-	ix.callersIn[key] = true
+	var refs []CallSiteRef
+	byCall := map[*ast.CallExpr]int{}
+	scopeEvicted := false
+	for pass := 0; ; pass++ {
+		gen := ix.extrasGen
+		if c, ok := ix.callerCache[key]; ok && (!dep || c.gen == gen) {
+			return c.refs
+		}
+		extraBefore := map[string]bool{}
+		for pattern := range ix.extraPkgs {
+			extraBefore[pattern] = true
+		}
+		ix.callersIn[key] = true
+		passRefs := ix.callerScan(pkg, ref)
+		delete(ix.callersIn, key)
+		if callerSettleHook != nil {
+			hook := callerSettleHook
+			callerSettleHook = nil
+			hook(ix)
+		}
+		for pattern := range extraBefore {
+			if _, ok := ix.extraPkgs[pattern]; !ok {
+				scopeEvicted = true
+			}
+		}
+		if ix.extrasGen == gen {
+			// Frozen-generation pass: its sites resolve the accumulated
+			// possible ones — a site proven closed on a stable scope
+			// loses the possible mark, while sites seen only on churned
+			// passes stay possible.
+			hasSentinel := scopeEvicted
+			for _, r := range passRefs {
+				if r.call == nil {
+					hasSentinel = true
+					continue
+				}
+				if i, ok := byCall[r.call]; ok {
+					refs[i] = r
+					continue
+				}
+				byCall[r.call] = len(refs)
+				refs = append(refs, r)
+			}
+			// A closed pass supersedes churn-only sentinels: open coverage
+			// recorded on an unstable scope is invalidated by the frozen
+			// scope's closed enumeration; a sentinel survives only when
+			// this pass itself saw open coverage.
+			out := refs[:0]
+			for _, r := range refs {
+				if r.call != nil {
+					out = append(out, r)
+				}
+			}
+			refs = out
+			if hasSentinel {
+				refs = append(refs, CallSiteRef{possible: true})
+			}
+			if scopeEvicted {
+				for i := range refs {
+					refs[i].possible = true
+				}
+			}
+			if ix.callerCache == nil {
+				ix.callerCache = map[callerKey]cachedCallers{}
+			}
+			if len(ix.callerCache) >= maxCallerCache {
+				// Entries are recomputable — a full map is a memory leak
+				// shape, not an optimization.
+				ix.callerCache = map[callerKey]cachedCallers{}
+			}
+			ix.callerCache[key] = cachedCallers{gen: gen, refs: refs}
+			return refs
+		}
+		// The scope moved under the scan: keep every site it saw as a
+		// possible caller and re-scan against the grown extras — a closed
+		// result requires a pass with no generation change.
+		for _, r := range passRefs {
+			if r.call == nil {
+				// The churned pass's own sentinel is already implied by
+				// the possible-marking of every accumulated ref.
+				continue
+			}
+			r.possible = true
+			if i, ok := byCall[r.call]; ok {
+				refs[i].possible = true
+				continue
+			}
+			byCall[r.call] = len(refs)
+			refs = append(refs, r)
+		}
+		if pass+1 >= maxMayCallSettle {
+			// Settle bound reached: coverage stayed open throughout, so
+			// report the accumulated set (or the empty sentinel) open.
+			for i := range refs {
+				refs[i].possible = true
+			}
+			if len(refs) == 0 {
+				return []CallSiteRef{{possible: true}}
+			}
+			return refs
+		}
+	}
+}
+
+// callerScan is a single may-call enumeration pass over pkg's caller
+// scope: static call sites, interface-dispatch sites, then function-value
+// sites. An extras-generation change during the pass is detected by the
+// callersOf wrapper — callerScan itself only records what it saw.
+func (ix *Index) callerScan(pkg *packages.Package, ref domain.SymbolRef) []CallSiteRef {
 	scope := ix.callerScope(pkg)
 	refs := ix.findCallSitesIn(scope, ref)
 	// A caller of an interface method is a caller of every implementation:
@@ -1587,30 +2394,19 @@ func (ix *Index) callersOf(pkg *packages.Package, ref domain.SymbolRef) []CallSi
 	// variable — invisible to the name-based scans above. Sites whose
 	// candidate set contains ref, or whose set is incomplete while the
 	// signature matches, count as callers (may-dispatch is a writer).
-	for _, r := range ix.funcValueCallSites(scope, ref, ix.funcSigOfRef(ref)) {
+	// An open func-value enumeration with no compatible site still leaves
+	// coverage open — the empty sentinel carries that state.
+	fvSites, fvOpen := ix.funcValueCallSites(scope, ref, ix.funcSigOfRef(ref))
+	for _, r := range fvSites {
 		if !dupCallSite(refs, r) {
 			refs = append(refs, r)
 		}
 	}
-	delete(ix.callersIn, key)
-	if ix.extrasGen != gen {
-		if len(refs) == 0 {
-			return []CallSiteRef{{possible: true}}
-		}
-		for i := range refs {
-			refs[i].possible = true
-		}
-		return refs
+	if fvOpen {
+		// Open coverage must reach the caller even alongside resolved
+		// sites — the empty sentinel is the only carrier.
+		refs = append(refs, CallSiteRef{possible: true})
 	}
-	if ix.callerCache == nil {
-		ix.callerCache = map[callerKey]cachedCallers{}
-	}
-	if len(ix.callerCache) >= maxCallerCache {
-		// Entries are recomputable — a full map is a memory leak shape,
-		// not an optimization.
-		ix.callerCache = map[callerKey]cachedCallers{}
-	}
-	ix.callerCache[key] = cachedCallers{gen: gen, refs: refs}
 	return refs
 }
 
@@ -1651,8 +2447,11 @@ func (ix *Index) ifaceCallerRefs(ref domain.SymbolRef) []domain.SymbolRef {
 	// cannot be the dynamic target of an interface call — its interface
 	// callers would merge provenance from frames that never run (mocks
 	// shipped in non-test files, dead registry alternatives). Skipped
-	// entirely when dynamic materialization is present.
-	if inst, narrow := ix.instantiated(); narrow && !inst[namedKey(T)] {
+	// entirely when dynamic materialization is present or the product
+	// scope is incomplete: a type-check-failed package's syntax never
+	// entered the instantiation set, so absence there proves nothing.
+	if inst, narrow := ix.instantiated(); narrow && len(ix.skipped) == 0 &&
+		!inst[namedKey(T)] {
 		return nil
 	}
 	var out []domain.SymbolRef
@@ -1792,6 +2591,9 @@ func (ix *Index) ReadFunction(ctx context.Context, file, funcName string) (strin
 func (ix *Index) nodeSource(n ast.Node) (string, error) {
 	start := ix.fset.Position(n.Pos())
 	end := ix.fset.Position(n.End())
+	if err := ix.gate().Check(start.Filename); err != nil {
+		return "", err
+	}
 	b, err := os.ReadFile(start.Filename)
 	if err != nil {
 		return "", err
@@ -1807,30 +2609,33 @@ func (ix *Index) nodeSource(n ast.Node) (string, error) {
 // when unresolvable.
 func (ix *Index) modCacheDir() string {
 	ix.modCacheOnce.Do(func() {
+		// Last-match mirrors subprocess env semantics: a GOMODCACHE the
+		// caller appended later (e.g. a declared per-run cache) is the one
+		// toolchain subprocesses actually see.
 		for _, e := range ix.Env {
 			if v, ok := strings.CutPrefix(e, "GOMODCACHE="); ok && v != "" {
 				ix.modCache = v
-				return
 			}
 		}
-		if v := os.Getenv("GOMODCACHE"); v != "" {
+		if v := os.Getenv("GOMODCACHE"); ix.modCache == "" && v != "" {
 			ix.modCache = v
-			return
 		}
-		var gopath string
-		for _, e := range ix.Env {
-			if v, ok := strings.CutPrefix(e, "GOPATH="); ok && v != "" {
-				gopath = v
+		if ix.modCache == "" {
+			var gopath string
+			for _, e := range ix.Env {
+				if v, ok := strings.CutPrefix(e, "GOPATH="); ok && v != "" {
+					gopath = v
+				}
 			}
-		}
-		if gopath == "" {
-			gopath = os.Getenv("GOPATH")
-		}
-		if gopath == "" {
-			gopath = build.Default.GOPATH
-		}
-		if gopath != "" {
-			ix.modCache = filepath.Join(filepath.SplitList(gopath)[0], "pkg", "mod")
+			if gopath == "" {
+				gopath = os.Getenv("GOPATH")
+			}
+			if gopath == "" {
+				gopath = build.Default.GOPATH
+			}
+			if gopath != "" {
+				ix.modCache = filepath.Join(filepath.SplitList(gopath)[0], "pkg", "mod")
+			}
 		}
 	})
 	return ix.modCache
@@ -1839,18 +2644,42 @@ func (ix *Index) modCacheDir() string {
 // pathAllowed reports whether an absolute path is inside the analyzed
 // repository or inside the Go module cache — the two scopes the agent may
 // legitimately read (vulnerable dependency source is evidence too).
+// Roots are compared in both lexical and symlink-resolved form: a pinned
+// module cache may be declared through a symlink (the session
+// canonicalizes it) while callers keep using the spelling they passed.
 func (ix *Index) pathAllowed(full string) bool {
-	if base, err := filepath.Abs(ix.Dir); err == nil {
-		if rel, err := filepath.Rel(base, full); err == nil &&
-			!strings.HasPrefix(rel, "..") && rel != ".." {
-			return true
+	forms := func(p string) []string {
+		out := []string{p}
+		if resolved, err := filepath.EvalSymlinks(p); err == nil && resolved != p {
+			out = append(out, resolved)
 		}
+		return out
 	}
-	if mc := ix.modCacheDir(); mc != "" {
-		if mabs, err := filepath.Abs(mc); err == nil {
-			if rel, err := filepath.Rel(mabs, full); err == nil &&
-				!strings.HasPrefix(rel, "..") {
-				return true
+	inside := func(root, target string, excludeSelf bool) bool {
+		rel, err := filepath.Rel(root, target)
+		if err != nil {
+			return false
+		}
+		if excludeSelf && rel == ".." {
+			return false
+		}
+		return !strings.HasPrefix(rel, "..")
+	}
+	for _, t := range forms(full) {
+		if base, err := filepath.Abs(ix.Dir); err == nil {
+			for _, b := range forms(base) {
+				if inside(b, t, true) {
+					return true
+				}
+			}
+		}
+		if mc := ix.modCacheDir(); mc != "" {
+			if mabs, err := filepath.Abs(mc); err == nil {
+				for _, m := range forms(mabs) {
+					if inside(m, t, false) {
+						return true
+					}
+				}
 			}
 		}
 	}
@@ -1876,6 +2705,9 @@ func (ix *Index) ReadSource(_ context.Context, file string, start, end int) (str
 	}
 	if !ix.pathAllowed(full) {
 		return "", fmt.Errorf("path %s escapes the analyzed repository/module cache", file)
+	}
+	if err := ix.gate().Check(full); err != nil {
+		return "", err
 	}
 	b, err := os.ReadFile(full)
 	if err != nil {
@@ -1922,6 +2754,9 @@ func (ix *Index) SearchSource(ctx context.Context, pattern string) ([]string, er
 			seen[name] = true
 			if !ix.pathAllowed(name) {
 				continue // source outside repository/module cache
+			}
+			if !ix.gate().Allows(name) {
+				continue // source outside the confined roots
 			}
 			data, err := os.ReadFile(name)
 			if err != nil {
@@ -2088,11 +2923,7 @@ func (ix *Index) ModuleUsage(ctx context.Context, module string) ([]domain.CallS
 			continue
 		}
 		for _, f := range pkg.Syntax {
-			var enc *ast.FuncDecl
-			ast.Inspect(f, func(n ast.Node) bool {
-				if fn, ok := n.(*ast.FuncDecl); ok {
-					enc = fn
-				}
+			inspectDecls(f, func(n ast.Node, enc *ast.FuncDecl) bool {
 				call, ok := n.(*ast.CallExpr)
 				if !ok {
 					return true
@@ -2148,34 +2979,196 @@ type opaqueSite struct {
 // Calls that resolve to no function at all (func values, map-indexed
 // non-interface calls) set opaque: an unreached subject then proves
 // nothing — callers must treat absence as UNKNOWN, never FALSE.
-func (ix *Index) ModuleInternalReach(ctx context.Context, module string, entries []string, subjects []domain.SymbolRef) (map[string][]string, bool, error) {
-	fset := token.NewFileSet()
-	cfg := &packages.Config{
-		Mode:    loadMode,
-		Dir:     ix.Dir,
-		Fset:    fset,
-		Env:     append(os.Environ(), append(buildEnv(ix.Build), ix.Env...)...),
-		Context: ix.ctxOr(ctx),
-	}
-	pkgs, err := packages.Load(cfg, module+"/...")
+func (ix *Index) ModuleInternalReach(ctx context.Context, module string, entries []string, subjects []domain.SymbolRef) (ModuleReachabilityResult, error) {
+	pkgs, err := ix.loadModulePackages(ctx, module)
 	if err != nil {
-		return nil, false, err
+		return ModuleReachabilityResult{}, err
 	}
-	edges, opaqueSites := ix.moduleEdgesSites(pkgs, module)
+	g := ix.moduleReachabilityGraph(pkgs, module, entries)
+	reachable, opaque, err := ix.moduleSubjectReach(g, subjects)
+	if err != nil {
+		return ModuleReachabilityResult{}, err
+	}
+	// The cone's own completeness (every module package type-checked, no
+	// linkname/plugin materialization) plus the product census the entries
+	// were derived from. An incomplete census can hide the call that would
+	// seed the subject, so an unreached subject is UNKNOWN, not absent.
+	return ModuleReachabilityResult{
+		Reachable: reachable,
+		Complete:  g.complete && ix.SourceScanComplete(),
+		Opaque:    opaque,
+	}, nil
+}
 
+// ModuleReachabilityResult is the typed outcome of one intra-module
+// reachability measurement. Reachable carries every discovered positive
+// chain even when the measurement is incomplete; Complete/Opaque say whether
+// the absence of a chain is a measured negative.
+type ModuleReachabilityResult struct {
+	Reachable map[string][]string
+	Complete  bool
+	Opaque    bool
+}
+
+// SourceScanComplete reports whether the product source census the index
+// loaded is complete for a negative measurement: every product package
+// loaded and type-checked, no package carries dynamic materialization, and
+// no query/session budget truncated dependency coverage. It is a fact about
+// the loaded census, never inferred from a nil error.
+func (ix *Index) SourceScanComplete() bool {
+	ix.mu.Lock()
+	defer ix.mu.Unlock()
+	return len(ix.skipped) == 0 && !ix.budgetTruncatedLocked()
+}
+
+// loadModulePackages loads the whole module tree (module + /...) with full
+// syntax and type information — the source the intra-module call graph is
+// built from. ModuleInternalReach keeps its own load (separate from the
+// extras cache) so its result never depends on prior query state. The
+// separate fileset shares env/flags/cancellation with every other load via
+// loadConfig — an earlier inline config dropped BuildTags and silently
+// diverged from the product-root context on tag-gated modules.
+func (ix *Index) loadModulePackages(ctx context.Context, module string) ([]*packages.Package, error) {
+	// ModuleInternalReach deliberately does not hold the query lock (it
+	// works on its own package set); the build-context guard still needs
+	// the lock because it may capture the bound context on first use.
+	ix.mu.Lock()
+	guardErr := ix.checkBuildContextLocked()
+	ix.mu.Unlock()
+	if guardErr != nil {
+		return nil, guardErr
+	}
+	fset := token.NewFileSet()
+	return packages.Load(ix.loadConfig(loadMode, fset, ctx), module+"/...")
+}
+
+// moduleGraph is the intra-module call graph plus the forward reachability
+// cone from a seed set: edges map caller keys ("pkg.F"/"pkg.Recv.F") to
+// callee keys, opaque records unresolved dispatch sites per caller key,
+// reachable maps every cone member to its BFS parent (seeds carry "").
+// complete is true only when every loaded module package type-checked and
+// no package carries dynamic materialization (go:linkname, plugin
+// imports): either can forge edges the import graph cannot see, so
+// out-of-cone functions could still execute. dynLink records the
+// materialization case separately — it also poisons the linked/unlinked
+// package verdict, since a linkname-pulled package runs without an
+// import edge. declared lists the function keys each module package
+// actually declares (including the "init" sentinel), used when a
+// recorded site name must be resolved to real declarations.
+type moduleGraph struct {
+	pkgs      []*packages.Package
+	edges     map[string]map[string]bool
+	opaque    map[string][]opaqueSite
+	reachable map[string]string
+	complete  bool
+	dynLink   bool
+	declared  map[string]map[string]bool
+}
+
+// moduleReachabilityGraph is the shared module-cone engine: it builds the
+// intra-module call graph over pkgs and computes the forward cone from
+// seeds. Seeds are the keys callers (ModuleInternalReach passes product-used
+// API entries; the unreachability verifier additionally seeds "init" of
+// shipping-linked module packages). Package-level statements run under the
+// package's init machinery, so call sites inside var initializers are
+// recorded as "pkg.init" -> callee edges — inert for entry-seeded walks,
+// essential once init is a seed.
+func (ix *Index) moduleReachabilityGraph(pkgs []*packages.Package, module string, seeds []string) *moduleGraph {
+	edges, opaqueSites := ix.moduleEdgesSites(pkgs, module)
+	g := &moduleGraph{
+		pkgs:      pkgs,
+		edges:     edges,
+		opaque:    opaqueSites,
+		reachable: map[string]string{},
+		complete:  true,
+		declared:  map[string]map[string]bool{},
+	}
+	for _, pkg := range pkgs {
+		if !domain.PackageInModule(pkg.PkgPath, module) {
+			continue
+		}
+		if len(pkg.Errors) > 0 || pkg.TypesInfo == nil {
+			g.complete = false
+		}
+		if productFileDynamicLink(pkg.Syntax) {
+			// go:linkname and plugin loading materialize targets the
+			// import graph cannot see — the cone is no longer closed,
+			// so absence from it must never read as DEAD.
+			g.dynLink = true
+			g.complete = false
+		}
+		if g.declared[pkg.PkgPath] == nil {
+			g.declared[pkg.PkgPath] = map[string]bool{}
+		}
+		g.declared[pkg.PkgPath]["init"] = true
+		for _, f := range pkg.Syntax {
+			for _, decl := range f.Decls {
+				fn, ok := decl.(*ast.FuncDecl)
+				if !ok || fn.Name == nil {
+					continue
+				}
+				sym := fn.Name.Name
+				if fn.Recv != nil && len(fn.Recv.List) > 0 {
+					sym = recvDeclName(fn.Recv.List[0].Type) + "." + sym
+				}
+				g.declared[pkg.PkgPath][sym] = true
+			}
+		}
+	}
+	// Forward BFS over resolved edges; parents record the discovery chain.
+	var queue []string
+	for _, e := range seeds {
+		if _, seen := g.reachable[e]; !seen {
+			g.reachable[e] = ""
+			queue = append(queue, e)
+		}
+	}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		for next := range g.edges[cur] {
+			if _, seen := g.reachable[next]; !seen {
+				g.reachable[next] = cur
+				queue = append(queue, next)
+			}
+		}
+	}
+	return g
+}
+
+// bfsChainFrom reconstructs the seed→target path recorded by the cone's
+// parent map — the same chain shape bfsChain produced.
+func bfsChainFrom(parents map[string]string, target string) []string {
+	if _, ok := parents[target]; !ok {
+		return nil
+	}
+	var rev []string
+	for n := target; ; {
+		rev = append(rev, n)
+		p, ok := parents[n]
+		if !ok || p == "" {
+			break
+		}
+		n = p
+	}
+	for i, j := 0, len(rev)-1; i < j; i, j = i+1, j-1 {
+		rev[i], rev[j] = rev[j], rev[i]
+	}
+	return rev
+}
+
+// moduleSubjectReach answers which subjects are reachable inside a module
+// cone and whether opaque dispatch in the reachable part keeps the rest
+// unknown. This is the subject-facing half of ModuleInternalReach, shared
+// with the unreachability verifier's filtered cone.
+func (ix *Index) moduleSubjectReach(g *moduleGraph, subjects []domain.SymbolRef) (map[string][]string, bool, error) {
 	out := map[string][]string{}
 	var unreached []domain.SymbolRef
 	for _, subj := range subjects {
 		target := subj.Package + "." + subj.Symbol
-		found := false
-		for _, e := range entries {
-			if chain := bfsChain(edges, e, target); chain != nil {
-				out[target] = chain
-				found = true
-				break
-			}
-		}
-		if !found {
+		if chain := bfsChainFrom(g.reachable, target); chain != nil {
+			out[target] = chain
+		} else {
 			unreached = append(unreached, subj)
 		}
 	}
@@ -2184,18 +3177,15 @@ func (ix *Index) ModuleInternalReach(ctx context.Context, module string, entries
 	}
 
 	// Opaque dispatch (func values, dynamic calls) only invalidates reachability
-	// if an opaque call site is actually reachable from the product's used API
-	// entries AND its signature or interface is compatible with an unreached subject.
+	// if an opaque call site is actually reachable from the cone's seed set AND
+	// its signature or interface is compatible with an unreached subject.
 	var reachableSites []opaqueSite
-	for oc, sites := range opaqueSites {
+	for oc, sites := range g.opaque {
 		if len(sites) == 0 {
 			continue
 		}
-		for _, e := range entries {
-			if bfsChain(edges, e, oc) != nil {
-				reachableSites = append(reachableSites, sites...)
-				break
-			}
+		if _, ok := g.reachable[oc]; ok {
+			reachableSites = append(reachableSites, sites...)
 		}
 	}
 	if len(reachableSites) == 0 {
@@ -2204,7 +3194,7 @@ func (ix *Index) ModuleInternalReach(ctx context.Context, module string, entries
 
 	opaque := false
 	for _, subj := range unreached {
-		subjObj, recvType := findSubjectObject(pkgs, subj)
+		subjObj, recvType := findSubjectObject(g.pkgs, subj)
 		for _, site := range reachableSites {
 			if isOpaqueSiteCompatible(site, subj, subjObj, recvType) {
 				opaque = true
@@ -2749,78 +3739,110 @@ func (ix *Index) moduleEdgesSites(pkgs []*packages.Package, module string) (map[
 			continue
 		}
 		for _, f := range pkg.Syntax {
-			var caller string
-			var encDecl *ast.FuncDecl
-			ast.Inspect(f, func(n ast.Node) bool {
-				if fn, ok := n.(*ast.FuncDecl); ok && fn.Name != nil {
-					caller = fn.Name.Name
-					encDecl = fn
-					if fn.Recv != nil && len(fn.Recv.List) > 0 {
-						caller = recvDeclName(fn.Recv.List[0].Type) + "." + fn.Name.Name
+			// Package-level statements (var initializers) execute at
+			// package init: they attribute to the "init" sentinel rather
+			// than the last FuncDecl seen — a stale caller would either
+			// drop the edge or blame it on an unrelated function.
+			for _, decl := range f.Decls {
+				encDecl, _ := decl.(*ast.FuncDecl)
+				caller := "init"
+				if encDecl != nil && encDecl.Name != nil {
+					caller = encDecl.Name.Name
+					if encDecl.Recv != nil && len(encDecl.Recv.List) > 0 {
+						caller = recvDeclName(encDecl.Recv.List[0].Type) + "." + encDecl.Name.Name
 					}
-					return true
 				}
-				call, ok := n.(*ast.CallExpr)
-				if !ok || caller == "" {
-					return true
-				}
-				fun := call.Fun
-				for {
-					if p, ok := fun.(*ast.ParenExpr); ok {
-						fun = p.X
-						continue
+				ast.Inspect(decl, func(n ast.Node) bool {
+					// Every func-literal body under a package-level decl walks
+					// in init context — the literal may be invoked at init
+					// (IIFE), handed to an init-run callback, or stored in a
+					// package var that a later init decl calls. Attributing a
+					// possibly-later call to init only ever adds reachability
+					// evidence; dropping the body could classify a live
+					// subject DEAD.
+					call, ok := n.(*ast.CallExpr)
+					if !ok {
+						return true
 					}
-					break
-				}
-				obj := calleeObject(info, fun)
-				handleCallee := func(fn *types.Func) bool {
-					if fn == nil || fn.Pkg() == nil {
-						return false
+					fun := call.Fun
+					for {
+						if p, ok := fun.(*ast.ParenExpr); ok {
+							fun = p.X
+							continue
+						}
+						break
 					}
-					p := fn.Pkg().Path()
-					if p != module && !strings.HasPrefix(p, module+"/") {
-						return false
-					}
-					callee := p + "." + fn.Name()
-					if sig, ok := fn.Type().(*types.Signature); ok && sig.Recv() != nil {
-						rt := sig.Recv().Type()
-						callee = p + "." + recvTypeName(rt) + "." + fn.Name()
-						// Interface dispatch: the callee is the interface
-						// method — record the site so impl edges below can be
-						// narrowed by the dispatch key.
-						switch rt.Underlying().(type) {
-						case *types.Interface:
-							if named := ifaceNamed(rt); named != nil {
-								if ifaceSites[named] == nil {
-									ifaceSites[named] = map[string][]ifaceSite{}
+					obj := calleeObject(info, fun)
+					handleCallee := func(fn *types.Func) bool {
+						if fn == nil || fn.Pkg() == nil {
+							return false
+						}
+						p := fn.Pkg().Path()
+						if p != module && !strings.HasPrefix(p, module+"/") {
+							return false
+						}
+						callee := p + "." + fn.Name()
+						if sig, ok := fn.Type().(*types.Signature); ok && sig.Recv() != nil {
+							rt := sig.Recv().Type()
+							callee = p + "." + recvTypeName(rt) + "." + fn.Name()
+							// Interface dispatch: the callee is the interface
+							// method — record the site so impl edges below can be
+							// narrowed by the dispatch key.
+							switch rt.Underlying().(type) {
+							case *types.Interface:
+								if named := ifaceNamed(rt); named != nil {
+									if ifaceSites[named] == nil {
+										ifaceSites[named] = map[string][]ifaceSite{}
+									}
+									ifaceSites[named][fn.Name()] = append(ifaceSites[named][fn.Name()], ifaceSite{pkg, encDecl, call})
+								} else {
+									// Anonymous/interface-literal receiver: the
+									// call resolves to the interface method but
+									// no impl edges are enumerable — the graph
+									// is incomplete, not "no path".
+									iface, _ := rt.Underlying().(*types.Interface)
+									addOpaque(pkg.PkgPath+"."+caller, opaqueSite{iface: iface})
 								}
-								ifaceSites[named][fn.Name()] = append(ifaceSites[named][fn.Name()], ifaceSite{pkg, encDecl, call})
-							} else {
-								// Anonymous/interface-literal receiver: the
-								// call resolves to the interface method but
-								// no impl edges are enumerable — the graph
-								// is incomplete, not "no path".
-								iface, _ := rt.Underlying().(*types.Interface)
-								addOpaque(pkg.PkgPath+"."+caller, opaqueSite{iface: iface})
 							}
 						}
+						addEdge(pkg.PkgPath+"."+caller, callee)
+						return true
 					}
-					addEdge(pkg.PkgPath+"."+caller, callee)
-					return true
-				}
-				if fn, ok := obj.(*types.Func); ok {
-					if fn.Pkg() != nil {
-						handleCallee(fn)
+					if fn, ok := obj.(*types.Func); ok {
+						if fn.Pkg() != nil {
+							handleCallee(fn)
+						}
+						return true
 					}
-					return true
-				}
-				if v, ok := obj.(*types.Var); ok {
-					if _, isSig := v.Type().Underlying().(*types.Signature); isSig {
-						// 1. Struct field func callback dispatch
-						if sel, ok := fun.(*ast.SelectorExpr); ok {
-							if selection, ok := info.Selections[sel]; ok && selection.Kind() == types.FieldVal {
-								key := structFieldKey(v, selection.Recv())
-								targets := structFieldFuncs[key]
+					if v, ok := obj.(*types.Var); ok {
+						if _, isSig := v.Type().Underlying().(*types.Signature); isSig {
+							// 1. Struct field func callback dispatch
+							if sel, ok := fun.(*ast.SelectorExpr); ok {
+								if selection, ok := info.Selections[sel]; ok && selection.Kind() == types.FieldVal {
+									key := structFieldKey(v, selection.Recv())
+									targets := structFieldFuncs[key]
+									if len(targets) > 0 {
+										allResolved := true
+										for _, t := range targets {
+											if t != nil && t.Pkg() != nil {
+												handleCallee(t)
+											} else {
+												allResolved = false
+											}
+										}
+										if allResolved {
+											return true
+										}
+									}
+									sig, _ := v.Type().Underlying().(*types.Signature)
+									addOpaque(pkg.PkgPath+"."+caller, opaqueSite{sig: sig})
+									return true
+								}
+							}
+							// 2. Package-level function variable
+							if v.Pkg() != nil && v.Parent() == v.Pkg().Scope() {
+								key := pkgVarKey(v)
+								targets := pkgVarFuncs[key]
 								if len(targets) > 0 {
 									allResolved := true
 									for _, t := range targets {
@@ -2838,82 +3860,61 @@ func (ix *Index) moduleEdgesSites(pkgs []*packages.Package, module string) (map[
 								addOpaque(pkg.PkgPath+"."+caller, opaqueSite{sig: sig})
 								return true
 							}
-						}
-						// 2. Package-level function variable
-						if v.Pkg() != nil && v.Parent() == v.Pkg().Scope() {
-							key := pkgVarKey(v)
-							targets := pkgVarFuncs[key]
-							if len(targets) > 0 {
-								allResolved := true
-								for _, t := range targets {
-									if t != nil && t.Pkg() != nil {
-										handleCallee(t)
-									} else {
-										allResolved = false
-									}
-								}
-								if allResolved {
-									return true
-								}
-							}
-							sig, _ := v.Type().Underlying().(*types.Signature)
-							addOpaque(pkg.PkgPath+"."+caller, opaqueSite{sig: sig})
-							return true
-						}
-						// 3. Local func variable / method value
-						if encDecl != nil {
-							rhss := assignRHS(info, encDecl, v)
-							if len(rhss) > 0 {
-								allResolved := true
-								for _, r := range rhss {
-									targets := extractTargetFuncs(info, encDecl, r.expr, 0)
-									if len(targets) > 0 {
-										for _, t := range targets {
-											if t != nil && t.Pkg() != nil {
-												handleCallee(t)
-											} else {
-												allResolved = false
+							// 3. Local func variable / method value
+							if encDecl != nil {
+								rhss := assignRHS(info, encDecl, v)
+								if len(rhss) > 0 {
+									allResolved := true
+									for _, r := range rhss {
+										targets := extractTargetFuncs(info, encDecl, r.expr, 0)
+										if len(targets) > 0 {
+											for _, t := range targets {
+												if t != nil && t.Pkg() != nil {
+													handleCallee(t)
+												} else {
+													allResolved = false
+												}
 											}
+										} else {
+											allResolved = false
 										}
-									} else {
-										allResolved = false
 									}
-								}
-								if allResolved {
-									return true
+									if allResolved {
+										return true
+									}
 								}
 							}
 						}
 					}
-				}
-				// Func values and map-indexed calls hide their target
-				// from the chain — absence of a found chain is then
-				// not evidence of absence. Builtins and type
-				// conversions resolve to no *types.Func either, but
-				// call nothing user-defined.
-				switch obj.(type) {
-				case *types.Builtin, *types.TypeName:
-				default:
-					if tv, ok := info.Types[fun]; ok && tv.IsType() {
-						break
-					}
-					var siteSig *types.Signature
-					if tv, ok := info.Types[fun]; ok && tv.Type != nil {
-						if sig, ok := tv.Type.Underlying().(*types.Signature); ok {
-							siteSig = sig
+					// Func values and map-indexed calls hide their target
+					// from the chain — absence of a found chain is then
+					// not evidence of absence. Builtins and type
+					// conversions resolve to no *types.Func either, but
+					// call nothing user-defined.
+					switch obj.(type) {
+					case *types.Builtin, *types.TypeName:
+					default:
+						if tv, ok := info.Types[fun]; ok && tv.IsType() {
+							break
 						}
-					}
-					if siteSig == nil {
-						if v, ok := obj.(*types.Var); ok {
-							if sig, ok := v.Type().Underlying().(*types.Signature); ok {
+						var siteSig *types.Signature
+						if tv, ok := info.Types[fun]; ok && tv.Type != nil {
+							if sig, ok := tv.Type.Underlying().(*types.Signature); ok {
 								siteSig = sig
 							}
 						}
+						if siteSig == nil {
+							if v, ok := obj.(*types.Var); ok {
+								if sig, ok := v.Type().Underlying().(*types.Signature); ok {
+									siteSig = sig
+								}
+							}
+						}
+						addOpaque(pkg.PkgPath+"."+caller, opaqueSite{sig: siteSig})
 					}
-					addOpaque(pkg.PkgPath+"."+caller, opaqueSite{sig: siteSig})
-				}
-				return true
-			})
+					return true
+				})
+			}
 		}
 	}
 	// Link interface methods to their concrete implementations declared in
@@ -3186,17 +4187,17 @@ func (ix *Index) productInstantiated() (map[string]bool, bool) {
 }
 
 // IsReceiverTypeInstantiated reports whether the receiver type of ref (if ref
-// is a method) is known to be instantiated in the product code.
-// Standalone functions (no receiver type) conservatively return true.
+// is a method) may be materialized in product code. It returns false only
+// when the receiver is PROVABLY never instantiated: the type resolved in the
+// loaded packages, instantiation narrowing is enabled (no reflect.New/NewAt,
+// unsafe, plugin or go:linkname in product code), every product package
+// type-checked — a skipped package's syntax never entered the inventory —
+// and the type is absent from the product instantiation set. Standalone
+// functions, unresolved receiver types and every incomplete probe
+// conservatively return true: an unproven receiver must never narrow
+// dispatch or dynamic-invocation scope away.
 func (ix *Index) IsReceiverTypeInstantiated(ref domain.SymbolRef) bool {
 	if ix == nil {
-		return true
-	}
-	typeName, _ := splitSymbol(ref.Symbol)
-	typeName = strings.TrimSpace(typeName)
-	typeName = strings.Trim(typeName, "()*")
-	typeName = strings.TrimSpace(typeName)
-	if typeName == "" {
 		return true
 	}
 	ix.mu.Lock()
@@ -3204,12 +4205,84 @@ func (ix *Index) IsReceiverTypeInstantiated(ref domain.SymbolRef) bool {
 	if err := ix.load(ix.ctxOr(nil)); err != nil {
 		return true
 	}
-	inst, _ := ix.productInstantiated()
-	if inst == nil {
+	return ix.receiverTypeInstantiated(ix.ctxOr(nil), ref)
+}
+
+// receiverTypeInstantiated is the lock-free core of
+// IsReceiverTypeInstantiated; callers must hold ix.mu with the index
+// already loaded.
+func (ix *Index) receiverTypeInstantiated(ctx context.Context, ref domain.SymbolRef) bool {
+	typeName, _ := splitSymbol(ref.Symbol)
+	recvName := subjectRecvName(typeName)
+	if recvName == "" {
 		return true
 	}
-	key := ref.Package + "." + typeName
-	return inst[key]
+	if ix.lookupNamedType(ctx, ref.Package, recvName) == nil {
+		return true
+	}
+	narrow, _, _ := ix.productNarrowingLocked()
+	if !narrow {
+		return true
+	}
+	return ix.productInstantiatedHas(ref)
+}
+
+// receiverMayBeErased reports whether a concrete receiver can be produced
+// by a product call returning an interface implemented by the receiver.
+// Unrelated interface-returning calls do not disable receiver narrowing.
+func (ix *Index) receiverMayBeErased(ref domain.SymbolRef) bool {
+	typeName, _ := splitSymbol(ref.Symbol)
+	if typeName == "" {
+		return false
+	}
+	var recv *types.Named
+	for _, pkg := range ix.pkgs {
+		if pkg.PkgPath != ref.Package || pkg.Types == nil {
+			continue
+		}
+		if tn, ok := pkg.Types.Scope().Lookup(typeName).(*types.TypeName); ok {
+			recv, _ = tn.Type().(*types.Named)
+		}
+	}
+	if recv == nil {
+		return false
+	}
+	for _, pkg := range ix.pkgs {
+		info := pkg.TypesInfo
+		if info == nil {
+			continue
+		}
+		for _, f := range pkg.Syntax {
+			found := false
+			ast.Inspect(f, func(n ast.Node) bool {
+				call, ok := n.(*ast.CallExpr)
+				if !ok || found {
+					return !found
+				}
+				fn, ok := calleeObject(info, call.Fun).(*types.Func)
+				if !ok || fn.Pkg() == nil || fn.Pkg().Path() != ref.Package {
+					return true
+				}
+				sig, ok := fn.Type().(*types.Signature)
+				if !ok || sig.Results() == nil {
+					return true
+				}
+				for i := range sig.Results().Len() {
+					t := sig.Results().At(i).Type()
+					iface, ok := t.Underlying().(*types.Interface)
+					if ok && (types.Implements(recv, iface) || types.Implements(types.NewPointer(recv), iface)) {
+						found = true
+						return false
+					}
+				}
+				return true
+			})
+			if found {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // depCone returns the set of module functions reachable from the product's
@@ -3442,6 +4515,12 @@ func (ix *Index) ScanDynamic(ctx context.Context, ref domain.SymbolRef) ([]Dynam
 	if err := ix.load(ctx); err != nil {
 		return nil, err
 	}
+	return ix.scanDynamic(ref), nil
+}
+
+// scanDynamic is the lock-free core of ScanDynamic; callers must hold
+// ix.mu with the index already loaded.
+func (ix *Index) scanDynamic(ref domain.SymbolRef) []DynamicMarker {
 	var out []DynamicMarker
 	for _, pkg := range ix.pkgs {
 		for _, f := range pkg.Syntax {
@@ -3547,7 +4626,7 @@ func (ix *Index) ScanDynamic(ctx context.Context, ref domain.SymbolRef) ([]Dynam
 			})
 		}
 	}
-	return out, nil
+	return out
 }
 
 // symRefIdent reports whether ident references the target symbol without

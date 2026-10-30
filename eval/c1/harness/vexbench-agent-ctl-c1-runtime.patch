@@ -1,0 +1,933 @@
+diff --git a/docker/build-c1.sh b/docker/build-c1.sh
+new file mode 100755
+index 0000000..0ae961f
+--- /dev/null
++++ b/docker/build-c1.sh
+@@ -0,0 +1,75 @@
++#!/usr/bin/env bash
++# Build the Task 4 C1 derived images: the frozen agent images plus the
++# izyan-evidence-tools MCP server binary.
++#
++#   ./build-c1.sh <izyan-checkout> [izyan-ref]
++#
++#   <izyan-checkout>  path to the Izyan repo worktree (must contain
++#                     cmd/izyan-evidence-tools); required.
++#   [izyan-ref]       optional recorded ref label stamped into the image
++#                     tag metadata file next to this script (informational;
++#                     the image tag stays :latest like the other agents).
++#
++# The binary is cross-compiled for the Docker host's architecture
++# (GOOS=linux, GOARCH from `docker info`). Keep the base image untouched:
++# B1 must be able to run the frozen vex-bench-go-codex:latest as before.
++#
++# C1_IMAGES optionally restricts the build to a subset, e.g.
++#   C1_IMAGES=opencode docker/build-c1.sh <izyan-checkout>
++# when the codex base image is not present locally. Default: both.
++set -euo pipefail
++
++HERE="$(cd "$(dirname "$0")" && pwd)"
++IZYAN="${1:?usage: build-c1.sh <izyan-checkout> [izyan-ref]}"
++REF="${2:-$(git -C "$IZYAN" describe --always --dirty --tags 2>/dev/null || git -C "$IZYAN" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
++IMAGES="${C1_IMAGES:-codex opencode}"
++
++if [[ ! -d "$IZYAN/cmd/izyan-evidence-tools" ]]; then
++    echo "error: $IZYAN does not look like an izyan checkout" >&2
++    exit 1
++fi
++
++GOARCH="$(docker info --format '{{.Architecture}}')"
++# docker reports "aarch64" where Go wants "arm64"
++GOARCH="${GOARCH/aarch64/arm64}"
++mkdir -p "$HERE/bin"
++
++echo ">>> building izyan-evidence-tools (izyan@$REF, linux/$GOARCH)"
++(cd "$IZYAN" && GOOS=linux GOARCH="$GOARCH" CGO_ENABLED=0 \
++    go build -trimpath -o "$HERE/bin/izyan-evidence-tools" ./cmd/izyan-evidence-tools)
++
++BUILT=()
++BASES=()
++if [[ " $IMAGES " == *" codex "* ]]; then
++    echo ">>> building vex-bench-go-codex-c1"
++    docker build -t "vex-bench-go-codex-c1:latest" \
++        -f "$HERE/go.codex-c1.Dockerfile" "$HERE"
++    BUILT+=("vex-bench-go-codex-c1:latest")
++    BASES+=("vex-bench-go-codex:latest")
++fi
++
++# opencode variant: built on the custom image so self-hosted providers
++# (custom-openai) keep working through the corporate CA.
++if [[ " $IMAGES " == *" opencode "* ]]; then
++    echo ">>> building vex-bench-go-opencode-c1"
++    docker build -t "vex-bench-go-opencode-c1:latest" \
++        -f "$HERE/go.opencode-c1.Dockerfile" "$HERE"
++    BUILT+=("vex-bench-go-opencode-c1:latest")
++    BASES+=("vex-bench-go-opencode-custom:latest")
++fi
++
++if [[ ${#BUILT[@]} -eq 0 ]]; then
++    echo "error: C1_IMAGES selected no image (got '$IMAGES')" >&2
++    exit 1
++fi
++
++cat > "$HERE/c1-image.stamp" <<EOF
++images=$(IFS=,; echo "${BUILT[*]}")
++bases=$(IFS=,; echo "${BASES[*]}")
++izyan_checkout=$IZYAN
++izyan_ref=$REF
++built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
++binary_sha256=$(shasum -a 256 "$HERE/bin/izyan-evidence-tools" | awk '{print $1}')
++EOF
++
++echo ">>> done; stamp written to $HERE/c1-image.stamp"
+diff --git a/docker/go.codex-c1.Dockerfile b/docker/go.codex-c1.Dockerfile
+new file mode 100644
+index 0000000..8c846ca
+--- /dev/null
++++ b/docker/go.codex-c1.Dockerfile
+@@ -0,0 +1,10 @@
++# Task 4 (C1) image: frozen B1 Codex image + izyan evidence-tools binary.
++#
++# Build context is the directory produced by docker/build-c1.sh, which
++# cross-compiles izyan-evidence-tools from a pinned izyan checkout into
++# this directory (bin/izyan-evidence-tools). Nothing else changes:
++# ENTRYPOINT [codex], base Go toolchain and Codex 0.131.0 are inherited.
++FROM vex-bench-go-codex:latest
++
++COPY bin/izyan-evidence-tools /usr/local/bin/izyan-evidence-tools
++RUN chmod 0755 /usr/local/bin/izyan-evidence-tools
+diff --git a/docker/go.opencode-c1.Dockerfile b/docker/go.opencode-c1.Dockerfile
+new file mode 100644
+index 0000000..82dbd96
+--- /dev/null
++++ b/docker/go.opencode-c1.Dockerfile
+@@ -0,0 +1,4 @@
++FROM vex-bench-go-opencode-custom:latest
++COPY bin/izyan-evidence-tools /usr/local/bin/izyan-evidence-tools
++RUN chmod +x /usr/local/bin/izyan-evidence-tools
++ENTRYPOINT ["opencode"]
+diff --git a/src/evaluate/agents/__init__.py b/src/evaluate/agents/__init__.py
+index c45b613..66d69c3 100644
+--- a/src/evaluate/agents/__init__.py
++++ b/src/evaluate/agents/__init__.py
+@@ -3,13 +3,24 @@ from collections.abc import Callable
+ from evaluate.agents.base import Agent, AgentResult, ParsedResult, RunContext, RunStats
+ from evaluate.agents.claude import ClaudeAgent
+ from evaluate.agents.codex import CodexAgent
++from evaluate.agents.codex_c1 import CodexB1PrimeAgent, CodexC1Agent
+ from evaluate.agents.opencode import OpenCodeAgent
++from evaluate.agents.opencode_c1 import (
++    OpenCodeB1PrimeAgent,
++    OpenCodeC1Agent,
++    OpenCodeC1NoMcpAgent,
++)
+ 
+ # Each entry is a factory: ``(model) -> Agent``.
+ AGENTS: dict[str, Callable[..., Agent]] = {
+     "codex": CodexAgent,
++    "codex-b1p": CodexB1PrimeAgent,  # Task 4 B1' control: B1 + assessment prompt + full capture
++    "codex-c1": CodexC1Agent,        # Task 4 C1: B1' + izyan MCP evidence tools
+     "claude": ClaudeAgent,
+     "opencode": OpenCodeAgent,
++    "opencode-b1p": OpenCodeB1PrimeAgent,  # Task 4 B1' control: opencode + assessment prompt, no Izyan tools
++    "opencode-c1": OpenCodeC1Agent,    # Task 4 C1: opencode-b1p + izyan MCP evidence tools
++    "opencode-c1-nomcp": OpenCodeC1NoMcpAgent,  # same C1 image/pipeline, no mcp block
+ }
+ 
+ __all__ = ["AGENTS", "Agent", "AgentResult", "ParsedResult", "RunContext", "RunStats"]
+diff --git a/src/evaluate/agents/base.py b/src/evaluate/agents/base.py
+index 251e056..bec22d4 100644
+--- a/src/evaluate/agents/base.py
++++ b/src/evaluate/agents/base.py
+@@ -1,5 +1,8 @@
++import json
++import logging
+ import shutil
+ import subprocess
++import threading
+ from abc import ABC, abstractmethod
+ from collections.abc import Sequence
+ from dataclasses import dataclass
+@@ -7,6 +10,8 @@ from pathlib import Path
+ 
+ from pydantic import BaseModel
+ 
++logger = logging.getLogger(__name__)
++
+ 
+ @dataclass(frozen=True)
+ class RunContext:
+@@ -35,6 +40,7 @@ def run_in_container(
+     workdir: str = "/work",
+     artifacts_dir: Path | None = None,
+     artifact_paths: Sequence[tuple[str, str]] = (),
++    io_log_dir: Path | None = None,
+ ) -> str:
+     """Run a one-shot agent command in a disposable container; return stdout.
+ 
+@@ -60,6 +66,8 @@ def run_in_container(
+         raise RuntimeError(f"docker create failed: {exc.stderr.strip() or '(no stderr)'}") from exc
+     cid = created.stdout.strip()
+ 
++    stdout_cap: str | bytes | None = None
++    stderr_cap: str | bytes | None = None
+     try:
+         try:
+             subprocess.run(
+@@ -71,31 +79,89 @@ def run_in_container(
+         except subprocess.CalledProcessError as exc:
+             raise RuntimeError(f"docker cp failed: {exc.stderr.strip() or '(no stderr)'}") from exc
+ 
+-        try:
+-            started = subprocess.run(
+-                ["docker", "start", "-a", cid],
+-                capture_output=True,
+-                text=True,
+-                timeout=timeout,
++        # ``subprocess.run(..., timeout=)`` is unusable here: when the
++        # container streams a lot of output, the timeout fires on the ``docker
++        # start -a`` client only, the container keeps running and holding the
++        # stdout pipe open, and ``communicate()`` then blocks forever. Kill the
++        # container itself from a watchdog so the pipe closes and the client
++        # exits; the ``finally`` block still force-removes it afterwards.
++        logger.info(
++            "run_in_container: cid=%s entrypoint=%s timeout=%ss",
++            cid[:12], entrypoint, timeout,
++        )
++        proc = subprocess.Popen(
++            ["docker", "start", "-a", cid],
++            stdout=subprocess.PIPE,
++            stderr=subprocess.PIPE,
++            text=True,
++        )
++        timed_out = threading.Event()
++
++        def _watchdog() -> None:
++            if proc.poll() is not None:
++                return
++            logger.warning(
++                "run_in_container: watchdog firing for cid=%s after %ss",
++                cid[:12], timeout,
+             )
+-        except subprocess.TimeoutExpired as exc:
++            timed_out.set()
++            try:
++                subprocess.run(
++                    ["docker", "kill", cid],
++                    capture_output=True, check=False, timeout=60,
++                )
++            except subprocess.TimeoutExpired:
++                logger.error("run_in_container: docker kill %s itself hung", cid[:12])
++            # The container death closes the stdout pipe and the client exits.
++            # If it somehow lingers, kill the client so we never hang.
++            try:
++                proc.wait(timeout=30)
++            except subprocess.TimeoutExpired:
++                proc.kill()
++
++        watchdog = threading.Timer(timeout, _watchdog)
++        watchdog.start()
++        try:
++            stdout_cap, stderr_cap = proc.communicate()
++        finally:
++            watchdog.cancel()
++
++        if timed_out.is_set():
+             raise RuntimeError(
+-                f"container timed out after {timeout}s{_captured_io(exc.stdout, exc.stderr)}"
+-            ) from exc
++                f"container timed out after {timeout}s"
++                f"{_captured_io(stdout_cap, stderr_cap)}"
++            )
+ 
+-        if started.returncode != 0:
++        if proc.returncode != 0:
+             raise RuntimeError(
+-                f"container exited {started.returncode}: "
+-                f"{started.stderr.strip() or '(no stderr)'}"
+-                f"{_captured_io(started.stdout, started.stderr)}"
++                f"container exited {proc.returncode}: "
++                f"{(stderr_cap or '').strip() or '(no stderr)'}"
++                f"{_captured_io(stdout_cap, stderr_cap)}"
+             )
+-        return started.stdout
++        return stdout_cap
+     finally:
++        # Full stdout/stderr capture happens before the container and its
++        # writable layer disappear (spec §8.2): on success, non-zero exit
++        # and timeout alike. Write failures are visible, never silent.
++        if io_log_dir is not None:
++            _write_io_logs(io_log_dir, stdout_cap, stderr_cap)
+         if artifacts_dir is not None:
+             _copy_container_artifacts(cid, artifacts_dir, artifact_paths)
+         subprocess.run(["docker", "rm", "-f", cid], capture_output=True, check=False)
+ 
+ 
++def _write_io_logs(
++    io_log_dir: Path, stdout: str | bytes | None, stderr: str | bytes | None
++) -> None:
++    io_log_dir.mkdir(parents=True, exist_ok=True)
++    (io_log_dir / "stdout.log").write_bytes(
++        _decode_capture(stdout).encode("utf-8", errors="replace")
++    )
++    (io_log_dir / "stderr.log").write_bytes(
++        _decode_capture(stderr).encode("utf-8", errors="replace")
++    )
++
++
+ def _copy_container_artifacts(
+     cid: str, artifacts_dir: Path, artifact_paths: Sequence[tuple[str, str]]
+ ) -> None:
+@@ -103,6 +169,7 @@ def _copy_container_artifacts(
+         return
+ 
+     artifacts_dir.mkdir(parents=True, exist_ok=True)
++    report: list[dict] = []
+     for container_path, name in artifact_paths:
+         dest = artifacts_dir / name
+         if dest.exists():
+@@ -110,11 +177,27 @@ def _copy_container_artifacts(
+                 shutil.rmtree(dest)
+             else:
+                 dest.unlink()
+-        subprocess.run(
++        cp = subprocess.run(
+             ["docker", "cp", f"{cid}:{container_path}", str(dest)],
+             capture_output=True,
+             check=False,
++            text=True,
++        )
++        # docker cp is best-effort (check=False) but its outcome is recorded:
++        # a failed export must be distinguishable from a tool that simply
++        # never wrote the artifact (plan section 4, spec section 8.2).
++        report.append(
++            {
++                "container_path": container_path,
++                "name": name,
++                "rc": cp.returncode,
++                "stderr": (cp.stderr or "").strip()[-500:],
++                "exported": dest.exists(),
++            }
+         )
++    (artifacts_dir / "export-report.json").write_text(
++        json.dumps(report, indent=2) + "\n", encoding="utf-8"
++    )
+ 
+ 
+ def _captured_io(stdout: str | bytes | None, stderr: str | bytes | None) -> str:
+diff --git a/src/evaluate/agents/codex_c1.py b/src/evaluate/agents/codex_c1.py
+new file mode 100644
+index 0000000..2eac14c
+--- /dev/null
++++ b/src/evaluate/agents/codex_c1.py
+@@ -0,0 +1,184 @@
++"""Task 4 (C1) Codex adapters — additive profiles, B1 semantics preserved.
++
++Two registry entries:
++
++- ``codex-b1p`` (B1' control): identical to B1's ``codex`` — same model,
++  image, args, mounts, native tools — PLUS the shared structured-assessment
++  prompt (``vuln_assess``) and full stdout/stderr + artifact capture.
++  Use this as the primary comparator when the reporting protocol is new
++  (plan §1.5): same output contract, no Izyan tools anywhere.
++
++- ``codex-c1`` (C1 treatment): B1' + the ``izyan`` MCP evidence-tools
++  server. The frozen base image is extended by a derived image
++  ``vex-bench-go-codex-c1:latest`` (docker/go.codex-c1.Dockerfile) that only
++  adds ``/usr/local/bin/izyan-evidence-tools``; the MCP stanza is appended
++  to a per-attempt synthesized config.toml. Native Codex coding tools,
++  model, sandbox mode, env file and image entrypoint are unchanged.
++
++Neither profile touches ``opencode``/``claude``/``codex`` semantics.
++"""
++
++import logging
++import re
++from pathlib import Path
++
++from evaluate.agents.base import AgentResult, RunContext, run_in_container
++from evaluate.agents.codex import CodexAgent, CONTAINER_CONFIG, HOST_CONFIG, HOST_ENV_FILE
++
++logger = logging.getLogger(__name__)
++
++# Where the derived C1 image keeps the tool binary (docker/go.codex-c1.Dockerfile).
++TOOL_BIN_CONTAINER = "/usr/local/bin/izyan-evidence-tools"
++# Container-local, attempt-local audit sink; exported via artifact_paths.
++TOOL_AUDIT_DIR = "/tmp/izyan-audit"
++# Codex session/rollout records land under $CODEX_HOME (HOME=/tmp in image).
++CODEX_STATE_DIR = "/tmp/.codex"
++
++_CVE_TAG_RE = re.compile(r"<CVE>\s*([A-Za-z]+-\d[\w.-]*)\s*</CVE>")
++
++
++def _extract_cve_id(prompt: str) -> str | None:
++    m = _CVE_TAG_RE.search(prompt)
++    return m.group(1) if m else None
++
++
++def _common_codex_args(prompt: str, model: str) -> list[str]:
++    return [
++        "exec",
++        "--sandbox",
++        "danger-full-access",
++        "--json",
++        "--skip-git-repo-check",
++        "--model",
++        model,
++        prompt,
++    ]
++
++
++class CodexB1PrimeAgent(CodexAgent):
++    """B1' — frozen Codex behavior + full capture; no Izyan tools.
++
++    Registered as ``codex-b1p``. Everything the B1 adapter did is intact:
++    same image name pattern, same CLI args, same config mount. The only
++    deltas are protocol-level and shared with C1: the caller selects the
++    ``vuln_assess`` prompt and this class wires the existing
++    artifacts_dir/artifact_paths capture so stdout, stderr and the Codex
++    session records survive success, non-zero exit and timeout alike.
++    """
++
++    IMAGE_SUFFIX = "codex"  # vex-bench-<lang>-codex:latest — the frozen B1 image
++
++    def run(self, prompt: str, ctx: RunContext) -> AgentResult:
++        env_file = HOST_ENV_FILE.resolve()
++        if not env_file.exists():
++            raise RuntimeError(f"Env file not found: {env_file}")
++        config_file = HOST_CONFIG.resolve()
++        if not config_file.exists():
++            raise RuntimeError(f"Config file not found: {config_file}")
++
++        image = f"vex-bench-{ctx.language}-{self.IMAGE_SUFFIX}:latest"
++        logger.debug("running %s image=%s src=%s", type(self).__name__, image, ctx.cwd)
++        stdout = run_in_container(
++            image,
++            _common_codex_args(prompt, self.model),
++            entrypoint="codex",
++            src=ctx.cwd,
++            timeout=ctx.timeout,
++            env_file=env_file,
++            mounts=[(config_file, CONTAINER_CONFIG)],
++            artifacts_dir=ctx.artifacts_dir,
++            artifact_paths=self._artifact_paths(),
++            io_log_dir=(ctx.artifacts_dir / "logs") if ctx.artifacts_dir else None,
++        )
++        return AgentResult(raw_output=stdout)
++
++    def _artifact_paths(self) -> list[tuple[str, str]]:
++        """(container_path, dest_name) pairs exported after every attempt.
++
++        Missing paths are tolerated by the exporter (docker cp is
++        best-effort); absence is itself diagnostic. Only ``sessions``/
++        ``log`` are pulled — the whole $CODEX_HOME would drag in a
++        multi-MB plugin cache unrelated to the attempt.
++        """
++        return [
++            (f"{CODEX_STATE_DIR}/sessions", "codex-sessions"),  # rollouts incl. MCP events
++            (f"{CODEX_STATE_DIR}/log", "codex-log"),
++        ]
++
++
++class CodexC1Agent(CodexB1PrimeAgent):
++    """C1 — B1' plus the izyan MCP evidence-tools server.
++
++    Registered as ``codex-c1``. Requires the derived image
++    ``vex-bench-<lang>-codex-c1:latest`` carrying the tool binary; the MCP
++    session is configured by appending ``[mcp_servers.izyan]`` to the same
++    provider config B1 used, so model/provider settings are identical.
++    """
++
++    IMAGE_SUFFIX = "codex-c1"
++
++    def run(self, prompt: str, ctx: RunContext) -> AgentResult:
++        cve_id = _extract_cve_id(prompt)
++        if not cve_id:
++            raise RuntimeError(
++                "codex-c1: could not extract CVE id from prompt "
++                "(expected <CVE>...</CVE> tag)"
++            )
++        config_file = self._synthesize_config(ctx, cve_id)
++        env_file = HOST_ENV_FILE.resolve()
++        if not env_file.exists():
++            raise RuntimeError(f"Env file not found: {env_file}")
++        image = f"vex-bench-{ctx.language}-{self.IMAGE_SUFFIX}:latest"
++        logger.debug(
++            "running codex-c1 image=%s src=%s cve=%s", image, ctx.cwd, cve_id
++        )
++        stdout = run_in_container(
++            image,
++            _common_codex_args(prompt, self.model),
++            entrypoint="codex",
++            src=ctx.cwd,
++            timeout=ctx.timeout,
++            env_file=env_file,
++            mounts=[(config_file, CONTAINER_CONFIG)],
++            artifacts_dir=ctx.artifacts_dir,
++            artifact_paths=self._artifact_paths(),
++            io_log_dir=(ctx.artifacts_dir / "logs") if ctx.artifacts_dir else None,
++        )
++        return AgentResult(raw_output=stdout)
++
++    def _synthesize_config(self, ctx: RunContext, cve_id: str) -> Path:
++        """Provider config + [mcp_servers.izyan], written under artifacts_dir.
++
++        The MCP args pin the session to this attempt's snapshot (/work —
++        the docker-cp target), the task's CVE and a container-local audit
++        file. --allow-exec matches B1 parity (native sandbox already runs
++        arbitrary commands); advisory network research stays enabled, as it
++        was for B1. External SHA = snapshot dir basename (commit sha).
++        """
++        base_cfg = HOST_CONFIG.resolve().read_text(encoding="utf-8")
++        external_sha = ctx.cwd.name  # .../<owner>/<repo>/<commit_sha>
++        args = [
++            "--snapshot-root", "/work",
++            "--cve", cve_id,
++            "--external-sha", external_sha,
++            "--audit-file", f"{TOOL_AUDIT_DIR}/tool_calls.jsonl",
++            "--allow-exec",
++        ]
++        args_toml = "[" + ", ".join('"' + a + '"' for a in args) + "]"
++        cfg = (
++            base_cfg.rstrip()
++            + "\n\n[mcp_servers.izyan]\n"
++            + f'command = "{TOOL_BIN_CONTAINER}"\n'
++            + f"args = {args_toml}\n"
++        )
++        if ctx.artifacts_dir is None:
++            raise RuntimeError("codex-c1: RunContext.artifacts_dir is required")
++        ctx.artifacts_dir.mkdir(parents=True, exist_ok=True)
++        out = ctx.artifacts_dir / "codex-config.c1.toml"
++        out.write_text(cfg, encoding="utf-8")
++        return out
++
++    def _artifact_paths(self) -> list[tuple[str, str]]:
++        return super()._artifact_paths() + [
++            (TOOL_AUDIT_DIR, "izyan-audit"),  # tool_calls.jsonl observations
++        ]
+diff --git a/src/evaluate/agents/opencode.py b/src/evaluate/agents/opencode.py
+index acfa435..5b8298e 100644
+--- a/src/evaluate/agents/opencode.py
++++ b/src/evaluate/agents/opencode.py
+@@ -1,9 +1,11 @@
+ import json
+ import logging
++import os
+ import shlex
+ import shutil
+ import subprocess
+ import tempfile
++from collections.abc import Sequence
+ from pathlib import Path
+ 
+ from evaluate.agents.base import Agent, AgentResult, ParsedResult, RunContext, RunStats
+@@ -11,16 +13,44 @@ from evaluate.result_parser import parse_category
+ 
+ logger = logging.getLogger(__name__)
+ 
+-HOST_ENV_FILE = Path("env/opencode/opencode.env")
+-HOST_CONFIG = Path("env/opencode/opencode.json")
++HOST_ENV_FILE_DEFAULT = Path("env/opencode/opencode.env")
++HOST_CONFIG_DEFAULT = Path("env/opencode/opencode.json")
+ CONTAINER_CONFIG = "/tmp/.config/opencode/opencode.json"
+ 
++# The controller may launch this adapter from outside the harness checkout.
++# These variables must name the exact files the launcher uses; when unset,
++# the historical CWD-relative defaults apply unchanged.
++HOST_ENV_FILE_ENV = "VEXBENCH_HOST_ENV_FILE"
++HOST_CONFIG_ENV = "VEXBENCH_HOST_CONFIG"
++
++
++def _host_path(variable: str, default: Path) -> Path:
++    override = os.environ.get(variable)
++    return Path(override).expanduser() if override else default
++
++
++def host_env_file() -> Path:
++    """Secret env file, resolved per call so a controller can bind it."""
++    return _host_path(HOST_ENV_FILE_ENV, HOST_ENV_FILE_DEFAULT)
++
++
++def host_config() -> Path:
++    """Provider config file, resolved per call (same override contract)."""
++    return _host_path(HOST_CONFIG_ENV, HOST_CONFIG_DEFAULT)
++
++
+ MODEL2NAME = {
+     "gpt-5.5": "azure-cognitive-services/gpt-5.5",
+     "gpt-5.4-mini": "azure-cognitive-services/gpt-5.4-mini",
+     "kimi-k2.6": "Azure-Resource/Kimi-K2.6",
+     "deepseek-v4-flash": "Azure-Resource/DeepSeek-V4-Flash",
+     "deepseek-v4-pro": "Azure-Resource/DeepSeek-V4-Pro",
++    # Task 4.4-ext self-hosted providers. The value's prefix selects the
++    # provider block merged by ``opencode_c1._extend_config``; the suffix is
++    # the model key sent to that provider.
++    "qwen3.6-35b": "custom-openai/Qwen/Qwen3.6-35B-A3B",
++    "qwen3.8-27b": "custom-openai/Qwen/Qwen3.8-27B",
++    "gemini-3.8-flash-high": "antigravity/gemini-3.8-flash-high",
+ }
+ 
+ 
+@@ -34,16 +64,21 @@ class OpenCodeAgent(Agent):
+     ``env/opencode/opencode.env`` via ``--env-file``.
+     """
+ 
++    # Identifier of the container lifecycle + session-export path. Every
++    # opencode profile (including the C1 variants) inherits this exact
++    # pipeline unless it overrides the launcher itself.
++    PIPELINE = "opencode-run-export/v1"
++
+     def __init__(self, model: str):
+         if model not in MODEL2NAME:
+             raise ValueError(f"Unknown model: {model!r}. Available: {sorted(MODEL2NAME)}")
+         self.model_name = MODEL2NAME[model]
+ 
+     def run(self, prompt: str, ctx: RunContext) -> AgentResult:
+-        env_file = HOST_ENV_FILE.resolve()
++        env_file = host_env_file().resolve()
+         if not env_file.exists():
+             raise RuntimeError(f"Env file not found: {env_file}")
+-        config_file = HOST_CONFIG.resolve()
++        config_file = host_config().resolve()
+         if not config_file.exists():
+             raise RuntimeError(f"Config file not found: {config_file}")
+ 
+@@ -135,6 +170,7 @@ def _run_opencode_and_export(
+     env_file: Path,
+     config_file: Path,
+     artifacts_dir: Path | None,
++    extra_artifact_paths: Sequence[tuple[str, str]] = (),
+ ) -> str:
+     """Run opencode in default mode, then export the latest session as JSON."""
+     script = _build_export_script(model=model, timeout=timeout)
+@@ -150,7 +186,7 @@ def _run_opencode_and_export(
+             return _copy_export(cid, tmpdir)
+         finally:
+             if artifacts_dir is not None:
+-                _copy_debug_artifacts(cid, artifacts_dir)
++                _copy_debug_artifacts(cid, artifacts_dir, extra_artifact_paths)
+             _remove_container(cid)
+ 
+ 
+@@ -342,8 +378,13 @@ def _extract_jsonl_stats(events: list[dict]) -> RunStats:
+     )
+ 
+ 
++
+ # Debug artifact and docker helpers.
+-def _copy_debug_artifacts(cid: str, artifacts_dir: Path) -> None:
++def _copy_debug_artifacts(
++    cid: str,
++    artifacts_dir: Path,
++    extra: Sequence[tuple[str, str]] = (),
++) -> None:
+     artifacts = [
+         ("/tmp/opencode-export.json", "opencode-export.json"),
+         ("/tmp/opencode-stdout.txt", "opencode-stdout.txt"),
+@@ -352,6 +393,7 @@ def _copy_debug_artifacts(cid: str, artifacts_dir: Path) -> None:
+         ("/tmp/session-id", "session-id"),
+         ("/tmp/.local/share/opencode/log", "opencode-log"),
+     ]
++    artifacts += list(extra)
+     artifacts_dir.mkdir(parents=True, exist_ok=True)
+     for container_path, name in artifacts:
+         _docker_cp_optional(f"{cid}:{container_path}", artifacts_dir / name)
+diff --git a/src/evaluate/agents/opencode_c1.py b/src/evaluate/agents/opencode_c1.py
+new file mode 100644
+index 0000000..cf25ceb
+--- /dev/null
++++ b/src/evaluate/agents/opencode_c1.py
+@@ -0,0 +1,294 @@
++"""Task 4 OpenCode adapters — ``opencode-b1p`` and the C1 profiles.
++
++Mirrors ``codex_c1.py``: registry entries that share one run path.
++
++- ``opencode-b1p`` (B1' control): the frozen opencode profile — same
++  model wiring, native tools untouched, session export and debug
++  artifacts identical — on the custom image
++  ``vex-bench-<lang>-opencode-custom:latest`` so the corporate CA is
++  present for self-hosted providers (custom-openai). The caller selects the
++  ``vuln_assess`` prompt; there are no Izyan tools anywhere.
++
++- ``opencode-c1-nomcp`` and ``opencode-c1`` (first-layer VEX parity):
++  one shared legacy C1 runtime. Both run the same override-free
++  ``_run_opencode_and_export`` pipeline on the same derived image
++  ``vex-bench-<lang>-opencode-c1:latest``
++  (docker/go.opencode-c1.Dockerfile). The only difference is the
++  synthesized config: ``opencode-c1`` registers exactly ``mcp.izyan``;
++  ``opencode-c1-nomcp`` has no ``mcp`` key, so no MCP server can be
++  registered or started. The C1 image adds the tool binary. Per attempt
++  the adapter synthesizes ``opencode.json`` — the base provider file
++  plus the needed provider block when the base file lacks it
++  (antigravity points at the host-side proxy via host.docker.internal)
++  plus ``mcp.izyan`` pinned to this attempt's snapshot (``/work`` — the
++  docker-cp target), the task's CVE and a container-local audit file,
++  exported as ``artifacts/izyan-audit/``.
++
++Every profile mounts a synthesized per-attempt config under
++artifacts_dir. ``env/opencode/opencode.env`` and
++``env/opencode/opencode.json`` are resolved per call: the controller may
++set ``VEXBENCH_HOST_ENV_FILE`` / ``VEXBENCH_HOST_CONFIG`` so the file it
++validated is exactly the file the launcher mounts and passes to
++``--env-file``. Native opencode tools are untouched: the base config
++carries no tool restrictions and the synthesized config adds none. Model
++keys are the full provider-side model ids (e.g.
++``Qwen/Qwen3.6-35B-A3B``) — opencode sends the config key verbatim to
++the API.
++"""
++
++import json
++import logging
++from pathlib import Path
++from typing import Optional, Sequence
++
++from evaluate.agents.base import AgentResult, RunContext
++from evaluate.agents.codex_c1 import (
++    TOOL_AUDIT_DIR,
++    TOOL_BIN_CONTAINER,
++    _extract_cve_id,
++)
++from evaluate.agents.opencode import (
++    OpenCodeAgent,
++    _run_opencode_and_export,
++    host_config,
++    host_env_file,
++)
++
++logger = logging.getLogger(__name__)
++
++# Provider blocks merged into the synthesized opencode.json when the base
++# file doesn't define them (``setdefault`` — an explicit base config always
++# wins). Keyed by the provider prefix of MODEL2NAME values.
++_PROVIDERS: dict[str, dict] = {
++    # Host-side antigravity proxy (Anthropic-compatible). The proxy ignores
++    # the api key; a literal keeps the SDK's key requirement satisfied
++    # without adding secrets to the env file.
++    "antigravity": {
++        "npm": "@ai-sdk/anthropic",
++        "name": "antigravity",
++        "options": {
++            "baseURL": "http://host.docker.internal:8045/v1",
++            "apiKey": "opencode-c1",
++        },
++        "models": {
++            "gemini-3.8-flash-high": {"name": "Gemini 3.8 Flash High"},
++        },
++    },
++    # OpenAI-compatible gateway. apiKey is interpolated from the
++    # env file at container start — the synthesized config is an attempt
++    # artifact and must not embed the literal secret (same convention as
++    # codex's ``env_key`` indirection).
++    "custom-openai": {
++        "npm": "@ai-sdk/openai-compatible",
++        "name": "OpenAI-compatible gateway",
++        "api_key_env": "OPENAI_API_KEY",
++        "options": {
++            "baseURL": "{env:OPENAI_BASE_URL}",
++        },
++        "models": {
++            "Qwen/Qwen3.6-35B-A3B": {
++                "name": "Qwen3.6-35B-A3B",
++                "limit": {"context": 262144, "output": 16384},
++            },
++            "Qwen/Qwen3.8-27B": {
++                "name": "Qwen3.8-27B",
++                "limit": {"context": 262144, "output": 16384},
++            },
++        },
++    },
++}
++
++
++class OpenCodeB1PrimeAgent(OpenCodeAgent):
++    """B1' — frozen opencode behavior + assessment prompt; no Izyan tools.
++
++    Registered as ``opencode-b1p``. Same run pipeline, session export and
++    debug artifacts as the base ``opencode`` profile; the image is the
++    custom variant so the corporate CA covers self-hosted providers. The
++    mounted config is a per-attempt synthesis under artifacts_dir —
++    provider wiring identical to ``opencode-c1``, ``mcp`` block absent.
++    """
++
++    IMAGE_SUFFIX = "opencode-custom"  # vex-bench-<lang>-opencode-custom:latest
++    CONFIG_TAG = "b1p"              # artifacts/opencode-config.<tag>.json
++    MCP_ENABLED = False             # no MCP registration in this profile
++
++    def run(self, prompt: str, ctx: RunContext) -> AgentResult:
++        return self._run_attempt(prompt, ctx, cve_id=None)
++
++    def _run_attempt(self, prompt: str, ctx: RunContext,
++                     cve_id: Optional[str]) -> AgentResult:
++        config_file = self._synthesize_config(ctx, cve_id)
++        env_file = host_env_file().resolve()
++        if not env_file.exists():
++            raise RuntimeError(f"Env file not found: {env_file}")
++
++        image = f"vex-bench-{ctx.language}-{self.IMAGE_SUFFIX}:latest"
++        logger.debug(
++            "running %s model=%s image=%s src=%s cve=%s",
++            type(self).__name__, self.model_name, image, ctx.cwd, cve_id,
++        )
++        output = _run_opencode_and_export(
++            image,
++            model=self.model_name,
++            prompt=prompt,
++            src=ctx.cwd,
++            timeout=ctx.timeout,
++            env_file=env_file,
++            config_file=config_file,
++            artifacts_dir=ctx.artifacts_dir,
++            extra_artifact_paths=self._extra_artifact_paths(),
++        )
++        return AgentResult(raw_output=output)
++
++    def effective_config_facts(self) -> dict:
++        """Launch facts an external controller can verify before a run.
++
++        No container is started and no model is called. The paths are
++        resolved exactly as ``_run_attempt`` resolves them, so a
++        controller that validates one file is validating the file the
++        launcher will mount or pass to ``--env-file``.
++        """
++        return {
++            "pipeline": self.PIPELINE,
++            "image_suffix": self.IMAGE_SUFFIX,
++            "model_binding": self.model_name,
++            "mcp_enabled": self.MCP_ENABLED,
++            "config_tag": self.CONFIG_TAG,
++            "env_file": str(host_env_file().resolve()),
++            "config_source": str(host_config().resolve()),
++            "extra_artifacts": sorted(
++                name for _, name in self._extra_artifact_paths()
++            ),
++        }
++
++    def _extra_artifact_paths(self) -> Sequence[tuple[str, str]]:
++        """(container_path, dest_name) pairs exported after every attempt.
++
++        Missing paths are tolerated by the exporter; absence is itself
++        diagnostic (B1' proves the negative: no izyan-audit exists).
++        """
++        return [(TOOL_AUDIT_DIR, "izyan-audit")]
++
++    def _extend_config(self, base: dict, cve_id: Optional[str]) -> None:
++        """B1' adds nothing — ``mcp`` stays absent; the synthesized
++        config differs from C1's by exactly the tools block."""
++
++    def build_config(self, *, cve_id: Optional[str] = None) -> dict:
++        """Synthesized opencode config without writing an artifact."""
++        base = json.loads(host_config().resolve().read_text(encoding="utf-8"))
++        providers = base.setdefault("provider", {})
++
++        provider_name, _, model_key = self.model_name.partition("/")
++        snippet = _PROVIDERS.get(provider_name)
++        if snippet is not None:
++            entry = providers.setdefault(provider_name, {})
++            entry.setdefault("npm", snippet["npm"])
++            entry.setdefault("name", snippet["name"])
++            options = entry.setdefault("options", {})
++            for k, v in snippet["options"].items():
++                options.setdefault(k, v)
++            api_key_env = snippet.get("api_key_env")
++            if api_key_env:
++                # Always rewrite a literal key to env interpolation — the
++                # synthesized file is exported as an attempt artifact.
++                options["apiKey"] = f"{{env:{api_key_env}}}"
++            models = entry.setdefault("models", {})
++            models.setdefault(
++                model_key,
++                snippet["models"].get(model_key, {"name": model_key}),
++            )
++        else:
++            logger.warning(
++                "%s: no built-in provider snippet for %r; "
++                "relying on the base config",
++                self.CONFIG_TAG, provider_name,
++            )
++
++        self._extend_config(base, cve_id)
++        return base
++
++    def _synthesize_config(self, ctx: RunContext,
++                           cve_id: Optional[str]) -> Path:
++        """Base provider config + provider block (if absent) + arm delta.
++
++        Written under artifacts_dir so the effective config is an attempt
++        artifact — same convention as codex-c1's codex-config.c1.toml.
++        """
++        base = self.build_config(cve_id=cve_id)
++        if ctx.artifacts_dir is None:
++            raise RuntimeError(
++                f"{self.CONFIG_TAG}: RunContext.artifacts_dir is required")
++        ctx.artifacts_dir.mkdir(parents=True, exist_ok=True)
++        out = ctx.artifacts_dir / f"opencode-config.{self.CONFIG_TAG}.json"
++        out.write_text(json.dumps(base, indent=2) + "\n", encoding="utf-8")
++        return out
++
++
++class OpenCodeC1Agent(OpenCodeB1PrimeAgent):
++    """C1 — B1' plus the izyan MCP evidence-tools server.
++
++    Registered as ``opencode-c1``. Requires the derived image
++    ``vex-bench-<lang>-opencode-c1:latest`` carrying the tool binary;
++    the synthesized config adds the ``mcp.izyan`` server pinned to this
++    attempt's snapshot and CVE, and the audit dir is exported as
++    ``artifacts/izyan-audit/``.
++    """
++
++    IMAGE_SUFFIX = "opencode-c1"
++    CONFIG_TAG = "c1"
++    MCP_ENABLED = True
++
++    def run(self, prompt: str, ctx: RunContext) -> AgentResult:
++        cve_id = _extract_cve_id(prompt)
++        if not cve_id:
++            raise RuntimeError(
++                "opencode-c1: could not extract CVE id from prompt "
++                "(expected <CVE>...</CVE> tag)"
++            )
++        return self._run_attempt(prompt, ctx, cve_id)
++
++    def _extend_config(self, base: dict, cve_id: Optional[str]) -> None:
++        if cve_id is None:
++            raise RuntimeError("opencode-c1: cve_id is required")
++        # The container runs via ``sh -lc``: the login shell resets PATH
++        # through /etc/profile (Debian root → /usr/local/sbin:... only),
++        # which drops /usr/local/go/bin and /go/bin from the MCP server's
++        # environment. The evidence tools exec `go` — pin PATH explicitly
++        # (opencode "environment" merges over the inherited env).
++        base["mcp"] = {
++            "izyan": {
++                "type": "local",
++                "command": [
++                    TOOL_BIN_CONTAINER,
++                    "--snapshot-root", "/work",
++                    "--cve", cve_id,
++                    "--audit-file", f"{TOOL_AUDIT_DIR}/tool_calls.jsonl",
++                ],
++                "environment": {
++                    "PATH": "/go/bin:/usr/local/go/bin:/usr/local/sbin:"
++                            "/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
++                },
++                "enabled": True,
++            }
++        }
++
++
++class OpenCodeC1NoMcpAgent(OpenCodeB1PrimeAgent):
++    """C1 with MCP off — the control configuration of the shared runtime.
++
++    Registered as ``opencode-c1-nomcp``. It is ``OpenCodeB1PrimeAgent``
++    with the C1 image suffix and its own config tag; it intentionally
++    does NOT inherit ``OpenCodeC1Agent``, so there is no ``_extend_config``
++    that could register ``mcp.izyan`` and no CVE extraction that could
++    start the server. The synthesized config has no ``mcp`` key at all,
++    which is what prevents registration rather than a disabled stanza.
++    An ambient ``mcp`` block in the base provider file is removed as well.
++    """
++
++    IMAGE_SUFFIX = "opencode-c1"
++    CONFIG_TAG = "c1-nomcp"
++    MCP_ENABLED = False
++
++    def _extend_config(self, base: dict, cve_id: Optional[str]) -> None:
++        base.pop("mcp", None)

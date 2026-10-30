@@ -53,16 +53,6 @@ func TestRootCauseResolverFallsBackToLLM(t *testing.T) {
 	if c.Workflow.Usage.LLMCalls != 1 {
 		t.Fatalf("llm calls=%d", c.Workflow.Usage.LLMCalls)
 	}
-
-	// The proposal attribution is typed, not a mechanism-string prefix.
-	rc := m.RootCauses[0]
-	if rc.Proposal == nil || rc.Proposal.Source != domain.ProposalSourceRootCause ||
-		rc.Proposal.ID != "ROOTCAUSE-X" {
-		t.Fatalf("candidate must carry a ROOT_CAUSE proposal ref: %+v", rc.Proposal)
-	}
-	if strings.HasPrefix(rc.Mechanism, "llm-proposed:") {
-		t.Fatalf("attribution must not live in the mechanism string: %q", rc.Mechanism)
-	}
 }
 
 func TestRootCauseResolverKeepsDeterministicResult(t *testing.T) {
@@ -96,7 +86,7 @@ func TestRootCauseResolverUnparseableKeepsNotFound(t *testing.T) {
 	}
 }
 
-func TestExploitModelBuilderValidatesAndMerges(t *testing.T) {
+func TestExploitModelBuilderRecordsProposal(t *testing.T) {
 	reply := `{"impact":"xss","mandatory_conditions":[{"id":"C-LLM","kind":"VALIDATION","description":"needs escaping","subjects":[{"package":"p","symbol":"S"}]}]}`
 	client, srv := mockServer(t, reply)
 	defer srv.Close()
@@ -109,8 +99,11 @@ func TestExploitModelBuilderValidatesAndMerges(t *testing.T) {
 	rc := &domain.RootCauseModel{Status: domain.RootCauseResolved,
 		RootCauses: []domain.RootCause{{Package: "p", Symbol: "S", Role: domain.RootCauseSink}}}
 	m, lims := b.Build(context.Background(), c, domain.Vulnerability{Summary: "x"}, rc)
-	if m == nil || len(m.MandatoryConditions) != 2 {
+	if m == nil || len(m.MandatoryConditions) != 1 || len(m.ProposedConditions) != 1 {
 		t.Fatalf("model=%+v lims=%v", m, lims)
+	}
+	if m.ProposedConditions[0].ID != "C-LLM" || m.ProposedConditions[0].Mandatory {
+		t.Fatalf("model proposal is not a non-authoritative nomination: %+v", m.ProposedConditions)
 	}
 }
 
@@ -202,8 +195,11 @@ func scriptServer(t *testing.T, replies ...string) (*Client, *httptest.Server, *
 	return NewClient(Config{BaseURL: srv.URL, AnalyzeModel: "m", Enabled: true}), srv, &n
 }
 
-func TestAgentResolvesClaimWithTools(t *testing.T) {
-	// Step 1: tool call to trace_argument; step 2: claim TRUE citing evidence.
+func TestAgentRecordsProposalWithTools(t *testing.T) {
+	// Step 1: tool call to trace_argument; step 2: a TRUE proposal citing
+	// the evidence the tool produced. The tool result is authoritative
+	// evidence; the model's conclusion is only recorded as a proposal until
+	// the deterministic evaluator re-derives it.
 	client, srv, calls := scriptServer(t,
 		`{"tool_calls":[{"name":"find_callers","args":{"package":"example.com/dep","symbol":"vuln.Parse"},"purpose":"locate sinks"}]}`,
 		`{"claim":{"result":"TRUE","evidence_ids":["EV-001"],"explanation":"arg flows from os.Args"}}`)
@@ -215,14 +211,14 @@ func TestAgentResolvesClaimWithTools(t *testing.T) {
 	cond := domain.Condition{ID: "C-IN", Kind: domain.ConditionInputConstraint,
 		Subjects: []domain.SymbolRef{{Package: "example.com/dep", Symbol: "vuln.Parse"}}}
 	cl := ev.Evaluate(cond, c)
-	if cl.Result != domain.ClaimTrue {
-		t.Fatalf("claim=%+v", cl)
+	if cl.Result != domain.ClaimUnknown {
+		t.Fatalf("a model conclusion must not establish the result: %+v", cl)
+	}
+	if cl.Proposal != domain.ClaimTrue {
+		t.Fatalf("the model nomination must be recorded: %+v", cl)
 	}
 	if len(cl.EvidenceIDs) == 0 {
-		t.Fatal("claim must cite evidence")
-	}
-	if cl.Producer != "llm.ClaimEvaluator" {
-		t.Fatalf("llm claim must label its producer: %q", cl.Producer)
+		t.Fatal("the proposal must cite the evidence it relied on")
 	}
 	if *calls != 2 {
 		t.Fatalf("calls=%d", *calls)
@@ -238,6 +234,35 @@ func TestAgentKeepsUnknownWithoutEvidence(t *testing.T) {
 	cl := ev.Evaluate(domain.Condition{ID: "C-X", Kind: domain.ConditionCustom}, newCase())
 	if cl.Result != domain.ClaimUnknown {
 		t.Fatalf("unsupported TRUE must not survive: %+v", cl)
+	}
+	if cl.Proposal != domain.ClaimTrue {
+		t.Fatalf("the rejected nomination is still recorded: %+v", cl)
+	}
+}
+
+// Existing evidence is not entailment: an evidence id that already sits in
+// the graph proves only that the cited material exists. It cannot establish
+// the claim's truth, so the result stays UNKNOWN and the model's answer is
+// recorded as a proposal.
+func TestAgentExistingEvidenceDoesNotProveClaim(t *testing.T) {
+	client, srv, _ := scriptServer(t,
+		`{"claim":{"result":"TRUE","evidence_ids":["EV-EXISTING"],"explanation":"the graph already contains this"}}`)
+	defer srv.Close()
+	ix := &goanalysis.Index{Dir: filepath.Join("..", "..", "testdata", "constprod")}
+	ev := ClaimEvaluator{Client: client, Tools: Tools{Source: ix}}
+	c := newCase()
+	c.EvidenceGraph.Evidence = append(c.EvidenceGraph.Evidence, domain.Evidence{
+		ID: "EV-EXISTING", Kind: domain.EvidenceSourceSnippet, Content: "pre-existing evidence",
+	})
+	cl := ev.Evaluate(domain.Condition{ID: "C-X", Kind: domain.ConditionCustom}, c)
+	if cl.Result != domain.ClaimUnknown {
+		t.Fatalf("an existing evidence id must not establish TRUE: %+v", cl)
+	}
+	if cl.Proposal != domain.ClaimTrue {
+		t.Fatalf("the nomination must be recorded separately: %+v", cl)
+	}
+	if len(cl.EvidenceIDs) != 1 || cl.EvidenceIDs[0] != "EV-EXISTING" {
+		t.Fatalf("the proposal's cited evidence must be recorded: %+v", cl.EvidenceIDs)
 	}
 }
 
@@ -361,5 +386,143 @@ func TestStrictLLMReviewerFailFast(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected finding with strict-llm: prefix, got %+v", r.Findings)
+	}
+}
+
+func TestUsageRecordsEveryProviderAttempt(t *testing.T) {
+	var captured []ChatExchange
+	sink := func(ex ChatExchange) {
+		captured = append(captured, ex)
+	}
+
+	attempts := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		if attempts == 1 {
+			// First attempt fails with 500 error containing sensitive credential
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`internal server error with Authorization: Bearer sk-secret12345678901234567890`))
+			return
+		}
+		// Second attempt succeeds
+		resp := map[string]any{
+			"id": "chatcmpl-test-123",
+			"model": "gpt-4o-2024-08-06",
+			"system_fingerprint": "fp_test_abc",
+			"choices": []any{
+				map[string]any{
+					"message": map[string]string{"role": "assistant", "content": "hello world"},
+					"finish_reason": "stop",
+				},
+			},
+			"usage": map[string]int{
+				"prompt_tokens": 12,
+				"completion_tokens": 4,
+				"total_tokens": 16,
+			},
+		}
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	cfg := Config{
+		BaseURL: srv.URL,
+		AnalyzeModel: "gpt-4o",
+		Enabled: true,
+		ExchangeSink: sink,
+	}
+	client := NewClient(cfg)
+
+	// First call fails
+	_, _, err := client.Chat(context.Background(), Analyze, "system", []ChatMessage{{Role: "user", Content: "hi"}}, nil)
+	if err == nil {
+		t.Fatal("expected error on attempt 1")
+	}
+
+	// Second call succeeds
+	_, _, err = client.Chat(context.Background(), Analyze, "system", []ChatMessage{{Role: "user", Content: "hi"}}, nil)
+	if err != nil {
+		t.Fatalf("attempt 2 failed: %v", err)
+	}
+
+	if len(captured) != 2 {
+		t.Fatalf("expected 2 captured exchanges, got %d", len(captured))
+	}
+
+	// Check attempt 1 (failed)
+	ex1 := captured[0]
+	if ex1.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("attempt 1 status = %d, want 500", ex1.StatusCode)
+	}
+	if strings.Contains(ex1.Error, "sk-secret12345678901234567890") {
+		t.Fatalf("attempt 1 leaked secret in error: %s", ex1.Error)
+	}
+	if !strings.Contains(ex1.Error, "[REDACTED]") {
+		t.Fatalf("attempt 1 error should redact secret: %s", ex1.Error)
+	}
+
+	// Check attempt 2 (success)
+	ex2 := captured[1]
+	if ex2.StatusCode != http.StatusOK {
+		t.Fatalf("attempt 2 status = %d, want 200", ex2.StatusCode)
+	}
+	if ex2.ReturnedModel != "gpt-4o-2024-08-06" {
+		t.Fatalf("returned model = %q, want gpt-4o-2024-08-06", ex2.ReturnedModel)
+	}
+	if ex2.ProviderFingerprint != "fp_test_abc" {
+		t.Fatalf("fingerprint = %q, want fp_test_abc", ex2.ProviderFingerprint)
+	}
+	if !ex2.HasUsage || ex2.Usage == nil {
+		t.Fatalf("expected usage recorded, got %+v", ex2)
+	}
+	if *ex2.Usage.PromptTokens != 12 || *ex2.Usage.CompletionTokens != 4 || *ex2.Usage.TotalTokens != 16 {
+		t.Fatalf("unexpected tokens: %+v", *ex2.Usage)
+	}
+}
+
+func TestMissingProviderUsageIsUnassessed(t *testing.T) {
+	var captured []ChatExchange
+	sink := func(ex ChatExchange) {
+		captured = append(captured, ex)
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Response without usage object
+		resp := map[string]any{
+			"id": "chatcmpl-test-456",
+			"model": "gpt-4o",
+			"choices": []any{
+				map[string]any{
+					"message": map[string]string{"role": "assistant", "content": "answer"},
+					"finish_reason": "stop",
+				},
+			},
+		}
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	cfg := Config{
+		BaseURL: srv.URL,
+		AnalyzeModel: "gpt-4o",
+		Enabled: true,
+		ExchangeSink: sink,
+	}
+	client := NewClient(cfg)
+
+	_, _, err := client.Chat(context.Background(), Analyze, "system", []ChatMessage{{Role: "user", Content: "hi"}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(captured) != 1 {
+		t.Fatalf("expected 1 captured exchange, got %d", len(captured))
+	}
+	ex := captured[0]
+	if ex.HasUsage {
+		t.Fatalf("expected HasUsage == false when provider returns no usage block, got true")
+	}
+	if ex.Usage != nil {
+		t.Fatalf("expected Usage == nil when provider returns no usage block (unassessed, not estimated), got %+v", ex.Usage)
 	}
 }

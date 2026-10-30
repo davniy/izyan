@@ -37,8 +37,207 @@ jobs:
       - name: Run go vet
         run: go vet ./...
 
+      # Merged gate: canonical kernel + evidence tools + the whole
+      # Product B adapter lane (triage, claimshape, verify, heldoutgate,
+      # research lane, deployment) + all CLI binaries. The adapter
+      # boundary guard lives inside internal/productb tests.
       - name: Run tests
-        run: go test -v ./...
+        run: |
+          go test -count=1 ./internal/goanalysis ./internal/evidencetools ./internal/productb/... ./cmd/...
+          go test -v ./...
+
+  # Blocking gate on protected branches: the adapter boundary, schema
+  # registry and the product's deterministic policy surface (exit codes,
+  # false-safe/unverified baselines, final-attempt persistence, stable
+  # provenance pins) must hold before merge. Split from `test` so a
+  # boundary or policy regression never rides in on a green kernel.
+  boundary-gate:
+    name: Adapter boundary, schema & policy determinism (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      # D17 mechanical pin: productb never imports internal/domain,
+      # internal/affected, internal/evaluator, agenttriage or the
+      # Product A internal/research lane; the schema registry must be
+      # complete (S-17).
+      - name: Run boundary tests
+        run: go test -count=1 -run 'TestS12|TestNoSecondAuthorityContract|TestSchemaRegistry|TestProposalCannotSetAuthorityFields' ./internal/productb/...
+      # Policy-determinism half of the split: falsifier admission against
+      # the run-pinned catalog, partial-binding rejection, stability
+      # provenance and the decision/exit-code surface.
+      - name: Run policy determinism tests
+        run: >-
+          go test -count=1 -run
+          'TestConditionCatalog|TestAdmitFalsifierProposal|TestCheckCatalogRejectsPartialBinding|TestIngestProposalRejectsPartialRunIdentity|TestComposerDemotesUnstableVerifiedProof|TestFalsifierVerifierUsesCurrentStabilityAttempt|TestMandatoryConditionSource|TestDecisionMarkdownDeterministic'
+          ./internal/productb/triage
+      # Kernel parity half (port review item 7): blocking fixtures for
+      # LIVE/UNKNOWN/PARTIAL/skipped/open-dispatch states plus the
+      # code-absence admission chain and the symbol-unreachability payload
+      # parity against the real kernel wire shape.
+      - name: Run kernel parity tests
+        run: go test -count=1 -run 'TestKernelParity|TestGateFalsifierProposals|TestCatalogBinding|TestReplay.*Catalog' ./internal/productb/triage
+
+  # Compile + vet of the heldout gate binary is always on: the gate tool
+  # must build on every change even while the pinned corpus is absent.
+  heldout-build:
+    name: Heldout gate compile (always on)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - name: Vet heldout gate
+        run: go vet ./cmd/izyan-heldout-gate ./internal/productb/heldoutgate
+      - name: Compile heldout gate
+        run: go build -o /tmp/izyan-heldout-gate ./cmd/izyan-heldout-gate
+
+  # Admission half of the heldout split: replay over the pinned 85-run
+  # all-NE corpus. The corpus is an external artifact pinned by
+  # HELDOUT_CORPUS; when it is not provisioned the job FAILS and names the
+  # missing input — a merge is never eligible on a gate that did not run.
+  heldout-admission:
+    name: Heldout admission (pinned corpus, merge-blocking)
+    runs-on: ubuntu-latest
+    needs: [test, heldout-build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - name: Compile heldout gate
+        run: go build -o /tmp/izyan-heldout-gate ./cmd/izyan-heldout-gate
+      - name: Run heldout gate
+        env:
+          HELDOUT_CORPUS: ${{ vars.HELDOUT_CORPUS }}
+          HELDOUT_COMPARISON: ${{ vars.HELDOUT_COMPARISON }}
+          HELDOUT_VARIANCE: ${{ vars.HELDOUT_VARIANCE }}
+        run: |
+          if [ -z "$HELDOUT_CORPUS" ] || [ ! -d "$HELDOUT_CORPUS" ]; then
+            echo "::error::heldout-admission BLOCKED: pinned corpus missing — vars.HELDOUT_CORPUS is unset or its path does not exist; provision the 85-run corpus and rerun (merge-ineligible until green)"
+            echo "status=blocked-missing-input (vars.HELDOUT_CORPUS)" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          args="-corpus $HELDOUT_CORPUS -out /tmp/heldout-gate.json"
+          [ -n "$HELDOUT_COMPARISON" ] && args="$args -comparison $HELDOUT_COMPARISON"
+          [ -n "$HELDOUT_VARIANCE" ] && args="$args -variance $HELDOUT_VARIANCE"
+          /tmp/izyan-heldout-gate $args
+          echo "status=ran" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: heldout-gate-report
+          path: /tmp/heldout-gate.json
+          if-no-files-found: ignore
+
+  # Post-port corpus/census gate (port review item 7): the post-port
+  # deterministic census over the pinned run corpus. If the corpus input
+  # is unavailable this job fails and names the input — the merge stays
+  # ineligible, never silently waived.
+  postport-census:
+    name: Post-port census (pinned corpus, merge-blocking)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - name: Run post-port census
+        env:
+          CENSUS_CORPUS: ${{ vars.CENSUS_CORPUS }}
+          CENSUS_BASELINE: ${{ vars.CENSUS_BASELINE }}
+        run: |
+          # The gate proves Product-A verdict preservation over the
+          # retained 18-case census: the harness re-runs every case
+          # deterministically against the pinned baseline distribution.
+          # Provisioned directory supplies immutable data, never executable code.
+          # CENSUS_BASELINE remains the retained safety/count guard manifest.
+          if [ -z "$CENSUS_CORPUS" ] || [ ! -f "$CENSUS_CORPUS/r6-corporate-baseline.json" ]; then
+            echo "::error::postport-census BLOCKED: census inputs missing — vars.CENSUS_CORPUS must contain r6-corporate-baseline.json and retained case inputs"
+            echo "status=blocked-missing-input (vars.CENSUS_CORPUS)" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [ -z "$CENSUS_BASELINE" ] || [ ! -f "$CENSUS_BASELINE" ]; then
+            echo "::error::postport-census BLOCKED: guard baseline manifest missing — vars.CENSUS_BASELINE must name the retained r6-guard baseline; provision it and rerun (merge-ineligible until green)"
+            echo "status=blocked-missing-input (vars.CENSUS_BASELINE)" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          go build -o /tmp/izyan ./cmd/izyan
+          # A technical failure must stop before any guard/report consumption.
+          set +e
+          python3 eval/decision_ready/run_census.py --corpus "$CENSUS_CORPUS" --output-dir /tmp/census-attempts --izyan-bin /tmp/izyan --jobs 1 --comparison-pointer /tmp/census-current-path.txt 2>&1 | tee /tmp/census-run.txt
+          census_rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$census_rc" -ne 0 ] && [ "$census_rc" -ne 1 ]; then
+            echo "::error::postport-census: technical census failure (exit $census_rc); no report adjudication"
+            exit 1
+          fi
+          comparison=$(cat /tmp/census-current-path.txt)
+          python3 eval/decision_ready/regression_guard.py --baseline-manifest "$CENSUS_BASELINE" --census-inputs "$CENSUS_CORPUS/r6-corporate-baseline.json" --current-comparison "$comparison" 2>&1 | tee /tmp/census-guard.txt
+          sha256sum /tmp/census-run.txt /tmp/census-guard.txt | tee /tmp/census-hashes.txt
+
+
+          # Safety is never negotiable: a false-safe (a reduced verdict
+          # without proof) or a missing guard pass fails the job outright.
+          grep -q "false_safe=0" /tmp/census-guard.txt || { echo "::error::postport-census: false_safe != 0 in guard output (or guard did not run)"; echo "status=failed-safety (false_safe)" >> "$GITHUB_STEP_SUMMARY"; exit 1; }
+
+          # Accepted attributed drift — the four changes documented in
+          # docs/dev/reports/2026-10-21-09-s05-baseline.md §37-39:
+          #   case-03/04: environment improvement (version now resolves
+          #     outside the affected range; matches verdict_prev),
+          #   case-09: harness input gap (baseline used a release
+          #     artifact the census harness does not forward),
+          #   case-10: intended V2 fail-closed (foreign-module importer
+          #     marked non-enumerable).
+          # They are accepted ONLY because the guard passed with
+          # false_safe=0 above. Any other change is unexplained drift and
+          # fails the job.
+          python3 - "$comparison" <<'PY'
+          import json, sys
+          ATTRIBUTED = {"case-03", "case-04", "case-09", "case-10"}
+          try:
+              comp = json.load(open(sys.argv[1]))
+          except OSError:
+              print(f"::error::postport-census: census-comparison.json missing at {sys.argv[1]} — cannot adjudicate drift")
+              sys.exit(1)
+          changed = {c["case"] for c in comp.get("changed", [])}
+          unexplained = sorted(changed - ATTRIBUTED)
+          if unexplained:
+              print(f"::error::postport-census: unexplained verdict drift in {unexplained} — not among the S-05-attributed cases")
+              sys.exit(1)
+          print(f"postport-census: {len(changed)} changed case(s), all S-05-attributed {sorted(changed)}; false_safe=0 — accepted")
+          PY
+          echo "status=ran (attributed drift accepted, false_safe=0)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload census artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postport-census-report
+          path: |
+            /tmp/census-run.txt
+            /tmp/census-guard.txt
+            /tmp/census-hashes.txt
+            /tmp/census-current-path.txt
+            /tmp/census-attempts
+          if-no-files-found: ignore
 
   build-check:
     name: Build (${{ matrix.goos }}/${{ matrix.goarch }})

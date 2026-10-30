@@ -1,0 +1,23 @@
+{
+  "id": "OBS-0003",
+  "tool": "advisory-load",
+  "fact": "frozen advisory CVE-2023-44487 resolved to GHSA-qppj-fm5r-hxr3 (22 affected entries, source frozen_file)",
+  "scope": "FileSource(eval/agent7/advisories/k8s-44487.json) with alias enrichment disabled; no network",
+  "completeness": "COMPLETE",
+  "tool_status": "OK",
+  "limitations": [
+    "21 non-Go affected entries retained as advisory scope, never as product facts"
+  ],
+  "scope_details": {
+    "snapshot_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+    "snapshot_root": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+    "subject": "CVE-2023-44487",
+    "coverage_rule": "single frozen advisory document load"
+  },
+  "data": {
+    "entries": 22,
+    "outcome": "frozen_file",
+    "requested_id": "CVE-2023-44487",
+    "resolved_id": "GHSA-qppj-fm5r-hxr3"
+  }
+}

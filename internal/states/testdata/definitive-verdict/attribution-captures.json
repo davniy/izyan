@@ -1,0 +1,10 @@
+{
+  "schema": "attribution-captures/1",
+  "captures": [
+    {
+      "source_uri": "https://github.com/grpc/grpc-go/security/advisories/GHSA-m425-mq94-257g",
+      "path": "grpc-publisher-advisory.json",
+      "sha256": "sha256:e966035413d3214956c488660891bdc300f01b43526d284acc967ec15a064b4f"
+    }
+  ]
+}

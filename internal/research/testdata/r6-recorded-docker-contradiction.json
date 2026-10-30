@@ -1,0 +1,17 @@
+{
+  "case_label": "multi-module advisory with one affected Docker module",
+  "advisory_subject_labels": ["adv-01", "adv-02", "adv-03"],
+  "affected_result": {
+    "module_present": "TRUE",
+    "version_affected": "TRUE",
+    "package_present": "UNKNOWN",
+    "build_relevant": "UNKNOWN",
+    "checked_module_labels": ["module-a", "module-b", "module-c"],
+    "selected_module_label": "module-a"
+  },
+  "expected": {
+    "artifact_proposed_disposition": "not a CLOSE_* disposition",
+    "contradiction": "module_present=TRUE and version_affected=TRUE block negative applicability closes",
+    "empty_refs": "an ESTABLISHED close result with no premise facts fails closed"
+  }
+}

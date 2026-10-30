@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/fedorovmv/izyan/internal/domain"
@@ -106,34 +107,34 @@ func TestModuleInternalReachOpaqueScoping(t *testing.T) {
 	}
 	// Case 1: Entry calls RunWith, which contains a func-value call.
 	// Opaque must be true because opaque dispatch is reachable from entry.
-	_, opaque1, err := ix.ModuleInternalReach(context.Background(), "example.com/dyndep", []string{"example.com/dyndep/dyn.RunWith"}, []domain.SymbolRef{{Package: "example.com/dyndep/dyn", Symbol: "Vulnerable"}})
+	res1, err := ix.ModuleInternalReach(context.Background(), "example.com/dyndep", []string{"example.com/dyndep/dyn.RunWith"}, []domain.SymbolRef{{Package: "example.com/dyndep/dyn", Symbol: "Vulnerable"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !opaque1 {
+	if !res1.Opaque {
 		t.Fatal("expected opaque=true when entry calls function with func-value dispatch")
 	}
 
 	// Case 2: Entry calls Vulnerable, which is isolated from RunWith and AnonRunner.
 	// Opaque must be false because the opaque callers are not reachable from Vulnerable.
-	_, opaque2, err := ix.ModuleInternalReach(context.Background(), "example.com/dyndep", []string{"example.com/dyndep/dyn.Vulnerable"}, []domain.SymbolRef{{Package: "example.com/dyndep/dyn", Symbol: "Vulnerable"}})
+	res2, err := ix.ModuleInternalReach(context.Background(), "example.com/dyndep", []string{"example.com/dyndep/dyn.Vulnerable"}, []domain.SymbolRef{{Package: "example.com/dyndep/dyn", Symbol: "Vulnerable"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if opaque2 {
+	if res2.Opaque {
 		t.Fatal("expected opaque=false when entry does not reach any opaque callers")
 	}
 }
 
-// Integration test on real-micro-xds verifying full static reachability from
+// Integration test on real-service-xds verifying full static reachability from
 // xds gRPC server entrypoints to the RBAC filter parser without opaque degradation.
 func TestModuleInternalReach_XDS(t *testing.T) {
-	dir, err := filepath.Abs(filepath.Join("..", "..", "eval", ".gen", "real-micro-xds"))
+	dir, err := filepath.Abs(filepath.Join("..", "..", "eval", ".gen", "real-service-xds"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		t.Skip("skipping integration test: eval/.gen/real-micro-xds not generated")
+		t.Skip("skipping integration test: eval/.gen/real-service-xds not generated")
 	}
 
 	ix := &Index{Dir: dir}
@@ -152,17 +153,23 @@ func TestModuleInternalReach_XDS(t *testing.T) {
 		},
 	}
 
-	reach, _, err := ix.ModuleInternalReach(context.Background(), "google.golang.org/grpc", entries, subjects)
+	reach, err := ix.ModuleInternalReach(context.Background(), "google.golang.org/grpc", entries, subjects)
 	if err != nil {
-		t.Fatalf("ModuleInternalReach failed: %v", err)
+		// This generated fixture may lack optional grpc module dependencies.
+		// An incomplete wildcard module load must fail closed, not silently
+		// return reachability over only its successfully typed packages.
+		if !strings.Contains(err.Error(), "module-internal load skipped") || !strings.Contains(err.Error(), "google.golang.org/grpc/") {
+			t.Fatalf("unexpected module reach failure: %v", err)
+		}
+		return
 	}
 
-	chain := reach["google.golang.org/grpc/internal/xds/httpfilter/rbac.parseConfig"]
+	chain := reach.Reachable["google.golang.org/grpc/internal/xds/httpfilter/rbac.parseConfig"]
 	if len(chain) < 15 {
 		t.Fatalf("reach chain for parseConfig len = %d, want >= 15; chain: %v", len(chain), chain)
 	}
-	if reach["google.golang.org/grpc/internal/xds/httpfilter/rbac.builder.ParseFilterConfig"] == nil {
-		t.Fatalf("reach chain for builder.ParseFilterConfig missing; reach: %v", reach)
+	if reach.Reachable["google.golang.org/grpc/internal/xds/httpfilter/rbac.builder.ParseFilterConfig"] == nil {
+		t.Fatalf("reach chain for builder.ParseFilterConfig missing; reach: %v", reach.Reachable)
 	}
 }
 
@@ -200,14 +207,14 @@ func Caller(f func(int, string)) {
 		},
 	}
 
-	reach, opaque, err := ix.ModuleInternalReach(context.Background(), "example.com/mismatchmod", entries, subjects)
+	reachRes, err := ix.ModuleInternalReach(context.Background(), "example.com/mismatchmod", entries, subjects)
 	if err != nil {
 		t.Fatalf("ModuleInternalReach failed: %v", err)
 	}
-	if reach["example.com/mismatchmod.Target.Action"] != nil {
-		t.Fatalf("expected Target.Action to be unreachable, got chain: %v", reach["example.com/mismatchmod.Target.Action"])
+	if reachRes.Reachable["example.com/mismatchmod.Target.Action"] != nil {
+		t.Fatalf("expected Target.Action to be unreachable, got chain: %v", reachRes.Reachable["example.com/mismatchmod.Target.Action"])
 	}
-	if opaque {
+	if reachRes.Opaque {
 		t.Fatalf("expected opaque=false because opaque call signature func(int, string) mismatches subject func() string")
 	}
 
@@ -218,14 +225,14 @@ func Caller(f func(int, string)) {
 			Symbol:  "(*Target).Action",
 		},
 	}
-	reachPtr, opaquePtr, err := ix.ModuleInternalReach(context.Background(), "example.com/mismatchmod", entries, subjectsPtr)
+	reachPtrRes, err := ix.ModuleInternalReach(context.Background(), "example.com/mismatchmod", entries, subjectsPtr)
 	if err != nil {
 		t.Fatalf("ModuleInternalReach with pointer receiver notation failed: %v", err)
 	}
-	if reachPtr["example.com/mismatchmod.(*Target).Action"] != nil {
-		t.Fatalf("expected (*Target).Action to be unreachable, got chain: %v", reachPtr["example.com/mismatchmod.(*Target).Action"])
+	if reachPtrRes.Reachable["example.com/mismatchmod.(*Target).Action"] != nil {
+		t.Fatalf("expected (*Target).Action to be unreachable, got chain: %v", reachPtrRes.Reachable["example.com/mismatchmod.(*Target).Action"])
 	}
-	if opaquePtr {
+	if reachPtrRes.Opaque {
 		t.Fatalf("expected opaque=false for pointer receiver notation (*Target).Action")
 	}
 }
@@ -267,14 +274,14 @@ func Caller(err error) string {
 		},
 	}
 
-	reach, opaque, err := ix.ModuleInternalReach(context.Background(), "example.com/errormod", entries, subjects)
+	reachRes, err := ix.ModuleInternalReach(context.Background(), "example.com/errormod", entries, subjects)
 	if err != nil {
 		t.Fatalf("ModuleInternalReach failed: %v", err)
 	}
-	if reach["example.com/errormod.Target.String"] != nil {
-		t.Fatalf("expected Target.String to be unreachable, got chain: %v", reach["example.com/errormod.Target.String"])
+	if reachRes.Reachable["example.com/errormod.Target.String"] != nil {
+		t.Fatalf("expected Target.String to be unreachable, got chain: %v", reachRes.Reachable["example.com/errormod.Target.String"])
 	}
-	if opaque {
+	if reachRes.Opaque {
 		t.Fatalf("expected opaque=false because universe error.Error() is a known static call, not an opaque dispatch")
 	}
 }
@@ -299,14 +306,14 @@ func TestModuleInternalReach_AmqpNotOpaque(t *testing.T) {
 			Symbol:  "URI.String",
 		},
 	}
-	reach, opaque, err := ix.ModuleInternalReach(context.Background(), "github.com/rabbitmq/amqp091-go", entries, subjects)
+	reachRes, err := ix.ModuleInternalReach(context.Background(), "github.com/rabbitmq/amqp091-go", entries, subjects)
 	if err != nil {
 		t.Skipf("skipping: module not found in VA_PRODUCT_REPO: %v", err)
 	}
-	if len(reach) != 0 {
-		t.Fatalf("expected URI.String not reached, got %v", reach)
+	if len(reachRes.Reachable) != 0 {
+		t.Fatalf("expected URI.String not reached, got %v", reachRes.Reachable)
 	}
-	if opaque {
+	if reachRes.Opaque {
 		t.Fatalf("expected opaque=false because reachable opaque calls do not match URI.String")
 	}
 }

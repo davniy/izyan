@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -40,6 +41,29 @@ const xnetOSV = `{
   }]
 }`
 
+// hasAnalysisGap reports whether the case carries the typed cause. Outcome
+// classification is structural; tests assert on codes, never on text.
+func hasAnalysisGap(c *domain.AnalysisCase, code domain.GapCode) bool {
+	for _, g := range c.AnalysisGaps {
+		if g.Code == code {
+			return true
+		}
+	}
+	return false
+}
+
+// requireAssessmentFailed asserts the new terminal policy: no public verdict
+// and the named typed cause. An unfinished analysis is never INCONCLUSIVE.
+func requireAssessmentFailed(t *testing.T, c *domain.AnalysisCase, code domain.GapCode) {
+	t.Helper()
+	if c.Verdict != nil {
+		t.Fatalf("verdict=%+v, want none for a failed assessment", c.Verdict)
+	}
+	if !hasAnalysisGap(c, code) {
+		t.Fatalf("missing analysis gap %s: %+v", code, c.AnalysisGaps)
+	}
+}
+
 func initRepo(t *testing.T) string {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
@@ -53,8 +77,11 @@ func initRepo(t *testing.T) string {
 }
 
 // initRepoFrom copies a testdata fixture into a temp dir and git-inits it,
-// so the case is bound to a concrete commit as the spec requires.
-func initRepoFrom(t *testing.T, fixture string) string {
+// so the case is bound to a concrete commit as the spec requires. The
+// module fixtures every product may address relatively (dep, postreachdep)
+// are always present; additional fixtures are copied once each, so a caller
+// can name a shared library module and still get one checkout.
+func initRepoFrom(t *testing.T, fixture string, additional ...string) string {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not available")
@@ -67,7 +94,12 @@ func initRepoFrom(t *testing.T, fixture string) string {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	for _, sub := range []string{fixture, "dep"} {
+	copied := map[string]bool{}
+	for _, sub := range append([]string{fixture, "dep", "postreachdep"}, additional...) {
+		if copied[sub] {
+			continue
+		}
+		copied[sub] = true
 		fsys := os.DirFS(filepath.Join(src, sub))
 		dst := filepath.Join(dir, sub)
 		if err := os.MkdirAll(dst, 0o755); err != nil {
@@ -114,9 +146,16 @@ type engineDeps struct {
 	Model       string
 	CaseDir     string
 	Govulncheck goanalysis.Runner
-	UseSource   bool                     // wire the go/packages source index + verifier
-	AllowExec   bool                     // permit the gap loop's build/test evidence actions
-	RCResolver  states.RootCauseResolver // overrides default rootcause.Resolver
+	UseSource   bool // wire the go/packages source index + verifier
+	AllowExec   bool // permit the gap loop's build/test evidence actions
+	// SnapshotOptions declares the analyzed build. The zero value stays a
+	// host-default analysis context, which cannot ground a build-dependent
+	// negative; fixtures that assert one must declare their build here.
+	SnapshotOptions repository.SnapshotOptions
+	RCResolver      states.RootCauseResolver // overrides default rootcause.Resolver
+	// Assumptions is the declared-assumptions/1 channel input for the
+	// case — policy inputs, never evidence.
+	Assumptions *domain.DeclaredAssumptionsInput
 }
 
 func runEngine(t *testing.T, d engineDeps) *domain.AnalysisCase {
@@ -129,6 +168,7 @@ func runEngine(t *testing.T, d engineDeps) *domain.AnalysisCase {
 			StartedAt: time.Now().UTC(),
 			Limits:    domain.AnalysisLimits{MaxIterations: 64},
 		},
+		DeclaredAssumptions: d.Assumptions,
 	}
 	c.EvidenceGraph.Version = "1"
 	if err := store.Create(context.Background(), c); err != nil {
@@ -148,7 +188,7 @@ func runEngine(t *testing.T, d engineDeps) *domain.AnalysisCase {
 	}
 	e := workflow.New(store,
 		states.Created{},
-		states.SnapshotProduct{Repo: repository.Service{}, Path: d.RepoPath},
+		states.SnapshotProduct{Repo: repository.Service{}, Path: d.RepoPath, Options: d.SnapshotOptions, Source: srcIndex},
 		states.ResolveVulnerability{Source: d.VulnSrc, ID: d.VulnID},
 		states.CheckAffected{Resolver: d.Resolver},
 		rc,
@@ -251,15 +291,15 @@ func TestE2ENotAffected(t *testing.T) {
 	if len(c.EvidenceGraph.Evidence) == 0 || c.EvidenceGraph.Hash == "" {
 		t.Fatal("evidence graph must contain the go list artifact and a hash")
 	}
-	for _, f := range []string{"report.json", "report.md", "report.en.md", "report.audit.md", "report.audit.en.md"} {
+	for _, f := range []string{"report.json", "report.md"} {
 		if _, err := os.Stat(filepath.Join(caseDir, string(c.ID), f)); err != nil {
 			t.Fatalf("missing report artifact %s: %v", f, err)
 		}
 	}
 }
 
-// Affected dependency without any root cause input must not silently pass:
-// the case terminates INCONCLUSIVE.
+// Affected dependency without any root cause input is unfinished analysis:
+// the case fails with a typed cause and still writes its diagnostic report.
 func TestE2EAffectedNoRootCause(t *testing.T) {
 	repo := initRepo(t)
 	caseDir := t.TempDir()
@@ -273,14 +313,21 @@ func TestE2EAffectedNoRootCause(t *testing.T) {
 		Resolver: stubResolver{},
 		CaseDir:  caseDir,
 	})
-	if c.Workflow.State != domain.StateInconclusive {
-		t.Fatalf("state=%s, want INCONCLUSIVE", c.Workflow.State)
+	if c.Workflow.State != domain.StateFailed {
+		t.Fatalf("state=%s, want FAILED", c.Workflow.State)
+	}
+	requireAssessmentFailed(t, c, domain.GapRootCauseUnresolved)
+	for _, f := range []string{"report.json", "report.md"} {
+		if _, err := os.Stat(filepath.Join(caseDir, string(c.ID), f)); err != nil {
+			t.Fatalf("failure report missing %s: %v", f, err)
+		}
 	}
 }
 
 // Manual root cause + manual exploit model still cannot reach a verdict
-// without evidence collectors: every condition stays UNKNOWN.
-func TestE2EManualModelStaysInconclusive(t *testing.T) {
+// without evidence collectors: every condition stays UNKNOWN and the
+// unfinished analysis fails.
+func TestE2EManualModelFails(t *testing.T) {
 	repo := initRepo(t)
 	dir := t.TempDir()
 	model := domain.ExploitModel{
@@ -308,14 +355,17 @@ func TestE2EManualModelStaysInconclusive(t *testing.T) {
 		CaseDir:  caseDir,
 	})
 
-	if c.Workflow.State != domain.StateCompleted {
-		t.Fatalf("state=%s reason=%s", c.Workflow.State, c.Workflow.Reason)
+	if c.Workflow.State != domain.StateFailed {
+		t.Fatalf("state=%s reason=%s, want FAILED", c.Workflow.State, c.Workflow.Reason)
 	}
-	if c.Verdict == nil || c.Verdict.Verdict != domain.VerdictInconclusive {
-		t.Fatalf("verdict=%+v, want INCONCLUSIVE", c.Verdict)
+	if c.Verdict != nil {
+		t.Fatalf("verdict=%+v, want none for unresolved mandatory conditions", c.Verdict)
 	}
 	if len(c.Claims) != 1 || c.Claims[0].Result != domain.ClaimUnknown {
 		t.Fatalf("claims=%+v, want one UNKNOWN", c.Claims)
+	}
+	if !hasAnalysisGap(c, domain.GapReachabilityProofIncomplete) {
+		t.Fatalf("missing reachability cause: %+v", c.AnalysisGaps)
 	}
 }
 
@@ -335,7 +385,7 @@ func TestE2ESymbolReachableTrue(t *testing.T) {
 	}
 	caseDir := filepath.Join(dir, "cases")
 
-	gv := `{"protocol_version":"v1.0.0"}
+	gv := `{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
 {"finding":{"osv":"GO-TEST-1","fixed_version":"v1.2.0","trace":[
  {"module":"example.com/product","package":"example.com/product","function":"main","position":{"filename":"/repo/main.go","line":9}},
  {"module":"example.com/dep","package":"example.com/dep/vuln","function":"Parse","position":{"filename":"/dep/vuln/vuln.go","line":4}}
@@ -356,8 +406,8 @@ func TestE2ESymbolReachableTrue(t *testing.T) {
 		},
 	})
 
-	if c.Workflow.State != domain.StateCompleted {
-		t.Fatalf("state=%s reason=%s", c.Workflow.State, c.Workflow.Reason)
+	if c.Workflow.State != domain.StateFailed {
+		t.Fatalf("state=%s reason=%s, want FAILED", c.Workflow.State, c.Workflow.Reason)
 	}
 	if len(c.EvidenceGraph.CallPaths) != 1 {
 		t.Fatalf("call paths=%+v", c.EvidenceGraph.CallPaths)
@@ -369,14 +419,18 @@ func TestE2ESymbolReachableTrue(t *testing.T) {
 	if len(claim.EvidenceIDs) == 0 {
 		t.Fatal("TRUE claim must cite evidence")
 	}
-	if c.Verdict == nil || c.Verdict.Verdict != domain.VerdictInconclusive {
-		t.Fatalf("verdict=%+v want INCONCLUSIVE (C-INPUT unresolved)", c.Verdict)
+	if c.Verdict != nil {
+		t.Fatalf("verdict=%+v want none (C-INPUT unresolved)", c.Verdict)
+	}
+	if !hasAnalysisGap(c, domain.GapInputTraceIncomplete) {
+		t.Fatalf("missing input-trace cause: %+v", c.AnalysisGaps)
 	}
 }
 
-// govulncheck ran clean and found no call path -> candidate FALSE ->
-// negative verification unavailable -> INCONCLUSIVE, never NO_EXPLOIT_PATH_FOUND.
-func TestE2ENoPathStaysInconclusive(t *testing.T) {
+// govulncheck ran clean and found no call path, but absence of call sites is
+// not evidence with no usage scan: C-REACH stays UNKNOWN and the analysis
+// fails — never NO_EXPLOIT_PATH_FOUND and never a bare INCONCLUSIVE.
+func TestE2ENoPathFails(t *testing.T) {
 	repo := initRepo(t)
 	dir := t.TempDir()
 	model := `{"impact":"t","mandatory_conditions":[
@@ -399,7 +453,7 @@ func TestE2ENoPathStaysInconclusive(t *testing.T) {
 		Model:    mp,
 		CaseDir:  caseDir,
 		Govulncheck: fakeGovulncheck{
-			out: []byte(`{"protocol_version":"v1.0.0"}`),
+			out: []byte(`{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}`),
 		},
 	})
 
@@ -409,8 +463,8 @@ func TestE2ENoPathStaysInconclusive(t *testing.T) {
 	if claim.Result != domain.ClaimUnknown {
 		t.Fatalf("C-REACH=%s want UNKNOWN (no usage scan ran)", claim.Result)
 	}
-	if c.Verdict == nil || c.Verdict.Verdict != domain.VerdictInconclusive {
-		t.Fatalf("verdict=%+v want INCONCLUSIVE", c.Verdict)
+	if c.Verdict != nil {
+		t.Fatalf("verdict=%+v want none: the unresolved condition fails the analysis", c.Verdict)
 	}
 }
 
@@ -428,22 +482,43 @@ func findClaimT(t *testing.T, claims []domain.Claim, id domain.ConditionID) doma
 type fakeGovulncheck struct {
 	out []byte
 	err error
+	// pattern is the scan pattern the runner reports. Empty keeps the
+	// whole-build "./..." default.
+	pattern string
 }
 
 func (f fakeGovulncheck) RunGovulncheck(context.Context, string, domain.ProductSnapshot) ([]byte, string, error) {
-	return f.out, "./...", f.err
+	pattern := f.pattern
+	if pattern == "" {
+		pattern = "./..."
+	}
+	return f.out, pattern, f.err
 }
 
 type stubResolver struct{}
 
-func (stubResolver) Resolve(context.Context, domain.Vulnerability, domain.ProductSnapshot) (domain.AffectedResult, []domain.Evidence, error) {
+func (stubResolver) Resolve(_ context.Context, vuln domain.Vulnerability, _ domain.ProductSnapshot) (domain.AffectedResult, []domain.Evidence, error) {
 	return domain.AffectedResult{
+		Scope:           vuln.Scope,
 		ModulePresent:   domain.ClaimTrue,
 		ResolvedVersion: "v1.0.0",
 		VersionAffected: domain.ClaimTrue,
 		PackagePresent:  domain.ClaimTrue,
 		BuildRelevant:   domain.ClaimTrue,
 	}, nil, nil
+}
+
+// exactTestVuln is the advisory fixture of the end-to-end negative cases: an
+// exact GO- identity over example.com/dep whose synthetic record is declared
+// fully represented, so a verified negative may close the requested finding.
+// Cases that only prove a positive keep the bare fixture — scope never gates a
+// proven positive.
+func exactTestVuln() *domain.Vulnerability {
+	return &domain.Vulnerability{
+		ID:     "GO-TEST-1",
+		Module: "example.com/dep",
+		Scope:  exactScopeFor("GO-TEST-1", "example.com/dep"),
+	}
 }
 
 // Slice 3 golden: the vulnerable symbol IS reachable (govulncheck trace) but
@@ -465,7 +540,7 @@ func TestE2EConstantInputVerifiedFalse(t *testing.T) {
 	}
 	caseDir := filepath.Join(dir, "cases")
 
-	gv := `{"protocol_version":"v1.0.0"}
+	gv := `{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
 {"finding":{"osv":"GO-TEST-1","fixed_version":"v1.2.0","trace":[
  {"module":"example.com/constprod","package":"example.com/constprod","function":"main","position":{"filename":"main.go","line":9}},
  {"module":"example.com/dep","package":"example.com/dep/vuln","function":"Parse","position":{"filename":"vuln.go","line":4}}
@@ -474,7 +549,7 @@ func TestE2EConstantInputVerifiedFalse(t *testing.T) {
 	c := runEngine(t, engineDeps{
 		RepoPath: repo,
 		VulnSrc: vulnerability.StaticSource{Vulns: map[string]*domain.Vulnerability{
-			"GO-TEST-1": {ID: "GO-TEST-1", Module: "example.com/dep"},
+			"GO-TEST-1": exactTestVuln(),
 		}},
 		VulnID:      "GO-TEST-1",
 		Resolver:    stubResolver{},
@@ -482,7 +557,10 @@ func TestE2EConstantInputVerifiedFalse(t *testing.T) {
 		Model:       mp,
 		CaseDir:     caseDir,
 		Govulncheck: fakeGovulncheck{out: []byte(gv)},
-		UseSource:   true,
+		// The analyzed build is this fixture's product build, not the
+		// analyzer host: the constant-NEPF expectation is build-dependent.
+		SnapshotOptions: declaredSnapshotOptions(),
+		UseSource:       true,
 	})
 
 	if c.Workflow.State != domain.StateCompleted {
@@ -520,7 +598,7 @@ func TestE2EExternalInputTrue(t *testing.T) {
 	}
 	caseDir := filepath.Join(dir, "cases")
 
-	gv := `{"protocol_version":"v1.0.0"}
+	gv := `{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
 {"finding":{"osv":"GO-TEST-1","fixed_version":"v1.2.0","trace":[
  {"module":"example.com/extprod","package":"example.com/extprod","function":"main","position":{"filename":"main.go","line":10}},
  {"module":"example.com/dep","package":"example.com/dep/vuln","function":"Parse","position":{"filename":"vuln.go","line":4}}
@@ -571,13 +649,14 @@ func TestE2EFuncValueDemotesFalse(t *testing.T) {
 		VulnSrc: vulnerability.StaticSource{Vulns: map[string]*domain.Vulnerability{
 			"GO-TEST-1": {ID: "GO-TEST-1", Module: "example.com/dep"},
 		}},
-		VulnID:      "GO-TEST-1",
-		Resolver:    stubResolver{},
-		ManualRC:    []domain.RootCause{{Package: "example.com/dep/vuln", Symbol: "Parse"}},
-		Model:       mp,
-		CaseDir:     caseDir,
-		Govulncheck: fakeGovulncheck{out: []byte(`{"protocol_version":"v1.0.0"}`)},
-		UseSource:   true,
+		VulnID:          "GO-TEST-1",
+		Resolver:        stubResolver{},
+		ManualRC:        []domain.RootCause{{Package: "example.com/dep/vuln", Symbol: "Parse"}},
+		Model:           mp,
+		CaseDir:         caseDir,
+		Govulncheck:     fakeGovulncheck{out: []byte(`{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}`)},
+		UseSource:       true,
+		SnapshotOptions: declaredSnapshotOptions(),
 	})
 
 	claim := findClaimT(t, c.Claims, "C-REACH")
@@ -587,8 +666,11 @@ func TestE2EFuncValueDemotesFalse(t *testing.T) {
 	if claim.NegativeVerification == nil || claim.NegativeVerification.Status != domain.NegativeContradicted {
 		t.Fatalf("neg verification=%+v want CONTRADICTED", claim.NegativeVerification)
 	}
-	if c.Verdict == nil || c.Verdict.Verdict != domain.VerdictInconclusive {
-		t.Fatalf("verdict=%+v want INCONCLUSIVE", c.Verdict)
+	if c.Verdict != nil {
+		t.Fatalf("verdict=%+v want none: the contradicted negative leaves the condition unresolved", c.Verdict)
+	}
+	if !hasAnalysisGap(c, domain.GapReachabilityProofIncomplete) {
+		t.Fatalf("missing reachability cause: %+v", c.AnalysisGaps)
 	}
 }
 
@@ -620,7 +702,7 @@ func TestE2EAutoRootCause(t *testing.T) {
 	}
 	caseDir := filepath.Join(dir, "cases")
 
-	gv := `{"protocol_version":"v1.0.0"}
+	gv := `{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
 {"finding":{"osv":"GO-TEST-AUTO","fixed_version":"v1.0.1","trace":[
  {"module":"example.com/constprod","package":"example.com/constprod","function":"main","position":{"filename":"main.go","line":9}},
  {"module":"example.com/dep","package":"example.com/dep/vuln","function":"Parse","position":{"filename":"vuln.go","line":4}}
@@ -632,10 +714,11 @@ func TestE2EAutoRootCause(t *testing.T) {
 		VulnID:   "GO-TEST-AUTO",
 		Resolver: stubResolver{},
 		// no ManualRC — resolved automatically
-		Model:       mp,
-		CaseDir:     caseDir,
-		Govulncheck: fakeGovulncheck{out: []byte(gv)},
-		UseSource:   true,
+		Model:           mp,
+		CaseDir:         caseDir,
+		Govulncheck:     fakeGovulncheck{out: []byte(gv)},
+		SnapshotOptions: declaredSnapshotOptions(),
+		UseSource:       true,
 	})
 
 	if c.Workflow.State != domain.StateCompleted {
@@ -676,7 +759,7 @@ func TestE2EAutoExploitModel(t *testing.T) {
 	}
 	caseDir := filepath.Join(dir, "cases")
 
-	gv := `{"protocol_version":"v1.0.0"}
+	gv := `{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
 {"finding":{"osv":"GO-TEST-AUTO","fixed_version":"v1.0.1","trace":[
  {"module":"example.com/constprod","package":"example.com/constprod","function":"main","position":{"filename":"main.go","line":9}},
  {"module":"example.com/dep","package":"example.com/dep/vuln","function":"Parse","position":{"filename":"vuln.go","line":4}}
@@ -689,8 +772,9 @@ func TestE2EAutoExploitModel(t *testing.T) {
 		Resolver: stubResolver{},
 		CaseDir:  caseDir,
 		// no ManualRC, no Model — both derived automatically
-		Govulncheck: fakeGovulncheck{out: []byte(gv)},
-		UseSource:   true,
+		Govulncheck:     fakeGovulncheck{out: []byte(gv)},
+		SnapshotOptions: declaredSnapshotOptions(),
+		UseSource:       true,
 	})
 
 	if c.Workflow.State != domain.StateCompleted {
@@ -726,7 +810,7 @@ func TestE2EUnresolvedSinkBlocksExploitable(t *testing.T) {
 	}
 	caseDir := filepath.Join(dir, "cases")
 
-	gv := `{"protocol_version":"v1.0.0"}
+	gv := `{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
 {"finding":{"osv":"GO-TEST-GATE","fixed_version":"v1.0.1","trace":[
  {"module":"example.com/extprod","package":"example.com/extprod","function":"main","position":{"filename":"main.go","line":10}},
  {"module":"example.com/dep","package":"example.com/dep/vuln","function":"Parse","position":{"filename":"vuln.go","line":4}}
@@ -743,16 +827,19 @@ func TestE2EUnresolvedSinkBlocksExploitable(t *testing.T) {
 		UseSource:   true,
 	})
 
-	if c.Workflow.State != domain.StateCompleted {
-		t.Fatalf("state=%s reason=%s", c.Workflow.State, c.Workflow.Reason)
+	if c.Workflow.State != domain.StateFailed {
+		t.Fatalf("state=%s reason=%s, want FAILED", c.Workflow.State, c.Workflow.Reason)
 	}
 	if c.Exploit == nil || len(c.Exploit.UnresolvedSubjects) != 1 ||
 		c.Exploit.UnresolvedSubjects[0].Symbol != "RouteAndProcess" {
 		t.Fatalf("unresolved=%+v — dropped in-scope sink must surface on the model",
 			c.Exploit.UnresolvedSubjects)
 	}
-	if c.Verdict == nil || c.Verdict.Verdict != domain.VerdictInconclusive {
-		t.Fatalf("verdict=%+v want INCONCLUSIVE — incomplete model must not claim EXPLOITABLE", c.Verdict)
+	if c.Verdict != nil {
+		t.Fatalf("verdict=%+v want none — incomplete model must not claim EXPLOITABLE", c.Verdict)
+	}
+	if !hasAnalysisGap(c, domain.GapReachabilityProofIncomplete) {
+		t.Fatalf("missing reachability cause: %+v", c.AnalysisGaps)
 	}
 }
 
@@ -811,64 +898,147 @@ func TestReviewBudgetExhausted(t *testing.T) {
 	if tr.Next != domain.StateEvaluateVerdict {
 		t.Fatalf("next = %s", tr.Next)
 	}
-	found := false
-	for _, l := range c.EvidenceGraph.Limitations {
-		if l == "review iteration budget exhausted; verdict computed on repaired claims" {
-			found = true
-		}
-	}
-	if !found {
-		t.Fatal("budget limitation not recorded")
+	if !hasAnalysisGap(c, domain.GapReviewUnresolved) {
+		t.Fatalf("review budget exhaustion lacks its typed cause: %+v", c.AnalysisGaps)
 	}
 }
 
 // Tool failure is never negative evidence: a govulncheck error must not
-// fabricate a FALSE on C-REACH. Positive evidence still counts though —
-// extprod directly calls the sink, so module-usage evidence produces TRUE
-// with a limitation even when govulncheck itself failed.
+// fabricate a FALSE on C-REACH. The two admission gates are independent, so
+// this test crosses them: the same failed run keeps an independent direct-call
+// positive, and a product with no usage at all stays UNKNOWN — under a
+// declared product build just as under the analyzer host, because a missing
+// measurement is not repaired by a target.
 func TestE2EGovulncheckFailureStaysInconclusive(t *testing.T) {
-	// extprod passes os.Args into the sink: C-INPUT is TRUE, so the only
-	// path to a non-INCONCLUSIVE verdict would be a fabricated FALSE on
-	// C-REACH — the bug this test guards against.
-	repo := initRepoFrom(t, "extprod")
-	dir := t.TempDir()
 	model := `{"impact":"t","mandatory_conditions":[
 		{"id":"C-REACH","kind":"SYMBOL_REACHABLE","mandatory":true,
-		 "subject":{"package":"example.com/dep/vuln","symbol":"Parse"}},
+		 "subject":{"package":"@PACKAGE@","symbol":"@SYMBOL@"}},
 		{"id":"C-INPUT","kind":"ATTACKER_CONTROL","mandatory":true,
-		 "subject":{"package":"example.com/dep/vuln","symbol":"Parse"},"arg_index":0}
+		 "subject":{"package":"@PACKAGE@","symbol":"@SYMBOL@"},"arg_index":0}
 	]}`
-	mp := filepath.Join(dir, "model.json")
-	if err := os.WriteFile(mp, []byte(model), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	c := runEngine(t, engineDeps{
-		RepoPath: repo,
-		VulnSrc: vulnerability.StaticSource{Vulns: map[string]*domain.Vulnerability{
-			"GO-TEST-1": {ID: "GO-TEST-1", Module: "example.com/dep"},
-		}},
-		VulnID:      "GO-TEST-1",
-		Resolver:    stubResolver{},
-		ManualRC:    []domain.RootCause{{Package: "example.com/dep/vuln", Symbol: "Parse"}},
-		Model:       mp,
-		CaseDir:     filepath.Join(dir, "cases"),
-		Govulncheck: fakeGovulncheck{err: fmt.Errorf("govulncheck: binary missing")},
-		UseSource:   true,
-	})
-	for _, cl := range c.Claims {
-		if cl.ConditionID == "C-REACH" && cl.Result == domain.ClaimFalse {
-			t.Fatal("tool failure produced a FALSE claim")
+
+	// run drives one case against the named fixture with a failed
+	// govulncheck measurement; the terminal state is asserted per subtest.
+	run := func(t *testing.T, fixture, module string, subject domain.SymbolRef, options repository.SnapshotOptions, extra ...string) *domain.AnalysisCase {
+		t.Helper()
+		mp := filepath.Join(t.TempDir(), "model.json")
+		doc := strings.ReplaceAll(strings.ReplaceAll(model, "@PACKAGE@", subject.Package), "@SYMBOL@", subject.Symbol)
+		if err := os.WriteFile(mp, []byte(doc), 0o644); err != nil {
+			t.Fatal(err)
 		}
+		c := runEngine(t, engineDeps{
+			RepoPath: initRepoFrom(t, fixture, extra...),
+			VulnSrc: vulnerability.StaticSource{Vulns: map[string]*domain.Vulnerability{
+				"GO-TEST-1": {ID: "GO-TEST-1", Module: module},
+			}},
+			VulnID:          "GO-TEST-1",
+			Resolver:        stubResolver{},
+			ManualRC:        []domain.RootCause{{Package: subject.Package, Symbol: subject.Symbol}},
+			Model:           mp,
+			CaseDir:         filepath.Join(t.TempDir(), "cases"),
+			Govulncheck:     fakeGovulncheck{err: fmt.Errorf("govulncheck: binary missing")},
+			SnapshotOptions: options,
+			UseSource:       true,
+		})
+		rec := runOutcome(t, c).Govulncheck
+		if rec.Outcome != domain.GovulncheckFailed || rec.Error == "" {
+			t.Fatalf("run outcome=%s error=%q, want the injected failure", rec.Outcome, rec.Error)
+		}
+		assertNoSilenceFalsifier(t, c)
+		return c
 	}
-	// Module-usage evidence made C-REACH legitimately TRUE — with C-INPUT
-	// also TRUE the verdict is EXPLOITABLE despite the govulncheck failure.
-	reach := findClaimT(t, c.Claims, "C-REACH")
-	if reach.Result != domain.ClaimTrue {
-		t.Fatalf("C-REACH=%s want TRUE via module usage", reach.Result)
-	}
-	if c.Verdict == nil || c.Verdict.Verdict != domain.VerdictExploitable {
-		t.Fatalf("verdict=%+v want EXPLOITABLE", c.Verdict)
-	}
+
+	t.Run("independent direct-call positive survives the failure", func(t *testing.T) {
+		// extprod passes os.Args into the sink: the only path to a
+		// non-INCONCLUSIVE verdict would be a fabricated FALSE on C-REACH —
+		// the bug this test guards against.
+		c := run(t, "extprod", "example.com/dep",
+			domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "Parse"}, repository.SnapshotOptions{})
+		reach := findClaimT(t, c.Claims, "C-REACH")
+		if reach.Result != domain.ClaimTrue {
+			t.Fatalf("C-REACH=%s want TRUE via module usage", reach.Result)
+		}
+		if reach.Falsifier != "" {
+			t.Fatalf("C-REACH TRUE carries falsifier %q", reach.Falsifier)
+		}
+		// Module-usage evidence made C-REACH legitimately TRUE — with
+		// C-INPUT also TRUE the verdict is EXPLOITABLE despite the failed
+		// measurement, which stays a recorded diagnostic.
+		if c.Workflow.State != domain.StateCompleted {
+			t.Fatalf("state=%s reason=%s", c.Workflow.State, c.Workflow.Reason)
+		}
+		if c.Verdict == nil || c.Verdict.Verdict != domain.VerdictExploitable {
+			t.Fatalf("verdict=%+v want EXPLOITABLE", c.Verdict)
+		}
+		if !hasAnalysisGap(c, domain.GapMeasurementNotCompleted) {
+			t.Fatalf("failed measurement diagnostic was lost: %+v", c.AnalysisGaps)
+		}
+	})
+
+	t.Run("zero usage stays UNKNOWN with no silence-derived falsifier", func(t *testing.T) {
+		// initRepo's product does not import the advisory module at all: the
+		// module-usage scan runs, finds nothing, and must not turn that
+		// absence into no-module-usage while the run never measured.
+		subject := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "Parse"}
+		for _, tc := range []struct {
+			name    string
+			options repository.SnapshotOptions
+		}{
+			{"host default", repository.SnapshotOptions{}},
+			{"operator-declared build", declaredSnapshotOptions()},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				// unusedprod requires the module but never imports it: the
+				// usage scan measures zero call sites.
+				c := run(t, "unusedprod", "example.com/dep", subject, tc.options)
+				reach := findClaimT(t, c.Claims, "C-REACH")
+				if reach.Result != domain.ClaimUnknown {
+					t.Fatalf("C-REACH=%s (%s), want UNKNOWN under a failed run", reach.Result, reach.Explanation)
+				}
+				if reach.Falsifier != "" {
+					t.Fatalf("C-REACH UNKNOWN carries falsifier %q", reach.Falsifier)
+				}
+				input := findClaimT(t, c.Claims, "C-INPUT")
+				if input.Result == domain.ClaimFalse {
+					t.Fatalf("failed run produced FALSE on C-INPUT: %+v", input)
+				}
+				if c.Workflow.State != domain.StateFailed {
+					t.Fatalf("state=%s reason=%s, want FAILED", c.Workflow.State, c.Workflow.Reason)
+				}
+				if c.Verdict != nil {
+					t.Fatalf("verdict=%+v want none under a failed run", c.Verdict)
+				}
+				if !hasAnalysisGap(c, domain.GapMeasurementNotCompleted) {
+					t.Fatalf("missing measurement cause: %+v", c.AnalysisGaps)
+				}
+			})
+		}
+	})
+
+	t.Run("used module with an unused sink stays UNKNOWN", func(t *testing.T) {
+		// unreachprod links the module and calls Benign, but never invokes
+		// the declared sink: a declared build target cannot turn the absence
+		// of a measurement into a negative.
+		c := run(t, "unreachprod", "example.com/unreachdep",
+			domain.SymbolRef{Package: "example.com/unreachdep/vulnlib", Symbol: "OrphanA"},
+			declaredSnapshotOptions(), "unreachdep")
+		reach := findClaimT(t, c.Claims, "C-REACH")
+		if reach.Result != domain.ClaimUnknown {
+			t.Fatalf("C-REACH=%s (%s), want UNKNOWN", reach.Result, reach.Explanation)
+		}
+		if reach.Falsifier != "" {
+			t.Fatalf("C-REACH UNKNOWN carries falsifier %q", reach.Falsifier)
+		}
+		if c.Workflow.State != domain.StateFailed {
+			t.Fatalf("state=%s reason=%s, want FAILED", c.Workflow.State, c.Workflow.Reason)
+		}
+		if c.Verdict != nil {
+			t.Fatalf("verdict=%+v want none under a failed run", c.Verdict)
+		}
+		if !hasAnalysisGap(c, domain.GapMeasurementNotCompleted) {
+			t.Fatalf("missing measurement cause: %+v", c.AnalysisGaps)
+		}
+	})
 }
 
 // Deployment-dependent provenance: a flag-fed sink argument is neither
@@ -888,7 +1058,7 @@ func TestE2EConfigInputStaysUnknown(t *testing.T) {
 	if err := os.WriteFile(mp, []byte(model), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	gv := `{"protocol_version":"v1.0.0"}
+	gv := `{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
 {"finding":{"osv":"GO-TEST-1","fixed_version":"v1.2.0","trace":[
  {"module":"example.com/configprod","package":"example.com/configprod","function":"main","position":{"filename":"main.go","line":17}},
  {"module":"example.com/dep","package":"example.com/dep/vuln","function":"Parse","position":{"filename":"vuln.go","line":4}}
@@ -915,9 +1085,7 @@ func TestE2EConfigInputStaysUnknown(t *testing.T) {
 	if input == nil || input.Result != domain.ClaimUnknown {
 		t.Fatalf("C-INPUT=%+v want UNKNOWN", input)
 	}
-	if c.Verdict == nil || c.Verdict.Verdict != domain.VerdictInconclusive {
-		t.Fatalf("verdict=%+v", c.Verdict)
-	}
+	requireAssessmentFailed(t, c, domain.GapInputTraceIncomplete)
 }
 
 // Database-populated input is neither attacker-controlled nor safe:
@@ -935,7 +1103,7 @@ func TestE2EDatabaseOriginStaysUnknown(t *testing.T) {
 	if err := os.WriteFile(mp, []byte(model), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	gv := `{"protocol_version":"v1.0.0"}
+	gv := `{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
 {"finding":{"osv":"GO-TEST-1","fixed_version":"v1.2.0","trace":[
  {"module":"example.com/dbprod","package":"example.com/dbprod","function":"main","position":{"filename":"main.go","line":19}},
  {"module":"example.com/dep","package":"example.com/dep/vuln","function":"Parse","position":{"filename":"vuln.go","line":4}}
@@ -966,9 +1134,7 @@ func TestE2EDatabaseOriginStaysUnknown(t *testing.T) {
 	if input.Result != domain.ClaimUnknown {
 		t.Fatalf("C-INPUT=%s want UNKNOWN (database is deploy-dependent)", input.Result)
 	}
-	if c.Verdict == nil || c.Verdict.Verdict != domain.VerdictInconclusive {
-		t.Fatalf("verdict=%+v want INCONCLUSIVE", c.Verdict)
-	}
+	requireAssessmentFailed(t, c, domain.GapInputTraceIncomplete)
 }
 
 // A configured internal-service endpoint produces INTERNAL_SERVICE
@@ -987,7 +1153,7 @@ func TestE2EInternalServiceOriginStaysUnknown(t *testing.T) {
 	if err := os.WriteFile(mp, []byte(model), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	gv := `{"protocol_version":"v1.0.0"}
+	gv := `{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
 {"finding":{"osv":"GO-TEST-1","fixed_version":"v1.2.0","trace":[
  {"module":"example.com/svcprod","package":"example.com/svcprod","function":"main","position":{"filename":"main.go","line":21}},
  {"module":"example.com/dep","package":"example.com/dep/vuln","function":"Parse","position":{"filename":"vuln.go","line":4}}
@@ -1018,9 +1184,7 @@ func TestE2EInternalServiceOriginStaysUnknown(t *testing.T) {
 	if input.Result != domain.ClaimUnknown {
 		t.Fatalf("C-INPUT=%s want UNKNOWN (internal service is deploy-dependent)", input.Result)
 	}
-	if c.Verdict == nil || c.Verdict.Verdict != domain.VerdictInconclusive {
-		t.Fatalf("verdict=%+v want INCONCLUSIVE", c.Verdict)
-	}
+	requireAssessmentFailed(t, c, domain.GapInputTraceIncomplete)
 }
 
 // Three-hop parameter chain — deeper than the default provenance bound.
@@ -1039,7 +1203,7 @@ func TestE2EGapAnalysisDeepTrace(t *testing.T) {
 	if err := os.WriteFile(mp, []byte(model), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	gv := `{"protocol_version":"v1.0.0"}
+	gv := `{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
 {"finding":{"osv":"GO-TEST-1","fixed_version":"v1.2.0","trace":[
  {"module":"example.com/deepprod","package":"example.com/deepprod","function":"level3","position":{"filename":"main.go","line":24}},
  {"module":"example.com/dep","package":"example.com/dep/vuln","function":"Parse","position":{"filename":"vuln.go","line":4}}
@@ -1098,15 +1262,18 @@ func TestE2EAmbiguousRootCause(t *testing.T) {
 		VulnID:      "GO-TEST-1",
 		Resolver:    stubResolver{},
 		CaseDir:     filepath.Join(dir, "cases"),
-		Govulncheck: fakeGovulncheck{out: []byte(`{"protocol_version":"v1.0.0"}`)},
+		Govulncheck: fakeGovulncheck{out: []byte(`{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}`)},
 		UseSource:   true,
 	})
 	if c.RootCause == nil || c.RootCause.Status != domain.RootCauseAmbiguous {
 		t.Fatalf("root cause=%+v", c.RootCause)
 	}
-	if c.Workflow.State != domain.StateInconclusive {
-		t.Fatalf("state=%s", c.Workflow.State)
+	// An ambiguous root cause no longer aborts before a verdict: the case
+	// records the typed failure and still writes its reports/exports.
+	if c.Workflow.State != domain.StateFailed {
+		t.Fatalf("state=%s, want FAILED with a diagnostic report", c.Workflow.State)
 	}
+	requireAssessmentFailed(t, c, domain.GapRootCauseUnresolved)
 }
 
 // A resolver whose verified-failed candidates get a second chance via
@@ -1152,7 +1319,7 @@ func TestRootCauseRetryOnVerificationFailure(t *testing.T) {
 		Resolver:    stubResolver{},
 		RCResolver:  res,
 		CaseDir:     filepath.Join(dir, "cases"),
-		Govulncheck: fakeGovulncheck{out: []byte(`{"protocol_version":"v1.0.0"}`)},
+		Govulncheck: fakeGovulncheck{out: []byte(`{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}`)},
 		UseSource:   true,
 	})
 	if !res.proposed {
@@ -1181,6 +1348,13 @@ func TestE2EInfoLeakNoReader(t *testing.T) {
 				ID:      "GO-LEAK-1",
 				Module:  "example.com/dep",
 				Summary: "credentials retained in plaintext in exported struct fields",
+				// The pattern library's class comes from the record's own
+				// structured CWE ids; prose vocabulary is a nomination. CWE-200
+				// (exposure of sensitive information) is the class this
+				// synthetic advisory carries, so the INFO_LEAK pattern is
+				// selected by structured data.
+				CWE:   []string{"CWE-200"},
+				Scope: exactScopeFor("GO-LEAK-1", "example.com/dep"),
 				AffectedPackages: []domain.AffectedPackage{{
 					Path: "example.com/dep/vuln", Symbols: []string{"PlainAuth.Password"},
 				}},
@@ -1191,9 +1365,10 @@ func TestE2EInfoLeakNoReader(t *testing.T) {
 		ManualRC: []domain.RootCause{{
 			Package: "example.com/dep/vuln", Symbol: "PlainAuth.Password", Role: domain.RootCauseSink,
 		}},
-		CaseDir:     caseDir,
-		Govulncheck: fakeGovulncheck{out: []byte(`{"protocol_version":"v1.0.0"}`)},
-		UseSource:   true,
+		CaseDir:         caseDir,
+		Govulncheck:     fakeGovulncheck{out: []byte(`{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}`)},
+		SnapshotOptions: declaredSnapshotOptions(),
+		UseSource:       true,
 	})
 
 	if c.Exploit == nil || c.Exploit.Class != "INFO_LEAK" {
@@ -1229,6 +1404,10 @@ func TestE2EInfoLeakReader(t *testing.T) {
 				ID:      "GO-LEAK-2",
 				Module:  "example.com/dep",
 				Summary: "credentials retained in plaintext in exported struct fields",
+				// Structured class data, as in the no-reader control: the
+				// INFO_LEAK pattern is selected from the record's CWE, never
+				// from its prose.
+				CWE: []string{"CWE-200"},
 				AffectedPackages: []domain.AffectedPackage{{
 					Path: "example.com/dep/vuln", Symbols: []string{"PlainAuth.Password"},
 				}},
@@ -1240,7 +1419,7 @@ func TestE2EInfoLeakReader(t *testing.T) {
 			Package: "example.com/dep/vuln", Symbol: "PlainAuth.Password", Role: domain.RootCauseSink,
 		}},
 		CaseDir:     caseDir,
-		Govulncheck: fakeGovulncheck{out: []byte(`{"protocol_version":"v1.0.0"}`)},
+		Govulncheck: fakeGovulncheck{out: []byte(`{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}`)},
 		UseSource:   true,
 	})
 
@@ -1253,8 +1432,16 @@ func TestE2EInfoLeakReader(t *testing.T) {
 	}
 }
 
-// C-TLS-VERIFY (peer-driven supporting): tlsprod assigns
-// InsecureSkipVerify=true — the knob check must resolve TRUE.
+// TLS knob, insecure side: tlsprod assigns crypto/tls
+// Config.InsecureSkipVerify=true. The knob used to arrive as the C-TLS-VERIFY
+// supporting condition of the peer-gated RESOURCE_EXHAUSTION/OOB_WRITE
+// variant, which was eligible only while a prose regex made "peer" the
+// authoritative input route. AdvisoryInputRoute now returns the unresolved
+// route for every advisory (no OSV field binds the route), so no route-gated
+// variant is selected and no configuration condition exists. This test pins
+// that honest outcome — an insecure knob in the product decides nothing when
+// no established route makes it a condition — and keeps the knob's own
+// evaluator contract in internal/evaluator/configflag_test.go.
 func TestE2ETLSKnobInsecure(t *testing.T) {
 	repo := initRepoFrom(t, "tlsprod")
 	c := runEngine(t, engineDeps{
@@ -1263,7 +1450,7 @@ func TestE2ETLSKnobInsecure(t *testing.T) {
 			"GO-WIRE-1": {
 				ID:      "GO-WIRE-1",
 				Module:  "example.com/dep",
-				Summary: "wire protocol parser buffer overflow in length handling",
+				Summary: "wire protocol parser buffer overflow when a remote peer sends a malformed frame",
 				CWE:     []string{"CWE-787"},
 				AffectedPackages: []domain.AffectedPackage{{
 					Path: "example.com/dep/vuln", Symbols: []string{"Parse"},
@@ -1276,17 +1463,17 @@ func TestE2ETLSKnobInsecure(t *testing.T) {
 			Package: "example.com/dep/vuln", Symbol: "Parse", Role: domain.RootCauseSink,
 		}},
 		CaseDir:     t.TempDir(),
-		Govulncheck: fakeGovulncheck{out: []byte(`{"protocol_version":"v1.0.0"}`)},
+		Govulncheck: fakeGovulncheck{out: []byte(`{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}`)},
 		UseSource:   true,
 	})
-	cl := findClaimT(t, c.Claims, "C-TLS-VERIFY")
-	if cl.Result != domain.ClaimTrue {
-		t.Fatalf("C-TLS-VERIFY=%s want TRUE (%s; lims=%v)", cl.Result, cl.Explanation, cl.Limitations)
-	}
+	assertNoTLSKnobCondition(t, c, "tlsprod")
 }
 
-// tlssafe never assigns the knob: bool field + insecure=true → Go
-// zero-value FALSE candidate, demoted to INSUFFICIENT_SCOPE by NV.
+// TLSSafe is the same advisory against a product that never sets the knob. Its
+// absence used to make C-TLS-VERIFY a FALSE candidate that negative
+// verification demoted to INSUFFICIENT_SCOPE. With no configuration condition
+// in the model there is no claim to demote — and, importantly, the absent knob
+// is not read as a safe answer.
 func TestE2ETLSKnobSafe(t *testing.T) {
 	repo := initRepoFrom(t, "tlssafe")
 	c := runEngine(t, engineDeps{
@@ -1295,7 +1482,7 @@ func TestE2ETLSKnobSafe(t *testing.T) {
 			"GO-WIRE-2": {
 				ID:      "GO-WIRE-2",
 				Module:  "example.com/dep",
-				Summary: "wire protocol parser buffer overflow in length handling",
+				Summary: "wire protocol parser buffer overflow when a remote peer sends a malformed frame",
 				CWE:     []string{"CWE-787"},
 				AffectedPackages: []domain.AffectedPackage{{
 					Path: "example.com/dep/vuln", Symbols: []string{"Parse"},
@@ -1307,17 +1494,58 @@ func TestE2ETLSKnobSafe(t *testing.T) {
 		ManualRC: []domain.RootCause{{
 			Package: "example.com/dep/vuln", Symbol: "Parse", Role: domain.RootCauseSink,
 		}},
-		CaseDir:     t.TempDir(),
-		Govulncheck: fakeGovulncheck{out: []byte(`{"protocol_version":"v1.0.0"}`)},
-		UseSource:   true,
+		CaseDir:         t.TempDir(),
+		Govulncheck:     fakeGovulncheck{out: []byte(`{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}`)},
+		SnapshotOptions: declaredSnapshotOptions(),
+		UseSource:       true,
 	})
-	cl := findClaimT(t, c.Claims, "C-TLS-VERIFY")
-	if cl.Result != domain.ClaimFalse {
-		t.Fatalf("C-TLS-VERIFY=%s want FALSE (%s; lims=%v)", cl.Result, cl.Explanation, cl.Limitations)
+	assertNoTLSKnobCondition(t, c, "tlssafe")
+}
+
+// assertNoTLSKnobCondition pins the shared honest outcome of both TLS controls:
+// the class is the record's own CWE-derived OOB_WRITE, the prose peer route is
+// recorded as a nomination only, no configuration condition (the knob) is
+// merged, and the unmodeled knob cannot decide a safe or a positive verdict.
+func assertNoTLSKnobCondition(t *testing.T, c *domain.AnalysisCase, fixture string) {
+	t.Helper()
+	if c.Exploit == nil {
+		t.Fatal("no exploit model was built")
 	}
-	if cl.NegativeVerification == nil ||
-		cl.NegativeVerification.Status != domain.NegativeInsufficientScope {
-		t.Fatalf("neg verification=%+v want INSUFFICIENT_SCOPE", cl.NegativeVerification)
+	if c.Exploit.Class != "OOB_WRITE" {
+		t.Fatalf("class=%q, want the record's own CWE-787 class OOB_WRITE", c.Exploit.Class)
+	}
+	if c.Exploit.InputRoute != "" {
+		t.Fatalf("input route=%q, want the unestablished route", c.Exploit.InputRoute)
+	}
+	var routeNominated bool
+	for _, n := range c.Exploit.MechanismNominations {
+		if n.Kind == domain.MechanismNominationInputRoute && n.Value == "peer" &&
+			n.Source == domain.MechanismNominationProse {
+			routeNominated = true
+		}
+	}
+	if !routeNominated {
+		t.Fatalf("the prose peer route was not even nominated for %s: %+v", fixture, c.Exploit.MechanismNominations)
+	}
+	for _, cond := range append(append([]domain.Condition{}, c.Exploit.MandatoryConditions...), c.Exploit.SupportingFactors...) {
+		if cond.ID == "C-TLS-VERIFY" || cond.Kind == domain.ConditionConfiguration {
+			t.Fatalf("configuration condition %s survives without an established route: %+v", cond.ID, cond)
+		}
+		if cond.Params[domain.ParamInputSource] == domain.InputPeer || cond.Params["protocol_role"] != "" {
+			t.Fatalf("condition %s claims a peer/protocol fact from prose: %+v", cond.ID, cond.Params)
+		}
+	}
+	for _, claim := range c.Claims {
+		if claim.ConditionID == "C-TLS-VERIFY" {
+			t.Fatalf("a TLS knob claim exists without a condition: %+v", claim)
+		}
+	}
+	if c.Verdict != nil {
+		switch c.Verdict.Verdict {
+		case domain.VerdictExploitable, domain.VerdictNoExploitPathFound, domain.VerdictNotAffected:
+			t.Fatalf("%s published the knob-dependent verdict %s; the unmodeled knob decides nothing",
+				fixture, c.Verdict.Verdict)
+		}
 	}
 }
 
@@ -1343,19 +1571,20 @@ func TestE2ECallerFrameGuard(t *testing.T) {
 	c := runEngine(t, engineDeps{
 		RepoPath: repo,
 		VulnSrc: vulnerability.StaticSource{Vulns: map[string]*domain.Vulnerability{
-			"GO-TEST-1": {ID: "GO-TEST-1", Module: "example.com/dep"},
+			"GO-TEST-1": exactTestVuln(),
 		}},
 		VulnID:   "GO-TEST-1",
 		Resolver: stubResolver{},
 		ManualRC: []domain.RootCause{{Package: "example.com/dep/vuln", Symbol: "Parse"}},
 		Model:    mp,
 		CaseDir:  filepath.Join(dir, "cases"),
-		Govulncheck: fakeGovulncheck{out: []byte(`{"protocol_version":"v1.0.0"}
+		Govulncheck: fakeGovulncheck{out: []byte(`{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
 {"finding":{"osv":"GO-TEST-1","trace":[
  {"package":"example.com/guardprod","function":"sink","position":{"filename":"main.go","line":11}},
  {"package":"example.com/dep/vuln","function":"Parse","position":{"filename":"vuln.go","line":4}}
 ]}}`)},
-		UseSource: true,
+		SnapshotOptions: declaredSnapshotOptions(),
+		UseSource:       true,
 	})
 
 	cl := findClaimT(t, c.Claims, "C-VALID")
@@ -1418,7 +1647,7 @@ func TestE2EPartialCallerGuardStaysUnknown(t *testing.T) {
 		ManualRC: []domain.RootCause{{Package: "example.com/dep/vuln", Symbol: "Parse"}},
 		Model:    mp,
 		CaseDir:  filepath.Join(dir, "cases"),
-		Govulncheck: fakeGovulncheck{out: []byte(`{"protocol_version":"v1.0.0"}
+		Govulncheck: fakeGovulncheck{out: []byte(`{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
 {"finding":{"osv":"GO-TEST-1","trace":[
  {"package":"example.com/mixguard","function":"sink","position":{"filename":"main.go","line":10}},
  {"package":"example.com/dep/vuln","function":"Parse","position":{"filename":"vuln.go","line":4}}
@@ -1435,9 +1664,7 @@ func TestE2EPartialCallerGuardStaysUnknown(t *testing.T) {
 			t.Fatalf("partial coverage must not emit Covers= validation: %+v", v)
 		}
 	}
-	if c.Verdict == nil || c.Verdict.Verdict != domain.VerdictInconclusive {
-		t.Fatalf("verdict=%+v want INCONCLUSIVE", c.Verdict)
-	}
+	requireAssessmentFailed(t, c, domain.GapUnclassifiedAnalysisGap)
 }
 
 // The REVIEW->REPAIR->REVIEW loop converges: the demoted claim resolves
@@ -1482,38 +1709,627 @@ func TestReviewRepairLoopConverges(t *testing.T) {
 	}
 }
 
-func TestReviewRepairPromotesConditionToMandatory(t *testing.T) {
+// TestReviewActionAloneCannotPromoteSupporting pins the promote boundary: a
+// review nomination is recorded but never applied. No deterministic contract
+// proves necessity, and an empty applicability result is not proof, so the
+// supporting factor stays supporting and the all-TRUE conjunction keeps its
+// EXPLOITABLE truth.
+func TestReviewActionAloneCannotPromoteSupporting(t *testing.T) {
 	c := &domain.AnalysisCase{
 		Exploit: &domain.ExploitModel{
-			MandatoryConditions: []domain.Condition{{ID: "C-1", Kind: domain.ConditionSymbolReachable}},
-			SupportingFactors:   []domain.Condition{{ID: "C-XDS-SERVER", Kind: domain.ConditionConfiguration}},
+			MandatoryConditions: []domain.Condition{{ID: "C-1", Kind: domain.ConditionSymbolReachable, Mandatory: true}},
+			SupportingFactors: []domain.Condition{{
+				ID: "C-XDS-SERVER", Kind: domain.ConditionConfiguration,
+				Description: "xDS server initialization",
+			}},
 		},
+		Affected: &domain.AffectedResult{
+			ModulePresent:   domain.ClaimTrue,
+			VersionAffected: domain.ClaimTrue,
+			PackagePresent:  domain.ClaimTrue,
+			BuildRelevant:   domain.ClaimTrue,
+		},
+		Claims: []domain.Claim{{ID: "CL-1", ConditionID: "C-1", Result: domain.ClaimTrue}},
 		Reviews: []domain.Review{{
-			Result: domain.ReviewRevise,
+			ID: "REV-1", Result: domain.ReviewRevise,
 			Findings: []domain.ReviewFinding{{
 				Severity:   "high",
 				TargetType: "condition",
 				TargetID:   "C-XDS-SERVER",
+				Action:     domain.ReviewActionPromote,
 				Problem:    "xDS server initialization required for crash",
 			}},
 		}},
 	}
-	rp := states.RepairAnalysis{}
-	tr, err := rp.Run(context.Background(), c)
+	tr, err := (states.RepairAnalysis{}).Run(context.Background(), c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tr.Next != domain.StateEvaluateVerdict {
+		t.Fatalf("next=%s want EVALUATE_VERDICT: a promote nomination is not a repair", tr.Next)
+	}
+	if len(c.Exploit.MandatoryConditions) != 1 || c.Exploit.MandatoryConditions[0].ID != "C-1" {
+		t.Fatalf("promote nomination changed the conjunction: %+v", c.Exploit.MandatoryConditions)
+	}
+	if len(c.Exploit.SupportingFactors) != 1 ||
+		c.Exploit.SupportingFactors[0].ID != "C-XDS-SERVER" ||
+		c.Exploit.SupportingFactors[0].Mandatory {
+		t.Fatalf("supporting factor was moved by a nomination: %+v", c.Exploit.SupportingFactors)
+	}
+	if len(c.Exploit.PendingConditionReviews) != 0 {
+		t.Fatalf("a promote nomination must not create a pending review: %v", c.Exploit.PendingConditionReviews)
+	}
+	lims := strings.Join(c.EvidenceGraph.Limitations, "\n")
+	for _, want := range []string{"C-XDS-SERVER", "not applied", "no deterministic necessity proof"} {
+		if !strings.Contains(lims, want) {
+			t.Fatalf("promote limitation %q does not name %q", lims, want)
+		}
+	}
+	got := evalCaseVerdict(c, c.Claims)
+	if got.Verdict != domain.VerdictExploitable {
+		t.Fatalf("verdict=%s (%s), want EXPLOITABLE: a promote nomination cannot narrow evaluated truth",
+			got.Verdict, got.Reason)
+	}
+}
+
+// verifiedPlatformFalse is the snapshot fact the reviewer must not
+// rewrite: a VERIFIED FALSE claim with a falsifier and evidence.
+func verifiedPlatformFalse() domain.Claim {
+	return domain.Claim{
+		ID:          "CL-PLATFORM",
+		ConditionID: "C-PLATFORM",
+		Result:      domain.ClaimFalse,
+		Falsifier:   domain.FalsifierConstantOrGeneratedInput,
+		EvidenceIDs: []domain.EvidenceID{"EV-PLATFORM"},
+		NegativeVerification: &domain.NegativeVerification{
+			Status:      domain.NegativeVerified,
+			EvidenceIDs: []domain.EvidenceID{"EV-PLATFORM-NV"},
+			Notes:       "release toolchain resolves above the floor",
+		},
+	}
+}
+
+func hasConditionID(conds []domain.Condition, id domain.ConditionID) bool {
+	return conditionByID(conds, id) != nil
+}
+
+func conditionByID(conds []domain.Condition, id domain.ConditionID) *domain.Condition {
+	for i := range conds {
+		if conds[i].ID == id {
+			return &conds[i]
+		}
+	}
+	return nil
+}
+
+func countCondition(conds []domain.Condition, id domain.ConditionID) int {
+	n := 0
+	for _, cond := range conds {
+		if cond.ID == id {
+			n++
+		}
+	}
+	return n
+}
+
+func hasPendingCondition(c *domain.AnalysisCase, id domain.ConditionID) bool {
+	for _, pending := range c.Exploit.PendingConditionReviews {
+		if pending == id {
+			return true
+		}
+	}
+	return false
+}
+
+// TestReviewActionAloneCannotDemoteMandatory pins the demote boundary on a
+// verified-negative baseline: a reviewer's demote nomination is not an
+// independently established repair. Without a deterministic applicability
+// mismatch the condition stays mandatory, its VERIFIED FALSE claim is
+// untouched, and the unproven critique remains pending so no verdict closes
+// around it.
+func TestReviewActionAloneCannotDemoteMandatory(t *testing.T) {
+	verified := domain.Claim{
+		ID:          "CL-C-REACH",
+		ConditionID: "C-REACH",
+		Result:      domain.ClaimFalse,
+		Falsifier:   domain.FalsifierConstantOrGeneratedInput,
+		EvidenceIDs: []domain.EvidenceID{"EV-REACH"},
+		NegativeVerification: &domain.NegativeVerification{
+			Status:      domain.NegativeVerified,
+			EvidenceIDs: []domain.EvidenceID{"EV-REACH-NV"},
+			Notes:       "reachability falsifier re-checked",
+		},
+	}
+	c := &domain.AnalysisCase{
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{{
+				ID: "C-REACH", Kind: domain.ConditionSymbolReachable, Mandatory: true,
+			}},
+		},
+		Claims: []domain.Claim{verified},
+		Reviews: []domain.Review{{
+			ID: "REV-1", Result: domain.ReviewRevise,
+			Findings: []domain.ReviewFinding{{
+				TargetType: "condition", TargetID: "C-REACH",
+				Action: domain.ReviewActionDemote, Severity: "high",
+				Problem: "reachability condition is not a prerequisite of this advisory",
+			}},
+		}},
+	}
+	tr, err := (states.RepairAnalysis{}).Run(context.Background(), c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tr.Next != domain.StateEvaluateVerdict {
+		t.Fatalf("next=%s want EVALUATE_VERDICT: an unproven demote is not a repair", tr.Next)
+	}
+	if !hasConditionID(c.Exploit.MandatoryConditions, "C-REACH") {
+		t.Fatalf("review nomination removed the mandatory condition: %+v", c.Exploit.MandatoryConditions)
+	}
+	if hasConditionID(c.Exploit.SupportingFactors, "C-REACH") {
+		t.Fatalf("review nomination moved the condition to supporting: %+v", c.Exploit.SupportingFactors)
+	}
+	if !hasPendingCondition(c, "C-REACH") {
+		t.Fatalf("unestablished demote must stay pending: %v", c.Exploit.PendingConditionReviews)
+	}
+	if !reflect.DeepEqual(c.Claims[0], verified) {
+		t.Fatalf("demote nomination changed the verified claim:\n got %+v\nwant %+v", c.Claims[0], verified)
+	}
+	lims := strings.Join(c.EvidenceGraph.Limitations, "\n")
+	for _, want := range []string{"C-REACH", "REV-1", "no deterministic applicability mismatch"} {
+		if !strings.Contains(lims, want) {
+			t.Fatalf("limitation %q does not name %q", lims, want)
+		}
+	}
+	got := evalCaseVerdict(c, c.Claims)
+	if got.Verdict != domain.VerdictInconclusive {
+		t.Fatalf("verdict=%s (%s), want INCONCLUSIVE while the critique is pending", got.Verdict, got.Reason)
+	}
+	if len(got.ConditionIDs) != 1 || got.ConditionIDs[0] != "C-REACH" {
+		t.Fatalf("verdict condition ids=%v want C-REACH", got.ConditionIDs)
+	}
+}
+
+// A demotion is applied only when the deterministic applicability contract
+// names a concrete mismatch: C-PLATFORM moves to supporting, while its
+// claim, falsifier, negative verification and evidence stay byte-for-byte
+// intact.
+func TestRepairDemotesIrrelevantMandatoryCondition(t *testing.T) {
+	before := verifiedPlatformFalse()
+	c := &domain.AnalysisCase{
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{
+				{ID: "C-REACH", Kind: domain.ConditionSymbolReachable, Mandatory: true},
+				{ID: "C-INPUT", Kind: domain.ConditionAttackerControl, Mandatory: true},
+				{ID: "C-PLATFORM", Kind: domain.ConditionPlatform, Mandatory: true,
+					Description: "legacy TLS floor",
+					Params:      map[string]string{"go_version": "< 1.18"}},
+			},
+		},
+		Claims: []domain.Claim{
+			{ID: "CL-REACH", ConditionID: "C-REACH", Result: domain.ClaimUnknown},
+			{ID: "CL-INPUT", ConditionID: "C-INPUT", Result: domain.ClaimUnknown},
+			before,
+		},
+		Reviews: []domain.Review{{
+			ID: "REV-1", Result: domain.ReviewRevise,
+			Findings: []domain.ReviewFinding{{
+				TargetType: "condition", TargetID: "C-PLATFORM",
+				Action: domain.ReviewActionDemote, Severity: "high",
+				Problem: "legacy TLS floor does not gate an SSH key-exchange downgrade",
+			}},
+		}},
+	}
+	tr, err := states.RepairAnalysis{}.Run(context.Background(), c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tr.Next != domain.StateReview {
+		t.Fatalf("next=%s want re-REVIEW after demotion", tr.Next)
+	}
+	if hasConditionID(c.Exploit.MandatoryConditions, "C-PLATFORM") {
+		t.Fatalf("C-PLATFORM must leave the mandatory conjunction: %+v", c.Exploit.MandatoryConditions)
+	}
+	if n := countCondition(c.Exploit.SupportingFactors, "C-PLATFORM"); n != 1 {
+		t.Fatalf("C-PLATFORM supporting occurrences=%d want exactly 1: %+v", n, c.Exploit.SupportingFactors)
+	}
+	plat := conditionByID(c.Exploit.SupportingFactors, "C-PLATFORM")
+	if plat == nil || plat.Mandatory {
+		t.Fatalf("demoted condition must be non-mandatory: %+v", plat)
+	}
+	if !reflect.DeepEqual(c.Claims[2], before) {
+		t.Fatalf("demotion changed the verified claim record:\n got %+v\nwant %+v", c.Claims[2], before)
+	}
+	lim := strings.Join(c.EvidenceGraph.Limitations, "\n")
+	for _, want := range []string{"C-PLATFORM", "REV-1", "legacy TLS floor does not gate"} {
+		if !strings.Contains(lim, want) {
+			t.Fatalf("limitation %q does not name %q", lim, want)
+		}
+	}
+	got := evalCaseVerdict(c, c.Claims)
+	if got.Verdict == domain.VerdictNoExploitPathFound {
+		t.Fatalf("recomputed verdict still grounds NEPF on the demoted condition: %+v", got)
+	}
+	if got.Verdict != domain.VerdictInconclusive {
+		t.Fatalf("recomputed verdict=%s want INCONCLUSIVE", got.Verdict)
+	}
+	if strings.Contains(got.Reason, "C-PLATFORM") {
+		t.Fatalf("verdict reason still uses C-PLATFORM: %q", got.Reason)
+	}
+}
+
+// Demoting the last mandatory condition leaves an empty conjunction: the
+// case must stay INCONCLUSIVE rather than inherit the old false-safe.
+func TestRepairDemotesSoleMandatoryCondition(t *testing.T) {
+	c := &domain.AnalysisCase{
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{{
+				ID: "C-PLATFORM", Kind: domain.ConditionPlatform, Mandatory: true,
+				Description: "legacy TLS floor",
+				Params:      map[string]string{"go_version": "<1.18"},
+			}},
+		},
+		Claims: []domain.Claim{verifiedPlatformFalse()},
+		Reviews: []domain.Review{{
+			ID: "REV-1", Result: domain.ReviewRevise,
+			Findings: []domain.ReviewFinding{{
+				TargetType: "condition", TargetID: "C-PLATFORM",
+				Action: domain.ReviewActionDemote, Severity: "high",
+				Problem: "condition is not a prerequisite of the advisory mechanism",
+			}},
+		}},
+	}
+	tr, err := states.RepairAnalysis{}.Run(context.Background(), c)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if tr.Next != domain.StateReview {
 		t.Fatalf("next=%s want re-REVIEW", tr.Next)
 	}
-	if len(c.Exploit.MandatoryConditions) != 2 || c.Exploit.MandatoryConditions[1].ID != "C-XDS-SERVER" {
-		t.Fatalf("mandatory conditions: %+v", c.Exploit.MandatoryConditions)
+	if len(c.Exploit.MandatoryConditions) != 0 {
+		t.Fatalf("mandatory conjunction must be empty: %+v", c.Exploit.MandatoryConditions)
 	}
-	if !c.Exploit.MandatoryConditions[1].Mandatory {
-		t.Fatalf("promoted condition must be marked Mandatory")
+	if n := countCondition(c.Exploit.SupportingFactors, "C-PLATFORM"); n != 1 {
+		t.Fatalf("demoted condition supporting occurrences=%d want 1", n)
 	}
-	if len(c.Exploit.SupportingFactors) != 0 {
-		t.Fatalf("supporting factors must be empty after promotion: %+v", c.Exploit.SupportingFactors)
+	got := evalCaseVerdict(c, c.Claims)
+	if got.Verdict != domain.VerdictInconclusive {
+		t.Fatalf("empty-after-demotion verdict=%s want INCONCLUSIVE (old false-safe must not survive)", got.Verdict)
+	}
+}
+
+// A repeated deterministically-established demotion is a no-op: supporting
+// factors do not duplicate and the mandatory conjunction stays empty.
+func TestRepairConditionActionsAreIdempotent(t *testing.T) {
+	c := &domain.AnalysisCase{
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{{
+				ID: "C-M", Kind: domain.ConditionPlatform, Mandatory: true,
+				Description: "legacy TLS floor",
+				Params:      map[string]string{"go_version": "<1.18"},
+			}},
+		},
+		Reviews: []domain.Review{{
+			ID: "REV-1", Result: domain.ReviewRevise,
+			Findings: []domain.ReviewFinding{{
+				TargetType: "condition", TargetID: "C-M",
+				Action: domain.ReviewActionDemote, Severity: "high",
+				Problem: "irrelevant condition",
+			}},
+		}},
+	}
+	rp := states.RepairAnalysis{}
+	if _, err := rp.Run(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	c.Reviews = append(c.Reviews, domain.Review{
+		ID: "REV-2", Result: domain.ReviewRevise,
+		Findings: []domain.ReviewFinding{{
+			TargetType: "condition", TargetID: "C-M",
+			Action: domain.ReviewActionDemote, Severity: "high",
+			Problem: "still irrelevant",
+		}},
+	})
+	tr, err := rp.Run(context.Background(), c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tr.Next != domain.StateEvaluateVerdict {
+		t.Fatalf("next=%s want EVALUATE_VERDICT when nothing changed", tr.Next)
+	}
+	if hasConditionID(c.Exploit.MandatoryConditions, "C-M") {
+		t.Fatalf("C-M returned to the mandatory conjunction")
+	}
+	if n := countCondition(c.Exploit.SupportingFactors, "C-M"); n != 1 {
+		t.Fatalf("C-M supporting occurrences=%d want exactly 1", n)
+	}
+}
+
+// Conflicting condition actions on an already-supporting factor are
+// nominations only: neither a promote nor a demote moves it, in either
+// finding order.
+func TestRepairConditionActionConflictLeavesSupporting(t *testing.T) {
+	promote := domain.ReviewFinding{
+		TargetType: "condition", TargetID: "C-M",
+		Action: domain.ReviewActionPromote, Severity: "high",
+		Problem: "reviewer thinks the condition is necessary",
+	}
+	demote := domain.ReviewFinding{
+		TargetType: "condition", TargetID: "C-M",
+		Action: domain.ReviewActionDemote, Severity: "high",
+		Problem: "reviewer thinks the condition is irrelevant",
+	}
+	for _, tc := range []struct {
+		name     string
+		findings []domain.ReviewFinding
+	}{
+		{"promote before demote", []domain.ReviewFinding{promote, demote}},
+		{"demote before promote", []domain.ReviewFinding{demote, promote}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &domain.AnalysisCase{
+				Exploit: &domain.ExploitModel{
+					SupportingFactors: []domain.Condition{{
+						ID: "C-M", Kind: domain.ConditionPlatform,
+					}},
+				},
+				Reviews: []domain.Review{{
+					ID: "REV-1", Result: domain.ReviewRevise, Findings: tc.findings,
+				}},
+			}
+			if _, err := (states.RepairAnalysis{}).Run(context.Background(), c); err != nil {
+				t.Fatal(err)
+			}
+			if hasConditionID(c.Exploit.MandatoryConditions, "C-M") {
+				t.Fatalf("a promote nomination promoted a supporting factor: mandatory=%+v", c.Exploit.MandatoryConditions)
+			}
+			if n := countCondition(c.Exploit.SupportingFactors, "C-M"); n != 1 {
+				t.Fatalf("C-M supporting occurrences=%d want 1", n)
+			}
+			if cond := conditionByID(c.Exploit.SupportingFactors, "C-M"); cond == nil || cond.Mandatory {
+				t.Fatalf("conflicted condition must stay non-mandatory supporting: %+v", cond)
+			}
+		})
+	}
+}
+
+// Once the deterministic applicability contract demoted a condition, a
+// later promote nomination without new evidence may not put it back into
+// the conjunction.
+func TestRepairDoesNotRepromotePreviouslyDemotedCondition(t *testing.T) {
+	c := &domain.AnalysisCase{
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{
+				{ID: "C-REACH", Kind: domain.ConditionSymbolReachable, Mandatory: true},
+				{ID: "C-PLATFORM", Kind: domain.ConditionPlatform, Mandatory: true,
+					Description: "legacy TLS floor",
+					Params:      map[string]string{"go_version": "<1.18"}},
+			},
+		},
+		Reviews: []domain.Review{{
+			ID: "REV-1", Result: domain.ReviewRevise,
+			Findings: []domain.ReviewFinding{{
+				TargetType: "condition", TargetID: "C-PLATFORM",
+				Action: domain.ReviewActionDemote, Severity: "high",
+				Problem: "legacy TLS floor is not part of the SSH downgrade mechanism",
+			}},
+		}},
+	}
+	rp := states.RepairAnalysis{}
+	if _, err := rp.Run(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	c.Reviews = append(c.Reviews, domain.Review{
+		ID: "REV-2", Result: domain.ReviewRevise,
+		Findings: []domain.ReviewFinding{{
+			TargetType: "condition", TargetID: "C-PLATFORM",
+			Action: domain.ReviewActionPromote, Severity: "high",
+			Problem: "condition now looks necessary",
+		}},
+	})
+	tr, err := rp.Run(context.Background(), c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tr.Next != domain.StateEvaluateVerdict {
+		t.Fatalf("next=%s want EVALUATE_VERDICT: the stale promote is not a repair", tr.Next)
+	}
+	if hasConditionID(c.Exploit.MandatoryConditions, "C-PLATFORM") {
+		t.Fatalf("previously demoted condition returned to the conjunction: %+v", c.Exploit.MandatoryConditions)
+	}
+	if n := countCondition(c.Exploit.SupportingFactors, "C-PLATFORM"); n != 1 {
+		t.Fatalf("C-PLATFORM supporting occurrences=%d want 1", n)
+	}
+}
+
+// Wrong targets, medium severities and non-condition targets never mutate
+// conditions or claims.
+func TestRepairConditionWrongTargetOrMediumSeverity(t *testing.T) {
+	c := &domain.AnalysisCase{
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{{
+				ID: "C-M", Kind: domain.ConditionPlatform, Mandatory: true,
+			}},
+			SupportingFactors: []domain.Condition{{
+				ID: "C-S", Kind: domain.ConditionConfiguration,
+			}},
+		},
+		Claims: []domain.Claim{{ID: "CL-M", ConditionID: "C-M", Result: domain.ClaimTrue}},
+		Reviews: []domain.Review{{
+			ID: "REV-1", Result: domain.ReviewRevise,
+			Findings: []domain.ReviewFinding{
+				{TargetType: "condition", TargetID: "C-UNKNOWN", Action: domain.ReviewActionDemote,
+					Severity: "high", Problem: "target does not exist"},
+				{TargetType: "condition", TargetID: "C-M", Action: domain.ReviewActionDemote,
+					Severity: "medium", Problem: "medium severity must not mutate"},
+				{TargetType: "condition", TargetID: "C-S", Action: domain.ReviewActionPromote,
+					Severity: "medium", Problem: "medium severity must not mutate"},
+				{TargetType: "claim", TargetID: "CL-M", Severity: "medium",
+					Problem: "medium severity must not demote a claim"},
+			},
+		}},
+	}
+	tr, err := states.RepairAnalysis{}.Run(context.Background(), c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tr.Next != domain.StateEvaluateVerdict {
+		t.Fatalf("next=%s want EVALUATE_VERDICT with nothing repairable", tr.Next)
+	}
+	if !hasConditionID(c.Exploit.MandatoryConditions, "C-M") {
+		t.Fatalf("C-M left the mandatory conjunction: %+v", c.Exploit.MandatoryConditions)
+	}
+	if hasConditionID(c.Exploit.MandatoryConditions, "C-S") {
+		t.Fatalf("C-S was promoted by a medium finding: %+v", c.Exploit.MandatoryConditions)
+	}
+	if !hasConditionID(c.Exploit.SupportingFactors, "C-S") {
+		t.Fatalf("C-S left supporting factors: %+v", c.Exploit.SupportingFactors)
+	}
+	if len(c.Exploit.PendingConditionReviews) != 0 {
+		t.Fatalf("pending reviews must stay empty: %v", c.Exploit.PendingConditionReviews)
+	}
+	if c.Claims[0].Result != domain.ClaimTrue {
+		t.Fatalf("medium claim finding mutated the claim: %+v", c.Claims[0])
+	}
+}
+
+// A high condition finding without a supported action is recorded as a
+// pending review: the verdict must be INCONCLUSIVE, not a safe closure
+// carrying a caveat.
+func TestRepairConditionActionlessMandatoryBlocksClosure(t *testing.T) {
+	c := &domain.AnalysisCase{
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{
+				{ID: "C-REACH", Kind: domain.ConditionSymbolReachable, Mandatory: true},
+				{ID: "C-PLATFORM", Kind: domain.ConditionPlatform, Mandatory: true},
+			},
+		},
+		Claims: []domain.Claim{
+			// Without the pending gate this verified FALSE would ground NEPF.
+			verifiedPlatformFalse(),
+		},
+		Reviews: []domain.Review{{
+			ID: "REV-1", Result: domain.ReviewRevise,
+			Findings: []domain.ReviewFinding{{
+				TargetType: "condition", TargetID: "C-PLATFORM", Severity: "high",
+				Problem: "condition may be irrelevant to this advisory",
+			}},
+		}},
+	}
+	tr, err := states.RepairAnalysis{}.Run(context.Background(), c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tr.Next != domain.StateEvaluateVerdict {
+		t.Fatalf("next=%s want EVALUATE_VERDICT", tr.Next)
+	}
+	if !hasPendingCondition(c, "C-PLATFORM") {
+		t.Fatalf("actionless high condition finding was dropped: %v", c.Exploit.PendingConditionReviews)
+	}
+	got := evalCaseVerdict(c, c.Claims)
+	if got.Verdict != domain.VerdictInconclusive {
+		t.Fatalf("verdict=%s want INCONCLUSIVE while the critique is pending", got.Verdict)
+	}
+	if len(got.ConditionIDs) != 1 || got.ConditionIDs[0] != "C-PLATFORM" {
+		t.Fatalf("verdict condition ids=%v want C-PLATFORM", got.ConditionIDs)
+	}
+}
+
+// demoteOnceReviewer requests one explicit condition demotion while the
+// target is mandatory, then accepts the repaired package.
+type demoteOnceReviewer struct {
+	target  domain.ConditionID
+	problem string
+}
+
+func (r demoteOnceReviewer) Review(c *domain.AnalysisCase, _ domain.VerdictResult) domain.Review {
+	if c.Exploit != nil {
+		for _, cond := range c.Exploit.MandatoryConditions {
+			if cond.ID == r.target {
+				return domain.Review{
+					Result: domain.ReviewRevise,
+					Findings: []domain.ReviewFinding{{
+						TargetType: "condition", TargetID: string(r.target),
+						Action: domain.ReviewActionDemote, Severity: "high",
+						Problem: r.problem,
+					}},
+				}
+			}
+		}
+	}
+	return domain.Review{Result: domain.ReviewAccept}
+}
+
+// The bounded REVIEW->REPAIR->REVIEW loop converges after an explicit
+// condition demotion: the second review accepts the repaired package, the
+// demoted condition stays out of the conjunction and the review budget is
+// unchanged.
+func TestReviewRepairConditionLoopConverges(t *testing.T) {
+	c := &domain.AnalysisCase{
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{
+				{ID: "C-REACH", Kind: domain.ConditionSymbolReachable, Mandatory: true},
+				{ID: "C-PLATFORM", Kind: domain.ConditionPlatform, Mandatory: true,
+					Description: "legacy TLS floor",
+					Params:      map[string]string{"go_version": "<1.18"}},
+			},
+		},
+		Claims: []domain.Claim{{ID: "CL-REACH", ConditionID: "C-REACH", Result: domain.ClaimUnknown}},
+		Workflow: domain.WorkflowStatus{
+			Limits: domain.AnalysisLimits{MaxReviewIterations: 2},
+		},
+	}
+	h := states.Review{
+		Reviewer: demoteOnceReviewer{
+			target:  "C-PLATFORM",
+			problem: "legacy TLS floor is not a prerequisite of the SSH downgrade",
+		},
+		Evaluator: evaluator.VerdictEvaluator{},
+	}
+	rp := states.RepairAnalysis{}
+
+	tr, err := h.Run(context.Background(), c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tr.Next != domain.StateRepairAnalysis {
+		t.Fatalf("next=%s want REPAIR_ANALYSIS", tr.Next)
+	}
+	tr, err = rp.Run(context.Background(), c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tr.Next != domain.StateReview {
+		t.Fatalf("next=%s want re-REVIEW", tr.Next)
+	}
+	tr, err = h.Run(context.Background(), c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tr.Next != domain.StateEvaluateVerdict {
+		t.Fatalf("next=%s want EVALUATE_VERDICT after the repaired package is accepted", tr.Next)
+	}
+	if len(c.Reviews) != 2 || c.Reviews[1].Result != domain.ReviewAccept {
+		t.Fatalf("second review should accept the repaired package: %+v", c.Reviews)
+	}
+	if c.Workflow.Limits.MaxReviewIterations != 2 {
+		t.Fatalf("repair must not raise MaxReviewIterations: %d", c.Workflow.Limits.MaxReviewIterations)
+	}
+	if hasConditionID(c.Exploit.MandatoryConditions, "C-PLATFORM") {
+		t.Fatalf("demoted condition returned to the conjunction: %+v", c.Exploit.MandatoryConditions)
+	}
+	if n := countCondition(c.Exploit.SupportingFactors, "C-PLATFORM"); n != 1 {
+		t.Fatalf("C-PLATFORM supporting occurrences=%d want 1", n)
+	}
+	if !strings.Contains(strings.Join(c.EvidenceGraph.Limitations, "\n"), "REV-1") {
+		t.Fatalf("demotion limitation must cite the structured review id: %v", c.EvidenceGraph.Limitations)
+	}
+	if c.Verdict != nil {
+		t.Fatalf("repair must not set the verdict: %+v", c.Verdict)
+	}
+	got := evalCaseVerdict(c, c.Claims)
+	if got.Verdict != domain.VerdictInconclusive {
+		t.Fatalf("recomputed verdict=%s want INCONCLUSIVE", got.Verdict)
 	}
 }
 
@@ -1852,7 +2668,7 @@ func TestE2EAuthenticatedClientOrigin(t *testing.T) {
 	if err := os.WriteFile(mp, []byte(model), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	gv := `{"protocol_version":"v1.0.0"}
+	gv := `{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
 {"finding":{"osv":"GO-TEST-1","fixed_version":"v1.2.0","trace":[
  {"module":"example.com/authprod","package":"example.com/authprod","function":"main","position":{"filename":"main.go","line":26}},
  {"module":"example.com/dep","package":"example.com/dep/vuln","function":"Parse","position":{"filename":"vuln.go","line":4}}
@@ -1901,7 +2717,7 @@ func TestE2ETransformationChainRecorded(t *testing.T) {
 	if err := os.WriteFile(mp, []byte(model), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	gv := `{"protocol_version":"v1.0.0"}
+	gv := `{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
 {"finding":{"osv":"GO-TEST-1","fixed_version":"v1.2.0","trace":[
  {"module":"example.com/escprod","package":"example.com/escprod","function":"main","position":{"filename":"main.go","line":14}},
  {"module":"example.com/dep","package":"example.com/dep/vuln","function":"Parse","position":{"filename":"vuln.go","line":4}}
@@ -1969,7 +2785,7 @@ func TestE2EPlatformFactFalseVerified(t *testing.T) {
 	if err := os.WriteFile(mp, []byte(model), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	gv := `{"protocol_version":"v1.0.0"}
+	gv := `{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
 {"finding":{"osv":"GO-TEST-1","fixed_version":"v1.2.0","trace":[
  {"module":"example.com/extprod","package":"example.com/extprod","function":"main","position":{"filename":"main.go","line":10}},
  {"module":"example.com/dep","package":"example.com/dep/vuln","function":"Parse","position":{"filename":"vuln.go","line":4}}
@@ -1977,15 +2793,16 @@ func TestE2EPlatformFactFalseVerified(t *testing.T) {
 	c := runEngine(t, engineDeps{
 		RepoPath: repo,
 		VulnSrc: vulnerability.StaticSource{Vulns: map[string]*domain.Vulnerability{
-			"GO-TEST-1": {ID: "GO-TEST-1", Module: "example.com/dep"},
+			"GO-TEST-1": exactTestVuln(),
 		}},
-		VulnID:      "GO-TEST-1",
-		Resolver:    stubResolver{},
-		ManualRC:    []domain.RootCause{{Package: "example.com/dep/vuln", Symbol: "Parse"}},
-		Model:       mp,
-		CaseDir:     filepath.Join(dir, "cases"),
-		Govulncheck: fakeGovulncheck{out: []byte(gv)},
-		UseSource:   true,
+		VulnID:          "GO-TEST-1",
+		Resolver:        stubResolver{},
+		ManualRC:        []domain.RootCause{{Package: "example.com/dep/vuln", Symbol: "Parse"}},
+		Model:           mp,
+		CaseDir:         filepath.Join(dir, "cases"),
+		Govulncheck:     fakeGovulncheck{out: []byte(gv)},
+		SnapshotOptions: declaredSnapshotOptions(),
+		UseSource:       true,
 	})
 	plat := findClaimT(t, c.Claims, "C-PLAT")
 	if plat.Result != domain.ClaimFalse {
@@ -2016,7 +2833,7 @@ func TestE2EConfigGatedGuardStaysInconclusive(t *testing.T) {
 	if err := os.WriteFile(mp, []byte(model), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	gv := `{"protocol_version":"v1.0.0"}
+	gv := `{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
 {"finding":{"osv":"GO-TEST-1","fixed_version":"v1.2.0","trace":[
  {"module":"example.com/cfggateprod","package":"example.com/cfggateprod","function":"main","position":{"filename":"main.go","line":20}},
  {"module":"example.com/dep","package":"example.com/dep/vuln","function":"Parse","position":{"filename":"vuln.go","line":4}}
@@ -2026,22 +2843,25 @@ func TestE2EConfigGatedGuardStaysInconclusive(t *testing.T) {
 		VulnSrc: vulnerability.StaticSource{Vulns: map[string]*domain.Vulnerability{
 			"GO-TEST-1": {ID: "GO-TEST-1", Module: "example.com/dep"},
 		}},
-		VulnID:      "GO-TEST-1",
-		Resolver:    stubResolver{},
-		ManualRC:    []domain.RootCause{{Package: "example.com/dep/vuln", Symbol: "Parse"}},
-		Model:       mp,
-		CaseDir:     filepath.Join(dir, "cases"),
-		Govulncheck: fakeGovulncheck{out: []byte(gv)},
-		UseSource:   true,
+		VulnID:          "GO-TEST-1",
+		Resolver:        stubResolver{},
+		ManualRC:        []domain.RootCause{{Package: "example.com/dep/vuln", Symbol: "Parse"}},
+		Model:           mp,
+		CaseDir:         filepath.Join(dir, "cases"),
+		Govulncheck:     fakeGovulncheck{out: []byte(gv)},
+		SnapshotOptions: declaredSnapshotOptions(),
+		UseSource:       true,
 	})
+	// The guard is conditional on an external STRICT_MODE value, so the
+	// analyzer cannot establish that it covers the sink. That is an
+	// unsupported proof, not an admitted external fact: the case fails with
+	// the verification cause instead of abstaining.
 	valid := findClaimT(t, c.Claims, "C-VALID")
 	if valid.NegativeVerification == nil ||
 		valid.NegativeVerification.Status != domain.NegativeInsufficientScope {
 		t.Fatalf("NV=%+v want INSUFFICIENT_SCOPE (guard is config-gated)", valid.NegativeVerification)
 	}
-	if c.Verdict == nil || c.Verdict.Verdict != domain.VerdictInconclusive {
-		t.Fatalf("verdict=%+v want INCONCLUSIVE", c.Verdict)
-	}
+	requireAssessmentFailed(t, c, domain.GapNegativeVerificationIncomplete)
 }
 
 // initRepoFiles git-inits a temp repo with the given files.
@@ -2113,7 +2933,7 @@ func hasLimitation(c *domain.AnalysisCase, substr string) bool {
 
 // B2: with --allow-exec the gap loop runs `go build`/`go test` once as
 // case-level evidence — BUILD/TEST records land in the graph, the runs in
-// tool_executions, a hypothesis in the case and a section in report.audit.md.
+// tool_executions, a hypothesis in the case and a section in report.md.
 func TestE2EBuildTestEvidence(t *testing.T) {
 	repo := initRepoFiles(t, map[string]string{
 		"go.mod":       "module example.com/product\n\ngo 1.23\n",
@@ -2125,9 +2945,12 @@ func TestE2EBuildTestEvidence(t *testing.T) {
 	d.AllowExec = true
 	c := runEngine(t, d)
 
-	if c.Workflow.State != domain.StateCompleted {
-		t.Fatalf("state=%s reason=%s", c.Workflow.State, c.Workflow.Reason)
+	// Build/test evidence is recorded, but the unresolved C-REACH failed the
+	// analysis: the terminal state is FAILED, never a bare INCONCLUSIVE.
+	if c.Workflow.State != domain.StateFailed {
+		t.Fatalf("state=%s reason=%s, want FAILED", c.Workflow.State, c.Workflow.Reason)
 	}
+	requireAssessmentFailed(t, c, domain.GapReachabilityProofIncomplete)
 	kinds := evidenceKinds(c)
 	if !kinds[domain.EvidenceBuild] || !kinds[domain.EvidenceTest] {
 		t.Fatalf("BUILD/TEST evidence missing: %v", kinds)
@@ -2158,12 +2981,12 @@ func TestE2EBuildTestEvidence(t *testing.T) {
 	if hyp == nil || len(hyp.EvidenceIDs) != 2 {
 		t.Fatalf("build/test hypothesis missing: %+v", c.Hypotheses)
 	}
-	audit, err := os.ReadFile(filepath.Join(d.CaseDir, string(c.ID), "report.audit.md"))
+	md, err := os.ReadFile(filepath.Join(d.CaseDir, string(c.ID), "report.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(audit), "Сборка и тесты") {
-		t.Fatal("report.audit.md lacks the build & test section")
+	if !strings.Contains(string(md), "Build & Test") {
+		t.Fatal("report.md lacks the Build & test section")
 	}
 }
 
@@ -2212,8 +3035,11 @@ func TestE2EBuildFailureLimitation(t *testing.T) {
 	if !hasLimitation(c, "does not compile") {
 		t.Fatalf("compile limitation missing: %v", c.EvidenceGraph.Limitations)
 	}
-	if c.Verdict == nil || c.Verdict.Verdict != domain.VerdictInconclusive {
-		t.Fatalf("verdict=%+v want INCONCLUSIVE", c.Verdict)
+	if c.Verdict != nil {
+		t.Fatalf("verdict=%+v want none: the build failure leaves conditions unresolved", c.Verdict)
+	}
+	if !hasAnalysisGap(c, domain.GapReachabilityProofIncomplete) {
+		t.Fatalf("missing reachability cause: %+v", c.AnalysisGaps)
 	}
 }
 
@@ -2316,8 +3142,8 @@ func TestE2EDepInternalConstantWithOpenIngress(t *testing.T) {
 		UseSource: true,
 	})
 
-	if c.Workflow.State != domain.StateCompleted {
-		t.Fatalf("state=%s reason=%s", c.Workflow.State, c.Workflow.Reason)
+	if c.Workflow.State != domain.StateFailed {
+		t.Fatalf("state=%s reason=%s, want FAILED", c.Workflow.State, c.Workflow.Reason)
 	}
 	claim := findClaimT(t, c.Claims, "C-PEER-INPUT")
 	if claim.Result != domain.ClaimUnknown {
@@ -2327,9 +3153,7 @@ func TestE2EDepInternalConstantWithOpenIngress(t *testing.T) {
 		claim.NegativeVerification.Status == domain.NegativeVerified {
 		t.Fatalf("negative verification=%+v despite unclosed ingress", claim.NegativeVerification)
 	}
-	if c.Verdict == nil || c.Verdict.Verdict != domain.VerdictInconclusive {
-		t.Fatalf("verdict=%+v want INCONCLUSIVE", c.Verdict)
-	}
+	requireAssessmentFailed(t, c, domain.GapInputTraceIncomplete)
 }
 
 // When two affected-module entries are both linked into the product,
@@ -2340,6 +3164,18 @@ type multiResolver struct{ res domain.AffectedResult }
 
 func (m multiResolver) Resolve(context.Context, domain.Vulnerability, domain.ProductSnapshot) (domain.AffectedResult, []domain.Evidence, error) {
 	return m.res, nil, nil
+}
+
+// evidenceResolver returns one resolver fact next to the affected result, so a
+// scope-refusal case can prove the component evidence was recorded rather than
+// dropped with the refused conclusion.
+type evidenceResolver struct {
+	res domain.AffectedResult
+	ev  domain.Evidence
+}
+
+func (r evidenceResolver) Resolve(context.Context, domain.Vulnerability, domain.ProductSnapshot) (domain.AffectedResult, []domain.Evidence, error) {
+	return r.res, []domain.Evidence{r.ev}, nil
 }
 
 func TestCheckAffectedUnionsSelectedModules(t *testing.T) {
@@ -2401,11 +3237,17 @@ func TestBuildExploitModelStrictLLMFailsFast(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tr.Next != domain.StateFailed {
-		t.Fatalf("want transition to FAILED under StrictLLM, got %+v", tr)
+	if tr.Next != domain.StateBuildReport {
+		t.Fatalf("want transition to BUILD_REPORT (fail-fast still writes the report), got %+v", tr)
 	}
 	if !strings.Contains(tr.Reason, "strict-llm:") {
 		t.Fatalf("want reason with strict-llm:, got %s", tr.Reason)
+	}
+	if c.Verdict != nil {
+		t.Fatalf("strict-LLM failure published a verdict: %+v", c.Verdict)
+	}
+	if !hasAnalysisGap(c, domain.GapMeasurementNotCompleted) {
+		t.Fatalf("strict-LLM failure lacks its typed cause: %+v", c.AnalysisGaps)
 	}
 }
 
@@ -2421,7 +3263,9 @@ func (fakeCVECompleter) Complete(ctx context.Context, role llm.ModelRole, system
 	return `{"action":"final","proposal":{"id":"P-1","confidence":"HIGH","mechanisms":[{"id":"M-1","summary":"xDS panic","faulting_sites":["pkg.Fault"],"auxiliary_sites":["pkg.Aux"]}]}}`, "stop", nil
 }
 
-func TestActResearchCVE_ProfileVerifiedAdoptsProposals(t *testing.T) {
+// Reviewer agreement is recorded, not authority: a passed verified-profile
+// review must not mint expert non-locus exclusions or otherwise shrink L.
+func TestVerifiedResearchNeverAutoAcceptsLocus(t *testing.T) {
 	c := &domain.AnalysisCase{
 		CVEAnalysisProfile: domain.ProfileVerified,
 		Vulnerability: domain.Vulnerability{
@@ -2432,142 +3276,583 @@ func TestActResearchCVE_ProfileVerifiedAdoptsProposals(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !c.AcceptLocusProposals {
-		t.Errorf("expected AcceptLocusProposals to be true under ProfileVerified with passed review")
-	}
 	if c.SemanticReview == nil || !c.SemanticReview.Passed {
 		t.Errorf("expected SemanticReview to be present and passed")
 	}
+	if len(c.NonLocusBasis) != 0 {
+		t.Fatalf("verified research must not mint expert non-locus exclusions: %+v", c.NonLocusBasis)
+	}
 }
 
-func TestActResearchCVE_ControllerOwnsProposalIdentity(t *testing.T) {
-	c := &domain.AnalysisCase{
-		CVEAnalysisProfile: domain.ProfileAssist,
-		Vulnerability:      domain.Vulnerability{ID: "GO-2026-9000"},
-		// A stale/forged record claiming an earlier revision of the
-		// canonical proposal identity: it stays only as audit history —
-		// never as the current proposal's verification.
-		ProposalVerifications: []domain.ProposalVerification{{
-			Proposal: domain.ProposalRef{Source: domain.ProposalSourceCVEResearch, ID: "PROP-GO-2026-9000", Revision: 1},
-			Check:    domain.CheckSymbolExists, Result: domain.ClaimTrue, Detail: "forged",
-		}},
+// The agent's fallback may add evidence and nominate a result, but the
+// authoritative TRUE must come from the deterministic chain re-running over
+// that evidence; the nomination survives as audit material.
+type agentEvidenceFallback struct{ added bool }
+
+func (f *agentEvidenceFallback) CanEvaluate(domain.Condition) bool { return true }
+
+func (f *agentEvidenceFallback) Evaluate(cond domain.Condition, c *domain.AnalysisCase) domain.Claim {
+	f.added = true
+	c.EvidenceGraph.AddEvidence(domain.Evidence{
+		ID: "EV-AGENT-FACT", Kind: domain.EvidenceSourceSnippet, Quality: domain.QualityDeterministic,
+		Source: "model-requested tool", Content: "call site observed by the agent's tool",
+	})
+	return domain.Claim{
+		ID:          domain.ClaimID("CL-" + string(cond.ID)),
+		ConditionID: cond.ID,
+		Result:      domain.ClaimUnknown,
+		Proposal:    domain.ClaimTrue,
+		EvidenceIDs: []domain.EvidenceID{"EV-AGENT-FACT"},
+		Limitations: []string{"llm proposed TRUE; recorded as a proposal"},
 	}
-	if err := states.ActResearchCVE(context.Background(), c, nil, fakeCVECompleter{}); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+}
+
+// evidenceDependentEvaluator establishes TRUE only when the agent's tool has
+// actually added the fact the condition needs.
+type evidenceDependentEvaluator struct{}
+
+func (evidenceDependentEvaluator) CanEvaluate(cond domain.Condition) bool {
+	return cond.ID == "C-RUNTIME"
+}
+
+func (evidenceDependentEvaluator) Evaluate(cond domain.Condition, c *domain.AnalysisCase) domain.Claim {
+	claim := domain.Claim{
+		ID:          domain.ClaimID("CL-" + string(cond.ID)),
+		ConditionID: cond.ID,
+		Result:      domain.ClaimUnknown,
 	}
-	if c.CVEAnalysis == nil {
-		t.Fatal("proposal missing")
-	}
-	// LLM-supplied "P-1" is replaced by the deterministic identity; an
-	// existing revision-1 record bumps the new revision to 2 so nothing
-	// old can masquerade as this proposal's check.
-	if c.CVEAnalysis.ID != "PROP-GO-2026-9000" || c.CVEAnalysis.Revision != 2 {
-		t.Fatalf("controller must own id/revision: %q rev %d", c.CVEAnalysis.ID, c.CVEAnalysis.Revision)
-	}
-	for _, rec := range c.ProposalVerifications {
-		if rec.Proposal.ID == "PROP-GO-2026-9000" && rec.Proposal.Revision == 2 {
-			t.Fatalf("record under bound revision before verification ran: %+v", rec)
+	for _, e := range c.EvidenceGraph.EvidenceList() {
+		if e.ID == "EV-AGENT-FACT" {
+			claim.Result = domain.ClaimTrue
+			claim.Producer = "deterministic-reevaluation"
+			claim.EvidenceIDs = []domain.EvidenceID{e.ID}
+			return claim
 		}
 	}
-	if c.SemanticReview == nil || c.SemanticReview.Proposal == nil ||
-		c.SemanticReview.Proposal.Revision != 2 {
-		t.Fatalf("review must bind to the assigned revision: %+v", c.SemanticReview)
-	}
+	return claim
 }
 
-type staticRCResolver struct{}
-
-func (staticRCResolver) Resolve(_ context.Context, _ *domain.AnalysisCase, _ domain.Vulnerability) (*domain.RootCauseModel, []domain.Evidence, error) {
-	return &domain.RootCauseModel{
-		Status: domain.RootCauseResolved,
-		RootCauses: []domain.RootCause{{
-			Package: "example.com/dep/vuln", Symbol: "Parse", Role: domain.RootCauseSink,
-			Mechanism: "advisory fix",
-		}},
-	}, nil, nil
-}
-
-// RESOLVE_ROOT_CAUSE must leave proposal verification records on the
-// case before it transitions: with no source index every displayed
-// assertion is an honest UNKNOWN — records exist, none TRUE, and the
-// dossier (built inside ActResearchCVE) still contains no LLM site.
-func TestResolveRootCause_VerifiesDisplayedAssertions(t *testing.T) {
+func TestGapReevaluatesAfterAgentEvidence(t *testing.T) {
 	c := &domain.AnalysisCase{
-		CVEAnalysisProfile: domain.ProfileAssist,
-		Vulnerability:      domain.Vulnerability{ID: "GO-2026-9001"},
+		Exploit: &domain.ExploitModel{MandatoryConditions: []domain.Condition{
+			{ID: "C-RUNTIME", Kind: domain.ConditionRuntime, Mandatory: true},
+		}},
+		Claims: []domain.Claim{{ID: "CL-C-RUNTIME", ConditionID: "C-RUNTIME", Result: domain.ClaimUnknown}},
 	}
-	h := states.ResolveRootCause{Resolver: staticRCResolver{}, LLMClient: fakeCVECompleter{}}
-	tr, err := h.Run(context.Background(), c)
+	fallback := &agentEvidenceFallback{}
+	tr, err := (states.GapAnalysis{
+		Source:     &goanalysis.Index{Dir: t.TempDir()},
+		Evaluators: []evaluator.ConditionEvaluator{evidenceDependentEvaluator{}},
+		Fallback:   fallback,
+	}).Run(context.Background(), c)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatal(err)
 	}
-	if tr.Next != domain.StateBuildExploitModel {
-		t.Fatalf("want BUILD_EXPLOIT_MODEL, got %+v", tr)
+	if !fallback.added {
+		t.Fatal("the agent fallback did not run")
 	}
-	if c.CVEAnalysis == nil {
-		t.Fatal("proposal missing after research")
+	cl := c.Claims[0]
+	if cl.Result != domain.ClaimTrue {
+		t.Fatalf("deterministic reevaluation must establish TRUE from the agent's evidence: %+v", cl)
 	}
-	if len(c.ProposalVerifications) != 7 {
-		t.Fatalf("2 sites x 3 checks + 1 mechanism = 7 records, got %+v", c.ProposalVerifications)
+	if cl.Proposal != domain.ClaimTrue {
+		t.Fatalf("the model nomination must survive the authoritative result: %+v", cl)
 	}
-	for _, rec := range c.ProposalVerifications {
-		if rec.Proposal.ID != c.CVEAnalysis.ID || rec.Proposal.Revision != c.CVEAnalysis.Revision {
-			t.Fatalf("record not bound to the adopted proposal: %+v", rec.Proposal)
+	if tr.Next != domain.StateReview {
+		t.Fatalf("all mandatory conditions are satisfied, want REVIEW, got %+v", tr)
+	}
+}
+
+const postReachModel = `{"impact":"config trigger","mandatory_conditions":[
+	{"id":"C-REACH","kind":"SYMBOL_REACHABLE","mandatory":true,
+	 "subject":{"package":"example.com/postreachdep/transformer","symbol":"QueryAll"}},
+	{"id":"C-INPUT","kind":"ATTACKER_CONTROL","mandatory":true,
+	 "subject":{"package":"example.com/postreachdep/transformer","symbol":"QueryAll"},"arg_index":1}
+]}`
+
+func postReachAssumptionInput(reviewDate string) *domain.DeclaredAssumptionsInput {
+	a := domain.DeclaredAssumption{
+		ID:         "ASM-CONFIG-TRUST",
+		Kind:       domain.AssumptionConfigTrust,
+		Statement:  "administrator-managed configuration is outside the attacker model",
+		Scope:      domain.AssumptionScopeProduct,
+		Authority:  "platform-security",
+		Owner:      "platform-security",
+		SourceRef:  "policy:threat-model",
+		ValidFrom:  "2020-01-01",
+		ReviewDate: reviewDate,
+	}
+	a.Digest = domain.CanonicalAssumptionDigest(a)
+	return &domain.DeclaredAssumptionsInput{
+		Path:        "local:assumptions.json",
+		Schema:      domain.DeclaredAssumptionsSchema,
+		Assumptions: []domain.DeclaredAssumption{a},
+	}
+}
+
+func runPostReachEngine(t *testing.T, assumptions *domain.DeclaredAssumptionsInput) *domain.AnalysisCase {
+	t.Helper()
+	repo := initRepoFrom(t, "configoriginprod")
+	dir := t.TempDir()
+	mp := filepath.Join(dir, "model.json")
+	if err := os.WriteFile(mp, []byte(postReachModel), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return runEngine(t, engineDeps{
+		RepoPath: repo,
+		VulnSrc: vulnerability.StaticSource{Vulns: map[string]*domain.Vulnerability{
+			"GO-TEST-CONFIG": {
+				ID:     "GO-TEST-CONFIG",
+				Module: "example.com/postreachdep",
+				AffectedPackages: []domain.AffectedPackage{{
+					Path: "example.com/postreachdep/transformer",
+				}},
+				AffectedSymbols: []domain.SymbolRef{{
+					Package: "example.com/postreachdep/transformer", Symbol: "QueryAll",
+				}},
+			},
+		}},
+		VulnID:   "GO-TEST-CONFIG",
+		Resolver: stubResolver{},
+		ManualRC: []domain.RootCause{{
+			Package: "example.com/postreachdep/transformer", Symbol: "QueryAll", Role: domain.RootCauseSink,
+		}},
+		Model:           mp,
+		CaseDir:         filepath.Join(dir, "cases"),
+		UseSource:       true,
+		SnapshotOptions: declaredSnapshotOptions(),
+		Assumptions:     assumptions,
+	})
+}
+
+// The collector persists the exact site/argument flows and an
+// advisory-bound sink closure, but configuration origin alone cannot
+// ground the falsifier: without the declared assumption the claim stays
+// UNKNOWN.
+func TestE2EPostReachConfigNeedsAssumption(t *testing.T) {
+	c := runPostReachEngine(t, nil)
+	claim := findClaimT(t, c.Claims, "C-INPUT")
+	if claim.Result != domain.ClaimUnknown {
+		t.Fatalf("C-INPUT=%s want UNKNOWN without config-trust assumption (%s)", claim.Result, claim.Explanation)
+	}
+	if claim.Falsifier != "" || len(claim.AssumptionIDs) != 0 {
+		t.Fatalf("claim=%+v", claim)
+	}
+	if c.Verdict != nil && c.Verdict.Verdict == domain.VerdictNotAffected {
+		t.Fatalf("config route produced NOT_AFFECTED: %+v", c.Verdict)
+	}
+}
+
+// With an admissible config-trust assumption the exact-argument closure
+// grounds the claim; the exact site/argument DataFlow is retained.
+func TestE2EPostReachConfigClosesWithAssumption(t *testing.T) {
+	c := runPostReachEngine(t, postReachAssumptionInput("2999-12-31"))
+	claim := findClaimT(t, c.Claims, "C-INPUT")
+	if claim.Result != domain.ClaimFalse {
+		t.Fatalf("C-INPUT=%s want FALSE (%s)", claim.Result, claim.Explanation)
+	}
+	if claim.Falsifier != domain.FalsifierTrustedInfrastructure ||
+		claim.FalsifierBasis != domain.BasisConfigOrigin {
+		t.Fatalf("falsifier=%s basis=%s", claim.Falsifier, claim.FalsifierBasis)
+	}
+	if len(claim.AssumptionIDs) != 1 || claim.AssumptionIDs[0] != "ASM-CONFIG-TRUST" {
+		t.Fatalf("assumption ids=%v", claim.AssumptionIDs)
+	}
+	if claim.NegativeVerification == nil || claim.NegativeVerification.Status != domain.NegativeVerified {
+		t.Fatalf("negative verification=%+v", claim.NegativeVerification)
+	}
+	var exact bool
+	for _, f := range c.EvidenceGraph.DataFlows {
+		if f.ConditionID == "C-INPUT" && f.Arg == 1 &&
+			f.Origin == domain.OriginConfiguration &&
+			strings.HasSuffix(f.Sink.File, "main.go") && f.Sink.Function == "run" {
+			exact = true
 		}
-		if rec.Result != domain.ClaimUnknown {
-			t.Fatalf("nil source index must produce UNKNOWN, got %+v", rec)
-		}
 	}
-	if c.Justification != nil {
-		for _, vf := range c.Justification.VerifiedFacts {
-			if strings.Contains(vf, "pkg.Fault") || strings.Contains(vf, "pkg.Aux") {
-				t.Fatalf("unverified LLM site leaked into verified facts: %s", vf)
-			}
+	if !exact {
+		t.Fatalf("no exact config DataFlow at arg 1: %+v", c.EvidenceGraph.DataFlows)
+	}
+	cl := c.EvidenceGraph.SinkClosureFor("C-INPUT")
+	if cl == nil || !cl.Complete || cl.Basis == "" {
+		t.Fatalf("sink closure=%+v", cl)
+	}
+	if c.Verdict != nil && c.Verdict.Verdict == domain.VerdictNotAffected {
+		t.Fatalf("config route produced NOT_AFFECTED: %+v", c.Verdict)
+	}
+}
+
+// partialCVEScope is a CVE-wide request bound to one loaded record: component
+// facts stay usable, but the requested identity can never close.
+func partialCVEScope() *domain.AdvisoryScope {
+	return &domain.AdvisoryScope{RequestedID: "CVE-2023-44487", ResolvedID: "GO-TEST-1", Kind: domain.ScopeCVE, Coverage: domain.CoverageKnownOnly}
+}
+
+// projectedScope is an exact identity whose loaded document represented only
+// its Go entry: the omitted Maven entry keeps the requested scope uncovered
+// even though the scope claims COMPLETE coverage of an exact record.
+func projectedScope() *domain.AdvisoryScope {
+	return &domain.AdvisoryScope{
+		RequestedID: "GO-TEST-1", ResolvedID: "GO-TEST-1",
+		Kind: domain.ScopeAdvisoryEntries, Coverage: domain.CoverageComplete,
+		RecordExtent: domain.RecordExtentGoProjection,
+		RecordInventory: &domain.RecordInventory{
+			AdvisoryID: "GO-TEST-1", DocumentDigest: "sha256:" + strings.Repeat("cd", 32),
+			AffectedEntryCount: 2,
+			Entries: []domain.RecordEntry{
+				{Index: 0, Ecosystem: "Go", Module: "golang.org/x/net"},
+				{Index: 1, Ecosystem: "Maven", Module: "io.grpc:grpc-netty"},
+			},
+			RepresentedRefs: []int{0},
+			OmittedRefs:     []int{1},
+		},
+	}
+}
+
+// unbackedCompleteScope is the legacy persisted shape: COMPLETE coverage with
+// no structural census. It no longer authorizes a negative closure.
+func unbackedCompleteScope() *domain.AdvisoryScope {
+	return &domain.AdvisoryScope{RequestedID: "GO-TEST-1", ResolvedID: "GO-TEST-1", Kind: domain.ScopeAdvisoryEntries, Coverage: domain.CoverageComplete}
+}
+
+func TestCheckAffectedPartialScopeContinues(t *testing.T) {
+	for _, scope := range []struct {
+		name  string
+		scope *domain.AdvisoryScope
+	}{
+		{"cve-known-only", partialCVEScope()},
+		{"exact-projected", projectedScope()},
+		{"exact-complete-without-census", unbackedCompleteScope()},
+	} {
+		for _, extraModule := range []bool{false, true} {
+			t.Run(scope.name+fmt.Sprintf("/extra-module=%t", extraModule), func(t *testing.T) {
+				c := &domain.AnalysisCase{Vulnerability: domain.Vulnerability{
+					ID: "GO-TEST-1", Scope: scope.scope, Module: "golang.org/x/net",
+					AffectedModules: []domain.AffectedModule{{Module: "golang.org/x/net", FixedVersions: []string{"v0.17.0"}}},
+				}}
+				c.Product.ReleaseModules = []domain.ReleaseModule{{Path: "golang.org/x/net", Version: "v0.17.0"}}
+				if extraModule {
+					c.Product.ReleaseModules = append(c.Product.ReleaseModules, domain.ReleaseModule{Path: "example.com/alternate", Version: "v1.0.0"})
+				}
+				res := domain.AffectedResult{
+					Scope: scope.scope, ModulePresent: domain.ClaimTrue, VersionAffected: domain.ClaimFalse,
+					ResolvedVersion: "v0.17.0", CheckedModules: []string{"golang.org/x/net"}, EvidenceIDs: []domain.EvidenceID{"EV-XNET"},
+				}
+				resolver := evidenceResolver{res: res, ev: domain.Evidence{
+					ID: "EV-XNET", Kind: domain.EvidenceModuleGraph, Quality: domain.QualityDeterministic,
+					Content: "golang.org/x/net@v0.17.0",
+				}}
+				tr, err := (states.CheckAffected{Resolver: resolver}).Run(context.Background(), c)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if tr.Next != domain.StateResolveRootCause {
+					t.Fatalf("refused scope transition = %+v", tr)
+				}
+				if c.Affected.ModulePresent != domain.ClaimTrue || c.Affected.VersionAffected != domain.ClaimFalse ||
+					c.Affected.ResolvedVersion != "v0.17.0" || c.Affected.Scope != scope.scope {
+					t.Fatalf("component facts changed: %+v", c.Affected)
+				}
+				if len(c.Affected.EvidenceIDs) != 1 || c.Affected.EvidenceIDs[0] != "EV-XNET" ||
+					len(c.Affected.CheckedModules) != 1 || c.Affected.CheckedModules[0] != "golang.org/x/net" {
+					t.Fatalf("evidence or checked modules changed: %+v", c.Affected)
+				}
+				limitation := strings.Join(c.Affected.Limitations, "; ")
+				for _, want := range []string{"scope", scope.scope.RequestedID, "golang.org/x/net"} {
+					if !strings.Contains(limitation, want) {
+						t.Fatalf("limitation %q does not name %q", limitation, want)
+					}
+				}
+				// The refusal is recorded on the case, not only on the
+				// affected result, and the component evidence survives.
+				graphLimitation := strings.Join(c.EvidenceGraph.Limitations, "; ")
+				if !strings.Contains(graphLimitation, scope.scope.RequestedID) {
+					t.Fatalf("case limitations do not record the refusal: %q", graphLimitation)
+				}
+				if c.EvidenceGraph.EvidenceByID("EV-XNET") == nil {
+					t.Fatal("component evidence was not retained")
+				}
+				if len(c.Vulnerability.AffectedModules) != 1 || c.Vulnerability.AffectedModules[0].Module != "golang.org/x/net" {
+					t.Fatalf("advisory entries changed: %+v", c.Vulnerability.AffectedModules)
+				}
+				if extraModule && (len(c.Product.ReleaseModules) != 2 || c.Product.ReleaseModules[1].Version != "v1.0.0") {
+					t.Fatalf("uncovered module inherited version fact: %+v", c.Product.ReleaseModules)
+				}
+				got := evalBareVerdict(*c.Affected, domain.ExploitModel{}, nil)
+				if got.Verdict != domain.VerdictInconclusive {
+					t.Fatalf("refused scope final verdict = %+v", got)
+				}
+			})
 		}
 	}
 }
 
-func TestAllMainsInCmd(t *testing.T) {
-	// Case 1: All mains in cmd/
-	dir1 := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir1, "cmd", "server"), 0755); err != nil {
+func TestCheckAffectedExactEntryScopeNegativeCloses(t *testing.T) {
+	scope := exactScope("GO-TEST-1")
+	c := &domain.AnalysisCase{}
+	res := domain.AffectedResult{Scope: scope, ModulePresent: domain.ClaimTrue, VersionAffected: domain.ClaimFalse, ResolvedVersion: "v0.17.0"}
+	tr, err := (states.CheckAffected{Resolver: multiResolver{res: res}}).Run(context.Background(), c)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(dir1, "internal", "logic"), 0755); err != nil {
+	if tr.Next != domain.StateEvaluateVerdict {
+		t.Fatalf("exact-entry scope transition = %+v", tr)
+	}
+	got := evalBareVerdict(*c.Affected, domain.ExploitModel{}, nil)
+	if got.Verdict != domain.VerdictNotAffected {
+		t.Fatalf("exact-entry negative = %+v", got)
+	}
+}
+
+func TestCheckAffectedImplementationScopePreserved(t *testing.T) {
+	for _, original := range []struct {
+		name  string
+		scope *domain.AdvisoryScope
+		want  domain.WorkflowState
+	}{
+		{"no scope", nil, domain.StateResolveRootCause},
+		{"cve known-only", partialCVEScope(), domain.StateResolveRootCause},
+		{"exact projected", projectedScope(), domain.StateResolveRootCause},
+		{"exact complete without census", unbackedCompleteScope(), domain.StateResolveRootCause},
+		{"exact full record", exactScope("GO-TEST-1"), domain.StateEvaluateVerdict},
+	} {
+		for _, callbackScope := range []*domain.AdvisoryScope{nil, exactScope("GO-TEST-1")} {
+			t.Run(fmt.Sprintf("%s/callback-scope=%t", original.name, callbackScope != nil), func(t *testing.T) {
+				var before *domain.AdvisoryScope
+				if original.scope != nil {
+					before = original.scope.Clone()
+				}
+				res := domain.AffectedResult{Scope: original.scope, ModulePresent: domain.ClaimTrue, VersionAffected: domain.ClaimTrue, PackagePresent: domain.ClaimTrue, BuildRelevant: domain.ClaimTrue}
+				c := &domain.AnalysisCase{}
+				h := states.CheckAffected{Resolver: multiResolver{res: res}, ImplementationAxis: func(_ context.Context, _ *domain.AnalysisCase, r domain.AffectedResult) affected.ImplementationAxisResult {
+					if r.Scope != nil {
+						r.Scope.Coverage = domain.CoverageComplete
+					}
+					r.Scope = callbackScope
+					return affected.ImplementationAxisResult{Affected: r, Present: domain.ClaimFalse}
+				}}
+				tr, err := h.Run(context.Background(), c)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if tr.Next != original.want || c.Affected.Scope != original.scope {
+					t.Fatalf("callback changed scope authority: transition=%+v affected=%+v", tr, c.Affected)
+				}
+				if !reflect.DeepEqual(original.scope, before) {
+					t.Fatalf("callback mutated the original scope: got %+v, want %+v", original.scope, before)
+				}
+			})
+		}
+	}
+}
+
+// TestCheckAffectedCallbackScopeIsolation: the implementation-axis callback
+// receives a deep copy of the authoritative scope. Rewriting the record
+// identity, the census entries, the represented refs or the omitted refs must
+// not reach the original scope, change its closure decision, or alter the
+// transition — scope stays the finding-level authority resolved from the
+// advisory record.
+func TestCheckAffectedCallbackScopeIsolation(t *testing.T) {
+	mutations := map[string]func(*domain.AdvisoryScope){
+		"coverage rewrite": func(s *domain.AdvisoryScope) { s.Coverage = domain.CoverageKnownOnly },
+		"extent rewrite":   func(s *domain.AdvisoryScope) { s.RecordExtent = domain.RecordExtentGoProjection },
+		"identity rewrite": func(s *domain.AdvisoryScope) { s.RecordInventory.AdvisoryID = "GO-OTHER-1" },
+		"entries dropped":  func(s *domain.AdvisoryScope) { s.RecordInventory.Entries = nil },
+		"entry identity rewrite": func(s *domain.AdvisoryScope) {
+			s.RecordInventory.Entries[0].Module = "example.com/attacker"
+		},
+		"represented dropped": func(s *domain.AdvisoryScope) { s.RecordInventory.RepresentedRefs = nil },
+		"represented appended": func(s *domain.AdvisoryScope) {
+			s.RecordInventory.RepresentedRefs = append(s.RecordInventory.RepresentedRefs, 0)
+		},
+		"omitted added": func(s *domain.AdvisoryScope) { s.RecordInventory.OmittedRefs = []int{0} },
+	}
+	for name, mutate := range mutations {
+		t.Run(name, func(t *testing.T) {
+			original := exactScope("GO-TEST-1")
+			before := original.Clone()
+			res := domain.AffectedResult{
+				Scope: original, ModulePresent: domain.ClaimTrue, VersionAffected: domain.ClaimTrue,
+				PackagePresent: domain.ClaimTrue, BuildRelevant: domain.ClaimTrue,
+			}
+			c := &domain.AnalysisCase{}
+			h := states.CheckAffected{Resolver: multiResolver{res: res}, ImplementationAxis: func(_ context.Context, _ *domain.AnalysisCase, r domain.AffectedResult) affected.ImplementationAxisResult {
+				mutate(r.Scope)
+				return affected.ImplementationAxisResult{Affected: r, Present: domain.ClaimFalse}
+			}}
+			tr, err := h.Run(context.Background(), c)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tr.Next != domain.StateEvaluateVerdict || c.Affected.Scope != original {
+				t.Fatalf("callback mutation changed scope authority: transition=%+v scope=%+v", tr, c.Affected.Scope)
+			}
+			if !reflect.DeepEqual(original, before) {
+				t.Fatalf("callback mutated the original scope: got %+v, want %+v", original, before)
+			}
+			if !original.AllowsNegativeClosure() {
+				t.Fatalf("closure decision changed: %+v", original)
+			}
+		})
+	}
+}
+
+func TestCheckAffectedImplementationScopePrerequisites(t *testing.T) {
+	for _, unknownAxis := range []string{"package", "build"} {
+		res := domain.AffectedResult{
+			Scope:         exactScope("GO-TEST-1"),
+			ModulePresent: domain.ClaimTrue, VersionAffected: domain.ClaimTrue,
+			PackagePresent: domain.ClaimTrue, BuildRelevant: domain.ClaimTrue,
+			VulnerableImplementationPresent: domain.ClaimFalse,
+		}
+		if unknownAxis == "package" {
+			res.PackagePresent = domain.ClaimUnknown
+		} else {
+			res.BuildRelevant = domain.ClaimUnknown
+		}
+		tr, err := (states.CheckAffected{Resolver: multiResolver{res: res}}).Run(context.Background(), &domain.AnalysisCase{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tr.Next != domain.StateResolveRootCause {
+			t.Fatalf("implementation negative with %s unresolved closed: %+v", unknownAxis, tr)
+		}
+	}
+}
+
+// fixedSnapshotter returns one prepared snapshot for SnapshotProduct tests.
+type fixedSnapshotter struct {
+	snap domain.ProductSnapshot
+	err  error
+}
+
+func (f fixedSnapshotter) Snapshot(context.Context, string, repository.SnapshotOptions) (domain.ProductSnapshot, error) {
+	return f.snap, f.err
+}
+
+// SnapshotProduct binds the resolved product build into the case's source
+// index before root-cause resolution can load it: a pre-load context is
+// adopted, a caller-resolved scan snapshot is reused without re-probing, and
+// a post-load mismatch fails the state instead of relabelling loaded ASTs.
+func TestSnapshotBindsBeforeRootCause(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"),
+		[]byte("module example.com/bindcase\n\ngo 1.23\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir1, "cmd", "server", "main.go"), []byte("package main\nfunc main() {}\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "main.go"),
+		[]byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
 		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir1, "internal", "logic", "logic.go"), []byte("package logic\nfunc Run() {}\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	// A _test.go with package main outside cmd/ should be ignored
-	if err := os.WriteFile(filepath.Join(dir1, "internal", "logic", "logic_test.go"), []byte("package main\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if !states.AllMainsInCmd(dir1) {
-		t.Errorf("expected AllMainsInCmd to be true for dir1")
 	}
 
-	// Case 2: Main outside cmd/
-	dir2 := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir2, "cmd", "server"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir2, "cmd", "server", "main.go"), []byte("package main\nfunc main() {}\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir2, "root_main.go"), []byte("package main\nfunc main() {}\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if states.AllMainsInCmd(dir2) {
-		t.Errorf("expected AllMainsInCmd to be false for dir2 with root_main.go")
+	snap := domain.ProductSnapshot{
+		Repository: dir, Commit: "abc123", GoVersion: "go version go1.25.0 linux/arm64",
+		GoModDirective: "1.23", GOOS: "linux", GOARCH: "arm64",
+		GoWorkFile: domain.GoWorkOff, GoFlags: "-mod=readonly",
+		Target: &domain.ProductTarget{
+			GOOS: "linux", GOARCH: "arm64",
+			Source: domain.ProductTargetSourceOperatorDeclared, Scope: domain.ProductTargetScopeOperator,
+		},
 	}
 
-	// Case 3: No cmd directory
-	dir3 := t.TempDir()
-	if states.AllMainsInCmd(dir3) {
-		t.Errorf("expected AllMainsInCmd to be false for dir3 without cmd/ directory")
+	// A different pre-load context is replaced by the resolved snapshot.
+	ix := &goanalysis.Index{Dir: dir, Build: domain.ProductSnapshot{GOOS: "windows", GOARCH: "386"}}
+	c := &domain.AnalysisCase{ID: "bind-case"}
+	tr, err := (states.SnapshotProduct{Repo: fixedSnapshotter{snap: snap}, Path: dir, Source: ix}).
+		Run(context.Background(), c)
+	if err != nil {
+		t.Fatalf("snapshot state: %v", err)
+	}
+	if tr.Next != domain.StateResolveVulnerability {
+		t.Fatalf("transition = %+v, want resolve vulnerability", tr)
+	}
+	if c.Product.GOOS != "linux" || c.Product.GOARCH != "arm64" || c.Product.Target == nil {
+		t.Fatalf("case product not captured: %+v", c.Product)
+	}
+	bound, ok := ix.BoundBuildContext()
+	if !ok {
+		t.Fatal("index is not bound after SnapshotProduct")
+	}
+	if err := bound.Matches(domain.EffectiveBuildContext(snap)); err != nil {
+		t.Fatalf("bound context does not match the resolved snapshot: %v", err)
+	}
+	if ix.Build.Repository != dir || ix.Build.Target == nil ||
+		ix.Build.Target.Source != domain.ProductTargetSourceOperatorDeclared {
+		t.Fatalf("index did not adopt the resolved snapshot: %+v", ix.Build)
+	}
+
+	// A caller-resolved scan snapshot is reused: no snapshotter is needed.
+	reused := states.SnapshotProduct{Path: dir, Snapshot: &snap, Source: &goanalysis.Index{Dir: dir}}
+	c2 := &domain.AnalysisCase{ID: "bind-case-2"}
+	tr, err = reused.Run(context.Background(), c2)
+	if err != nil || tr.Next != domain.StateResolveVulnerability {
+		t.Fatalf("pre-resolved snapshot: transition=%+v err=%v", tr, err)
+	}
+
+	// A pre-resolved snapshot for another repository fails closed.
+	otherRepo := snap
+	otherRepo.Repository = filepath.Join(dir, "elsewhere")
+	c3 := &domain.AnalysisCase{ID: "bind-case-3"}
+	tr, err = (states.SnapshotProduct{Path: dir, Snapshot: &otherRepo}).
+		Run(context.Background(), c3)
+	if err != nil {
+		t.Fatalf("identity mismatch returned a workflow error: %v", err)
+	}
+	if tr.Next != domain.StateFailed || !strings.Contains(tr.Reason, "does not identify") {
+		t.Fatalf("identity mismatch transition = %+v", tr)
+	}
+
+	// A loaded index is never relabelled: the state fails closed.
+	live := &goanalysis.Index{Dir: dir}
+	if err := live.Loaded(context.Background()); err != nil {
+		t.Fatalf("load live index: %v", err)
+	}
+	before := live.Build
+	c4 := &domain.AnalysisCase{ID: "bind-case-4"}
+	tr, err = (states.SnapshotProduct{Repo: fixedSnapshotter{snap: snap}, Path: dir, Source: live}).
+		Run(context.Background(), c4)
+	if err != nil {
+		t.Fatalf("post-load bind returned a workflow error: %v", err)
+	}
+	if tr.Next != domain.StateFailed || !strings.Contains(tr.Reason, "binding failed") {
+		t.Fatalf("post-load mismatch transition = %+v", tr)
+	}
+	if !reflect.DeepEqual(live.Build, before) {
+		t.Fatalf("failed bind mutated the loaded index: %+v -> %+v", before, live.Build)
+	}
+
+	// A plain binary whose settings did not yield a typed target records a
+	// target-only limitation; the measured release toolchain is untouched
+	// (no release-channel failure is fabricated).
+	exe, exeErr := os.Executable()
+	if exeErr != nil {
+		t.Skipf("test binary unavailable: %v", exeErr)
+	}
+	gapSnap := snap
+	gapSnap.BinaryPath = exe
+	gapSnap.ReleaseGoVersion = "go1.25.0-measured"
+	c5 := &domain.AnalysisCase{ID: "bind-case-5"}
+	tr, err = (states.SnapshotProduct{
+		Repo: fixedSnapshotter{snap: gapSnap}, Path: dir,
+		Source: &goanalysis.Index{Dir: dir},
+	}).Run(context.Background(), c5)
+	if err != nil || tr.Next != domain.StateResolveVulnerability {
+		t.Fatalf("binary target-gap state: transition=%+v err=%v", tr, err)
+	}
+	gapRecorded := false
+	for _, lim := range c5.EvidenceGraph.Limitations {
+		if strings.Contains(lim, "build-target extraction gap") {
+			gapRecorded = true
+		}
+	}
+	if !gapRecorded {
+		t.Fatalf("binary target gap not recorded separately: %v", c5.EvidenceGraph.Limitations)
+	}
+	if c5.Product.ReleaseGoVersion != "go1.25.0-measured" {
+		t.Fatalf("target gap invalidated the measured toolchain: %q", c5.Product.ReleaseGoVersion)
+	}
+	if c5.Product.ReleaseEvidence != nil &&
+		len(c5.Product.ReleaseEvidence.RequiredChannelFailures) > 0 {
+		t.Fatalf("target gap fabricated a release-channel failure: %v",
+			c5.Product.ReleaseEvidence.RequiredChannelFailures)
 	}
 }

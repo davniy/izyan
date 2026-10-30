@@ -45,15 +45,22 @@
 - Peer-источники: `net.Dial*`/`tls.Dial*`/`Accept` →
   `EXTERNAL_UNTRUSTED`; `Read` на сетевых receiver'ах — тоже.
   Interface dispatch внутри dep (`m.read(r)`) не резолвится →
-  честный UNKNOWN, эвристика unexported+peer-driven остаётся fallback.
+  честный UNKNOWN. Модуль-usage и server-frame имена — наблюдения
+  (`limitation`), не доказательство: unexported-sink + вызов API модуля
+  и frame-name/server-role fallback'и удалены, TRUE не выводят.
 - Dep-FALSE: `verifyInputFalse` перетрейсит те же dep-сайты
   (`FindDepCallers`), не product-callers; неразрешённый трейс →
   INSUFFICIENT_SCOPE, никогда не FALSE. При `FalsifierConstantOrGeneratedInput`
   (все вызовы от `SafeOrigin`) и `FalsifierTrustedInfrastructure`
   (все вызовы от `OriginConfiguration`) negative verification даёт
   VERIFIED без требования инвентаризации внутренних хелперов парсера.
-  `ServerTransportInput`: resolved flows → `ArgumentOrigin` (trace побеждает
-  эвристику); flows пусто/все UNKNOWN → эвристика.
+  `ServerTransportInput`: только типизированные маршруты — rooted
+  input/trigger witness, resolved flows → `ArgumentOrigin`, admitted
+  library witness, package absence, declared trust. Попытка transport-proof
+  без trigger witness даёт типизированный gap, а не fallback.
+  Persisted TRUE без typed `ControlBasis` переустанавливается тем же
+  детерминированным evaluator'ом на verdict/publication границе; saved
+  producer-string/TRUE не доказательство.
 
 ## Numeric bounds
 

@@ -1,0 +1,170 @@
+{
+  "schema": "research-checks/1",
+  "checks": [
+    {
+      "id": "affected-resolve",
+      "tool": "affected-resolve",
+      "description": "Deterministic applicability resolution of the advisory-declared modules/versions against the recorded module graph."
+    },
+    {
+      "id": "package-usage",
+      "tool": "package-usage",
+      "description": "Bounded product-source usage check for one advisory-declared package or symbol."
+    },
+    {
+      "id": "usage-scope",
+      "tool": "usage-scope",
+      "description": "Paired product/test build-closure classification for one advisory-declared package or module."
+    },
+    {
+      "id": "module-usage",
+      "tool": "module_usage",
+      "description": "Module-scoped usage summary over the recorded dependency graph."
+    },
+    {
+      "id": "module-internal-reach",
+      "tool": "module_internal_reach",
+      "description": "Internal reachability check between two modules of the recorded dependency graph."
+    },
+    {
+      "id": "scan-dynamic",
+      "tool": "scan_dynamic",
+      "description": "Dynamic-marker scan over the snapshot for reflection/generation dispatch."
+    },
+    {
+      "id": "get_vulnerability",
+      "tool": "get_vulnerability",
+      "description": "Fetch the session advisory record again (OSV-compatible document)."
+    },
+    {
+      "id": "get_advisory",
+      "tool": "get_advisory",
+      "description": "Fetch any OSV-compatible advisory by id for cross-reference."
+    },
+    {
+      "id": "get_fix_references",
+      "tool": "get_fix_references",
+      "description": "List fix-bearing references of the session advisory record."
+    },
+    {
+      "id": "get_fix_diff",
+      "tool": "get_fix_diff",
+      "description": "Fetch and parse the patch text of a fix reference URL."
+    },
+    {
+      "id": "get_product_snapshot",
+      "tool": "get_product_snapshot",
+      "description": "Snapshot identity and build facts (content hash, GOOS/GOARCH/tags, replaces)."
+    },
+    {
+      "id": "get_dependency_graph",
+      "tool": "get_dependency_graph",
+      "description": "Enumerated module list of the snapshot's main module graph."
+    },
+    {
+      "id": "get_module_version",
+      "tool": "get_module_version",
+      "description": "Resolved version of one module in the snapshot's dependency graph."
+    },
+    {
+      "id": "run_govulncheck",
+      "tool": "run_govulncheck",
+      "description": "Run govulncheck over the snapshot for the session CVE; reports DB coverage and findings, never absence proofs."
+    },
+    {
+      "id": "find_symbol",
+      "tool": "find_symbol",
+      "description": "Locate a symbol (Func or Type.Method) in product or dependency packages."
+    },
+    {
+      "id": "find_references",
+      "tool": "find_references",
+      "description": "All references to a symbol in product packages."
+    },
+    {
+      "id": "find_callers",
+      "tool": "find_callers",
+      "description": "Statically named call sites of a symbol in product packages only."
+    },
+    {
+      "id": "find_may_callers",
+      "tool": "find_may_callers",
+      "description": "May-call sites including interface dispatch and function values."
+    },
+    {
+      "id": "find_dep_callers",
+      "tool": "find_dep_callers",
+      "description": "Call sites of a symbol inside its own dependency package/module."
+    },
+    {
+      "id": "find_entrypoints",
+      "tool": "find_entrypoints",
+      "description": "Recognized product entrypoints (main/init, exported, net/http handlers)."
+    },
+    {
+      "id": "read_function",
+      "tool": "read_function",
+      "description": "Verbatim source of one function declaration inside the snapshot."
+    },
+    {
+      "id": "read_source",
+      "tool": "read_source",
+      "description": "Verbatim line range of one file inside the snapshot or module cache."
+    },
+    {
+      "id": "search_source",
+      "tool": "search_source",
+      "description": "Regex search over loaded Go source files, capped at the match budget."
+    },
+    {
+      "id": "trace_argument",
+      "tool": "trace_argument",
+      "description": "Bounded provenance trace of the selected call argument(s)."
+    },
+    {
+      "id": "find_validations",
+      "tool": "find_validations",
+      "description": "Guards/validations constraining a call argument before a call site."
+    },
+    {
+      "id": "field_assignments",
+      "tool": "field_assignments",
+      "description": "Product-side assignments to a struct field / symbol (config knob population)."
+    },
+    {
+      "id": "interface_dispatch_sites",
+      "tool": "interface_dispatch_sites",
+      "description": "Call sites dispatching to the subject's method name through an interface value."
+    },
+    {
+      "id": "gated_refs",
+      "tool": "gated_refs",
+      "description": "References inside files excluded by the recorded build tags/configuration."
+    },
+    {
+      "id": "dep_invocation_state",
+      "tool": "dep_invocation_state",
+      "description": "In-module callers and pipeline liveness for the subject's own module."
+    },
+    {
+      "id": "check_call_site_guard",
+      "tool": "check_call_site_guard",
+      "description": "Whether a call site sits under a config/statically-dead guard in its enclosing function."
+    },
+    {
+      "id": "check_missing_call",
+      "tool": "check_missing_call",
+      "description": "Whether a check method is never invoked while sibling pipeline methods stay live."
+    },
+    {
+      "id": "sensitive_fields",
+      "tool": "sensitive_fields",
+      "description": "Credential-named exported fields of a package (INFO_LEAK datum source)."
+    },
+    {
+      "id": "symbol-unreachability",
+      "tool": "symbol-unreachability",
+      "description": "Bounded unreachability proof for an advisory-declared module's exact declared symbol set; a complete result is evidence only for no-exploit-path evaluation, never not-affected."
+    }
+  ]
+}

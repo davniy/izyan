@@ -1,0 +1,20 @@
+{
+  "id": "OBS-0013",
+  "tool": "inbound-auth-facts",
+  "fact": "0 authentication/authorization facts around inbound handlers observed",
+  "scope": "authentication/authorization facts around inbound handlers (static source scan; runtime reachability is out of scope)",
+  "completeness": "PARTIAL",
+  "tool_status": "OK",
+  "limitations": [
+    "static exposure scan: a listener/dial site is a code fact, not runtime reachability"
+  ],
+  "scope_details": {
+    "snapshot_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+    "snapshot_root": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+    "external_sha": "e196d2491087e93bd29f0e5a538aab60667021e3"
+  },
+  "data": {
+    "count": 0,
+    "facts": null
+  }
+}

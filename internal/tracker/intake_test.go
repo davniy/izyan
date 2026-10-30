@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -281,6 +282,100 @@ Found vulnerability: CVE-2026-77406 (GHSA-rm6m-hrcw-jw33)
 	if tk.Component != "PROXY" {
 		t.Errorf("Component = %q, want PROXY", tk.Component)
 	}
+	if tk.Version != "1.10.0" {
+		t.Errorf("Version = %q, want 1.10.0 (the labelled version, not the product name)", tk.Version)
+	}
+}
+
+// The real tracker ticket shape (CASE-227168): one flowing line where
+// "Версия продукта:" precedes the library declaration. The version
+// label regex must not hijack the product line — the PURL pins the
+// package+version pair and the trailing token on the library line is
+// the fallback.
+func TestParseRawTextTicket_TrackerShape(t *testing.T) {
+	text := `Новая потенциальная уязвимость в Demo Mesh 1.10.3
+Версия продукта: Demo Mesh 1.10.3 Тип версии продукта: HOTFIX Ссылка на Project: https://project.example.org/erp/productVersion/DEMO.14/main Ссылка на дистрибутив: https://portal.example.org/repository/demo_prod/_DEMO/1.10.3-1919/_DEMO-1.10.3-1919-distrib.zip Компонент: DEMO 1.1.1-2397 Библиотека: github.com/antchfx/xpath 1.3.2 PURL: pkg:golang/github.com/antchfx/xpath@1.3.2 Алиасы на уязвимость: GO-2026-4526, CVE-2026-32287, GHSA-65xw-vw82-r86x Описание уязвимости: xpath allocation overflow
+`
+	tk, err := ParseTicket([]byte(text))
+	if err != nil {
+		t.Fatalf("ParseTicket error: %v", err)
+	}
+	if tk.Package != "github.com/antchfx/xpath" {
+		t.Errorf("Package = %q, want github.com/antchfx/xpath", tk.Package)
+	}
+	if tk.Version != "1.3.2" {
+		t.Errorf("Version = %q, want 1.3.2 (from the PURL/library line, not the product line)", tk.Version)
+	}
+	if tk.Release != "Demo Mesh 1.10.3" {
+		t.Errorf("Release = %q, want the product+version only, no trailing labels", tk.Release)
+	}
+	if tk.Component != "DEMO 1.1.1-2397" {
+		t.Errorf("Component = %q, want DEMO 1.1.1-2397 (never crossing into Библиотека:/PURL:)", tk.Component)
+	}
+	if tk.Vulnerability != "GO-2026-4526" {
+		t.Errorf("Vulnerability = %q, want GO-2026-4526", tk.Vulnerability)
+	}
+}
+
+func TestParseTicketDistributionLocatorFromJSONDescription(t *testing.T) {
+	const want = "https://portal.example.org/_DEMO/1.10.3-1919/_DEMO-1.10.3-1919-distrib.zip"
+	body := `{"vulnerability":"GO-2026-4526","description":"Версия продукта: Demo Mesh 1.10.3 Ссылка на Project: https://project.example.org/wiki Ссылка на дистрибутив: https://user:secret@portal.example.org/_DEMO/1.10.3-1919/_DEMO-1.10.3-1919-distrib.zip?token=secret"}`
+	tk, err := ParseTicket([]byte(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tk.DistributionURL != want {
+		t.Fatalf("DistributionURL=%q, want %q", tk.DistributionURL, want)
+	}
+}
+
+// Same shape without the PURL: the library line's trailing token is
+// the version claim. A matching resolved version must come through
+// exactly, including the v-prefix.
+func TestParseRawTextTicket_LibraryPairVersion(t *testing.T) {
+	text := `Внимание: тикет CASE-238323
+Версия продукта: Demo Platform DEMO 6.2.0
+Компонент: DEMO-CORE
+Библиотека: github.com/sirupsen/logrus v1.9.3
+Алиасы на уязвимость: GO-2026-7777, CVE-2026-1111
+`
+	tk, err := ParseTicket([]byte(text))
+	if err != nil {
+		t.Fatalf("ParseTicket error: %v", err)
+	}
+	if tk.Package != "github.com/sirupsen/logrus" {
+		t.Errorf("Package = %q, want github.com/sirupsen/logrus", tk.Package)
+	}
+	if tk.Version != "v1.9.3" {
+		t.Errorf("Version = %q, want v1.9.3", tk.Version)
+	}
+	if tk.Release != "Demo Platform DEMO 6.2.0" {
+		t.Errorf("Release = %q, want Demo Platform DEMO 6.2.0", tk.Release)
+	}
+	if tk.Component != "DEMO-CORE" {
+		t.Errorf("Component = %q, want DEMO-CORE", tk.Component)
+	}
+}
+
+// A labelled "version:" field keeps precedence over the library line's
+// trailing token; a "go_version:" label must not leak into Version.
+func TestParseRawTextTicket_VersionLabelPrecedence(t *testing.T) {
+	text := `ticket: SEC-42
+vulnerability: GO-2026-7777
+package: github.com/antchfx/xpath 9.9.9
+version: 1.3.2
+go_version: go1.22.5
+`
+	tk, err := ParseTicket([]byte(text))
+	if err != nil {
+		t.Fatalf("ParseTicket error: %v", err)
+	}
+	if tk.Version != "1.3.2" {
+		t.Errorf("Version = %q, want 1.3.2", tk.Version)
+	}
+	if tk.GoVersion != "go1.22.5" {
+		t.Errorf("GoVersion = %q, want go1.22.5", tk.GoVersion)
+	}
 }
 
 func TestRepoMapResolution(t *testing.T) {
@@ -381,5 +476,35 @@ cvss: 10.0
 	}
 	if tickets[0].CVSS != "10.0" {
 		t.Fatalf("expected CVSS 10.0, got %q", tickets[0].CVSS)
+	}
+}
+
+func TestParseTicketDistributionLocator(t *testing.T) {
+	const want = "https://portal.example.org/_DEMO/1.10.3-1919/_DEMO-1.10.3-1919-distrib.zip"
+	text := `GO-2026-4526 Ссылка на Project: https://project.example.org/wiki Ссылка на дистрибутив: https://user:secret@portal.example.org/_DEMO/1.10.3-1919/_DEMO-1.10.3-1919-distrib.zip?token=secret#download Библиотека: example.com/snapdep 0.5.0`
+	tk, err := ParseTicket([]byte(text))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tk.DistributionURL != want {
+		t.Fatalf("DistributionURL=%q, want %q", tk.DistributionURL, want)
+	}
+	if strings.Contains(tk.DistributionURL, "secret") {
+		t.Fatal("distribution locator retained credentials")
+	}
+	jsonTicket, err := ParseTicket([]byte(`{"vulnerability":"GO-2026-4526","distribution_url":"https://user:secret@portal.example.org/_DEMO/1.10.3-1919/_DEMO-1.10.3-1919-distrib.zip?token=secret#download"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if jsonTicket.DistributionURL != want {
+		t.Fatalf("JSON DistributionURL=%q, want %q", jsonTicket.DistributionURL, want)
+	}
+	// Arbitrary URLs are not distribution artifacts.
+	plain, err := ParseTicket([]byte(`GO-2026-4526 Ссылка на Project: https://portal.example.org/dist.zip Библиотека: example.com/snapdep 0.5.0`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plain.DistributionURL != "" {
+		t.Fatalf("arbitrary URL became distribution locator: %q", plain.DistributionURL)
 	}
 }

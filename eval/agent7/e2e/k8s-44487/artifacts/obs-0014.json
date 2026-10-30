@@ -1,0 +1,34 @@
+{
+  "id": "OBS-0014",
+  "tool": "dial-sites",
+  "fact": "1 outbound dial/endpoint site(s) into module golang.org/x/net",
+  "scope": "outbound endpoints into module golang.org/x/net (static source scan)",
+  "completeness": "PARTIAL",
+  "tool_status": "OK",
+  "limitations": [
+    "a dial site is a code fact; whether the endpoint is attacker-reachable is out of scope"
+  ],
+  "scope_details": {
+    "snapshot_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+    "snapshot_root": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+    "external_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+    "subject": "golang.org/x/net"
+  },
+  "data": {
+    "count": 1,
+    "facts": [
+      {
+        "file": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3/test/e2e/framework/websocket/websocket_util.go",
+        "line": 61,
+        "function": "OpenWebSocketForURL",
+        "package": "k8s.io/kubernetes/test/e2e/framework/websocket",
+        "callee": "DialConfig",
+        "direction": "outbound",
+        "kind": "dial",
+        "target": "golang.org/x/net/websocket.DialConfig",
+        "address_source": "var:cfg",
+        "scope": "configured"
+      }
+    ]
+  }
+}

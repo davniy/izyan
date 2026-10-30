@@ -1,0 +1,75 @@
+{
+  "advisory": {
+    "canonical_sha256": "83b852adcd9c692f0712f070359449161ac7883ff4b292d6a8d18b3873da1599",
+    "outcome": "frozen_file",
+    "raw_sha256": "077330160d3adbbb93b2294e3db541c70a746677a4128a1bd8843dab688dae39",
+    "requested_id": "CVE-2023-44487",
+    "resolved_id": "GHSA-qppj-fm5r-hxr3",
+    "source_kind": "frozen_file",
+    "source_path": "eval/agent7/advisories/k8s-44487.json"
+  },
+  "agent": {
+    "error": "",
+    "manifest": {
+      "harness_path": "<VA_VEXBENCH>/agent-ctl",
+      "harness_commit": "80cddeac3132826bfd47227ad59b2e6618a681bd",
+      "harness_patch_sha256": "5534fae586976a9db2471f744c35e92897734b60fdbaf7300baff2c1e8ac1b86",
+      "e6_preflight_report": "<VA_REPO>/eval/agent7/results/research-s2/k8s-44487/agent/harness/e6/security-boundary-check.json",
+      "e6_preflight_sha256": "0ae51d3afa5d98b18718da53c555496a29a9b49b1c4f19501e50d86839082ef2",
+      "image": "vex-bench-go-opencode-e6:latest",
+      "image_sha256": "sha256:c85bc1df0f7e89b370c5ef552cd624bba1e49c2cb07005c8946be557b7379ba1",
+      "prompt_path": "eval/agent7/prompts/r0-v1.txt",
+      "prompt_sha256": "55b01e9a505bd058cb7be568f08c0e58364b8048e5acea030a14534f7031a0ae",
+      "rendered_prompt_path": "<VA_REPO>/eval/agent7/results/research-s2/k8s-44487/agent/prompt.txt",
+      "rendered_prompt_sha256": "a33c59696c7554b448aa587446e3421127d3ef727d12adab6cb5460a95e192cb",
+      "case_file": "<VA_REPO>/eval/agent7/results/research-s2/k8s-44487/agent/case.jsonl",
+      "result_path": "<VA_REPO>/eval/agent7/results/research-s2/k8s-44487/agent/harness/a33c59696c75/opencode-b1p/qwen3.6-35b/research-CVE-2023-44487/run_001/result.json",
+      "preflight_command": "uv run vex-bench evaluate e6-preflight --model qwen3.6-35b --output-dir <VA_REPO>/eval/agent7/results/research-s2/k8s-44487/agent/harness",
+      "run_command": "uv run vex-bench evaluate run --model qwen3.6-35b --agent opencode-b1p --benchmark-file <VA_REPO>/eval/agent7/results/research-s2/k8s-44487/agent/case.jsonl --prompt-file <VA_REPO>/eval/agent7/results/research-s2/k8s-44487/agent/prompt.txt --repeats 1 --parallel 1 --timeout 900 --output-dir <VA_REPO>/eval/agent7/results/research-s2/k8s-44487/agent/harness"
+    },
+    "model": "qwen3.6-35b",
+    "provider": "custom-openai",
+    "status": "OK"
+  },
+  "agent_manifest": {
+    "harness_path": "<VA_VEXBENCH>/agent-ctl",
+    "harness_commit": "80cddeac3132826bfd47227ad59b2e6618a681bd",
+    "harness_patch_sha256": "5534fae586976a9db2471f744c35e92897734b60fdbaf7300baff2c1e8ac1b86",
+    "e6_preflight_report": "<VA_REPO>/eval/agent7/results/research-s2/k8s-44487/agent/harness/e6/security-boundary-check.json",
+    "e6_preflight_sha256": "0ae51d3afa5d98b18718da53c555496a29a9b49b1c4f19501e50d86839082ef2",
+    "image": "vex-bench-go-opencode-e6:latest",
+    "image_sha256": "sha256:c85bc1df0f7e89b370c5ef552cd624bba1e49c2cb07005c8946be557b7379ba1",
+    "prompt_path": "eval/agent7/prompts/r0-v1.txt",
+    "prompt_sha256": "55b01e9a505bd058cb7be568f08c0e58364b8048e5acea030a14534f7031a0ae",
+    "rendered_prompt_path": "<VA_REPO>/eval/agent7/results/research-s2/k8s-44487/agent/prompt.txt",
+    "rendered_prompt_sha256": "a33c59696c7554b448aa587446e3421127d3ef727d12adab6cb5460a95e192cb",
+    "case_file": "<VA_REPO>/eval/agent7/results/research-s2/k8s-44487/agent/case.jsonl",
+    "result_path": "<VA_REPO>/eval/agent7/results/research-s2/k8s-44487/agent/harness/a33c59696c75/opencode-b1p/qwen3.6-35b/research-CVE-2023-44487/run_001/result.json",
+    "preflight_command": "uv run vex-bench evaluate e6-preflight --model qwen3.6-35b --output-dir <VA_REPO>/eval/agent7/results/research-s2/k8s-44487/agent/harness",
+    "run_command": "uv run vex-bench evaluate run --model qwen3.6-35b --agent opencode-b1p --benchmark-file <VA_REPO>/eval/agent7/results/research-s2/k8s-44487/agent/case.jsonl --prompt-file <VA_REPO>/eval/agent7/results/research-s2/k8s-44487/agent/prompt.txt --repeats 1 --parallel 1 --timeout 900 --output-dir <VA_REPO>/eval/agent7/results/research-s2/k8s-44487/agent/harness"
+  },
+  "finished": "2026-10-12T10:06:47Z",
+  "options": {
+    "agent_timeout": "15m0s",
+    "analysis_go": "",
+    "build_tags": null,
+    "deterministic_only": false,
+    "deterministic_timeout": "1m0s",
+    "goarch": "",
+    "goos": "",
+    "govulndb": "",
+    "harness_dir_env": "<VA_VEXBENCH>/agent-ctl",
+    "modcache": "",
+    "overall_timeout": "30m0s",
+    "prompt_file": ""
+  },
+  "run_id": "research-CVE-2023-44487-1791799268",
+  "schema": "research-run-manifest/1",
+  "snapshot": {
+    "commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+    "content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+    "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+    "path": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3"
+  },
+  "started": "2026-10-12T10:01:08Z"
+}

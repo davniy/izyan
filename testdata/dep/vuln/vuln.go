@@ -9,3 +9,6 @@ func Parse2(s string) (string, error) { return s, nil }
 // Qos is a pretend int-arg sink — the rm6m shape: prefetch values bounded
 // by setter-side clamps before reaching the call.
 func Qos(count, size int, global bool) {}
+
+// ParseBytes is a byte-slice sink: a pretend byte parser fixed in v1.2.0.
+func ParseBytes(p []byte) string { return string(p) }

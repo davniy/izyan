@@ -1,0 +1,29 @@
+{
+  "id": "OBS-0002",
+  "tool": "repository-snapshot",
+  "fact": "snapshot identity 37da98df45f6014fcd5f1744e2e26351b61d2a02: go directive 1.22, release toolchain \"go1.22.0\", darwin/arm64",
+  "scope": "repository.Service.Snapshot (git/go probes + static release-evidence scan, no repo code executed)",
+  "completeness": "COMPLETE",
+  "tool_status": "OK",
+  "scope_details": {
+    "snapshot_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+    "snapshot_root": "<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02",
+    "external_sha": "37da98df45f6014fcd5f1744e2e26351b61d2a02",
+    "coverage_rule": "single product snapshot probe (go version + manifest scan, no git history when external identity supplied)"
+  },
+  "data": {
+    "repository": "<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02",
+    "commit": "37da98df45f6014fcd5f1744e2e26351b61d2a02",
+    "go_version": "go version go1.26.1 darwin/arm64",
+    "go_mod_directive": "1.22",
+    "release_go_version": "go1.22.0",
+    "goos": "darwin",
+    "goarch": "arm64",
+    "cgo_enabled": false,
+    "vendor_mode": false,
+    "minimum_go_version": "1.22",
+    "go_version_source": "toolchain",
+    "external_commit_sha": "37da98df45f6014fcd5f1744e2e26351b61d2a02",
+    "content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5"
+  }
+}

@@ -11,19 +11,22 @@ import (
 )
 
 // Reference points at a vendor fix — a commit or patch that resolves the
-// vulnerability — plus the versions that contain the fix.
+// vulnerability. It deliberately carries no version list: which release lines a
+// reference belongs to is a claim that needs evidence, so an aggregate
+// FixedVersions list copied onto every reference proves nothing about any one
+// of them.
 type Reference struct {
-	URL      string   `json:"url"`
-	Kind     string   `json:"kind"` // commit | advisory
-	Versions []string `json:"versions,omitempty"`
+	URL  string `json:"url"`
+	Kind string `json:"kind"` // commit | advisory
 }
 
 // Resolver extracts fix references from a normalized Vulnerability.
 type Resolver struct{}
 
 // Resolve returns fix-bearing references: advisory entries typed FIX (or
-// WEB/ADVISORY URLs that look like VCS commits), each annotated with the
-// fixed versions from the affected ranges.
+// WEB/ADVISORY URLs that look like VCS commits). Each reference stands on its
+// own: the returned set is not a patch series, and no aggregate fixed-version
+// list is attached to it.
 func (Resolver) Resolve(v domain.Vulnerability) []Reference {
 	var out []Reference
 	for _, r := range v.References {
@@ -31,9 +34,8 @@ func (Resolver) Resolve(v domain.Vulnerability) []Reference {
 			continue
 		}
 		out = append(out, Reference{
-			URL:      r.URL,
-			Kind:     refKind(r.Type, r.URL),
-			Versions: v.FixedVersions,
+			URL:  r.URL,
+			Kind: refKind(r.Type, r.URL),
 		})
 	}
 	return out

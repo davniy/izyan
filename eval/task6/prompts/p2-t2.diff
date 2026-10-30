@@ -1,0 +1,40 @@
+--- vuln_safety_v2.txt
++++ vuln_safety_v2_tools.txt
+@@ -188,3 +188,37 @@
+ - Reminder: emit exactly ONE JSON object as your whole response - no
+   markdown table, no headings, no prose outside the object.
+ </STRUCTURED_ASSESSMENT>
++
++
++<EVIDENCE_TOOLS>
++An MCP tool server named "izyan" is connected to this session. It exposes
++deterministic analysis tools over the exact source tree in your working
++directory: advisory/fix research, dependency graph and module versions,
++symbol/reference/caller search, source reading, argument tracing,
++validation discovery, dynamic-dispatch markers, and optional build/test
++execution. Use these tools alongside your normal file/search tools
++whenever a fact is cheaper or more reliable to obtain that way.
++
++Every tool call returns an Observation object:
++  id, tool, fact, scope, completeness, tool_status, evidence_refs,
++  limitations, scope_details, data.
++
++Binding interpretation rules:
++- tool_status "OK" with an EMPTY result is NOT a safety finding.
++    completeness="COMPLETE" means "absent inside the closed scope named in
++      scope/scope_details";
++    completeness="PARTIAL"  means "not found in the checked part only";
++    completeness="UNKNOWN"  means coverage could not be characterized.
++- tool_status "ERROR" means the check failed (no coverage claim);
++  "UNSUPPORTED" means the capability is not available in this session.
++- Never treat a PARTIAL/UNKNOWN negative, or an absent tool result, as
++  evidence that a code path is safe or unreachable.
++- scope_details is authoritative: it lists the build context, packages,
++  skipped packages and limits that bounded the check. Product-scope
++  results say nothing about dependency-internal, dynamically dispatched
++  or other-build-configuration behavior unless the scope says so.
++- When you cite tool output in
++  assessment.negative_claims[].evidence_refs, use the Observation
++  "evidence_refs" entries verbatim (they resolve to the recorded tool
++  artifact).
++</EVIDENCE_TOOLS>

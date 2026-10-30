@@ -1,0 +1,293 @@
+{
+  "id": "OBS-0004",
+  "tool": "get_product_snapshot",
+  "fact": "snapshot e196d2491087e93bd29f0e5a538aab60667021e3: content hash 6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072, go directive 1.20, 30 replace directives",
+  "scope": "this snapshot's build context and module manifest facts",
+  "completeness": "COMPLETE",
+  "tool_status": "OK",
+  "evidence_refs": [
+    "sha256:24b93e5f990d0123fb9530fe37500e9a6ab2a78afe8da8c19a4d759c96b7c2a5"
+  ],
+  "scope_details": {
+    "snapshot_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+    "snapshot_root": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+    "external_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+    "build_context": {
+      "goos": "darwin",
+      "goarch": "arm64",
+      "cgo_enabled": false,
+      "go_version": "go1.21.3",
+      "vendor_mode": true
+    },
+    "profile": "strict",
+    "read_roots": [
+      "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+      "<VA_REPO>/eval/agent7/advisories"
+    ],
+    "toolchain_env": [
+      "GOENV=off",
+      "GOEXPERIMENT=",
+      "GOINSECURE=",
+      "GOWORK=off",
+      "GOPROXY=off",
+      "GOSUMDB=off",
+      "GONOSUMDB=",
+      "GONOPROXY=",
+      "GOPRIVATE=",
+      "GOFLAGS=-mod=readonly"
+    ],
+    "inherited_env_keys": [
+      "AGENT",
+      "AGY_CLI_DISABLE_AUTO_UPDATE",
+      "ALL_PROXY",
+      "AWS_PAGER",
+      "BAT_PAGER",
+      "BUN_INSTALL",
+      "CARGO_TERM_PROGRESS_WHEN",
+      "CI",
+      "CLAUDECODE",
+      "CLOUDSDK_CORE_DISABLE_PROMPTS",
+      "COLORTERM",
+      "COMMAND_MODE",
+      "COMPOSER_NO_INTERACTION",
+      "DEBIAN_FRONTEND",
+      "DEEPSEEK_API_KEY",
+      "DELTA_PAGER",
+      "DOCKER_HOME",
+      "EDITOR",
+      "FORCE_HYPERLINK",
+      "GH_PAGER",
+      "GH_PROMPT_DISABLED",
+      "GIT_EDITOR",
+      "GIT_PAGER",
+      "GIT_TERMINAL_PROMPT",
+      "GLAB_PAGER",
+      "GPG_TTY",
+      "HOME",
+      "HOMEBREW_PAGER",
+      "HTTPS_PROXY",
+      "HTTP_PROXY",
+      "LANG",
+      "LESS",
+      "LOGNAME",
+      "LSCOLORS",
+      "LS_COLORS",
+      "LaunchInstanceID",
+      "MANPAGER",
+      "MYSQL_PAGER",
+      "MallocNanoZone",
+      "NODE_EXTRA_CA_CERTS",
+      "NODE_OPTIONS",
+      "NODE_TLS_REJECT_UNAUTHORIZED",
+      "NO_COLOR",
+      "NO_PROXY",
+      "OMPCODE",
+      "OPENAI_API_KEY_OMNI_PROXY",
+      "OPENAI_API_KEY_QUOT",
+      "OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS",
+      "OPEN_API_KEY",
+      "ORCA_AGENT_HOOK_ENDPOINT",
+      "ORCA_AGENT_HOOK_ENV",
+      "ORCA_AGENT_HOOK_PORT",
+      "ORCA_AGENT_HOOK_TOKEN",
+      "ORCA_AGENT_HOOK_TRANSPORT",
+      "ORCA_AGENT_HOOK_VERSION",
+      "ORCA_AGENT_PANE",
+      "ORCA_APP_VERSION",
+      "ORCA_IMAGE_PROTOCOL",
+      "ORCA_OMP_FRESH_CONFIG",
+      "ORCA_OMP_SOURCE_AGENT_DIR",
+      "ORCA_OMP_STATUS_EXTENSION",
+      "ORCA_OPENCODE_AGENT",
+      "ORCA_PANE_KEY",
+      "ORCA_PI_SOURCE_AGENT_DIR",
+      "ORCA_PI_STATUS_OWNED",
+      "ORCA_TAB_ID",
+      "ORCA_TERMINAL_HANDLE",
+      "ORCA_USER_DATA_PATH",
+      "ORCA_WORKSPACE_ID",
+      "ORCA_WORKTREE_ID",
+      "OSLogRateLimit",
+      "PAGER",
+      "PATH",
+      "PIP_DISABLE_PIP_VERSION_CHECK",
+      "PIP_NO_INPUT",
+      "PNPM_DISABLE_SELF_UPDATE_CHECK",
+      "PNPM_UPDATE_NOTIFIER",
+      "POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD",
+      "PSQL_PAGER",
+      "PWD",
+      "PYTHONUNBUFFERED",
+      "SCCD_BASIC_TOKEN",
+      "SC_BASIC_TOKEN",
+      "SECURITYSESSIONID",
+      "SHLVL",
+      "SSH_ASKPASS",
+      "SSH_AUTH_SOCK",
+      "SSL_CERT_FILE",
+      "SWTR_BEARER_TOKEN",
+      "SYSTEMD_PAGER",
+      "TERM",
+      "TERM_PROGRAM",
+      "TERM_PROGRAM_VERSION",
+      "TF_INPUT",
+      "TF_IN_AUTOMATION",
+      "TMPDIR",
+      "USER",
+      "VEXBENCH_DURABLE_DIR",
+      "VISUAL",
+      "XPC_FLAGS",
+      "XPC_SERVICE_NAME",
+      "YARN_ENABLE_PROGRESS_BARS",
+      "YARN_ENABLE_TELEMETRY",
+      "ZSH",
+      "_",
+      "__CFBundleIdentifier",
+      "__CF_USER_TEXT_ENCODING",
+      "no_proxy",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_progress",
+      "npm_config_update_notifier",
+      "npm_config_yes"
+    ],
+    "coverage_rule": "single product snapshot probe (go version + manifest scan, no git history)"
+  },
+  "data": {
+    "cgo_enabled": false,
+    "commit": "e196d2491087e93bd29f0e5a538aab60667021e3",
+    "content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+    "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+    "go_mod_directive": "1.20",
+    "go_version": "go version go1.26.1 darwin/arm64",
+    "go_version_source": "version-file",
+    "goarch": "arm64",
+    "goos": "darwin",
+    "minimum_go_version": "1.20",
+    "release_go_version": "go1.21.3",
+    "replace_directives": [
+      {
+        "new": "./staging/src/k8s.io/api",
+        "old": "k8s.io/api"
+      },
+      {
+        "new": "./staging/src/k8s.io/apiextensions-apiserver",
+        "old": "k8s.io/apiextensions-apiserver"
+      },
+      {
+        "new": "./staging/src/k8s.io/apimachinery",
+        "old": "k8s.io/apimachinery"
+      },
+      {
+        "new": "./staging/src/k8s.io/apiserver",
+        "old": "k8s.io/apiserver"
+      },
+      {
+        "new": "./staging/src/k8s.io/cli-runtime",
+        "old": "k8s.io/cli-runtime"
+      },
+      {
+        "new": "./staging/src/k8s.io/client-go",
+        "old": "k8s.io/client-go"
+      },
+      {
+        "new": "./staging/src/k8s.io/cloud-provider",
+        "old": "k8s.io/cloud-provider"
+      },
+      {
+        "new": "./staging/src/k8s.io/cluster-bootstrap",
+        "old": "k8s.io/cluster-bootstrap"
+      },
+      {
+        "new": "./staging/src/k8s.io/code-generator",
+        "old": "k8s.io/code-generator"
+      },
+      {
+        "new": "./staging/src/k8s.io/component-base",
+        "old": "k8s.io/component-base"
+      },
+      {
+        "new": "./staging/src/k8s.io/component-helpers",
+        "old": "k8s.io/component-helpers"
+      },
+      {
+        "new": "./staging/src/k8s.io/controller-manager",
+        "old": "k8s.io/controller-manager"
+      },
+      {
+        "new": "./staging/src/k8s.io/cri-api",
+        "old": "k8s.io/cri-api"
+      },
+      {
+        "new": "./staging/src/k8s.io/csi-translation-lib",
+        "old": "k8s.io/csi-translation-lib"
+      },
+      {
+        "new": "./staging/src/k8s.io/dynamic-resource-allocation",
+        "old": "k8s.io/dynamic-resource-allocation"
+      },
+      {
+        "new": "./staging/src/k8s.io/endpointslice",
+        "old": "k8s.io/endpointslice"
+      },
+      {
+        "new": "./staging/src/k8s.io/kms",
+        "old": "k8s.io/kms"
+      },
+      {
+        "new": "./staging/src/k8s.io/kube-aggregator",
+        "old": "k8s.io/kube-aggregator"
+      },
+      {
+        "new": "./staging/src/k8s.io/kube-controller-manager",
+        "old": "k8s.io/kube-controller-manager"
+      },
+      {
+        "new": "./staging/src/k8s.io/kube-proxy",
+        "old": "k8s.io/kube-proxy"
+      },
+      {
+        "new": "./staging/src/k8s.io/kube-scheduler",
+        "old": "k8s.io/kube-scheduler"
+      },
+      {
+        "new": "./staging/src/k8s.io/kubectl",
+        "old": "k8s.io/kubectl"
+      },
+      {
+        "new": "./staging/src/k8s.io/kubelet",
+        "old": "k8s.io/kubelet"
+      },
+      {
+        "new": "./staging/src/k8s.io/legacy-cloud-providers",
+        "old": "k8s.io/legacy-cloud-providers"
+      },
+      {
+        "new": "./staging/src/k8s.io/metrics",
+        "old": "k8s.io/metrics"
+      },
+      {
+        "new": "./staging/src/k8s.io/mount-utils",
+        "old": "k8s.io/mount-utils"
+      },
+      {
+        "new": "./staging/src/k8s.io/pod-security-admission",
+        "old": "k8s.io/pod-security-admission"
+      },
+      {
+        "new": "./staging/src/k8s.io/sample-apiserver",
+        "old": "k8s.io/sample-apiserver"
+      },
+      {
+        "new": "./staging/src/k8s.io/sample-cli-plugin",
+        "old": "k8s.io/sample-cli-plugin"
+      },
+      {
+        "new": "./staging/src/k8s.io/sample-controller",
+        "old": "k8s.io/sample-controller"
+      }
+    ],
+    "repository": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+    "vendor_mode": true
+  }
+}

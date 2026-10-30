@@ -1,0 +1,10 @@
+{
+  "schema": "research-flow-rubric/1",
+  "max_steps": 8,
+  "max_actions": 16,
+  "prompts": {
+    "plan": "eval/agent7/prompts/r6-plan-v6.txt",
+    "reassess": "eval/agent7/prompts/r6-reassess-v1.txt",
+    "counterexample": "eval/agent7/prompts/r6-counterexample-v1.txt"
+  }
+}

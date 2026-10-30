@@ -16,7 +16,10 @@ type stubGoTool struct{ raw []byte }
 func (s stubGoTool) ListModules(_ context.Context, _ string, _ domain.ProductSnapshot) ([]byte, string, error) {
 	return s.raw, "go list -m", nil
 }
-func (s stubGoTool) ListPackages(_ context.Context, _ string, _ domain.ProductSnapshot) ([]byte, error) {
+func (s stubGoTool) ListPackages(ctx context.Context, dir string, build domain.ProductSnapshot) ([]byte, error) {
+	return s.ListPackagesScope(ctx, dir, build, true)
+}
+func (s stubGoTool) ListPackagesScope(_ context.Context, _ string, _ domain.ProductSnapshot, _ bool) ([]byte, error) {
 	return nil, nil
 }
 
@@ -156,8 +159,10 @@ func TestToolModuleVersionAndGraph(t *testing.T) {
 }
 
 func TestToolRunGovulncheck(t *testing.T) {
-	gv := `{"config":{"mode":"source"},"progress":{"message":"x"}}
-{"osv":{"id":"GO-TEST-0001"},"finding":{"osv":"GO-TEST-0001","trace":[{"function":"main.main"}]}}
+	gv := `{"config":{"protocol_version":"v1.0.0","scan_mode":"source"}}
+{"progress":{"message":"x"}}
+{"osv":{"id":"GO-TEST-0001"}}
+{"finding":{"osv":"GO-TEST-0001","trace":[{"function":"main.main"}]}}
 `
 	tools := Tools{
 		Source:      toolIndex(t),
@@ -173,6 +178,82 @@ func TestToolRunGovulncheck(t *testing.T) {
 	if !strings.Contains(string(res.Content), `"count":1`) {
 		t.Fatalf("expected one finding for the case vuln: %s", res.Content)
 	}
+	if !strings.Contains(string(res.Content), `"outcome":"completed_with_results"`) {
+		t.Fatalf("expected typed outcome in tool result: %s", res.Content)
+	}
+	if res.EvidenceID == "" {
+		t.Fatal("successful run must cite its evidence record")
+	}
+	var evidence *domain.Evidence
+	for i := range c.EvidenceGraph.Evidence {
+		if c.EvidenceGraph.Evidence[i].ID == res.EvidenceID {
+			evidence = &c.EvidenceGraph.Evidence[i]
+		}
+	}
+	if evidence == nil || evidence.Govulncheck == nil ||
+		evidence.Govulncheck.Outcome != domain.GovulncheckCompletedWithResults {
+		t.Fatalf("evidence=%+v, want a completed_with_results run record", evidence)
+	}
+	if evidence.BuildContext == nil {
+		t.Fatal("recorded run must carry its build context")
+	}
+}
+
+func TestToolRunGovulncheckRecordsFailureAndRefusals(t *testing.T) {
+	t.Run("process failure keeps an evidence id and failed outcome", func(t *testing.T) {
+		gv := `{"config":{"protocol_version":"v1.0.0"}}
+{"finding":{"osv":"GO-TEST-0001","trace":[{"function":"main.main"}]}}
+`
+		tools := Tools{Source: toolIndex(t), Govulncheck: stubRunner{raw: []byte(gv), err: context.Canceled}}
+		c := toolsCase()
+		c.Product.Repository = "."
+
+		res := call(t, tools, c, "run_govulncheck", `{}`)
+		if res.Error == "" {
+			t.Fatal("failed run must surface an error")
+		}
+		if res.EvidenceID == "" {
+			t.Fatal("failed run must preserve an evidence id")
+		}
+		ev := c.EvidenceGraph.EvidenceByID(res.EvidenceID)
+		if ev == nil || ev.Govulncheck == nil || ev.Govulncheck.Outcome != domain.GovulncheckFailed {
+			t.Fatalf("evidence=%+v, want failed run record", ev)
+		}
+		if len(c.EvidenceGraph.CallPaths) != 0 {
+			t.Fatalf("failed process must not publish call paths: %+v", c.EvidenceGraph.CallPaths)
+		}
+	})
+
+	t.Run("missing runner records not_run", func(t *testing.T) {
+		tools := Tools{Source: toolIndex(t)}
+		c := toolsCase()
+		res := call(t, tools, c, "run_govulncheck", `{}`)
+		if res.Error == "" || res.EvidenceID == "" {
+			t.Fatalf("missing runner result=%+v", res)
+		}
+		ev := c.EvidenceGraph.EvidenceByID(res.EvidenceID)
+		if ev == nil || ev.Govulncheck == nil || ev.Govulncheck.Outcome != domain.GovulncheckNotRun {
+			t.Fatalf("evidence=%+v, want not_run record", ev)
+		}
+	})
+
+	t.Run("exhausted budget records not_run without executing", func(t *testing.T) {
+		tools := Tools{Source: toolIndex(t), Govulncheck: stubRunner{raw: []byte(`{"config":{"protocol_version":"v1.0.0"}}`)}}
+		c := toolsCase()
+		c.Workflow.Limits.MaxToolCalls = 1
+		c.Workflow.Usage.ToolCalls = 1
+		res := call(t, tools, c, "run_govulncheck", `{}`)
+		if res.Error != "tool call budget exhausted" || res.EvidenceID == "" {
+			t.Fatalf("budget refusal result=%+v", res)
+		}
+		ev := c.EvidenceGraph.EvidenceByID(res.EvidenceID)
+		if ev == nil || ev.Govulncheck == nil || ev.Govulncheck.Outcome != domain.GovulncheckNotRun {
+			t.Fatalf("evidence=%+v, want not_run record", ev)
+		}
+		if ev.Govulncheck.Pattern != "" {
+			t.Fatalf("budget refusal must not look executed: %+v", ev.Govulncheck)
+		}
+	})
 }
 
 func TestToolExecGated(t *testing.T) {

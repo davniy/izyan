@@ -78,8 +78,9 @@ func (h GapAnalysis) Run(ctx context.Context, c *domain.AnalysisCase) (workflow.
 			// don't set a budget).
 			if max := c.Workflow.Limits.MaxToolCalls; max > 0 &&
 				c.UsageSnapshot().ToolCalls >= max {
-				c.EvidenceGraph.AddLimitation(
-					"gap analysis stopped: MaxToolCalls budget exhausted")
+				message := "gap analysis stopped: MaxToolCalls budget exhausted"
+				c.EvidenceGraph.AddLimitation(message)
+				appendClaimGap(c, cond.ID, budgetConditionGap(c, cond.ID, message))
 				return h.dispatch(c, "tool budget exhausted")
 			}
 			moved := h.plan(ctx, c, cond, planned)
@@ -90,8 +91,9 @@ func (h GapAnalysis) Run(ctx context.Context, c *domain.AnalysisCase) (workflow.
 			if !moved && h.Planner != nil && llmSteps[cond.ID] < maxLLMPlanSteps {
 				if max := c.Workflow.Limits.MaxLLMCalls; max > 0 &&
 					c.UsageSnapshot().LLMCalls >= max {
-					c.EvidenceGraph.AddLimitation(
-						"gap analysis: LLM planner skipped, MaxLLMCalls exhausted")
+					message := "gap analysis: LLM planner skipped, MaxLLMCalls exhausted"
+					c.EvidenceGraph.AddLimitation(message)
+					appendClaimGap(c, cond.ID, budgetConditionGap(c, cond.ID, message))
 				} else {
 					llmSteps[cond.ID]++
 					moved = h.Planner.Plan(ctx, cond, c)
@@ -105,8 +107,10 @@ func (h GapAnalysis) Run(ctx context.Context, c *domain.AnalysisCase) (workflow.
 		h.reevaluate(c)
 	}
 	// The deterministic loop and planner are exhausted. If no mandatory
-	// claim is FALSE yet, the LLM fallback may still resolve the remaining
-	// UNKNOWNs — claims it cannot back stay UNKNOWN.
+	// claim is FALSE yet, the LLM fallback may still collect evidence and
+	// nominate a result for the remaining UNKNOWNs. Its nomination is
+	// recorded on Claim.Proposal; the deterministic chain above re-runs after
+	// the loop and is the only writer of an authoritative TRUE.
 	fallbackRan := false
 	if h.Fallback != nil && !hasFalseClaim(c) {
 		for _, cond := range c.Exploit.MandatoryConditions {
@@ -117,16 +121,37 @@ func (h GapAnalysis) Run(ctx context.Context, c *domain.AnalysisCase) (workflow.
 			}
 			if max := c.Workflow.Limits.MaxLLMCalls; max > 0 &&
 				c.UsageSnapshot().LLMCalls >= max {
-				c.EvidenceGraph.AddLimitation(
-					"gap fallback skipped: MaxLLMCalls budget exhausted")
+				message := "gap fallback skipped: MaxLLMCalls budget exhausted"
+				c.EvidenceGraph.AddLimitation(message)
+				appendClaimGap(c, cond.ID, budgetConditionGap(c, cond.ID, message))
 				break
 			}
 			fallbackRan = true
+			// The model's answer is a nomination: record it even when the
+			// result stays UNKNOWN, and never let a cited evidence id
+			// establish the claim by itself.
 			if alt := h.Fallback.Evaluate(cond, c); alt.Result != domain.ClaimUnknown ||
-				len(alt.EvidenceIDs) > 0 {
+				len(alt.EvidenceIDs) > 0 || alt.Proposal != "" {
 				*cl = alt
 			}
 		}
+	}
+	// Model-driven tools may have added evidence the deterministic chain can
+	// now evaluate. Re-run it before declaring the condition unresolved: a
+	// model TRUE proposal becomes authoritative only through this path.
+	if fallbackRan {
+		h.reevaluate(c)
+	}
+	// Every still-unresolved mandatory condition gets a typed producer cause
+	// now, so the assessment classifier never has to infer a cause from
+	// limitation text. An evaluator-provided gap (for example Task 4's
+	// TRIGGER_PROOF_INCOMPLETE) is preserved as-is.
+	for _, cond := range c.Exploit.MandatoryConditions {
+		cl := findClaim(c.Claims, cond.ID)
+		if cl == nil || cl.Result != domain.ClaimUnknown || len(cl.AnalysisGaps) > 0 {
+			continue
+		}
+		cl.AnalysisGaps = appendGap(cl.AnalysisGaps, unresolvedConditionGap(c, cond))
 	}
 	reason := "gap analysis complete"
 	if fallbackRan {
@@ -184,10 +209,17 @@ func (h GapAnalysis) plan(ctx context.Context, c *domain.AnalysisCase, cond doma
 		}
 		var progress bool
 		for _, f := range flows {
+			// A proven library payload witness already answers argument
+			// origin: the origin stays UNKNOWN by design (the consumer, not
+			// the product, selects the payload), so re-tracing it would only
+			// churn. Only an unwitnessed UNKNOWN flow is deepened.
+			if f.LibraryInput != nil {
+				continue
+			}
 			if f.Origin != domain.OriginUnknown {
 				continue
 			}
-			key := fmt.Sprintf("%s:deepen:%s:%d:arg%d", cond.ID, f.Sink.File, f.Sink.Line, f.Arg)
+			key := fmt.Sprintf("%s:deepen:%s:%d:%d:arg%d", cond.ID, f.Sink.File, f.Sink.Line, f.Sink.Column, f.Arg)
 			if planned[key] {
 				continue
 			}
@@ -282,7 +314,11 @@ func (h GapAnalysis) actCallerGuards(ctx context.Context, c *domain.AnalysisCase
 }
 
 // actDeepTrace re-runs argument provenance with an extended caller-climb
-// budget. A resolved origin supersedes the shallow UNKNOWN flow.
+// budget. A resolved origin supersedes the shallow UNKNOWN flow; a deeper
+// trace that newly obtains a library payload witness is progress too, even
+// though its deployment origin stays UNKNOWN. The replacement discards the
+// whole old flow — a freshly traced flow without a witness never retains a
+// stale proof.
 func (h GapAnalysis) actDeepTrace(ctx context.Context, c *domain.AnalysisCase, cond domain.Condition, f domain.DataFlow) bool {
 	// Trace the argument this flow actually recorded — multi-arg sinks
 	// carry f.Arg per flow; falling back to cond.ArgIndex would re-trace
@@ -300,25 +336,34 @@ func (h GapAnalysis) actDeepTrace(ctx context.Context, c *domain.AnalysisCase, c
 		c.EvidenceGraph.AddToolLimitation(fmt.Sprintf("gap deep-trace %s:%d: %v", f.Sink.File, f.Sink.Line, err))
 		return false
 	}
-	var evIDs []domain.EvidenceID
-	for _, e := range evs {
-		evIDs = append(evIDs, c.EvidenceGraph.AddEvidence(e))
-	}
+	deeper.ConditionID = cond.ID
 	hyp := domain.Hypothesis{
 		ConditionID:      cond.ID,
 		Statement:        fmt.Sprintf("origin of arg %d at %s:%d is resolvable deeper in the caller chain", arg, f.Sink.File, f.Sink.Line),
 		ExpectedEvidence: []domain.EvidenceKind{domain.EvidenceDataFlow},
-		EvidenceIDs:      evIDs,
 		Status:           domain.HypothesisUnresolved,
 		Notes:            fmt.Sprintf("deeper trace (%d hops) still could not resolve the origin", deepTraceHops),
 	}
-	if deeper.Origin != domain.OriginUnknown && deeper.Origin != "" {
-		deeper.ConditionID = cond.ID
-		c.EvidenceGraph.ReplaceDataFlow(deeper)
+	progress := false
+	switch {
+	case deeper.Origin != domain.OriginUnknown && deeper.Origin != "":
+		progress = true
 		hyp.Status = domain.HypothesisConfirmed
 		hyp.Notes = fmt.Sprintf("deeper trace resolved origin to %s: %s", deeper.Origin, deeper.Summary)
+	case deeper.LibraryInput != nil && f.LibraryInput == nil:
+		progress = true
+		hyp.Status = domain.HypothesisConfirmed
+		hyp.Notes = fmt.Sprintf("deeper trace obtained a library payload witness (api %s.%s formal %d → sink arg %d); deployment origin stays UNKNOWN",
+			deeper.LibraryInput.API.Package, deeper.LibraryInput.API.Symbol,
+			deeper.LibraryInput.FormalIndex, deeper.LibraryInput.Arg)
+	}
+	if progress {
+		hyp.EvidenceIDs = c.EvidenceGraph.ReplaceArgumentTrace(deeper, evs)
 		c.AddHypothesis(hyp)
 		return true
+	}
+	for _, e := range evs {
+		hyp.EvidenceIDs = append(hyp.EvidenceIDs, c.EvidenceGraph.AddEvidence(e))
 	}
 	c.AddHypothesis(hyp)
 	return false
@@ -560,6 +605,12 @@ func (h GapAnalysis) reevaluate(c *domain.AnalysisCase) {
 				continue
 			}
 			next := ev.Evaluate(cond, c)
+			if next.Proposal == "" {
+				// A deterministic result does not erase the recorded model
+				// nomination: the proposal stays audit material next to the
+				// authoritative result it did not establish.
+				next.Proposal = cl.Proposal
+			}
 			if next.Result != domain.ClaimUnknown || len(next.EvidenceIDs) > 0 {
 				*cl = next
 			}

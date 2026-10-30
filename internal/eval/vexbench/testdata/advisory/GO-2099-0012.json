@@ -1,0 +1,15 @@
+{
+  "id": "GO-2099-0012",
+  "summary": "GO record with imports but no ranges",
+  "published": "2099-12-01T00:00:00Z",
+  "modified": "2099-12-01T00:00:00Z",
+  "aliases": ["CVE-2099-0012"],
+  "affected": [
+    {
+      "package": {"name": "example.com/aliasmod", "ecosystem": "Go"},
+      "ecosystem_specific": {
+        "imports": [{"path": "example.com/aliasmod", "symbols": ["Init"]}]
+      }
+    }
+  ]
+}

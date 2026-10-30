@@ -1,0 +1,2954 @@
+{
+  "schema": "research-report/1",
+  "mode": "experimental-research-v1",
+  "run": {
+    "run_id": "research-CVE-2025-47914-1791799875",
+    "started_at": "2026-10-12T10:11:15Z",
+    "finished_at": "2026-10-12T10:14:53Z",
+    "deterministic_only": false,
+    "timeouts": {
+      "overall_ms": 1800000,
+      "deterministic_ms": 60000,
+      "agent_ms": 900000
+    },
+    "harness": {
+      "path": "<VA_VEXBENCH>/agent-ctl",
+      "commit": "80cddeac3132826bfd47227ad59b2e6618a681bd",
+      "patch_sha256": "5534fae586976a9db2471f744c35e92897734b60fdbaf7300baff2c1e8ac1b86",
+      "e6_preflight_report": "<VA_REPO>/eval/agent7/results/research-s2/rancher-47914/agent/harness/e6/security-boundary-check.json",
+      "e6_preflight_sha256": "6ae2fac18c73315ba68beb6417f5b33a753ebe63c5b4dfe543617ffc8816b72d",
+      "image": "vex-bench-go-opencode-e6:latest",
+      "image_sha256": "sha256:c85bc1df0f7e89b370c5ef552cd624bba1e49c2cb07005c8946be557b7379ba1",
+      "prompt_path": "eval/agent7/prompts/r0-v1.txt",
+      "prompt_sha256": "55b01e9a505bd058cb7be568f08c0e58364b8048e5acea030a14534f7031a0ae"
+    },
+    "attempts": [
+      {
+        "id": "attempt-0001",
+        "kind": "deterministic",
+        "ordinal": 1,
+        "status": "OK",
+        "started_at": "2026-10-12T10:11:15Z",
+        "finished_at": "2026-10-12T10:12:33Z",
+        "reason_code": "initial",
+        "reason": "initial deterministic lane pass (strict evidencetools session)",
+        "retry_of": null,
+        "original_preserved": true,
+        "result_artifact": {
+          "path": "deterministic-facts.json",
+          "sha256": "dffb6b26e2a8abea72a660898f73c7588ebc7ee70127281965170881d59a0fb5",
+          "size_bytes": 11393,
+          "selector": "deterministic lane result"
+        },
+        "extraction": {
+          "status": "NOT_APPLICABLE",
+          "invalid_reason": "NONE",
+          "candidate_count": 0,
+          "candidates": [],
+          "selected_index": -1,
+          "answer_artifact": null
+        }
+      },
+      {
+        "id": "attempt-0002",
+        "kind": "agent",
+        "ordinal": 2,
+        "status": "OK",
+        "started_at": "2026-10-12T10:13:59Z",
+        "finished_at": "2026-10-12T10:14:53Z",
+        "reason_code": "initial",
+        "reason": "initial agent assessment",
+        "retry_of": null,
+        "original_preserved": true,
+        "result_artifact": {
+          "path": "agent/attempt-0002/result.json",
+          "sha256": "92d9c7600c84d3b12a3797dcdf3241e5ab5675dedcccbd91d1415fdd46758f47",
+          "size_bytes": 123928,
+          "selector": "raw harness result"
+        },
+        "extraction": {
+          "status": "VALID",
+          "invalid_reason": "NONE",
+          "candidate_count": 1,
+          "candidates": [
+            {
+              "index": 0,
+              "status": "VALID",
+              "category": "vulnerable",
+              "raw_sha256": "f371d565ddd3b9dffb252ea5dd677d221a71ab8dbac7de20ee3d577193c00391",
+              "canonical_sha256": "a265fd00100fc4ecda37c971656f13b03f3feac87b6df036892ba97fb8cec4e1",
+              "selector": "bytes 8..8574 of retained answer"
+            }
+          ],
+          "selected_index": 0,
+          "answer_artifact": {
+            "path": "agent/attempt-0002/answer.txt",
+            "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353",
+            "size_bytes": 8578,
+            "selector": "assistant text"
+          }
+        }
+      }
+    ]
+  },
+  "input": {
+    "snapshot": {
+      "path": "<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+      "commit_sha": "4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+      "external_commit_sha": "4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+      "content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "go_version": "go version go1.26.1 darwin/arm64",
+      "release_go_version": "go1.24.11",
+      "go_version_source": "toolchain",
+      "minimum_go_version": "1.24.0",
+      "goos": "darwin",
+      "goarch": "arm64",
+      "build_tags": null,
+      "vendor_mode": false,
+      "go_work_file": null
+    },
+    "advisory": {
+      "requested_id": "CVE-2025-47914",
+      "resolved_id": "GO-2025-4135",
+      "source_kind": "frozen_file",
+      "source_path": "eval/agent7/advisories/rancher-47914.json",
+      "raw_sha256": "649e68a3e36cba82a937247327161ab62b2a835a5ef6a57d84e67142d0cd0222",
+      "canonical_sha256": "606a20e1dcc830b8330f9469e0bbff196ef0819c0917bc6af536a4af8c1dc7de",
+      "modified": "2026-05-15T10:59:23.314668850Z"
+    }
+  },
+  "vulnerability": {
+    "id": "GO-2025-4135",
+    "aliases": [
+      "CVE-2025-47914",
+      "GHSA-f6x5-jh6r-wrfv"
+    ],
+    "summary": "Malformed constraint may cause denial of service in golang.org/x/crypto/ssh/agent",
+    "description": "SSH Agent servers do not validate the size of messages when processing new identity requests, which may cause the program to panic if the message is malformed due to an out of bounds read.",
+    "references": [
+      {
+        "type": "ADVISORY",
+        "url": "https://groups.google.com/g/golang-announce/c/w-oX3UxNcZA"
+      },
+      {
+        "type": "FIX",
+        "url": "https://go.dev/cl/721960"
+      },
+      {
+        "type": "REPORT",
+        "url": "https://go.dev/issue/76364"
+      }
+    ],
+    "advisory_digest_ref": "fact-obs-0003"
+  },
+  "affected_implementations": [
+    {
+      "id": "adv-01",
+      "ecosystem": "Go",
+      "module": "golang.org/x/crypto",
+      "package": "golang.org/x/crypto/ssh/agent",
+      "symbols": [
+        "ForwardToAgent",
+        "ServeAgent",
+        "parseConstraints"
+      ],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "0.45.0",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [
+        "0.45.0"
+      ],
+      "binding": "alias-resolved",
+      "source_ref": "adv:GO-2025-4135"
+    }
+  ],
+  "product_applicability": {
+    "status": "SUPPORTED",
+    "module_present": "TRUE",
+    "resolved_version": "v0.43.0",
+    "version_affected": "TRUE",
+    "package_present": "TRUE",
+    "build_relevant": "TRUE",
+    "selected_module": "golang.org/x/crypto",
+    "selected_modules": [
+      "golang.org/x/crypto"
+    ],
+    "checked_modules": [
+      "golang.org/x/crypto"
+    ],
+    "checked_packages": [
+      "golang.org/x/crypto/ssh/agent"
+    ],
+    "pending_modules": [],
+    "limitations": [],
+    "evidence_refs": [
+      "obs:OBS-0008",
+      "fact-obs-0008"
+    ],
+    "conclusion_scope": "AFFECTED_ENTRY_ONLY",
+    "advisory_scope_status": "UNKNOWN",
+    "basis": [
+      {
+        "kind": "component_present_affected",
+        "status": "ESTABLISHED",
+        "source": "deterministic",
+        "statement": "the affected component golang.org/x/crypto is present at an advisory-affected version (v0.43.0)",
+        "evidence_refs": [
+          "fact-obs-0008",
+          "obs:OBS-0008"
+        ],
+        "verified_evidence_refs": [
+          "fact-obs-0008"
+        ],
+        "limitations": []
+      }
+    ]
+  },
+  "exploitation_conditions": [
+    {
+      "id": "EC-0001",
+      "subject": "affected module presence",
+      "scope": "resolved module graph / snapshot build context",
+      "necessity": "required",
+      "statement": "the affected component (golang.org/x/crypto) is present in the resolved module graph",
+      "origin": "deterministic",
+      "state": "SUPPORTED",
+      "evidence_refs": [
+        "obs:OBS-0008",
+        "fact-obs-0008"
+      ],
+      "limitations": [],
+      "axis": "code_reachability"
+    },
+    {
+      "id": "EC-0002",
+      "subject": "affected version in use",
+      "scope": "resolved module graph / snapshot build context",
+      "necessity": "required",
+      "statement": "the deployed product uses golang.org/x/crypto at a version inside the advisory's affected ranges",
+      "origin": "deterministic",
+      "state": "SUPPORTED",
+      "evidence_refs": [
+        "obs:OBS-0008",
+        "fact-obs-0008"
+      ],
+      "limitations": [],
+      "axis": "code_reachability"
+    },
+    {
+      "id": "EC-0003",
+      "subject": "affected package reachable",
+      "scope": "resolved module graph / snapshot build context",
+      "necessity": "required",
+      "statement": "product code reaches the affected package — the vulnerable code path is compiled in",
+      "origin": "deterministic",
+      "state": "SUPPORTED",
+      "evidence_refs": [
+        "obs:OBS-0008",
+        "fact-obs-0008"
+      ],
+      "limitations": [],
+      "axis": "code_reachability"
+    },
+    {
+      "id": "EC-0004",
+      "subject": "affected package build-relevant",
+      "scope": "resolved module graph / snapshot build context",
+      "necessity": "required",
+      "statement": "the affected package compiles into at least one product deliverable under the recorded build context",
+      "origin": "deterministic",
+      "state": "SUPPORTED",
+      "evidence_refs": [
+        "obs:OBS-0008",
+        "fact-obs-0008"
+      ],
+      "limitations": [],
+      "axis": "code_reachability"
+    },
+    {
+      "id": "EC-0005",
+      "subject": "runtime/deployment posture",
+      "scope": "runtime configuration and deployment environment",
+      "necessity": "required",
+      "statement": "a runtime configuration/environment predicate must hold for exploitation (attacker reachability, feature flags, deployment exposure); static source evidence cannot decide it",
+      "origin": "deterministic",
+      "state": "UNKNOWN",
+      "evidence_refs": [
+        "obs:OBS-0035"
+      ],
+      "limitations": [
+        "follow-up: confirm deployment posture (listeners, auth, network exposure, config) against the recorded entry-point facts"
+      ],
+      "axis": "attack_surface_availability"
+    }
+  ],
+  "vulnerability_mechanism": {
+    "status": "PARTIAL",
+    "summary": "The golang.org/x/crypto/ssh/agent package does not validate the size of messages when processing identity requests containing certificates with constraints. A malformed message with an oversized constraint field causes a slice out-of-bounds read, resulting in a panic (denial of service). The security effect is a server crash in the Rancher process when serving SSH agent protocol requests during git operations with SSH credentials. The effect occurs because parseConstraints (a symbol listed in advisory adv-01) reads beyond the bounds of an internal buffer without size validation.",
+    "claims": [
+      {
+        "id": "dc-mechanism-01",
+        "statement": "advisory GO-2025-4135 states: Malformed constraint may cause denial of service in golang.org/x/crypto/ssh/agent",
+        "subject": "GO-2025-4135",
+        "scope": "frozen advisory document",
+        "state": "SUPPORTED",
+        "evidence_refs": [
+          "fact-obs-0003"
+        ],
+        "limitations": [],
+        "origin": "deterministic"
+      },
+      {
+        "id": "ac-mechanism-01",
+        "statement": "The golang.org/x/crypto/ssh/agent package does not validate the size of messages when processing identity requests containing certificates with constraints. A malformed message with an oversized constraint field causes a slice out-of-bounds read, resulting in a panic (denial of service). The security effect is a server crash in the Rancher process when serving SSH agent protocol requests during git operations with SSH credentials. The effect occurs because parseConstraints (a symbol listed in advisory adv-01) reads beyond the bounds of an internal buffer without size validation.",
+        "subject": "",
+        "scope": "agent assessment (snapshot-read scope as stated)",
+        "state": "OPEN",
+        "evidence_refs": [
+          "A-0002"
+        ],
+        "limitations": [],
+        "origin": "agent"
+      }
+    ],
+    "limitations": []
+  },
+  "root_cause": {
+    "status": "PARTIAL",
+    "summary": "The vulnerability resides in the golang.org/x/crypto/ssh/agent package, specifically within parseConstraints which is one of the affected symbols listed in advisory adv-01 (id=adv-01, module=golang.org/x/crypto, package=golang.org/x/crypto/ssh/agent, symbols=[ForwardToAgent, ServeAgent, parseConstraints]). The vulnerable package is used by Rancher through the ServeAgent function called in pkg/catalogv2/git/git.go:136: 'if err := agent.ServeAgent(*g.agent, conn); err != nil'. ServeAgent is the entry point that dispatches incoming SSH agent protocol messages to internal handlers, which in turn invoke parseConstraints when processing certificate constraint data in identity request messages. The root cause is the absence of bounds-checking in parseConstraints when parsing incoming protocol messages.",
+    "claims": [
+      {
+        "id": "ac-rootcause-02",
+        "statement": "The vulnerability resides in the golang.org/x/crypto/ssh/agent package, specifically within parseConstraints which is one of the affected symbols listed in advisory adv-01 (id=adv-01, module=golang.org/x/crypto, package=golang.org/x/crypto/ssh/agent, symbols=[ForwardToAgent, ServeAgent, parseConstraints]). The vulnerable package is used by Rancher through the ServeAgent function called in pkg/catalogv2/git/git.go:136: 'if err := agent.ServeAgent(*g.agent, conn); err != nil'. ServeAgent is the entry point that dispatches incoming SSH agent protocol messages to internal handlers, which in turn invoke parseConstraints when processing certificate constraint data in identity request messages. The root cause is the absence of bounds-checking in parseConstraints when parsing incoming protocol messages.",
+        "subject": "",
+        "scope": "agent assessment (snapshot-read scope as stated)",
+        "state": "OPEN",
+        "evidence_refs": [
+          "A-0003"
+        ],
+        "limitations": [],
+        "origin": "agent"
+      }
+    ],
+    "limitations": []
+  },
+  "attack_scenario": {
+    "status": "UNKNOWN",
+    "summary": "UNKNOWN: no attacker path is established; follow-up: trace each recorded inbound listener/dial site to the affected component or mark the predicate open",
+    "claims": [],
+    "limitations": []
+  },
+  "product_exposure": {
+    "status": "PARTIAL",
+    "summary": "The vulnerable functionality is exposed when Rancher performs git operations (clone, update) against Git-based Helm repositories configured with SSH credential authentication. When a secret of type corev1.SecretTypeSSHAuth is provided (git.go:83), the code adds the SSH private key to an in-memory agent keyring (git.go:88-96) and creates a Unix socket to serve agent requests during git commands (git.go:102-143). This is triggered from the gitCmd function (git.go:325) which calls injectAgent (git.go:337) when g.agent is set. Product scope: Rancher's catalogv2 git module for Git-based Helm repository operations. Build scope: go.mod declares golang.org/x/crypto v0.43.0 (go.mod:149), confirmed in go.sum hash at line 880. Platform: Linux (based on Unix socket usage at git.go:113-116). Deployment: Requires Rancher to have Git-based Helm repositories configured with SSH authentication secrets. Unknowns: exact deployment configuration (whether any Rancher instance actually uses SSH-authenticated git repos), network exposure of the Unix socket (local to git subprocess only), version of golang.org/x/crypto used at runtime.",
+    "claims": [
+      {
+        "id": "ac-exposure-03",
+        "statement": "The vulnerable functionality is exposed when Rancher performs git operations (clone, update) against Git-based Helm repositories configured with SSH credential authentication. When a secret of type corev1.SecretTypeSSHAuth is provided (git.go:83), the code adds the SSH private key to an in-memory agent keyring (git.go:88-96) and creates a Unix socket to serve agent requests during git commands (git.go:102-143). This is triggered from the gitCmd function (git.go:325) which calls injectAgent (git.go:337) when g.agent is set. Product scope: Rancher's catalogv2 git module for Git-based Helm repository operations. Build scope: go.mod declares golang.org/x/crypto v0.43.0 (go.mod:149), confirmed in go.sum hash at line 880. Platform: Linux (based on Unix socket usage at git.go:113-116). Deployment: Requires Rancher to have Git-based Helm repositories configured with SSH authentication secrets. Unknowns: exact deployment configuration (whether any Rancher instance actually uses SSH-authenticated git repos), network exposure of the Unix socket (local to git subprocess only), version of golang.org/x/crypto used at runtime.",
+        "subject": "",
+        "scope": "agent assessment (snapshot-read scope as stated)",
+        "state": "OPEN",
+        "evidence_refs": [
+          "A-0004"
+        ],
+        "limitations": [],
+        "origin": "agent"
+      }
+    ],
+    "limitations": []
+  },
+  "alternative_paths": {
+    "status": "PARTIAL",
+    "summary": "Alternative manifestation checked: The pkg/api/steve/machine/ssh.go file imports golang.org/x/crypto/ssh but not ssh/agent, so the ssh package client-side SSH usage (shell/dial operations) is not directly affected by this CVE. Transitive dependency check: no other go.mod in the workspace (hack/airgap, gotools, pkg/client, pkg/apis) declares a different version of golang.org/x/crypto that would override the main module's v0.43.0. The hack/airgap/go.mod has v0.25.0 but is a separate module not used by the main Rancher binary. ForwardToAgent is not directly called in this snapshot, but ServeAgent (which handles the same protocol processing) is actively used. Counterargument: the Unix socket created by injectAgent is scoped to a single git subprocess invocation and cleaned up afterward (git.go:126-127), limiting the attack surface to local code paths. However, the git process itself could be tricked by a malicious git remote or a compromised SSH key credential into connecting to an attacker-controlled agent, or an attacker with API access could trigger the code path to observe behavior. This limits but does not eliminate the attack surface.",
+    "claims": [
+      {
+        "id": "ac-altpaths-04",
+        "statement": "Alternative manifestation checked: The pkg/api/steve/machine/ssh.go file imports golang.org/x/crypto/ssh but not ssh/agent, so the ssh package client-side SSH usage (shell/dial operations) is not directly affected by this CVE. Transitive dependency check: no other go.mod in the workspace (hack/airgap, gotools, pkg/client, pkg/apis) declares a different version of golang.org/x/crypto that would override the main module's v0.43.0. The hack/airgap/go.mod has v0.25.0 but is a separate module not used by the main Rancher binary. ForwardToAgent is not directly called in this snapshot, but ServeAgent (which handles the same protocol processing) is actively used. Counterargument: the Unix socket created by injectAgent is scoped to a single git subprocess invocation and cleaned up afterward (git.go:126-127), limiting the attack surface to local code paths. However, the git process itself could be tricked by a malicious git remote or a compromised SSH key credential into connecting to an attacker-controlled agent, or an attacker with API access could trigger the code path to observe behavior. This limits but does not eliminate the attack surface.",
+        "subject": "",
+        "scope": "agent assessment (snapshot-read scope as stated)",
+        "state": "OPEN",
+        "evidence_refs": [
+          "A-0005"
+        ],
+        "limitations": [],
+        "origin": "agent"
+      }
+    ],
+    "limitations": []
+  },
+  "evidence_quality": {
+    "status": "SUPPORTED",
+    "summary": "evidence base: 8 deterministic check(s) OK, 31 non-OK; evidence is scope-bounded per each observation's scope/limitations; agent stated: Evidence is direct and concrete: the affected go module version (0.43.0) is confirmed present in the main go.mod and go.sum. The vulnerable ssh/agent API (ServeAgent, per advisory symbol list) is directly called from product code at git.go:136 within an execution path triggered by authenticated API calls. The vulnerability mechanism (parseConstraints in ssh/agent) is an internal package function called by ServeAgent during SSH agent protocol message processing. Limitations: this is static source analysis only - cannot verify runtime behavior, actual deployment configuration, or whether parseConstraints bounds-checking was specifically missing (the advisory binding is via the ServeAgent symbol). Cannot verify that an attacker can actually trigger the code path with sufficient frequency or in sufficient quantity to demonstrate impact. Cannot verify the exact version of the vendored/depended-upon crypto package at the parseConstraints source code level.",
+    "references": [
+      {
+        "ref": "adv:GO-2025-4135",
+        "kind": "advisory",
+        "path": "eval/agent7/advisories/rancher-47914.json",
+        "selector": "frozen document",
+        "sha256": "649e68a3e36cba82a937247327161ab62b2a835a5ef6a57d84e67142d0cd0222",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "eval/agent7/advisories/rancher-47914.json",
+            "sha256": "649e68a3e36cba82a937247327161ab62b2a835a5ef6a57d84e67142d0cd0222",
+            "size_bytes": 0,
+            "selector": "frozen advisory document"
+          },
+          "reproducible_source": {
+            "kind": "FILE",
+            "path": "eval/agent7/advisories/rancher-47914.json",
+            "command": null,
+            "working_dir": null,
+            "tool": null,
+            "tool_version": null,
+            "snapshot_content_hash": null,
+            "input_digest": null,
+            "env": null,
+            "selector": "canonical OSV projection",
+            "output_sha256": "606a20e1dcc830b8330f9469e0bbff196ef0819c0917bc6af536a4af8c1dc7de"
+          }
+        }
+      },
+      {
+        "ref": "agent-src:FROZEN_ADVISORY - advisory adv-01 lists ServeAgent and parseConstraints as affected symbols, fixed in 0.45.0",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353"
+      },
+      {
+        "ref": "agent-src:assessment.altpaths",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353"
+      },
+      {
+        "ref": "agent-src:assessment.exposure",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353"
+      },
+      {
+        "ref": "agent-src:assessment.mechanism",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353"
+      },
+      {
+        "ref": "agent-src:assessment.rootcause",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353"
+      },
+      {
+        "ref": "agent-src:final-answer",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353"
+      },
+      {
+        "ref": "agent-src:go.mod:149 - declares golang.org/x/crypto v0.43.0",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353"
+      },
+      {
+        "ref": "agent-src:go.sum:880 - confirms golang.org/x/crypto v0.43.0 with hash dduJYIi3A3KOfdGOHX8AVZ/jGiyPa3IbBozJ5kNuE04",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353"
+      },
+      {
+        "ref": "agent-src:pkg/catalogv2/git/git.go:102-143 - injectAgent function creating Unix socket and serving agent",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353"
+      },
+      {
+        "ref": "agent-src:pkg/catalogv2/git/git.go:136 - calls agent.ServeAgent(*g.agent, conn) to serve agent protocol requests",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353"
+      },
+      {
+        "ref": "agent-src:pkg/catalogv2/git/git.go:24 - imports golang.org/x/crypto/ssh/agent",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353"
+      },
+      {
+        "ref": "agent-src:pkg/catalogv2/git/git.go:88 - creates agent keyring via agent.NewKeyring()",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353"
+      },
+      {
+        "ref": "agent-src:residual_questions",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353"
+      },
+      {
+        "ref": "obs:OBS-0001",
+        "kind": "observation",
+        "path": "artifacts/obs-0001.json",
+        "selector": "observation",
+        "sha256": "ee257a4865447cfe27756717e393978bbfd9e1858589c0f701248c478b3bb59f",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0001.json",
+            "sha256": "ee257a4865447cfe27756717e393978bbfd9e1858589c0f701248c478b3bb59f",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0002",
+        "kind": "observation",
+        "path": "artifacts/obs-0002.json",
+        "selector": "observation",
+        "sha256": "7a44737cafe128c46664e9e8603b4ba5b7cb4e48beace63f1a9243a6b2a731fb",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0002.json",
+            "sha256": "7a44737cafe128c46664e9e8603b4ba5b7cb4e48beace63f1a9243a6b2a731fb",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0003",
+        "kind": "observation",
+        "path": "artifacts/obs-0003.json",
+        "selector": "observation",
+        "sha256": "13ab5f4b8ccead94685a035fa45596c6ae815b131a5c3cb962c79cd8aed1545d",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0003.json",
+            "sha256": "13ab5f4b8ccead94685a035fa45596c6ae815b131a5c3cb962c79cd8aed1545d",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0004",
+        "kind": "observation",
+        "path": "artifacts/obs-0004.json",
+        "selector": "observation",
+        "sha256": "841a94887c5e1ed2e5b532c17a180cad060ab9e384cfacac6c48b5c0b90d791f",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0004.json",
+            "sha256": "841a94887c5e1ed2e5b532c17a180cad060ab9e384cfacac6c48b5c0b90d791f",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0005",
+        "kind": "observation",
+        "path": "artifacts/obs-0005.json",
+        "selector": "observation",
+        "sha256": "a47446c2fd77da02160096ef75cc57c60bf7eee207eb1a379c8cf20af896e0d0",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0005.json",
+            "sha256": "a47446c2fd77da02160096ef75cc57c60bf7eee207eb1a379c8cf20af896e0d0",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0006",
+        "kind": "observation",
+        "path": "artifacts/obs-0006.json",
+        "selector": "observation",
+        "sha256": "a70e7842434f38bfef2b3cf4a793daf3d6ffe5c8d2a1f784815b13f9dd4dc9d0",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0006.json",
+            "sha256": "a70e7842434f38bfef2b3cf4a793daf3d6ffe5c8d2a1f784815b13f9dd4dc9d0",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0007",
+        "kind": "observation",
+        "path": "artifacts/obs-0007.json",
+        "selector": "observation",
+        "sha256": "71454c965f0a5cfdc0f39fa6d7054a983367c3cf62515a465352b8392e2d892a",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0007.json",
+            "sha256": "71454c965f0a5cfdc0f39fa6d7054a983367c3cf62515a465352b8392e2d892a",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0008",
+        "kind": "observation",
+        "path": "artifacts/obs-0008.json",
+        "selector": "observation",
+        "sha256": "c9855630715b54381dde58fb378438cac5d28ee31e57c1be69796a3e05122e31",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0008.json",
+            "sha256": "c9855630715b54381dde58fb378438cac5d28ee31e57c1be69796a3e05122e31",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0009",
+        "kind": "observation",
+        "path": "artifacts/obs-0009.json",
+        "selector": "observation",
+        "sha256": "74a7f9f6f53ccf1e2bab8c47f89b5c378b4466b5b679480dc5e82e895b4c7aa0",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0009.json",
+            "sha256": "74a7f9f6f53ccf1e2bab8c47f89b5c378b4466b5b679480dc5e82e895b4c7aa0",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0010",
+        "kind": "observation",
+        "path": "artifacts/obs-0010.json",
+        "selector": "observation",
+        "sha256": "8581f25f302886bb4a3587101c31bfca615202b0ace323158d952fc979dcbc66",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0010.json",
+            "sha256": "8581f25f302886bb4a3587101c31bfca615202b0ace323158d952fc979dcbc66",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0011",
+        "kind": "observation",
+        "path": "artifacts/obs-0011.json",
+        "selector": "observation",
+        "sha256": "57268ba7094c46e2f87327ec06d808e1cbd49bf79e3b6930ec3bd5ab9a95a013",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0011.json",
+            "sha256": "57268ba7094c46e2f87327ec06d808e1cbd49bf79e3b6930ec3bd5ab9a95a013",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0012",
+        "kind": "observation",
+        "path": "artifacts/obs-0012.json",
+        "selector": "observation",
+        "sha256": "3c6fced46201dfcb91cd8bbb8d3d2c87c4e76c5ead883bb429c74ebcc0351533",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0012.json",
+            "sha256": "3c6fced46201dfcb91cd8bbb8d3d2c87c4e76c5ead883bb429c74ebcc0351533",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0013",
+        "kind": "observation",
+        "path": "artifacts/obs-0013.json",
+        "selector": "observation",
+        "sha256": "ed08b1cd87fef1cdbe127ddbc006d2ac9cc00d093b3866fd6802d7fc4c1dcbf9",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0013.json",
+            "sha256": "ed08b1cd87fef1cdbe127ddbc006d2ac9cc00d093b3866fd6802d7fc4c1dcbf9",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0014",
+        "kind": "observation",
+        "path": "artifacts/obs-0014.json",
+        "selector": "observation",
+        "sha256": "adb0947b2482a17a812748258d0b03b57a07f62d2f9af887a4620b726018a28d",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0014.json",
+            "sha256": "adb0947b2482a17a812748258d0b03b57a07f62d2f9af887a4620b726018a28d",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0015",
+        "kind": "observation",
+        "path": "artifacts/obs-0015.json",
+        "selector": "observation",
+        "sha256": "7e9861a9e285b62de65e4b6bdc203648536deaf5e90c81fd49d6bcfe615e6816",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0015.json",
+            "sha256": "7e9861a9e285b62de65e4b6bdc203648536deaf5e90c81fd49d6bcfe615e6816",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0016",
+        "kind": "observation",
+        "path": "artifacts/obs-0016.json",
+        "selector": "observation",
+        "sha256": "86456f458741bd5c6d5ebca83ce2aff2b481f3d02c45f2048b764edc8823c598",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0016.json",
+            "sha256": "86456f458741bd5c6d5ebca83ce2aff2b481f3d02c45f2048b764edc8823c598",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0017",
+        "kind": "observation",
+        "path": "artifacts/obs-0017.json",
+        "selector": "observation",
+        "sha256": "e3c7aaf74cf97215917839450617a746772a3a5bd480841c009d207fce3ccfdf",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0017.json",
+            "sha256": "e3c7aaf74cf97215917839450617a746772a3a5bd480841c009d207fce3ccfdf",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0018",
+        "kind": "observation",
+        "path": "artifacts/obs-0018.json",
+        "selector": "observation",
+        "sha256": "e29a2fb3e57ad0e4a8a105e29618acced8953628c283927ed00c25362689c56a",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0018.json",
+            "sha256": "e29a2fb3e57ad0e4a8a105e29618acced8953628c283927ed00c25362689c56a",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0019",
+        "kind": "observation",
+        "path": "artifacts/obs-0019.json",
+        "selector": "observation",
+        "sha256": "d9562913f4fec3fcb2da63ec7272d9518bf516c21839fc3dd7243f68941ee8cd",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0019.json",
+            "sha256": "d9562913f4fec3fcb2da63ec7272d9518bf516c21839fc3dd7243f68941ee8cd",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0020",
+        "kind": "observation",
+        "path": "artifacts/obs-0020.json",
+        "selector": "observation",
+        "sha256": "40717728f02af27bc0d02e04a7ff9418af1c0830464906e8d380a5ec3f074c21",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0020.json",
+            "sha256": "40717728f02af27bc0d02e04a7ff9418af1c0830464906e8d380a5ec3f074c21",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0021",
+        "kind": "observation",
+        "path": "artifacts/obs-0021.json",
+        "selector": "observation",
+        "sha256": "1544f508ca677982ee069af88cd16254fad59ec7043c4f0fabd04ca9dbf36a8b",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0021.json",
+            "sha256": "1544f508ca677982ee069af88cd16254fad59ec7043c4f0fabd04ca9dbf36a8b",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0022",
+        "kind": "observation",
+        "path": "artifacts/obs-0022.json",
+        "selector": "observation",
+        "sha256": "4d3b1429453ede22ef2668580f435e7ff564f43109900841289ae77470ebdab5",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0022.json",
+            "sha256": "4d3b1429453ede22ef2668580f435e7ff564f43109900841289ae77470ebdab5",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0023",
+        "kind": "observation",
+        "path": "artifacts/obs-0023.json",
+        "selector": "observation",
+        "sha256": "354bbfbe4f091b5badb22cbbba33c6c5cdd9296dd3bfba73decabb4f2d13a16a",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0023.json",
+            "sha256": "354bbfbe4f091b5badb22cbbba33c6c5cdd9296dd3bfba73decabb4f2d13a16a",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0024",
+        "kind": "observation",
+        "path": "artifacts/obs-0024.json",
+        "selector": "observation",
+        "sha256": "aae26e5ed2c551c3285c1c4f9ca6e496f2726d2b3499dab7a2995949183f16f7",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0024.json",
+            "sha256": "aae26e5ed2c551c3285c1c4f9ca6e496f2726d2b3499dab7a2995949183f16f7",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0025",
+        "kind": "observation",
+        "path": "artifacts/obs-0025.json",
+        "selector": "observation",
+        "sha256": "bd62ccca4af8b25c775709e6cbb26c903f2ef4c8c227b318896ba6f14a4a7200",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0025.json",
+            "sha256": "bd62ccca4af8b25c775709e6cbb26c903f2ef4c8c227b318896ba6f14a4a7200",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0026",
+        "kind": "observation",
+        "path": "artifacts/obs-0026.json",
+        "selector": "observation",
+        "sha256": "037e4d31336be38eda98e51261e2267af08f63120a00b511a5d0930b1459c6ed",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0026.json",
+            "sha256": "037e4d31336be38eda98e51261e2267af08f63120a00b511a5d0930b1459c6ed",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0027",
+        "kind": "observation",
+        "path": "artifacts/obs-0027.json",
+        "selector": "observation",
+        "sha256": "0b304b474ebf7a2dc2181a1888e408d8232cfa4928b83bec463e008a83ab136f",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0027.json",
+            "sha256": "0b304b474ebf7a2dc2181a1888e408d8232cfa4928b83bec463e008a83ab136f",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0028",
+        "kind": "observation",
+        "path": "artifacts/obs-0028.json",
+        "selector": "observation",
+        "sha256": "8de425e3ae7c80141bddda233920b9e3d900cbef69d4562e389e1c5a82b2c9de",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0028.json",
+            "sha256": "8de425e3ae7c80141bddda233920b9e3d900cbef69d4562e389e1c5a82b2c9de",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0029",
+        "kind": "observation",
+        "path": "artifacts/obs-0029.json",
+        "selector": "observation",
+        "sha256": "76781f5f8af081f8670f662dec36f6941fd5b233a329500ab20e4484d0b2d228",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0029.json",
+            "sha256": "76781f5f8af081f8670f662dec36f6941fd5b233a329500ab20e4484d0b2d228",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0030",
+        "kind": "observation",
+        "path": "artifacts/obs-0030.json",
+        "selector": "observation",
+        "sha256": "1b052f04ade99af7632f3b75a816b63e846255c4633e536fb3c8bbd3ae2015a5",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0030.json",
+            "sha256": "1b052f04ade99af7632f3b75a816b63e846255c4633e536fb3c8bbd3ae2015a5",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0031",
+        "kind": "observation",
+        "path": "artifacts/obs-0031.json",
+        "selector": "observation",
+        "sha256": "606584878da1b10b3e7a68f77ea667594235e5852a4c70b325a6c9d828269ff0",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0031.json",
+            "sha256": "606584878da1b10b3e7a68f77ea667594235e5852a4c70b325a6c9d828269ff0",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0032",
+        "kind": "observation",
+        "path": "artifacts/obs-0032.json",
+        "selector": "observation",
+        "sha256": "9d25c9c1acd9592830388da1b74aa2384b2e71ef1011065bee2a6dfbea1db5a7",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0032.json",
+            "sha256": "9d25c9c1acd9592830388da1b74aa2384b2e71ef1011065bee2a6dfbea1db5a7",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0033",
+        "kind": "observation",
+        "path": "artifacts/obs-0033.json",
+        "selector": "observation",
+        "sha256": "8c1a8912dbff301cde439dac5ff6c9709026616bc36aaf41caaaf13807f3b5db",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0033.json",
+            "sha256": "8c1a8912dbff301cde439dac5ff6c9709026616bc36aaf41caaaf13807f3b5db",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0034",
+        "kind": "observation",
+        "path": "artifacts/obs-0034.json",
+        "selector": "observation",
+        "sha256": "c047fba3b94e2bb0cb131a47be90404e72ee1d2454593ab11839cbc8cc3526a2",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0034.json",
+            "sha256": "c047fba3b94e2bb0cb131a47be90404e72ee1d2454593ab11839cbc8cc3526a2",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0035",
+        "kind": "observation",
+        "path": "artifacts/obs-0035.json",
+        "selector": "observation",
+        "sha256": "e6cc65be0942d743217f2a52ed0e4cdc25b10f740c20583ce066112d29ab4152",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0035.json",
+            "sha256": "e6cc65be0942d743217f2a52ed0e4cdc25b10f740c20583ce066112d29ab4152",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0036",
+        "kind": "observation",
+        "path": "artifacts/obs-0036.json",
+        "selector": "observation",
+        "sha256": "92f457a078690e70037b71a4e437486a06b22626967e818cd48ad98ba2ab9295",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0036.json",
+            "sha256": "92f457a078690e70037b71a4e437486a06b22626967e818cd48ad98ba2ab9295",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0037",
+        "kind": "observation",
+        "path": "artifacts/obs-0037.json",
+        "selector": "observation",
+        "sha256": "c6f864451932ef5fd6a109e0c65181cde8291c484f1460d336a561c14d8274e9",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0037.json",
+            "sha256": "c6f864451932ef5fd6a109e0c65181cde8291c484f1460d336a561c14d8274e9",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0038",
+        "kind": "observation",
+        "path": "artifacts/obs-0038.json",
+        "selector": "observation",
+        "sha256": "27d7a233b60e7c10df4f9b4bc084fd1eb1ceb678c3021ba22ac729337e532c60",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0038.json",
+            "sha256": "27d7a233b60e7c10df4f9b4bc084fd1eb1ceb678c3021ba22ac729337e532c60",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0039",
+        "kind": "observation",
+        "path": "artifacts/obs-0039.json",
+        "selector": "observation",
+        "sha256": "9843fa41555c0e7179c2f07c0f69d8b869782f13c6458e31a567fc7e2397d1de",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0039.json",
+            "sha256": "9843fa41555c0e7179c2f07c0f69d8b869782f13c6458e31a567fc7e2397d1de",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      }
+    ],
+    "coverage": [
+      "repository-preflight: VerifyContained + CheckPathReplacements + ContentHash over the snapshot tree",
+      "repository-snapshot: repository.Service.Snapshot (git/go probes + static release-evidence scan, no repo code executed)",
+      "advisory-load: FileSource(eval/agent7/advisories/rancher-47914.json) with alias enrichment disabled; no network",
+      "get_product_snapshot: this snapshot's build context and module manifest facts",
+      "get_vulnerability: OSV-compatible advisory record for CVE-2025-47914",
+      "get_dependency_graph: module list of <VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35 (go list -m -json all)",
+      "get_module_version: resolved module list of <VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35 (go list -m -json all)",
+      "affected-resolve: affected.GoResolver.Resolve over the snapshot module graph and import closure (go list -m, go list -deps under strict toolchain env)"
+    ],
+    "conflicts": [],
+    "limitations": [
+      "module_usage TIMEOUT: tool exceeded its 1m0s wall-clock timeout",
+      " ERROR: context deadline exceeded",
+      "find_symbol ERROR: context deadline exceeded",
+      "find_callers ERROR: context deadline exceeded",
+      "find_may_callers ERROR: context deadline exceeded",
+      "find_dep_callers ERROR: context deadline exceeded",
+      "scan_dynamic ERROR: context deadline exceeded",
+      "interface_dispatch_sites ERROR: context deadline exceeded",
+      "gated_refs ERROR: context deadline exceeded",
+      "dep_invocation_state ERROR: context deadline exceeded",
+      "find_symbol ERROR: context deadline exceeded",
+      "find_callers ERROR: context deadline exceeded",
+      "find_may_callers ERROR: context deadline exceeded",
+      "find_dep_callers ERROR: context deadline exceeded",
+      "scan_dynamic ERROR: context deadline exceeded",
+      "interface_dispatch_sites ERROR: context deadline exceeded",
+      "gated_refs ERROR: context deadline exceeded",
+      "dep_invocation_state ERROR: context deadline exceeded",
+      "find_symbol ERROR: context deadline exceeded",
+      "find_callers ERROR: context deadline exceeded",
+      "find_may_callers ERROR: context deadline exceeded",
+      "find_dep_callers ERROR: context deadline exceeded",
+      "scan_dynamic ERROR: context deadline exceeded",
+      "interface_dispatch_sites ERROR: context deadline exceeded",
+      "gated_refs ERROR: context deadline exceeded",
+      "dep_invocation_state ERROR: context deadline exceeded",
+      "find_entrypoints ERROR: context deadline exceeded",
+      " ERROR: context deadline exceeded",
+      " ERROR: context deadline exceeded",
+      " ERROR: context deadline exceeded",
+      "run_govulncheck UNSUPPORTED: strict profile requires --govulndb to pin the vulnerability database"
+    ]
+  },
+  "residual_questions": [
+    {
+      "id": "Q-0001",
+      "question": "module_usage check did not produce a result (TIMEOUT)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is TIMEOUT, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0009"
+      ]
+    },
+    {
+      "id": "Q-0002",
+      "question": " check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0010"
+      ]
+    },
+    {
+      "id": "Q-0003",
+      "question": "find_symbol check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0011"
+      ]
+    },
+    {
+      "id": "Q-0004",
+      "question": "find_callers check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0012"
+      ]
+    },
+    {
+      "id": "Q-0005",
+      "question": "find_may_callers check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0013"
+      ]
+    },
+    {
+      "id": "Q-0006",
+      "question": "find_dep_callers check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0014"
+      ]
+    },
+    {
+      "id": "Q-0007",
+      "question": "scan_dynamic check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0015"
+      ]
+    },
+    {
+      "id": "Q-0008",
+      "question": "interface_dispatch_sites check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0016"
+      ]
+    },
+    {
+      "id": "Q-0009",
+      "question": "gated_refs check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0017"
+      ]
+    },
+    {
+      "id": "Q-0010",
+      "question": "dep_invocation_state check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0018"
+      ]
+    },
+    {
+      "id": "Q-0011",
+      "question": "find_symbol check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0019"
+      ]
+    },
+    {
+      "id": "Q-0012",
+      "question": "find_callers check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0020"
+      ]
+    },
+    {
+      "id": "Q-0013",
+      "question": "find_may_callers check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0021"
+      ]
+    },
+    {
+      "id": "Q-0014",
+      "question": "find_dep_callers check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0022"
+      ]
+    },
+    {
+      "id": "Q-0015",
+      "question": "scan_dynamic check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0023"
+      ]
+    },
+    {
+      "id": "Q-0016",
+      "question": "interface_dispatch_sites check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0024"
+      ]
+    },
+    {
+      "id": "Q-0017",
+      "question": "gated_refs check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0025"
+      ]
+    },
+    {
+      "id": "Q-0018",
+      "question": "dep_invocation_state check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0026"
+      ]
+    },
+    {
+      "id": "Q-0019",
+      "question": "find_symbol check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0027"
+      ]
+    },
+    {
+      "id": "Q-0020",
+      "question": "find_callers check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0028"
+      ]
+    },
+    {
+      "id": "Q-0021",
+      "question": "find_may_callers check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0029"
+      ]
+    },
+    {
+      "id": "Q-0022",
+      "question": "find_dep_callers check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0030"
+      ]
+    },
+    {
+      "id": "Q-0023",
+      "question": "scan_dynamic check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0031"
+      ]
+    },
+    {
+      "id": "Q-0024",
+      "question": "interface_dispatch_sites check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0032"
+      ]
+    },
+    {
+      "id": "Q-0025",
+      "question": "gated_refs check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0033"
+      ]
+    },
+    {
+      "id": "Q-0026",
+      "question": "dep_invocation_state check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0034"
+      ]
+    },
+    {
+      "id": "Q-0027",
+      "question": "find_entrypoints check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0035"
+      ]
+    },
+    {
+      "id": "Q-0028",
+      "question": " check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0036"
+      ]
+    },
+    {
+      "id": "Q-0029",
+      "question": " check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0037"
+      ]
+    },
+    {
+      "id": "Q-0030",
+      "question": " check did not produce a result (ERROR)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0038"
+      ]
+    },
+    {
+      "id": "Q-0031",
+      "question": "run_govulncheck check did not produce a result (UNSUPPORTED)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is UNSUPPORTED, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0039"
+      ]
+    },
+    {
+      "id": "Q-0032",
+      "question": "Is golang.org/x/crypto v0.43.0 the actual version used at runtime, or is there a vendor/replace directive that overrides it? (Check: go.mod line 7-60 for any replace of golang.org/x/crypto)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0033",
+      "question": "Are any Git-based Helm repositories in deployments actually configured with SSH credential authentication (SecretTypeSSHAuth) that would trigger the ServeAgent code path? (Check: verify Rancher deployment configuration)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0034",
+      "question": "Can the attack be triggered from outside the Rancher process, or is the Unix socket access limited to the child git process only? (Check: Unix socket permissions and process isolation in injectAgent)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0035",
+      "question": "Does any version constraint in the dependency resolution chain pull in a different version of golang.org/x/crypto/ssh/agent than v0.43.0? (Check: go mod graph or dep resolution)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0036",
+      "question": "Is there any Kubernetes RBAC or network policy that prevents an authenticated user from triggering the git Clone/Update operations that invoke the vulnerable code path? (Check: RBAC configuration)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    }
+  ],
+  "triage_recommendation": {
+    "action": "needs review",
+    "reason": "the research contract forbids authoritative dispositions; a human must adjudicate the recorded claims and unknowns",
+    "bounds": "all findings are scoped to the snapshot tree and the stated build context; no runtime, delivery or deployment claim is made",
+    "evidence_refs": [
+      "adv:GO-2025-4135"
+    ]
+  },
+  "verified_facts": [
+    {
+      "id": "fact-obs-0001",
+      "statement": "snapshot <VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35 contained, replaces confined, content hash f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "claim": "TRUE",
+      "tool": "repository-preflight",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "repository-preflight {\"snapshot\":\"<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35\"}",
+      "scope": "VerifyContained + CheckPathReplacements + ContentHash over the snapshot tree",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "external_commit_sha": null,
+      "input_digest": "5490beaee16716dc168b1182e927945b6cb692fb641df1947a138c6c95e4a5c1",
+      "data_digest": "db5b0c3a2ee0b00270c9d42f33c74a0e38f58ba1657643f026306ae79f2f6a0e",
+      "artifact": {
+        "path": "artifacts/obs-0001.json",
+        "sha256": "ee257a4865447cfe27756717e393978bbfd9e1858589c0f701248c478b3bb59f",
+        "size_bytes": 1010,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0001",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:12:33Z"
+      },
+      "limitations": [],
+      "materiality": {
+        "level": "SUPPORTING",
+        "raw_bytes": {
+          "path": "artifacts/obs-0001.json",
+          "sha256": "ee257a4865447cfe27756717e393978bbfd9e1858589c0f701248c478b3bb59f",
+          "size_bytes": 1010,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "repository-preflight {\"snapshot\":\"<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35\"}",
+          "working_dir": "<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+          "tool": "repository-preflight",
+          "tool_version": "izyan/research-lane go1.26.1",
+          "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+          "input_digest": "5490beaee16716dc168b1182e927945b6cb692fb641df1947a138c6c95e4a5c1",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "db5b0c3a2ee0b00270c9d42f33c74a0e38f58ba1657643f026306ae79f2f6a0e"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0002",
+      "statement": "snapshot identity 4dc4f534eed10a4b45b7475ebebaf99ab0056b35: go directive 1.24.0, release toolchain \"go1.24.11\", darwin/arm64",
+      "claim": "TRUE",
+      "tool": "repository-snapshot",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "repository-snapshot {\"GOOS\":\"\",\"GOARCH\":\"\",\"BuildTags\":null,\"BinaryPath\":\"\",\"ReleaseGoVersion\":\"\",\"TrustedPeer\":false,\"DeployManifests\":null,\"DeployArchive\":\"\",\"PerimeterOverride\":\"\",\"ExternalCommitSHA\":\"4dc4f534eed10a4b45b7475ebebaf99ab0056b35\",\"GoBin\":\"go\",\"Env\":null}",
+      "scope": "repository.Service.Snapshot (git/go probes + static release-evidence scan, no repo code executed)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "external_commit_sha": "4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+      "input_digest": "b95c38f4ff9e09ab307fd394f79a0537bbf4b00791c46e1202bc80e579281987",
+      "data_digest": "45cbbfa29ae2587e6383f615cc64e74e0b0244eca43378a0e67ac8fb2a81d4d2",
+      "artifact": {
+        "path": "artifacts/obs-0002.json",
+        "sha256": "7a44737cafe128c46664e9e8603b4ba5b7cb4e48beace63f1a9243a6b2a731fb",
+        "size_bytes": 1472,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0002",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:12:33Z"
+      },
+      "limitations": [],
+      "materiality": {
+        "level": "SUPPORTING",
+        "raw_bytes": {
+          "path": "artifacts/obs-0002.json",
+          "sha256": "7a44737cafe128c46664e9e8603b4ba5b7cb4e48beace63f1a9243a6b2a731fb",
+          "size_bytes": 1472,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "repository-snapshot {\"GOOS\":\"\",\"GOARCH\":\"\",\"BuildTags\":null,\"BinaryPath\":\"\",\"ReleaseGoVersion\":\"\",\"TrustedPeer\":false,\"DeployManifests\":null,\"DeployArchive\":\"\",\"PerimeterOverride\":\"\",\"ExternalCommitSHA\":\"4dc4f534eed10a4b45b7475ebebaf99ab0056b35\",\"GoBin\":\"go\",\"Env\":null}",
+          "working_dir": "<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+          "tool": "repository-snapshot",
+          "tool_version": "izyan/research-lane go1.26.1",
+          "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+          "input_digest": "b95c38f4ff9e09ab307fd394f79a0537bbf4b00791c46e1202bc80e579281987",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "45cbbfa29ae2587e6383f615cc64e74e0b0244eca43378a0e67ac8fb2a81d4d2"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0003",
+      "statement": "frozen advisory CVE-2025-47914 resolved to GO-2025-4135 (1 affected entries, source frozen_file)",
+      "claim": "TRUE",
+      "tool": "advisory-load",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "advisory-load {\"cve\":\"CVE-2025-47914\",\"path\":\"eval/agent7/advisories/rancher-47914.json\",\"source\":\"frozen_file\"}",
+      "scope": "FileSource(eval/agent7/advisories/rancher-47914.json) with alias enrichment disabled; no network",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "external_commit_sha": null,
+      "input_digest": "c715ad9ae34009d861dc35f54bf870aabb7b15747b50773c6267d8ff5087220e",
+      "data_digest": "928121d54619c05875e86376701f9ab4392c5ebd186e4de531a0c8d30978f92c",
+      "artifact": {
+        "path": "artifacts/obs-0003.json",
+        "sha256": "13ab5f4b8ccead94685a035fa45596c6ae815b131a5c3cb962c79cd8aed1545d",
+        "size_bytes": 806,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0003",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:12:33Z"
+      },
+      "limitations": [],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0003.json",
+          "sha256": "13ab5f4b8ccead94685a035fa45596c6ae815b131a5c3cb962c79cd8aed1545d",
+          "size_bytes": 806,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "advisory-load {\"cve\":\"CVE-2025-47914\",\"path\":\"eval/agent7/advisories/rancher-47914.json\",\"source\":\"frozen_file\"}",
+          "working_dir": "<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+          "tool": "advisory-load",
+          "tool_version": "izyan/research-lane go1.26.1",
+          "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+          "input_digest": "c715ad9ae34009d861dc35f54bf870aabb7b15747b50773c6267d8ff5087220e",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "928121d54619c05875e86376701f9ab4392c5ebd186e4de531a0c8d30978f92c"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0004",
+      "statement": "snapshot 4dc4f534eed10a4b45b7475ebebaf99ab0056b35: content hash f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932, go directive 1.24.0, 50 replace directives",
+      "claim": "TRUE",
+      "tool": "get_product_snapshot",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_product_snapshot {}",
+      "scope": "this snapshot's build context and module manifest facts",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "external_commit_sha": "4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "818d6a746b3e2140f8370133c4ae70d53a4f86f4c73638ca9377f3153e4acd4c",
+      "artifact": {
+        "path": "artifacts/obs-0004.json",
+        "sha256": "841a94887c5e1ed2e5b532c17a180cad060ab9e384cfacac6c48b5c0b90d791f",
+        "size_bytes": 10644,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0004",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:12:33Z"
+      },
+      "limitations": [],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0004.json",
+          "sha256": "841a94887c5e1ed2e5b532c17a180cad060ab9e384cfacac6c48b5c0b90d791f",
+          "size_bytes": 10644,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "get_product_snapshot {}",
+          "working_dir": "<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+          "tool": "get_product_snapshot",
+          "tool_version": "izyan-evidence-tools/0.1.0",
+          "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+          "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "818d6a746b3e2140f8370133c4ae70d53a4f86f4c73638ca9377f3153e4acd4c"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0005",
+      "statement": "normalized advisory record for CVE-2025-47914 (resolved id GO-2025-4135)",
+      "claim": "TRUE",
+      "tool": "get_vulnerability",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_vulnerability {}",
+      "scope": "OSV-compatible advisory record for CVE-2025-47914",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "external_commit_sha": "4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "2cd2f751843bc4b33795a7014a4eb80fe5f4e422e047c103a7a4e897db1c1a9d",
+      "artifact": {
+        "path": "artifacts/obs-0005.json",
+        "sha256": "a47446c2fd77da02160096ef75cc57c60bf7eee207eb1a379c8cf20af896e0d0",
+        "size_bytes": 7161,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0005",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:12:33Z"
+      },
+      "limitations": [
+        "severity provenance not declared by the advisory source"
+      ],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0005.json",
+          "sha256": "a47446c2fd77da02160096ef75cc57c60bf7eee207eb1a379c8cf20af896e0d0",
+          "size_bytes": 7161,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "get_vulnerability {}",
+          "working_dir": "<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+          "tool": "get_vulnerability",
+          "tool_version": "izyan-evidence-tools/0.1.0",
+          "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+          "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "2cd2f751843bc4b33795a7014a4eb80fe5f4e422e047c103a7a4e897db1c1a9d"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0006",
+      "statement": "dependency graph: 670 module(s) resolved via go list -m -json all",
+      "claim": "TRUE",
+      "tool": "get_dependency_graph",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_dependency_graph {}",
+      "scope": "module list of <VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35 (go list -m -json all)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "external_commit_sha": "4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "bd5c28b3dd71599719a1ea6c065d22c3c60195be2ee4e5fcc4a6479068365330",
+      "artifact": {
+        "path": "artifacts/obs-0006.json",
+        "sha256": "a70e7842434f38bfef2b3cf4a793daf3d6ffe5c8d2a1f784815b13f9dd4dc9d0",
+        "size_bytes": 160870,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0006",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:12:33Z"
+      },
+      "limitations": [],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0006.json",
+          "sha256": "a70e7842434f38bfef2b3cf4a793daf3d6ffe5c8d2a1f784815b13f9dd4dc9d0",
+          "size_bytes": 160870,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "get_dependency_graph {}",
+          "working_dir": "<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+          "tool": "get_dependency_graph",
+          "tool_version": "izyan-evidence-tools/0.1.0",
+          "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+          "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "bd5c28b3dd71599719a1ea6c065d22c3c60195be2ee4e5fcc4a6479068365330"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0007",
+      "statement": "module golang.org/x/crypto resolved to version v0.43.0",
+      "claim": "TRUE",
+      "tool": "get_module_version",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_module_version {\"module\":\"golang.org/x/crypto\"}",
+      "scope": "resolved module list of <VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35 (go list -m -json all)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "external_commit_sha": null,
+      "input_digest": "da0fe30c67d727ac006dd0aff66217bd45756bf600385c77061f170265bcc83b",
+      "data_digest": "bce53bd809c579cbd7f8350110289db44d8bbb69eb1134255233f63772e559e0",
+      "artifact": {
+        "path": "artifacts/obs-0007.json",
+        "sha256": "71454c965f0a5cfdc0f39fa6d7054a983367c3cf62515a465352b8392e2d892a",
+        "size_bytes": 4192,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0007",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:12:33Z"
+      },
+      "limitations": [],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0007.json",
+          "sha256": "71454c965f0a5cfdc0f39fa6d7054a983367c3cf62515a465352b8392e2d892a",
+          "size_bytes": 4192,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "get_module_version {\"module\":\"golang.org/x/crypto\"}",
+          "working_dir": "<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+          "tool": "get_module_version",
+          "tool_version": "izyan-evidence-tools/0.1.0",
+          "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+          "input_digest": "da0fe30c67d727ac006dd0aff66217bd45756bf600385c77061f170265bcc83b",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "bce53bd809c579cbd7f8350110289db44d8bbb69eb1134255233f63772e559e0"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0008",
+      "statement": "applicability chain for GO-2025-4135: module_present=TRUE version_affected=TRUE package_present=TRUE build_relevant=TRUE (selected [golang.org/x/crypto])",
+      "claim": "TRUE",
+      "tool": "affected-resolve",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "affected-resolve {\"vuln\":\"GO-2025-4135\"}",
+      "scope": "affected.GoResolver.Resolve over the snapshot module graph and import closure (go list -m, go list -deps under strict toolchain env)",
+      "status": "OK",
+      "coverage": "PARTIAL",
+      "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "external_commit_sha": "4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+      "input_digest": "f2b63576d010fc3fc3638c166adbd4d2726be5dc76c33a1a0d0ea7a8e7b38cca",
+      "data_digest": "eacbed2c4594040aa6c851e2eebf85a9cf41904be7232dcb5199756efc3c696b",
+      "artifact": {
+        "path": "artifacts/obs-0008.json",
+        "sha256": "c9855630715b54381dde58fb378438cac5d28ee31e57c1be69796a3e05122e31",
+        "size_bytes": 310839,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0008",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:12:33Z"
+      },
+      "limitations": [
+        "observation payload truncated at 262144 bytes (full payload 80988031 bytes, sha256 b55a02afb4cb4def16aef0b59fa8f47df24858d6c01378b33aabc292091f2264); stored bytes are a prefix of the tool result, not the full result"
+      ],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0008.json",
+          "sha256": "c9855630715b54381dde58fb378438cac5d28ee31e57c1be69796a3e05122e31",
+          "size_bytes": 310839,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "affected-resolve {\"vuln\":\"GO-2025-4135\"}",
+          "working_dir": "<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+          "tool": "affected-resolve",
+          "tool_version": "izyan/research-lane go1.26.1",
+          "snapshot_content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+          "input_digest": "f2b63576d010fc3fc3638c166adbd4d2726be5dc76c33a1a0d0ea7a8e7b38cca",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "eacbed2c4594040aa6c851e2eebf85a9cf41904be7232dcb5199756efc3c696b"
+        }
+      }
+    }
+  ],
+  "agent_assertions": [
+    {
+      "id": "A-0001",
+      "statement": "category=vulnerable: CVE-2025-47914 (GO-2025-4135) affects golang.org/x/crypto/ssh/agent, specifically the parseConstraints function which lacks message-size validation when processing SSH agent identity requests, potentially causing a panic due to out-of-bounds read. The snapshot declares golang.org/x/crypto v0.43.0 in go.mod (line 149), which falls in the affected range (introduced, fixed in 0.45.0, per advisory adv-01). The ssh/agent package is imported in pkg/catalogv2/git/git.go:24 and ServeAgent (listed in advisory symbols) is actively called at git.go:136 within the injectAgent function. This function creates a Unix domain socket to serve the SSH agent protocol for git SSH authentication operations. The attack surface is reachable: a Rancher user with API access to trigger git operations (Clone, Update)…",
+      "subject": "GO-2025-4135",
+      "scope": "final classification",
+      "state": "OPEN",
+      "basis": "MODEL_HYPOTHESIS",
+      "evidence_refs": [
+        "A-0001"
+      ],
+      "limitations": [],
+      "original_text": "category=vulnerable: CVE-2025-47914 (GO-2025-4135) affects golang.org/x/crypto/ssh/agent, specifically the parseConstraints function which lacks message-size validation when processing SSH agent identity requests, potentially causing a panic due to out-of-bounds read. The snapshot declares golang.org/x/crypto v0.43.0 in go.mod (line 149), which falls in the affected range (introduced, fixed in 0.45.0, per advisory adv-01). The ssh/agent package is imported in pkg/catalogv2/git/git.go:24 and ServeAgent (listed in advisory symbols) is actively called at git.go:136 within the injectAgent function. This function creates a Unix domain socket to serve the SSH agent protocol for git SSH authentication operations. The attack surface is reachable: a Rancher user with API access to trigger git operations (Clone, Update) that use SSH credential authentication will have the vulnerable ServeAgent invoked. The agent processes incoming SSH agent protocol messages from git, and a malicious client connected to the Unix socket could send a malformed constraint message to trigger the out-of-bounds read and panic. No protection mechanism (configuration flag, runtime isolation, perimeter control) is evident in the snapshot that would block this attack surface. The component version (0.43.0) is confirmed below the fixed version (0.45.0) via go.mod line 149 and go.sum line 880.",
+      "source_selector": "$.category + $.reasoning"
+    },
+    {
+      "id": "A-0002",
+      "statement": "The golang.org/x/crypto/ssh/agent package does not validate the size of messages when processing identity requests containing certificates with constraints. A malformed message with an oversized constraint field causes a slice out-of-bounds read, resulting in a panic (denial of service). The security effect is a server crash in the Rancher process when serving SSH agent protocol requests during git operations with SSH credentials. The effect occurs because parseConstraints (a symbol listed in advisory adv-01) reads beyond the bounds of an internal buffer without size validation.",
+      "subject": "",
+      "scope": "agent assessment (snapshot-read scope as stated)",
+      "state": "OPEN",
+      "basis": "EVIDENCE_SUPPORTED",
+      "evidence_refs": [
+        "A-0002"
+      ],
+      "limitations": [],
+      "original_text": "The golang.org/x/crypto/ssh/agent package does not validate the size of messages when processing identity requests containing certificates with constraints. A malformed message with an oversized constraint field causes a slice out-of-bounds read, resulting in a panic (denial of service). The security effect is a server crash in the Rancher process when serving SSH agent protocol requests during git operations with SSH credentials. The effect occurs because parseConstraints (a symbol listed in advisory adv-01) reads beyond the bounds of an internal buffer without size validation.",
+      "source_selector": "$.assessment.vulnerability_mechanism"
+    },
+    {
+      "id": "A-0003",
+      "statement": "The vulnerability resides in the golang.org/x/crypto/ssh/agent package, specifically within parseConstraints which is one of the affected symbols listed in advisory adv-01 (id=adv-01, module=golang.org/x/crypto, package=golang.org/x/crypto/ssh/agent, symbols=[ForwardToAgent, ServeAgent, parseConstraints]). The vulnerable package is used by Rancher through the ServeAgent function called in pkg/catalogv2/git/git.go:136: 'if err := agent.ServeAgent(*g.agent, conn); err != nil'. ServeAgent is the entry point that dispatches incoming SSH agent protocol messages to internal handlers, which in turn invoke parseConstraints when processing certificate constraint data in identity request messages. The root cause is the absence of bounds-checking in parseConstraints when parsing incoming protocol messages.",
+      "subject": "",
+      "scope": "agent assessment (snapshot-read scope as stated)",
+      "state": "OPEN",
+      "basis": "EVIDENCE_SUPPORTED",
+      "evidence_refs": [
+        "A-0003"
+      ],
+      "limitations": [],
+      "original_text": "The vulnerability resides in the golang.org/x/crypto/ssh/agent package, specifically within parseConstraints which is one of the affected symbols listed in advisory adv-01 (id=adv-01, module=golang.org/x/crypto, package=golang.org/x/crypto/ssh/agent, symbols=[ForwardToAgent, ServeAgent, parseConstraints]). The vulnerable package is used by Rancher through the ServeAgent function called in pkg/catalogv2/git/git.go:136: 'if err := agent.ServeAgent(*g.agent, conn); err != nil'. ServeAgent is the entry point that dispatches incoming SSH agent protocol messages to internal handlers, which in turn invoke parseConstraints when processing certificate constraint data in identity request messages. The root cause is the absence of bounds-checking in parseConstraints when parsing incoming protocol messages.",
+      "source_selector": "$.assessment.root_cause"
+    },
+    {
+      "id": "A-0004",
+      "statement": "The vulnerable functionality is exposed when Rancher performs git operations (clone, update) against Git-based Helm repositories configured with SSH credential authentication. When a secret of type corev1.SecretTypeSSHAuth is provided (git.go:83), the code adds the SSH private key to an in-memory agent keyring (git.go:88-96) and creates a Unix socket to serve agent requests during git commands (git.go:102-143). This is triggered from the gitCmd function (git.go:325) which calls injectAgent (git.go:337) when g.agent is set. Product scope: Rancher's catalogv2 git module for Git-based Helm repository operations. Build scope: go.mod declares golang.org/x/crypto v0.43.0 (go.mod:149), confirmed in go.sum hash at line 880. Platform: Linux (based on Unix socket usage at git.go:113-116). Deployment: Requires Rancher to have Git-based Helm repositories configured with SSH authentication secrets. Unknowns: exact deployment configuration (whether any Rancher instance actually uses SSH-authenticated git repos), network exposure of the Unix socket (local to git subprocess only), version of golang.org/x/crypto used at runtime.",
+      "subject": "",
+      "scope": "agent assessment (snapshot-read scope as stated)",
+      "state": "OPEN",
+      "basis": "MODEL_HYPOTHESIS",
+      "evidence_refs": [
+        "A-0004"
+      ],
+      "limitations": [],
+      "original_text": "The vulnerable functionality is exposed when Rancher performs git operations (clone, update) against Git-based Helm repositories configured with SSH credential authentication. When a secret of type corev1.SecretTypeSSHAuth is provided (git.go:83), the code adds the SSH private key to an in-memory agent keyring (git.go:88-96) and creates a Unix socket to serve agent requests during git commands (git.go:102-143). This is triggered from the gitCmd function (git.go:325) which calls injectAgent (git.go:337) when g.agent is set. Product scope: Rancher's catalogv2 git module for Git-based Helm repository operations. Build scope: go.mod declares golang.org/x/crypto v0.43.0 (go.mod:149), confirmed in go.sum hash at line 880. Platform: Linux (based on Unix socket usage at git.go:113-116). Deployment: Requires Rancher to have Git-based Helm repositories configured with SSH authentication secrets. Unknowns: exact deployment configuration (whether any Rancher instance actually uses SSH-authenticated git repos), network exposure of the Unix socket (local to git subprocess only), version of golang.org/x/crypto used at runtime.",
+      "source_selector": "$.assessment.product_exposure"
+    },
+    {
+      "id": "A-0005",
+      "statement": "Alternative manifestation checked: The pkg/api/steve/machine/ssh.go file imports golang.org/x/crypto/ssh but not ssh/agent, so the ssh package client-side SSH usage (shell/dial operations) is not directly affected by this CVE. Transitive dependency check: no other go.mod in the workspace (hack/airgap, gotools, pkg/client, pkg/apis) declares a different version of golang.org/x/crypto that would override the main module's v0.43.0. The hack/airgap/go.mod has v0.25.0 but is a separate module not used by the main Rancher binary. ForwardToAgent is not directly called in this snapshot, but ServeAgent (which handles the same protocol processing) is actively used. Counterargument: the Unix socket created by injectAgent is scoped to a single git subprocess invocation and cleaned up afterward (git.go:126-127), limiting the attack surface to local code paths. However, the git process itself could be tricked by a malicious git remote or a compromised SSH key credential into connecting to an attacker-controlled agent, or an attacker with API access could trigger the code path to observe behavior. This limits but does not eliminate the attack surface.",
+      "subject": "",
+      "scope": "agent assessment (snapshot-read scope as stated)",
+      "state": "OPEN",
+      "basis": "MODEL_HYPOTHESIS",
+      "evidence_refs": [
+        "A-0005"
+      ],
+      "limitations": [],
+      "original_text": "Alternative manifestation checked: The pkg/api/steve/machine/ssh.go file imports golang.org/x/crypto/ssh but not ssh/agent, so the ssh package client-side SSH usage (shell/dial operations) is not directly affected by this CVE. Transitive dependency check: no other go.mod in the workspace (hack/airgap, gotools, pkg/client, pkg/apis) declares a different version of golang.org/x/crypto that would override the main module's v0.43.0. The hack/airgap/go.mod has v0.25.0 but is a separate module not used by the main Rancher binary. ForwardToAgent is not directly called in this snapshot, but ServeAgent (which handles the same protocol processing) is actively used. Counterargument: the Unix socket created by injectAgent is scoped to a single git subprocess invocation and cleaned up afterward (git.go:126-127), limiting the attack surface to local code paths. However, the git process itself could be tricked by a malicious git remote or a compromised SSH key credential into connecting to an attacker-controlled agent, or an attacker with API access could trigger the code path to observe behavior. This limits but does not eliminate the attack surface.",
+      "source_selector": "$.assessment.alternative_paths"
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-0001",
+      "statement": "UNKNOWN: module_usage check did not produce a result (TIMEOUT)",
+      "reason": "tool exceeded its 1m0s wall-clock timeout",
+      "follow_up": "rerun or scope-down the check; its status is TIMEOUT, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0009"
+      ],
+      "group": "code_reachability",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0002",
+      "statement": "UNKNOWN:  check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0010"
+      ],
+      "group": "other",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0003",
+      "statement": "UNKNOWN: find_symbol check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0011"
+      ],
+      "group": "code_reachability",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0004",
+      "statement": "UNKNOWN: find_callers check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0012"
+      ],
+      "group": "code_reachability",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0005",
+      "statement": "UNKNOWN: find_may_callers check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0013"
+      ],
+      "group": "code_reachability",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0006",
+      "statement": "UNKNOWN: find_dep_callers check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0014"
+      ],
+      "group": "code_reachability",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0007",
+      "statement": "UNKNOWN: scan_dynamic check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0015"
+      ],
+      "group": "attack_surface",
+      "priority": "DECISION_CHANGING",
+      "decision_changing_for": "attack_surface_availability status (the scan_dynamic check that could decide it did not complete)"
+    },
+    {
+      "id": "U-0008",
+      "statement": "UNKNOWN: interface_dispatch_sites check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0016"
+      ],
+      "group": "attack_surface",
+      "priority": "DECISION_CHANGING",
+      "decision_changing_for": "attack_surface_availability status (the interface_dispatch_sites check that could decide it did not complete)"
+    },
+    {
+      "id": "U-0009",
+      "statement": "UNKNOWN: gated_refs check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0017"
+      ],
+      "group": "attack_surface",
+      "priority": "DECISION_CHANGING",
+      "decision_changing_for": "attack_surface_availability status (the gated_refs check that could decide it did not complete)"
+    },
+    {
+      "id": "U-0010",
+      "statement": "UNKNOWN: dep_invocation_state check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0018"
+      ],
+      "group": "evidence",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0011",
+      "statement": "UNKNOWN: find_symbol check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0019"
+      ],
+      "group": "code_reachability",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0012",
+      "statement": "UNKNOWN: find_callers check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0020"
+      ],
+      "group": "code_reachability",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0013",
+      "statement": "UNKNOWN: find_may_callers check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0021"
+      ],
+      "group": "code_reachability",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0014",
+      "statement": "UNKNOWN: find_dep_callers check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0022"
+      ],
+      "group": "code_reachability",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0015",
+      "statement": "UNKNOWN: scan_dynamic check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0023"
+      ],
+      "group": "attack_surface",
+      "priority": "DECISION_CHANGING",
+      "decision_changing_for": "attack_surface_availability status (the scan_dynamic check that could decide it did not complete)"
+    },
+    {
+      "id": "U-0016",
+      "statement": "UNKNOWN: interface_dispatch_sites check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0024"
+      ],
+      "group": "attack_surface",
+      "priority": "DECISION_CHANGING",
+      "decision_changing_for": "attack_surface_availability status (the interface_dispatch_sites check that could decide it did not complete)"
+    },
+    {
+      "id": "U-0017",
+      "statement": "UNKNOWN: gated_refs check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0025"
+      ],
+      "group": "attack_surface",
+      "priority": "DECISION_CHANGING",
+      "decision_changing_for": "attack_surface_availability status (the gated_refs check that could decide it did not complete)"
+    },
+    {
+      "id": "U-0018",
+      "statement": "UNKNOWN: dep_invocation_state check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0026"
+      ],
+      "group": "evidence",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0019",
+      "statement": "UNKNOWN: find_symbol check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0027"
+      ],
+      "group": "code_reachability",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0020",
+      "statement": "UNKNOWN: find_callers check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0028"
+      ],
+      "group": "code_reachability",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0021",
+      "statement": "UNKNOWN: find_may_callers check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0029"
+      ],
+      "group": "code_reachability",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0022",
+      "statement": "UNKNOWN: find_dep_callers check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0030"
+      ],
+      "group": "code_reachability",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0023",
+      "statement": "UNKNOWN: scan_dynamic check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0031"
+      ],
+      "group": "attack_surface",
+      "priority": "DECISION_CHANGING",
+      "decision_changing_for": "attack_surface_availability status (the scan_dynamic check that could decide it did not complete)"
+    },
+    {
+      "id": "U-0024",
+      "statement": "UNKNOWN: interface_dispatch_sites check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0032"
+      ],
+      "group": "attack_surface",
+      "priority": "DECISION_CHANGING",
+      "decision_changing_for": "attack_surface_availability status (the interface_dispatch_sites check that could decide it did not complete)"
+    },
+    {
+      "id": "U-0025",
+      "statement": "UNKNOWN: gated_refs check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0033"
+      ],
+      "group": "attack_surface",
+      "priority": "DECISION_CHANGING",
+      "decision_changing_for": "attack_surface_availability status (the gated_refs check that could decide it did not complete)"
+    },
+    {
+      "id": "U-0026",
+      "statement": "UNKNOWN: dep_invocation_state check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0034"
+      ],
+      "group": "evidence",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0027",
+      "statement": "UNKNOWN: find_entrypoints check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0035"
+      ],
+      "group": "attack_surface",
+      "priority": "DECISION_CHANGING",
+      "decision_changing_for": "attack_surface_availability status (the find_entrypoints check that could decide it did not complete)"
+    },
+    {
+      "id": "U-0028",
+      "statement": "UNKNOWN:  check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0036"
+      ],
+      "group": "other",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0029",
+      "statement": "UNKNOWN:  check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0037"
+      ],
+      "group": "other",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0030",
+      "statement": "UNKNOWN:  check did not produce a result (ERROR)",
+      "reason": "context deadline exceeded",
+      "follow_up": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0038"
+      ],
+      "group": "other",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    },
+    {
+      "id": "U-0031",
+      "statement": "UNKNOWN: run_govulncheck check did not produce a result (UNSUPPORTED)",
+      "reason": "strict profile requires --govulndb to pin the vulnerability database",
+      "follow_up": "rerun or scope-down the check; its status is UNSUPPORTED, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0039"
+      ],
+      "group": "evidence",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    }
+  ],
+  "open_questions": [
+    {
+      "id": "Q-0001",
+      "question": "module_usage check did not produce a result (TIMEOUT)",
+      "subject": "U-0001",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is TIMEOUT, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0009"
+      ]
+    },
+    {
+      "id": "Q-0002",
+      "question": " check did not produce a result (ERROR)",
+      "subject": "U-0002",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0010"
+      ]
+    },
+    {
+      "id": "Q-0003",
+      "question": "find_symbol check did not produce a result (ERROR)",
+      "subject": "U-0003",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0011"
+      ]
+    },
+    {
+      "id": "Q-0004",
+      "question": "find_callers check did not produce a result (ERROR)",
+      "subject": "U-0004",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0012"
+      ]
+    },
+    {
+      "id": "Q-0005",
+      "question": "find_may_callers check did not produce a result (ERROR)",
+      "subject": "U-0005",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0013"
+      ]
+    },
+    {
+      "id": "Q-0006",
+      "question": "find_dep_callers check did not produce a result (ERROR)",
+      "subject": "U-0006",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0014"
+      ]
+    },
+    {
+      "id": "Q-0007",
+      "question": "scan_dynamic check did not produce a result (ERROR)",
+      "subject": "U-0007",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0015"
+      ]
+    },
+    {
+      "id": "Q-0008",
+      "question": "interface_dispatch_sites check did not produce a result (ERROR)",
+      "subject": "U-0008",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0016"
+      ]
+    },
+    {
+      "id": "Q-0009",
+      "question": "gated_refs check did not produce a result (ERROR)",
+      "subject": "U-0009",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0017"
+      ]
+    },
+    {
+      "id": "Q-0010",
+      "question": "dep_invocation_state check did not produce a result (ERROR)",
+      "subject": "U-0010",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0018"
+      ]
+    },
+    {
+      "id": "Q-0011",
+      "question": "find_symbol check did not produce a result (ERROR)",
+      "subject": "U-0011",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0019"
+      ]
+    },
+    {
+      "id": "Q-0012",
+      "question": "find_callers check did not produce a result (ERROR)",
+      "subject": "U-0012",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0020"
+      ]
+    },
+    {
+      "id": "Q-0013",
+      "question": "find_may_callers check did not produce a result (ERROR)",
+      "subject": "U-0013",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0021"
+      ]
+    },
+    {
+      "id": "Q-0014",
+      "question": "find_dep_callers check did not produce a result (ERROR)",
+      "subject": "U-0014",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0022"
+      ]
+    },
+    {
+      "id": "Q-0015",
+      "question": "scan_dynamic check did not produce a result (ERROR)",
+      "subject": "U-0015",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0023"
+      ]
+    },
+    {
+      "id": "Q-0016",
+      "question": "interface_dispatch_sites check did not produce a result (ERROR)",
+      "subject": "U-0016",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0024"
+      ]
+    },
+    {
+      "id": "Q-0017",
+      "question": "gated_refs check did not produce a result (ERROR)",
+      "subject": "U-0017",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0025"
+      ]
+    },
+    {
+      "id": "Q-0018",
+      "question": "dep_invocation_state check did not produce a result (ERROR)",
+      "subject": "U-0018",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0026"
+      ]
+    },
+    {
+      "id": "Q-0019",
+      "question": "find_symbol check did not produce a result (ERROR)",
+      "subject": "U-0019",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0027"
+      ]
+    },
+    {
+      "id": "Q-0020",
+      "question": "find_callers check did not produce a result (ERROR)",
+      "subject": "U-0020",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0028"
+      ]
+    },
+    {
+      "id": "Q-0021",
+      "question": "find_may_callers check did not produce a result (ERROR)",
+      "subject": "U-0021",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0029"
+      ]
+    },
+    {
+      "id": "Q-0022",
+      "question": "find_dep_callers check did not produce a result (ERROR)",
+      "subject": "U-0022",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0030"
+      ]
+    },
+    {
+      "id": "Q-0023",
+      "question": "scan_dynamic check did not produce a result (ERROR)",
+      "subject": "U-0023",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0031"
+      ]
+    },
+    {
+      "id": "Q-0024",
+      "question": "interface_dispatch_sites check did not produce a result (ERROR)",
+      "subject": "U-0024",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0032"
+      ]
+    },
+    {
+      "id": "Q-0025",
+      "question": "gated_refs check did not produce a result (ERROR)",
+      "subject": "U-0025",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0033"
+      ]
+    },
+    {
+      "id": "Q-0026",
+      "question": "dep_invocation_state check did not produce a result (ERROR)",
+      "subject": "U-0026",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0034"
+      ]
+    },
+    {
+      "id": "Q-0027",
+      "question": "find_entrypoints check did not produce a result (ERROR)",
+      "subject": "U-0027",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0035"
+      ]
+    },
+    {
+      "id": "Q-0028",
+      "question": " check did not produce a result (ERROR)",
+      "subject": "U-0028",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0036"
+      ]
+    },
+    {
+      "id": "Q-0029",
+      "question": " check did not produce a result (ERROR)",
+      "subject": "U-0029",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0037"
+      ]
+    },
+    {
+      "id": "Q-0030",
+      "question": " check did not produce a result (ERROR)",
+      "subject": "U-0030",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is ERROR, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0038"
+      ]
+    },
+    {
+      "id": "Q-0031",
+      "question": "run_govulncheck check did not produce a result (UNSUPPORTED)",
+      "subject": "U-0031",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is UNSUPPORTED, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0039"
+      ]
+    },
+    {
+      "id": "Q-0032",
+      "question": "Is golang.org/x/crypto v0.43.0 the actual version used at runtime, or is there a vendor/replace directive that overrides it? (Check: go.mod line 7-60 for any replace of golang.org/x/crypto)",
+      "subject": "",
+      "scope": "agent assessment",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0033",
+      "question": "Are any Git-based Helm repositories in deployments actually configured with SSH credential authentication (SecretTypeSSHAuth) that would trigger the ServeAgent code path? (Check: verify Rancher deployment configuration)",
+      "subject": "",
+      "scope": "agent assessment",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0034",
+      "question": "Can the attack be triggered from outside the Rancher process, or is the Unix socket access limited to the child git process only? (Check: Unix socket permissions and process isolation in injectAgent)",
+      "subject": "",
+      "scope": "agent assessment",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0035",
+      "question": "Does any version constraint in the dependency resolution chain pull in a different version of golang.org/x/crypto/ssh/agent than v0.43.0? (Check: go mod graph or dep resolution)",
+      "subject": "",
+      "scope": "agent assessment",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0036",
+      "question": "Is there any Kubernetes RBAC or network policy that prevents an authenticated user from triggering the git Clone/Update operations that invoke the vulnerable code path? (Check: RBAC configuration)",
+      "subject": "",
+      "scope": "agent assessment",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "R-0001",
+      "action": "review every verified_fact against its persisted artifact, then adjudicate agent assertions and unknowns",
+      "owner": "human",
+      "reason": "disposition is review-required by contract",
+      "evidence_refs": []
+    },
+    {
+      "id": "R-0002",
+      "action": "verify deployment attack-surface availability (listener/socket lifetime and permissions, credential configuration) and obtain runtime/dynamic evidence if exploitability must be established",
+      "owner": "operator",
+      "reason": "the attack-surface axis is UNKNOWN and exploitation_established stays NOT_ESTABLISHED without dynamic evidence",
+      "evidence_refs": []
+    }
+  ],
+  "agent_output": {
+    "status": "OK",
+    "category": "vulnerable",
+    "reasoning": "CVE-2025-47914 (GO-2025-4135) affects golang.org/x/crypto/ssh/agent, specifically the parseConstraints function which lacks message-size validation when processing SSH agent identity requests, potentially causing a panic due to out-of-bounds read. The snapshot declares golang.org/x/crypto v0.43.0 in go.mod (line 149), which falls in the affected range (introduced, fixed in 0.45.0, per advisory adv-01). The ssh/agent package is imported in pkg/catalogv2/git/git.go:24 and ServeAgent (listed in advisory symbols) is actively called at git.go:136 within the injectAgent function. This function creates a Unix domain socket to serve the SSH agent protocol for git SSH authentication operations. The attack surface is reachable: a Rancher user with API access to trigger git operations (Clone, Update) that use SSH credential authentication will have the vulnerable ServeAgent invoked. The agent processes incoming SSH agent protocol messages from git, and a malicious client connected to the Unix socket could send a malformed constraint message to trigger the out-of-bounds read and panic. No protection mechanism (configuration flag, runtime isolation, perimeter control) is evident in the snapshot that would block this attack surface. The component version (0.43.0) is confirmed below the fixed version (0.45.0) via go.mod line 149 and go.sum line 880.",
+    "raw_artifact": {
+      "path": "agent/attempt-0002/answer.txt",
+      "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353"
+    },
+    "attempt_id": "attempt-0002",
+    "result_artifact": {
+      "path": "agent/attempt-0002/result.json",
+      "sha256": "92d9c7600c84d3b12a3797dcdf3241e5ab5675dedcccbd91d1415fdd46758f47",
+      "size_bytes": 123928,
+      "selector": "raw harness result"
+    },
+    "answer_artifact": {
+      "path": "agent/attempt-0002/answer.txt",
+      "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353",
+      "size_bytes": 8578,
+      "selector": "assistant text"
+    },
+    "extraction": {
+      "status": "VALID",
+      "invalid_reason": "NONE",
+      "candidate_count": 1,
+      "candidates": [
+        {
+          "index": 0,
+          "status": "VALID",
+          "category": "vulnerable",
+          "raw_sha256": "f371d565ddd3b9dffb252ea5dd677d221a71ab8dbac7de20ee3d577193c00391",
+          "canonical_sha256": "a265fd00100fc4ecda37c971656f13b03f3feac87b6df036892ba97fb8cec4e1",
+          "selector": "bytes 8..8574 of retained answer"
+        }
+      ],
+      "selected_index": 0,
+      "answer_artifact": {
+        "path": "agent/attempt-0002/answer.txt",
+        "sha256": "aba341cc4c7f380f1e99d88ad11f2c8fd12599ec5cc10e8027c899b5019fb353",
+        "size_bytes": 8578,
+        "selector": "assistant text"
+      }
+    }
+  },
+  "contract_extensions": [
+    "slice2-fidelity/1"
+  ],
+  "contradictions": [],
+  "exploitation_axes": {
+    "code_reachability": {
+      "status": "ESTABLISHED",
+      "level": "PACKAGE_BUILD",
+      "statement": "the advisory package golang.org/x/crypto/ssh/agent is in the product import closure and build-relevant under the recorded context",
+      "scope": "resolved module graph / snapshot build context",
+      "basis": "deterministic",
+      "evidence_refs": [
+        "fact-obs-0008",
+        "obs:OBS-0008"
+      ],
+      "limitations": [
+        "this does not establish a ForwardToAgent call, symbol execution, runtime configuration, or attacker reachability"
+      ]
+    },
+    "attack_surface_availability": {
+      "status": "UNKNOWN",
+      "level": "NONE",
+      "statement": "no deterministic listener/socket fact at this scope — runtime attack-surface availability is unknown",
+      "scope": "product source tree (static scan scope)",
+      "basis": "none",
+      "evidence_refs": [
+        "obs:OBS-0035"
+      ],
+      "limitations": [
+        "bounded static scans do not prove absence; runtime availability requires runtime evidence (level RUNTIME_AVAILABLE)"
+      ]
+    },
+    "exploitation_established": {
+      "status": "NOT_ESTABLISHED",
+      "level": "NONE",
+      "statement": "attacker exploitability is not established: package reachability and an agent-described scenario do not prove socket availability, attacker access, malformed-message delivery, or a resulting panic",
+      "scope": "whole report scope",
+      "basis": "none",
+      "evidence_refs": [],
+      "limitations": [
+        "NOT_ESTABLISHED means not proven, never proven impossible; it requires a retained dynamic trace, runtime observation, or reproduction"
+      ]
+    }
+  },
+  "classification_review": {
+    "original_category": "vulnerable",
+    "class": "APPLICABLE",
+    "status": "SUPPORTED",
+    "basis_refs": [
+      "fact-obs-0008"
+    ],
+    "limitations": []
+  },
+  "disposition": {
+    "class": "REVIEW_REQUIRED",
+    "auto_close": false,
+    "reason": "research lane output supports human triage only: evidence is scope-bounded, agent claims are unverified hypotheses, and the contract forbids VERIFIED/FALSE/AUTO_CLOSE dispositions",
+    "forbidden_classes": [
+      "VERIFIED",
+      "FALSE",
+      "AUTO_CLOSE"
+    ]
+  }
+}

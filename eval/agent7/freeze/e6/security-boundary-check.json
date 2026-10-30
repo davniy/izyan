@@ -1,0 +1,430 @@
+{
+  "schema": "agent7-e6-probe/1",
+  "status": "PASS",
+  "harness_commit": "80cddeac3132826bfd47227ad59b2e6618a681bd",
+  "harness_dirty": true,
+  "image": {
+    "tag": "vex-bench-go-opencode-e6:latest",
+    "id": "sha256:1d7b3d3982a5a8948ed4f0219b385eaff8e472eb3a0849877b722cd14eafc90b",
+    "arch": "linux/arm64",
+    "opencode": "1.15.5",
+    "helper_sha256": {
+      "e6-relay": "a1c6460a8320647557eec50b39784918af145ccf319de64828ecf7f4c50d413f",
+      "e6-exec-guard": "a5cbf68724626cd660f7e14657016b96515b6a24646d3f18a4d5de965487e585",
+      "e6-probe": "2ea73ca96e9ea9913bd922b3c0db2271de14f7cf4e9e391beeae4d30bcaf09dc"
+    }
+  },
+  "sandbox": {
+    "network": "none",
+    "user": "10001:10001",
+    "cap_drop": [
+      "ALL"
+    ],
+    "security_opt": [
+      "no-new-privileges:true"
+    ],
+    "pids_limit": 256,
+    "memory": "4g",
+    "memory_swap": "4g",
+    "mounts": [
+      "/run-input:bind:ro",
+      "/run-output:tmpfs",
+      "/run/provider.sock:bind:ro",
+      "/tmp:tmpfs",
+      "/work:bind:ro"
+    ],
+    "tmpfs": {
+      "/run-output": "rw,nosuid,nodev,noexec,size=64m,uid=10001,gid=10001,mode=0700",
+      "/tmp": "rw,nosuid,nodev,noexec,size=128m,uid=10001,gid=10001,mode=1777"
+    },
+    "entrypoint": [
+      "/usr/local/bin/e6-exec-guard"
+    ],
+    "env_names": [
+      "ALL_PROXY",
+      "GOLANG_VERSION",
+      "GOPATH",
+      "GOTOOLCHAIN",
+      "HOME",
+      "HTTPS_PROXY",
+      "HTTP_PROXY",
+      "NODE_EXTRA_CA_CERTS",
+      "NO_PROXY",
+      "PATH",
+      "XDG_CONFIG_HOME"
+    ]
+  },
+  "provider": {
+    "host": "<corporate-provider-host>",
+    "port": 443,
+    "path_prefix": "/openai/v1/",
+    "pinned_ips": [
+      "<corporate-provider-ip>"
+    ],
+    "status": "ok",
+    "forwarder": {
+      "destinations": [
+        "<corporate-provider-host>:443 via <corporate-provider-ip>"
+      ],
+      "stats": {
+        "accepted": 31,
+        "forwarded": 22,
+        "rejected": 8
+      }
+    }
+  },
+  "config": {
+    "sha256": "e9658f9766e104f579512dbe5aa32fca11344a049b4d9b2009622367b7a56763",
+    "permission_sha256": "2a5e9ad67681f998b8fae67e89373a806b62e3098a18353a9a7a4884b9af8f9a",
+    "mcp": false,
+    "secret_in_container": false,
+    "argv_sha256": "2134c8fd50fdc96d889218176c11774c674c272d7df95ff8231cb16b83f7a71b"
+  },
+  "agent_input": {
+    "keys": [
+      "task_id",
+      "cve_id",
+      "repo_url",
+      "commit_sha"
+    ],
+    "gt_mounts": []
+  },
+  "checks": [
+    {
+      "id": "image_pin",
+      "where": "host",
+      "expected": "E6 image present, linux arch, helper pins match host build",
+      "observed": {
+        "id": "sha256:1d7b3d3982a5a8948ed4f0219b385eaff8e472eb3a0849877b722cd14eafc90b",
+        "arch": "arm64",
+        "helpers_match": true
+      },
+      "status": "PASS"
+    },
+    {
+      "id": "config_synthesis",
+      "where": "host",
+      "expected": "exact permission object, dummy key, relay baseURL, no mcp, no {env:}",
+      "observed": {
+        "sha256": "e9658f9766e104f579512dbe5aa32fca11344a049b4d9b2009622367b7a56763",
+        "permission_sha256": "2a5e9ad67681f998b8fae67e89373a806b62e3098a18353a9a7a4884b9af8f9a",
+        "env_indirection": false
+      },
+      "status": "PASS"
+    },
+    {
+      "id": "provider_reachable",
+      "where": "host",
+      "expected": "DNS resolves + TLS verifies to pinned IPs",
+      "observed": {
+        "pinned_ips": [
+          "<corporate-provider-ip>"
+        ]
+      },
+      "status": "PASS"
+    },
+    {
+      "id": "snapshot_hygiene",
+      "where": "host",
+      "expected": "escaping symlink rejected; exec-bit file accepted (runtime Landlock denies execution); side fixture: FIFO + setuid rejected, inside-dangling recorded",
+      "observed": {
+        "mounted": [
+          "escaping symlink e6-escape-link -> /outside-secret"
+        ],
+        "side": [
+          "setuid/setgid file under /work: e6-suid",
+          "non-regular file under /work: e6-fifo"
+        ],
+        "dangling_symlinks": [
+          "e6-dangling -> definitely-nonexistent-target"
+        ]
+      },
+      "status": "PASS"
+    },
+    {
+      "id": "inspect_policy",
+      "where": "host",
+      "expected": "inspect-before-start: none/ro/10001/caps/pids/mem/tmpfs/env",
+      "observed": "validated",
+      "status": "PASS"
+    },
+    {
+      "id": "helper_hash_pin",
+      "where": "container_script",
+      "expected": "probe self-hash == image pin == host build hash",
+      "observed": {
+        "self": "2ea73ca96e9ea9913bd922b3c0db2271de14f7cf4e9e391beeae4d30bcaf09dc",
+        "image": "2ea73ca96e9ea9913bd922b3c0db2271de14f7cf4e9e391beeae4d30bcaf09dc"
+      },
+      "status": "PASS"
+    },
+    {
+      "id": "probe.runtime_identity",
+      "where": "container_script",
+      "expected": "uid=10001 gid=10001",
+      "observed": "uid=10001 gid=10001 home=/tmp",
+      "status": "PASS",
+      "detail": "expected uid=10001 gid=10001"
+    },
+    {
+      "id": "probe.mount_flags",
+      "where": "container_script",
+      "expected": "ro binds + noexec tmpfs + ro rootfs",
+      "observed": "/=overlay(ro,relatime,lowerdir=/var/lib/docker/overlay2/l/ZM7HWIWIK25KU3NDM6V4CHAL4B:/var/lib/docker/overlay2/l/UIVXKEPCNJETSS6V47DXRDEVPS:/var/lib/docker/overlay2/l/TRRH3JZYUCEV2QID3F57FGG3O5:/var/lib/docker/overlay2/l/XAOTYTQTP2RXTQTQIZFLXIH7A5:/var/lib/docker/overlay2/l/RIPZLKXME2XPAYEQ4AO6TNOJMH\u2026",
+      "status": "PASS",
+      "detail": "mismatches: "
+    },
+    {
+      "id": "probe.runtime_limits",
+      "where": "container_script",
+      "expected": "CapEff=0 pids=256 mem=4g swap=4g",
+      "observed": "{\"CapEff\":\"0000000000000000\",\"memory.max\":\"4294967296\",\"memory.swap.max\":\"0\",\"pids.max\":\"256\"}",
+      "status": "PASS",
+      "detail": "mismatches: "
+    },
+    {
+      "id": "probe.exec_denied_work",
+      "where": "container_script",
+      "expected": "EACCES",
+      "observed": "fork/exec(EACCES)",
+      "status": "PASS",
+      "detail": "expected EACCES from landlock exec policy"
+    },
+    {
+      "id": "probe.exec_denied_tmpfs",
+      "where": "container_script",
+      "expected": "EACCES",
+      "observed": "fork/exec(EACCES)",
+      "status": "PASS",
+      "detail": "expected EACCES (noexec tmpfs and landlock)"
+    },
+    {
+      "id": "probe.snapshot_write",
+      "where": "container_script",
+      "expected": "EROFS",
+      "observed": "create=open(EROFS),truncate=open(EROFS),rename=rename(EROFS),unlink=remove(EROFS)",
+      "status": "PASS",
+      "detail": "every write op must fail with EROFS"
+    },
+    {
+      "id": "probe.closed_path_read",
+      "where": "container_script",
+      "expected": "ENOENT",
+      "observed": "/eval=ENOENT,/benchmark=ENOENT,/results=ENOENT,/eval/ground-truth=ENOENT,/benchmark/tasks/vex_bench.jsonl=ENOENT,/harness=ENOENT,/agent-ctl=ENOENT,/root=EACCES,/outside-secret=ENOENT",
+      "status": "PASS",
+      "detail": "all must be ENOENT: "
+    },
+    {
+      "id": "probe.symlink_escape",
+      "where": "container_script",
+      "expected": "ENOENT",
+      "observed": "open(ENOENT)",
+      "status": "PASS",
+      "detail": "expected ENOENT/EACCES following escape symlink"
+    },
+    {
+      "id": "probe.secret_exposure",
+      "where": "container_script",
+      "expected": "no key/env-file/indirection",
+      "observed": "",
+      "status": "PASS",
+      "detail": "no key/env-file/indirection allowed"
+    },
+    {
+      "id": "probe.interfaces_loopback_only",
+      "where": "container_script",
+      "expected": "lo only",
+      "observed": "lo,tunl0,gre0,gretap0,erspan0,ip_vti0,ip6_vti0,sit0,ip6tnl0,ip6gre0",
+      "status": "PASS",
+      "detail": "non-loopback addrs: "
+    },
+    {
+      "id": "probe.egress_tcp",
+      "where": "container_script",
+      "expected": "dial failure",
+      "observed": "1.1.1.1:443=connect(ENETUNREACH),8.8.8.8:443=connect(ENETUNREACH)",
+      "status": "PASS",
+      "detail": "all dials must fail"
+    },
+    {
+      "id": "probe.egress_host",
+      "where": "container_script",
+      "expected": "dial failure",
+      "observed": "lookup example.com on 192.168.65.7:53: dial udp 192.168.65.7:53: connect: network is unreachable",
+      "status": "PASS",
+      "detail": "expected dial failure (no DNS/route)"
+    },
+    {
+      "id": "probe.dns",
+      "where": "container_script",
+      "expected": "lookup+udp53 failure",
+      "observed": "lookup=lookup example.com on 192.168.65.7:53: dial udp 192.168.65.7:53: connect: network is unreachable,udp53=connect(ENETUNREACH)",
+      "status": "PASS",
+      "detail": "DNS must be impossible"
+    },
+    {
+      "id": "probe.forwarder_rejects",
+      "where": "container_script",
+      "expected": "403 x-e6-reject",
+      "observed": "foreign_host=403 connect=403 absolute_form=403 disallowed_path=403 disallowed_method=403 relative_traversal=403 out_of_prefix=403 oversize=431",
+      "status": "PASS",
+      "detail": "non-403s: "
+    },
+    {
+      "id": "probe.provider_models",
+      "where": "container_script",
+      "expected": "2xx via relay",
+      "observed": "status=200",
+      "status": "PASS",
+      "detail": "body head: {\"object\":\"list\",\"data\":[{\"id\":\"ai-sage/GigaChat3.5-432B-A28B-Reasoning\",\"object\":\"model\",\"owned_by\":\"ai-sage\",\"type\":\"\",\"created\":0,\"max_model_len\":262144},{\"id\":\"BAAI/bge-m3\",\"object\":\"model\",\"owned\u2026"
+    },
+    {
+      "id": "probe.product_exec",
+      "where": "container_script",
+      "expected": "build/run denied",
+      "observed": "build-to-work=failed: | go-run=failed:",
+      "status": "PASS",
+      "detail": "build/run into snapshot or tmpfs must fail"
+    },
+    {
+      "id": "probe.opencode_version",
+      "where": "container_script",
+      "expected": "1.15.5",
+      "observed": "1.15.5",
+      "status": "PASS",
+      "detail": "expected 1.15.5"
+    },
+    {
+      "id": "resolved_permission_matrix",
+      "where": "container_opencode",
+      "expected": "opencode resolved config: allow read/grep/glob; deny bash/edit/webfetch/websearch/task; catch-all deny",
+      "observed": {
+        "*": "deny",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "edit": "deny",
+        "bash": "deny",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "task": "deny",
+        "skill": "deny",
+        "lsp": "deny",
+        "todowrite": "deny",
+        "question": "deny",
+        "external_directory": "deny",
+        "repo_clone": "deny",
+        "repo_overview": "deny"
+      },
+      "status": "PASS",
+      "detail": "resolved via `opencode debug config` in the probe container (no model call)"
+    },
+    {
+      "id": "live_positive_tools",
+      "where": "live_opencode",
+      "expected": "['read', 'grep', 'glob'] each execute successfully",
+      "observed": {
+        "grep": [
+          "completed"
+        ],
+        "glob": [
+          "completed"
+        ],
+        "read": [
+          "completed"
+        ]
+      },
+      "status": "PASS",
+      "detail": "{\"read\": true, \"grep\": true, \"glob\": true}"
+    },
+    {
+      "id": "live_negative_denials",
+      "where": "live_opencode",
+      "expected": "every denied action class attempted live and rejected (per-class turn, <= 2 tries per tool)",
+      "observed": {
+        "classes": {
+          "shell_exec": {
+            "denied": 1,
+            "completed": 0,
+            "attempts": 1
+          },
+          "file_write": {
+            "denied": 2,
+            "completed": 0,
+            "attempts": 1
+          },
+          "network_access": {
+            "denied": 2,
+            "completed": 0,
+            "attempts": 3
+          },
+          "subagent": {
+            "denied": 1,
+            "completed": 0,
+            "attempts": 1
+          }
+        },
+        "tools": {
+          "bash": {
+            "denied": 1,
+            "completed": 0,
+            "attempts": 1
+          },
+          "edit": {
+            "denied": 2,
+            "completed": 0,
+            "attempts": 1
+          },
+          "webfetch": {
+            "denied": 2,
+            "completed": 0,
+            "attempts": 1
+          },
+          "websearch": {
+            "denied": 0,
+            "completed": 0,
+            "attempts": 2
+          },
+          "task": {
+            "denied": 1,
+            "completed": 0,
+            "attempts": 1
+          }
+        }
+      },
+      "status": "PASS",
+      "detail": "denied tools are unregistered in the model toolset; an error event is the enforced denial. resolved_permission_matrix proves the per-tool config deterministically."
+    },
+    {
+      "id": "inspect_parity",
+      "where": "host",
+      "expected": "live turns inspected with identical policy",
+      "observed": 7,
+      "status": "PASS"
+    },
+    {
+      "id": "forwarder_destinations",
+      "where": "host",
+      "expected": "only <corporate-provider-host>:443 contacted",
+      "observed": [
+        "<corporate-provider-host>:443 via <corporate-provider-ip>"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "no_key_in_report_or_artifacts",
+      "where": "host",
+      "expected": "OPENAI_API_KEY absent from report and exported artifacts",
+      "observed": {
+        "leaked": false,
+        "where": []
+      },
+      "status": "PASS"
+    }
+  ],
+  "report_redaction": {
+    "api_key_present": false
+  },
+  "started_at_utc": "2026-10-12T12:16:20Z",
+  "finished_at_utc": "2026-10-12T12:17:30Z"
+}

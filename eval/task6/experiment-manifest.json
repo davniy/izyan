@@ -1,0 +1,347 @@
+{
+  "schema": "task6-manifest/1",
+  "experiment_id": "task6",
+  "frozen_at_utc": "2026-10-09T18:27:38Z",
+  "goal": "decide whether a structured evidence contract (agent-assessment/2) makes the two Task-5 false-safe mechanisms checkable \u2014 error-as-absence and scoped-zero generalized \u2014 and whether izyan MCP tools (T2) add value over the same prompt/schema without MCP (P2). No production Verification Gate is built (spec \u00a76).",
+  "spec": {
+    "files_sha256": {
+      "docs/dev/specs/2026-10-09-task6-structured-evidence-experiment.md": "5eeba48e56bb84f7217acdb7b03d8096435a6cb702203838c61214f772ed626c"
+    },
+    "plan_sha256": {
+      "docs/dev/plans/2026-10-09-task6-structured-evidence-implementation-plan.md": "1ba6b9f5ac630f5dd177f52cbd385d4e1787bbf673e760cfd89bb98c75d6561d"
+    },
+    "plan": "docs/dev/plans/2026-10-09-task6-structured-evidence-implementation-plan.md"
+  },
+  "contract": {
+    "assessment_schema": "agent-assessment/2",
+    "schema_file": "eval/task6/assessment_v2.py",
+    "schema_file_sha256": "7883537c11d9f6c209b72e38443961c63a2c4575a5291c2ae36ddca9ee6de57c",
+    "validator": "task6-validator/1",
+    "validator_file": "eval/task6/validator.py",
+    "validator_file_sha256": "34d5b7b17bd56b15e4efe7902bd88a477662193811a4dd505e4324f15602756b"
+  },
+  "izyan": {
+    "worktree": "<VA_REPO>",
+    "commit": "d623213b316100b9872eceabfdc7ad5f6eaa4bcb",
+    "dirty": true,
+    "tool_adapter_version": "izyan-evidence-tools/0.1.0",
+    "controller_files_sha256": {
+      "eval/task6/protocol.py": "9d88d5f1174d5f8ce67569284c21a73b773b82e3dc297d50745e7987ff52021c",
+      "eval/task6/assessment_v2.py": "7883537c11d9f6c209b72e38443961c63a2c4575a5291c2ae36ddca9ee6de57c",
+      "eval/task6/validator.py": "34d5b7b17bd56b15e4efe7902bd88a477662193811a4dd505e4324f15602756b",
+      "eval/task6/manifest.py": "7fd0a8d82a796600a5293e7131a08659dbb9236f8e5ce634be5e93be1a499776",
+      "eval/task6/collect.py": "b70ff10b78d86762fb1434cba0d80cde4cb02c7d28dd0b58a87d1799e185a1d5",
+      "eval/task6/replay.py": "e16ab77cfaa3e18122a8d0c3bd2b8f3d8c687e54d54acf7074a4cc43eb25c7fb",
+      "eval/task6/report.py": "7947039fe7fd93adfe1522e8b9323b1aeb665ee62a425e0fe4bd806a9af8d0ea",
+      "eval/task6/freeze.py": "3fff1911825c1bb7b48539bf46a323823e0fcd3a1da13f94e3d0757124551d58",
+      "eval/c1/assessment.py": "656765417c5eec15b21b2e4b1d7fc96dbf5fa3c4a6ab42722cd61b7ebfda697d",
+      "eval/c1/status.py": "8433ec5dcac45b1e9b3ec751d513f93ad3887a5c7d7ebd68b9977f740c585da5",
+      "eval/c1/collect.py": "a1da6e90370997f0574223e08bcc09622c501ff50f094adafe6af1475e86d885",
+      "eval/c1/parser_audit.py": "c3577c085e92bed66087e660c4b6e712c3efd510b2859cf0e01e9f3d44d72022",
+      "eval/c1/runner.py": "709f6c176b6ba0da6edc1ea925e6b2cb114f33df2769b1d14ed6fec13447c5f0",
+      "eval/c1/report.py": "7070f28280b16c0e64e76ec9fe5854aa10d5e4cffaf9ccd5e2fb83fc7326d1d7"
+    },
+    "prompt_files_sha256": {
+      "eval/task6/prompts/vuln_safety_v2.txt": "c38c362e139f243fa885645b3285e658c657433b0a6613016e39c37899e6d78c",
+      "eval/task6/prompts/vuln_safety_v2_tools.txt": "bcc28c1264d89f03278930fd11e1ba3a416b1d4f5a81490fcbb6934dbe621c78",
+      "eval/task6/prompts/hashes.json": "f9f8328b89f4dbe499862fb5861c6ee7bd3108b2fc0b7766a48c2176f090e9f9",
+      "eval/task6/prompts/p2-t2.diff": "70d7c050b7d11831c5bc618b3619445dc72f3d3a10681406be92b0b5c6438925",
+      "eval/vexbench-prompts/official-vuln-c0a5c8458b77.txt": "c0a5c8458b77015d57b82eefca563d01c870ea027562381715c8ab9d70ffabda"
+    }
+  },
+  "harness": {
+    "dir": "<VA_VEXBENCH>/agent-ctl",
+    "commit": "80cddeac3132826bfd47227ad59b2e6618a681bd",
+    "dirty_files": [
+      "M benchmark/tasks/vex_bench.jsonl",
+      " M src/evaluate/agents/__init__.py",
+      " M src/evaluate/agents/base.py",
+      " M src/evaluate/agents/opencode.py",
+      " M src/evaluate/prompts.py",
+      "?? benchmark/tasks/vex_bench.upstream75.jsonl",
+      "?? benchmark/tasks/vex_bench_go.jsonl",
+      "?? docker/bin/",
+      "?? docker/build-c1.sh",
+      "?? docker/go.codex-c1.Dockerfile",
+      "?? docker/go.opencode-c1.Dockerfile",
+      "?? src/evaluate/agents/codex_c1.py",
+      "?? src/evaluate/agents/opencode_c1.py",
+      "?? src/evaluate/prompts_data/"
+    ],
+    "task4_patch_file": "eval/c1/harness/vexbench-agent-ctl-c1.patch",
+    "task4_patch_sha256": "7c47f5c39b94b862cfc576f32540400a3001b64740d81667ba5dbc84c05b0840",
+    "task5_patch_file": "eval/task5/harness/vexbench-agent-ctl-task5.patch",
+    "task5_patch_sha256": "75cdcd21b80055d404743f4d0af857c21717cbbdb93faf72943ce33a06216586",
+    "patch_file": "eval/task6/harness/vexbench-agent-ctl-task6.patch",
+    "patch_sha256": "30131aa312e0dd4e8adf0d25295542c574f8eab208664fceeb30da4e75ebd202",
+    "scoring_files_sha256": {
+      "src/evaluate/result_parser.py": "a6d7ceaa7b60b1be2bfcef4bca6324efbfa08652bad630bc041efdfaaa9dba7c",
+      "src/evaluate/parse.py": "c7d5af64d3573731bae1c66ec0bd2f63f3bdcb0d9c8b0b6d4c22d3058969740b",
+      "src/evaluate/metrics.py": "f08aced0059d1fe1a48652e532786e8eb65dc8e1076ce8a5abadcc3f51a75a5c"
+    },
+    "arm_files_sha256": {
+      "src/evaluate/prompts.py": "0844911e7c0e22313dfae914d57f82e7fb163ff9d0491af5777bccc5f5f3c3b8",
+      "src/evaluate/agents/__init__.py": "ceb7bedd6eea813853f3a306509562869317100b05b610ccf974c0b019093bef",
+      "src/evaluate/agents/opencode.py": "6a8ac5e4af1532f3024daa8f3dcd07d5ccdbc65c79f1c9d99a4d2adfd8f41287",
+      "src/evaluate/agents/opencode_c1.py": "df902268f8f046561ef9db707e45b4e27837ae905b27b7ad30c831f47f7fcde7"
+    }
+  },
+  "tools_binary": {
+    "binary": "docker/bin/izyan-evidence-tools",
+    "binary_sha256": "4069646818ce14d55291a2a234cff79324558b80682f54e1c8ff050dd20d2bab",
+    "adapter_version": "izyan-evidence-tools/0.1.0",
+    "image_stamp": null,
+    "initialize_instructions_sha256": "f8f645809f79140ff9da9c2355894c1e064ea54498d95500ac26947e20396940",
+    "tools_list_sha256": "1120d60d30d4d9ec1eace9f8afd263525220867ae0e5ee64dbd16a52768d30aa",
+    "tool_count": 31,
+    "tool_names": [
+      "check_call_site_guard",
+      "check_missing_call",
+      "dep_invocation_state",
+      "field_assignments",
+      "find_callers",
+      "find_dep_callers",
+      "find_entrypoints",
+      "find_may_callers",
+      "find_references",
+      "find_symbol",
+      "find_validations",
+      "gated_refs",
+      "get_advisory",
+      "get_dependency_graph",
+      "get_fix_diff",
+      "get_fix_references",
+      "get_module_version",
+      "get_product_snapshot",
+      "get_vulnerability",
+      "interface_dispatch_sites",
+      "module_internal_reach",
+      "module_usage",
+      "read_function",
+      "read_source",
+      "run_build",
+      "run_govulncheck",
+      "run_tests",
+      "scan_dynamic",
+      "search_source",
+      "sensitive_fields",
+      "trace_argument"
+    ],
+    "transcript_path": "/var/folders/np/qr7h0yxd1y9c4n6fr65p338wptz0y0/T/task5-mcp-probe-u9vax8qd/mcp-transcript.jsonl"
+  },
+  "images": {
+    "p2": {
+      "tag": "vex-bench-go-opencode-gw:latest",
+      "id": "sha256:91629799d07a08fc56e36fe1d51589cf3a1f24ff73ed9e09bad0331161703c13",
+      "arch": "linux/arm64"
+    },
+    "t2": {
+      "tag": "vex-bench-go-opencode-c1:latest",
+      "id": "sha256:e9b61aa5a097619aaa938602c9499e6a274c530caeaa5ddaad6ebfc5775ecd76",
+      "arch": "linux/arm64"
+    }
+  },
+  "toolchain": {
+    "go": "go version go1.26.8 linux/arm64",
+    "opencode_cli": "1.15.5"
+  },
+  "model": {
+    "id": "qwen3.6-35b",
+    "provider": "custom-openai (OpenAI-compatible gateway, OpenAI-compatible)",
+    "provider_model_id": "custom-openai/Qwen/Qwen3.6-35B-A3B",
+    "model_revision": null,
+    "settings": {
+      "temperature": null,
+      "reasoning_effort": null,
+      "limits": {
+        "context": 262144,
+        "output": 16384
+      }
+    },
+    "settings_note": "temperature/effort/revision unexposed by the provider \u2014 null, never fabricated (plan \u00a72); context/output limits from the synthesized opencode provider block"
+  },
+  "prompts": {
+    "vuln_safety_v2": {
+      "sha256_12": "c38c362e139f",
+      "sha256": "c38c362e139f243fa885645b3285e658c657433b0a6613016e39c37899e6d78c",
+      "bytes": 11033
+    },
+    "vuln_safety_v2_tools": {
+      "sha256_12": "bcc28c1264d8",
+      "sha256": "bcc28c1264d89f03278930fd11e1ba3a416b1d4f5a81490fcbb6934dbe621c78",
+      "bytes": 12768
+    },
+    "vuln_official_frozen": {
+      "sha256_12": "c0a5c8458b77",
+      "sha256": "c0a5c8458b77015d57b82eefca563d01c870ea027562381715c8ab9d70ffabda"
+    }
+  },
+  "prompt_delta": {
+    "file": "eval/task6/prompts/p2-t2.diff",
+    "contract": "t2 = exact p2 bytes + two LF + literal C1 <EVIDENCE_TOOLS> block"
+  },
+  "attempt_policy": {
+    "timeout_seconds": 900,
+    "repeats": 3,
+    "parallel": 1,
+    "retries": 0,
+    "cache_admission": "forbidden",
+    "attempt_key": "(experiment_id, arm, model, task_id, run_NNN)"
+  },
+  "arms": {
+    "p2": {
+      "role": "structured_assessment_no_mcp",
+      "agent": "opencode-b1p",
+      "prompt": "vuln_safety_v2",
+      "image_suffix": "opencode-gw",
+      "mcp": false,
+      "prompt_sha256_12": "c38c362e139f",
+      "run_root": "<VA_REPO>/eval/task6/results/p2/c38c362e139f/opencode-b1p/qwen3.6-35b",
+      "repeats": 3,
+      "layout": "harness"
+    },
+    "t2": {
+      "role": "structured_assessment_plus_mcp",
+      "agent": "opencode-c1",
+      "prompt": "vuln_safety_v2_tools",
+      "image_suffix": "opencode-c1",
+      "mcp": true,
+      "prompt_sha256_12": "bcc28c1264d8",
+      "run_root": "<VA_REPO>/eval/task6/results/t2/bcc28c1264d8/opencode-c1/qwen3.6-35b",
+      "repeats": 1,
+      "layout": "harness",
+      "note": " | DEV DEVIATION 2026-10-10: T2 run at repeats=1 (matched n=1 vs P2 run_001) per operator decision to bound cost \u2014 see limitations"
+    }
+  },
+  "historical": {
+    "reference_cohorts": "Task-5 P1/T1 saved answers stay historical controls; they are never re-run or re-scored here \u2014 if a causal prompt-format attribution is needed it must come from matched same-runtime arms, not the frozen Task-5 cohort (spec \u00a72)",
+    "task5_reference_doc": "eval/task6/freeze/task5-reference.json",
+    "task5_reference_docs_sha256": {
+      "eval/task5/gate-feasibility.md": "6d763ee908fb548f20dabfc8a9897b82091ba58fc0b321a9c5eee6940dfb0290",
+      "eval/task5/scoring/safety-report.md": "e5c1e842e1be4a51e7d4980d9512c1196c9965c24b460fd75ffc3ae953825066",
+      "eval/task5/decision.md": "84aa004c3ccb99dae3184e464f6093f7a1a092784f1a7bc38eab1ce101357354",
+      "eval/task6/freeze/task5-reference.json": "3e7ea6261e18dcfcca4e70dc5727e0883e439d98c3c350fc84b0099e2e96fb0c"
+    }
+  },
+  "dataset": {
+    "tasks_file": "<VA_VEXBENCH>/agent-ctl/benchmark/tasks/vex_bench.jsonl",
+    "tasks_sha256": "60b55373031dca97009d2e89ef8dfdf0ba083f9ce1035470fdf46f0da15384b3",
+    "expected_tasks_sha256": "60b55373031dca97009d2e89ef8dfdf0ba083f9ce1035470fdf46f0da15384b3",
+    "sha256_matches_pin": true,
+    "task_count": 30,
+    "task_ids": [
+      "caddyserver-caddy-8dc7667-CVE-2025-29785",
+      "aquasecurity-trivy-37da98d-CVE-2024-32473",
+      "kubernetes-minikube-e7bf515-CVE-2019-5736",
+      "juanfont-headscale-e172c29-CVE-2024-45338",
+      "zeromicro-go-zero-bae061a-CVE-2022-32149",
+      "cilium-cilium-43bff35-CVE-2026-35469",
+      "containers-podman-6541fc4-CVE-2025-58181",
+      "rancher-rancher-4dc4f53-CVE-2025-47914",
+      "rancher-rancher-4dc4f53-CVE-2025-58181",
+      "cilium-cilium-3977f6a-CVE-2026-33186",
+      "moby-moby-3ede246-CVE-2026-39984",
+      "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+      "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+      "stretchr-testify-285adcc-CVE-2022-28948",
+      "labstack-echo-fdacff0-CVE-2020-26160",
+      "aquasecurity-trivy-98e136e-CVE-2024-24791",
+      "containers-podman-38ccfa2-CVE-2024-37298",
+      "containers-podman-6a65597-CVE-2023-48795",
+      "cilium-cilium-1228cbc-CVE-2026-35469",
+      "helm-helm-b76a950-CVE-2024-25621",
+      "rancher-rancher-8761419-CVE-2026-24051",
+      "rancher-rancher-8761419-CVE-2026-39883",
+      "istio-istio-042afc3-CVE-2023-48795",
+      "istio-istio-8903f65-CVE-2024-45338",
+      "helm-helm-fbb24fe-CVE-2021-21334",
+      "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+      "containers-podman-5ae6347-CVE-2025-47914",
+      "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+      "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+      "moby-moby-caea5f7-CVE-2026-39883"
+    ],
+    "cve_ids": [
+      "CVE-2019-5736",
+      "CVE-2020-26160",
+      "CVE-2021-21334",
+      "CVE-2021-3121",
+      "CVE-2022-28948",
+      "CVE-2022-32149",
+      "CVE-2022-41717",
+      "CVE-2023-44487",
+      "CVE-2023-48795",
+      "CVE-2024-24786",
+      "CVE-2024-24791",
+      "CVE-2024-25621",
+      "CVE-2024-32473",
+      "CVE-2024-37298",
+      "CVE-2024-45338",
+      "CVE-2025-22871",
+      "CVE-2025-29785",
+      "CVE-2025-47914",
+      "CVE-2025-58181",
+      "CVE-2026-24051",
+      "CVE-2026-33186",
+      "CVE-2026-35469",
+      "CVE-2026-39883",
+      "CVE-2026-39984"
+    ],
+    "acquisition_file": "<VA_VEXBENCH>/acquisition.json",
+    "acquisition_sha256": "dd9adb0f8f6685f89b54880caebae67a06262b365e336b9aef9466e8a7b78b58",
+    "dataset_pin": "80cddeac3132826bfd47227ad59b2e6618a681bd",
+    "repos_dir": "<VA_VEXBENCH>/repos",
+    "snapshot_hashes": {
+      "aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+      "aquasecurity/trivy/98e136eb7baa2b66f4233d96875c1490144e1594": "8c3488acf5b1c84ec77f526430407b6c7815ca9745d9f4560f64fff1b6ddfcc2",
+      "caddyserver/caddy/8dc76676fb5156f971db49c50a5c509d1c93613b": "d361247533c02147d40f8485c3f5adc7c6522fc9f9f81e06f0cd1448f6ccee83",
+      "cilium/cilium/1228cbc922a31aa9cf83962863d6818ad2eec315": "b599730fec0a03b9d0da2c68237253f089096392cf2e3c1ce29cbca07a106ddf",
+      "cilium/cilium/3977f6a1120bf5ec0206c1b3c484ba094da82c7d": "3e38825cea2577cc8456695f19e6bd80e19d6553d2b904368d826f6e8b46afb8",
+      "cilium/cilium/43bff353599662f7d2996c3b77155e383f0a5e96": "951a77d526f2bbaf217cad6659cca71464d174566e7c5ad9990533762a816146",
+      "containers/podman/38ccfa2b3327f0a3d0380c7ba6701046fa7c6aab": "d9c38ff6f123144dd255d157df4caec49ddeda554f2fcaa3179402fb327aea98",
+      "containers/podman/5ae63471cf9b370a78c6158c5bbb992be0807beb": "fb1e4efd0eb0308dcb1f232225f817636a471e2b22519f730fc01c03915dae37",
+      "containers/podman/6541fc4fb29e4ce56d88b46864b4559e0a07f978": "ba3a7eab0061977156c90d1f66956d67b7e390da268464b74e9ddb2b3889503c",
+      "containers/podman/6a6559735845f21a3066cf547b90669ef24f768b": "033455cb2220d35fbc0a18c4d8db1ce2c4ec06de69d1b060a9afdb9604d33b11",
+      "gitleaks/gitleaks/f487f853788e1f40b802a8476d98d6a049de6373": "b94b8461f08f2b9c5e95d70c7b33b39b21ea5fe6e4fb92e11e9a6e911946795b",
+      "helm/helm/b76a950f6835474e0906b96c9ec68a2eff3a6430": "d1697c7b277a2722ce74a05c7178443b56c52f06112bb7134c4b8d04c22b14c6",
+      "helm/helm/fbb24fe545a5923f4ebb393244654b359c69371b": "7a51bc13ca563cec8db84eace6328796035fb033b7394703eae3275696991723",
+      "istio/istio/042afc3802c1c5daee65f5b6703b0718c1f60541": "f62a45079ac8705f49c325d4608a4d4d041af0b8fcba06d2fb0ece89aedd014f",
+      "istio/istio/8903f65dc2e7191a14a958364c63908a05405f12": "172e4f6a7bf4dcaecb1b34ebb7ab261db62883257c07c7c44439e5ec577f2069",
+      "juanfont/headscale/e172c29360e0c9bdfbd22b5acc41a483ef513393": "5e22d3bc6d6f837f9a26bb4677b9123dc2dd9f95472b2d444be0e9b98d386143",
+      "kubernetes/kubernetes/1ee2acbb2e92caf28d3ff29121af657f2758ce58": "a490ab17c35082686ca08761ac990080b4c0afa6d08574a16524aad573451501",
+      "kubernetes/kubernetes/6d4b94f0ab25561be59396fd83fc7bf929fd825d": "523f2ddc3d50269739e88dd655f80f620685de26dad90f4269b935d4e4e37c75",
+      "kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "kubernetes/kubernetes/ec78c0f487ebde300ebbe1fb5189cb178e6a18b5": "2e8850eff98abb47bc46b974c74d87ddfeb790a5bd6ef71866692b4fc7196c21",
+      "kubernetes/minikube/e7bf515c48f32d7ef63c81fcdba92cccef619016": "4fe802e0b96503fc1e603320317ebe05b628e3f4a32129f5b369555ab4298e31",
+      "labstack/echo/fdacff0d93d54e8065ac7f5072041146f054a201": "db506090bbed3c6bef6befe632268116b3614381e57cc262d2dd354020ea14a1",
+      "moby/moby/3ede246fb2176a72b034ad01e4250818f67b6b13": "5bc551935bfe9da709a9c01b698c0bcb775900bb5e22235bd45c4f53bad6eca8",
+      "moby/moby/caea5f77adfc694c0e67c4f11022e3fa6d490e11": "3f9252a314b27a7d8d1173016b8953d9c39cad845a10713ffc63f2e1560e5749",
+      "rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+      "rancher/rancher/876141989e372bcc09b3c8523b05cac4e4d8665d": "0d0975942ec5c8d8c867cc13d03e6a469a31f3db2af7737466f4604f55b71e70",
+      "stretchr/testify/285adcc5ced0bb267a7c874cfa3ca238266ce14f": "63f6629dcd56f0eefd2ac0fa08b2a57af770108daab576fb47851850e4325ef3",
+      "zeromicro/go-zero/bae061a67e29184f7ae1113ead46c03ae717170e": "8ef3ad2d049965ecd3959783e8567ecedd2c884932f7f8ae6d6facc4057654a4"
+    }
+  },
+  "protocol": {
+    "output_contract": "single JSON object on stdout; category + reasoning top-level plus the structured ``assessment`` object (agent-assessment/2) \u2014 identical in P2 and T2",
+    "status_schema": "attempt-status/1",
+    "assessment_schema": "agent-assessment/2",
+    "validator_version": "task6-validator/1",
+    "attempt_layout": {
+      "harness": "<arm>/<prompt_hash>/<agent>/<model>/<task_id>/run_NNN/",
+      "controller": "<arm>/<experiment_id>/<task_id>/run_NNN/"
+    },
+    "audit_sink": "artifacts/izyan-audit/tool_calls.jsonl",
+    "mcp_transport": "stdio inside the attempt container"
+  },
+  "results_root": "<VA_REPO>/eval/task6/results",
+  "smoke": {
+    "experiment_id": "task6-smoke",
+    "results_root": "<VA_REPO>/eval/task6/smoke",
+    "note": "4 named false-safe cases + 3-4 correct-safe cases selected host-side by GT class before any answer is examined; labels never reach the agent (spec \u00a75)"
+  },
+  "gt_policy": "ground_truth / ground_truth_category / reference PR / prior results are controller-only; the rendered prompt carries only {cve_id}; validator/advisory inputs are public OSV records only",
+  "limitations": [
+    "attempt-policy deviation: P2 30x3, T2 30x1 (matched n=1 comparison); T2 was planned 30x3 in this frozen manifest. Justified by completion criteria (contract sufficiency / MCP value / validator viability) needing aggregate rates, not rare-event precision."
+  ]
+}

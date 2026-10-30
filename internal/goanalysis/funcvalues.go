@@ -16,7 +16,15 @@ import (
 // is incomplete and the call's signature is compatible — both keep the
 // caller enumeration conservative (a possible caller is a real writer
 // candidate; an incompatible one is excluded).
-func (ix *Index) funcValueCallSites(scope []*packages.Package, ref domain.SymbolRef, want *types.Signature) (sites []CallSiteRef) {
+//
+// open=true means the enumeration itself is not closed: a scope package
+// was unscannable, or an index was built across an extras-generation
+// change. open survives even when no compatible site is returned — an
+// empty sites slice is closed evidence only when open is false. When
+// ref's own signature never resolved (want == nil) no candidate can be
+// excluded by signature, so every unresolved site stays a possible
+// caller rather than being silently dropped.
+func (ix *Index) funcValueCallSites(scope []*packages.Package, ref domain.SymbolRef, want *types.Signature) (sites []CallSiteRef, open bool) {
 	key := ref.Package + "|" + strings.TrimPrefix(ref.Symbol, "*")
 	// A method may be stored as a bound method value (receiver dropped)
 	// or as a method expression (receiver becomes the first parameter) —
@@ -37,10 +45,19 @@ func (ix *Index) funcValueCallSites(scope []*packages.Package, ref domain.Symbol
 	for _, pkg := range scope {
 		idx := ix.fvIndex(pkg)
 		if idx == nil {
+			// A scope package whose source exists but never type-checked
+			// cannot be indexed — its func-value call sites are invisible,
+			// so coverage is open even if nothing is returned.
+			open = open || len(pkg.Syntax) > 0
 			continue
 		}
 		sites = append(sites, idx.byFunc[key]...)
 		if idx.open {
+			// The index was built across an extras-generation change:
+			// every site it saw is unresolved. Confirmed hits were marked
+			// possible at build; pending sites stay possible callers
+			// whenever the signature cannot exclude them.
+			open = true
 			for _, p := range idx.pending {
 				compatible := len(wantKeys) == 0
 				for _, wk := range wantKeys {
@@ -62,8 +79,19 @@ func (ix *Index) funcValueCallSites(scope []*packages.Package, ref domain.Symbol
 				sites = append(sites, s)
 			}
 		}
+		if len(wantKeys) == 0 {
+			// Unresolvable subject signature: no partial site can be
+			// excluded by signature, so every unresolved candidate set
+			// is a possible caller.
+			for _, list := range idx.partial {
+				for _, s := range list {
+					s.possible = true
+					sites = append(sites, s)
+				}
+			}
+		}
 	}
-	return sites
+	return sites, open
 }
 
 // fvPkgIndex is a per-package index of function-value call sites: direct
@@ -107,12 +135,8 @@ func (ix *Index) fvIndex(pkg *packages.Package) *fvPkgIndex {
 	}
 	idx := &fvPkgIndex{byFunc: map[string][]CallSiteRef{}, partial: map[string][]CallSiteRef{}}
 	info := pkg.TypesInfo
-	var enc *ast.FuncDecl
 	for _, f := range pkg.Syntax {
-		ast.Inspect(f, func(n ast.Node) bool {
-			if fn, ok := n.(*ast.FuncDecl); ok {
-				enc = fn
-			}
+		inspectDecls(f, func(n ast.Node, enc *ast.FuncDecl) bool {
 			call, ok := n.(*ast.CallExpr)
 			if !ok {
 				return true
@@ -221,6 +245,12 @@ func (ix *Index) fvParamCallers(pkg *packages.Package, enc *ast.FuncDecl, idx in
 	}
 	for _, p := range scope {
 		i, indexed := ix.fvIdx[p]
+		// The index map is reset lazily at the next build — entries left
+		// over from an older extras generation describe a smaller scope;
+		// treat them as absent so stale coverage never reads as closed.
+		if ix.fvIdxGen != ix.extrasGen {
+			indexed = false
+		}
 		if !indexed {
 			if ix.fvBuildDepth > 0 {
 				// Mid-build: starting this package's index would recurse
@@ -234,6 +264,10 @@ func (ix *Index) fvParamCallers(pkg *packages.Package, enc *ast.FuncDecl, idx in
 			i = ix.fvIndex(p)
 		}
 		if i == nil {
+			// Scope package with source that never type-checked: its
+			// func-value call sites are invisible, so the caller set is
+			// under-counted.
+			open = open || len(p.Syntax) > 0
 			continue
 		}
 		open = open || i.open
@@ -246,6 +280,22 @@ func (ix *Index) fvParamCallers(pkg *packages.Package, enc *ast.FuncDecl, idx in
 			}
 			for _, ps := range i.pending {
 				if fvSigKey(ps.sig) == wk {
+					push(ps.site)
+				}
+			}
+		}
+		if len(wantKeys) == 0 {
+			// enc's signature never resolved: nothing can be excluded by
+			// signature, so every unresolved site may supply the
+			// parameter — an open index leaves its whole pending set
+			// unresolved.
+			for _, list := range i.partial {
+				for _, s := range list {
+					push(s)
+				}
+			}
+			if i.open {
+				for _, ps := range i.pending {
 					push(ps.site)
 				}
 			}
@@ -410,7 +460,18 @@ func (ix *Index) funcCandidates(pkg *packages.Package, enc *ast.FuncDecl, expr a
 					}
 					return out, anyOpen
 				}
+				return nil, true
 			}
+		}
+		// Package-qualified names (`pkg.F`) are not selections — the
+		// selector ident binds the object directly. A named function is
+		// a closed candidate; a func-valued package var resolves through
+		// its initializer and element writes like a local var.
+		switch o := pkg.TypesInfo.Uses[e.Sel].(type) {
+		case *types.Func:
+			return []*types.Func{o}, false
+		case *types.Var:
+			return ix.varFuncValues(pkg, o, seen, depth+1)
 		}
 		return nil, true
 	case *ast.CompositeLit:

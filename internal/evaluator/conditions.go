@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/fedorovmv/izyan/internal/fixbinding"
 )
 
 // ConditionEvaluator assigns a TRUE/FALSE/UNKNOWN claim to a condition using
@@ -12,6 +13,38 @@ import (
 type ConditionEvaluator interface {
 	CanEvaluate(cond domain.Condition) bool
 	Evaluate(cond domain.Condition, c *domain.AnalysisCase) domain.Claim
+}
+
+// admitNegative applies the build-context gate to a FALSE candidate before it
+// leaves an evaluator. A build-dependent negative requires an identified,
+// scoped product build and the measurement its falsifier cites; when either
+// prerequisite is missing the claim degrades to UNKNOWN with the refusal
+// recorded, never to FALSE plus a caveat. Independent bases (declared trust,
+// auto perimeter, repository config keys, deployment manifests, release
+// toolchain bounds) pass through untouched.
+//
+// It is applied by every evaluator entry point — direct calls receive the
+// same behavior as workflow dispatch.
+func admitNegative(c *domain.AnalysisCase, cond domain.Condition, claim domain.Claim) domain.Claim {
+	if c == nil || claim.Result != domain.ClaimFalse || claim.Falsifier == "" {
+		return claim
+	}
+	if err := domain.ValidateNegativeEvidence(c.Product, claim, cond, c.EvidenceGraph.EvidenceList()); err != nil {
+		claim.Result = domain.ClaimUnknown
+		claim.Limitations = append(claim.Limitations, "FALSE refused: "+err.Error())
+		return claim
+	}
+	// A verification record produced by the evaluator itself (trusted
+	// infrastructure, protocol-role inventories) did not pass through
+	// Verifier.VerifyFalse; stamp its measurement identity here so a later
+	// persisted-verdict admission can bind it to this build.
+	if claim.NegativeVerification != nil &&
+		claim.NegativeVerification.Status == domain.NegativeVerified &&
+		domain.NegativeRequiresTarget(claim, cond) {
+		build := domain.EffectiveBuildContext(c.Product)
+		claim.NegativeVerification.BuildContext = &build
+	}
+	return claim
 }
 
 // SymbolReachable evaluates SYMBOL_REACHABLE conditions from govulncheck
@@ -28,16 +61,20 @@ func (SymbolReachable) CanEvaluate(cond domain.Condition) bool {
 }
 
 func (SymbolReachable) Evaluate(cond domain.Condition, c *domain.AnalysisCase) domain.Claim {
+	return admitNegative(c, cond, evaluateSymbolReachable(cond, c))
+}
+
+func evaluateSymbolReachable(cond domain.Condition, c *domain.AnalysisCase) domain.Claim {
 	// Pattern-parametrized reachability shapes are decided by their own
 	// rules before the govulncheck path runs.
 	if cond.Params[domain.ParamDirection] == domain.DirectionRead {
-		return evalReadDirection(cond, c)
+		return evalReadDirectionRaw(cond, c)
 	}
 	if cond.Params[domain.ParamSequence] != "" {
-		return evalSequencePair(cond, c)
+		return evalSequencePairRaw(cond, c)
 	}
 	if cond.Params[domain.ParamCheck] == domain.CheckLocus {
-		return evalLocus(cond, c)
+		return evalLocusRaw(cond, c)
 	}
 	claim := domain.Claim{
 		ID:          domain.ClaimID("CL-" + string(cond.ID)),
@@ -46,16 +83,26 @@ func (SymbolReachable) Evaluate(cond domain.Condition, c *domain.AnalysisCase) d
 
 		Producer: "evaluator.SymbolReachable",
 	}
+	// Omission-pipeline reach: TRUE only through the typed missing-call
+	// witness bound to the admitted OMITTED_CHECK contract. A matching
+	// evidence id or a symbol appearing in evidence content never decides
+	// this condition. A witness that records the check invoked does not
+	// reach here as TRUE; the omission claim itself turns FALSE.
 	if cond.Params["pipeline"] != "" {
-		for _, e := range c.EvidenceGraph.Evidence {
-			if (e.ID == "EV-MISSING-CALL" || strings.HasPrefix(string(e.ID), "EV-MISSING-CALL")) &&
-				strings.Contains(e.Content, cond.Params["pipeline"]) {
+		if c.Exploit != nil {
+			if match, reasons := domain.MatchOmissionWitness(c.Exploit.DefectSemantics, cond,
+				c.EvidenceGraph.EvidenceList(), c.Product, domain.MissingCallOmitted); match != nil {
 				claim.Result = domain.ClaimTrue
-				claim.EvidenceIDs = appendUniqueID(claim.EvidenceIDs, e.ID)
-				claim.Explanation = fmt.Sprintf("validation pipeline %s is reached from product code (proven by EV-MISSING-CALL)",
-					cond.Params["pipeline"])
+				claim.EvidenceIDs = appendUniqueID(claim.EvidenceIDs, match.EvidenceID)
+				claim.Explanation = "the anchored omission pipeline is reached from product code; the contracted check is absent on that path (typed missing-call observation " +
+					string(match.EvidenceID) + ")"
 				return claim
+			} else {
+				claim.Limitations = append(claim.Limitations, reasons...)
 			}
+		} else {
+			claim.Limitations = append(claim.Limitations,
+				"omission-pipeline reach requires an admitted defect-semantics contract; the condition stays UNKNOWN")
 		}
 	}
 	symbols := reachabilitySubjects(cond, c)
@@ -71,15 +118,45 @@ func (SymbolReachable) Evaluate(cond domain.Condition, c *domain.AnalysisCase) d
 	// linked in. Split presence before any trace/module-usage logic so an
 	// absent subject cannot produce a FALSE-positive TRUE (e.g. inferred
 	// reach via a used sibling package) nor drown a proven negative.
+	//
+	// Identity comes first. A package missing from the build graph is absence
+	// evidence only for a subject the selected version actually contains: a
+	// fix-derived candidate whose coordinate does not resolve in that
+	// version's own source names nothing there, so its missing package proves
+	// nothing and the grouped all-absent FALSE may not be proposed.
 	if set, ids, err := packageImportSet(c); err == nil {
-		var present []domain.SymbolRef
+		var evidenceID domain.EvidenceID
+		if len(ids) > 0 {
+			evidenceID = ids[0]
+		}
+		var proof *domain.ContentAdmission
+		if c != nil {
+			proof = fixbinding.AdmitModelProof(fixbinding.AdmissionForCase(c), c.RootCause)
+		}
+		absenceAdmission := domain.AdmitAbsence(c, domain.AbsenceBuildGraph{
+			Paths: set, EvidenceID: evidenceID, Admitted: true,
+		}, proof)
+		var present, unmapped []domain.SymbolRef
 		var absentPkgs []string
+		unmappedWhy := ""
 		for _, s := range symbols {
-			if s.Package != "" && !set[s.Package] {
-				absentPkgs = appendUnique(absentPkgs, s.Package)
+			if s.Package == "" || set[s.Package] {
+				present = append(present, s)
 				continue
 			}
-			present = append(present, s)
+			if admission := absenceAdmission.Admits(s); !admission.Admitted {
+				unmapped = append(unmapped, s)
+				if unmappedWhy == "" {
+					unmappedWhy = admission.Reason
+				}
+				continue
+			}
+			absentPkgs = appendUnique(absentPkgs, s.Package)
+		}
+		if len(present) == 0 && len(unmapped) > 0 {
+			claim.Limitations = append(claim.Limitations,
+				"package absence is not evidence here: "+unmappedWhy)
+			return claim
 		}
 		if len(present) == 0 {
 			claim.Result = domain.ClaimFalse
@@ -96,13 +173,31 @@ func (SymbolReachable) Evaluate(cond domain.Condition, c *domain.AnalysisCase) d
 				len(symbols)-len(present), strings.Join(absentPkgs, ", ")))
 			symbols = present
 		}
+		if len(unmapped) > 0 {
+			claim.Limitations = append(claim.Limitations, fmt.Sprintf(
+				"%d subject(s) name no established subject of the selected version and stay unresolved: %s",
+				len(unmapped), unmappedWhy))
+		}
 	}
 
-	if !govulncheckRan(c) {
-		claim.Limitations = append(claim.Limitations,
-			"govulncheck did not run or failed; reachability inferred from module-usage evidence only")
-		return libraryUsageVerdict(claim, c, symbols,
-			"govulncheck did not run or failed")
+	measurement := govulncheckEvidence(c)
+	var run *domain.GovulncheckRun
+	why, positiveOnly := "govulncheck did not run or its outcome is unknown", true
+	if measurement != nil {
+		run = measurement.Govulncheck
+		switch run.Outcome {
+		case domain.GovulncheckFailed:
+			why = "govulncheck failed"
+		case domain.GovulncheckNotRun:
+			why = "govulncheck did not run"
+		case domain.GovulncheckCompletedWithResults:
+			why = "govulncheck completed with findings; absence of a path to the subject(s) is not evidence of no path"
+			positiveOnly = false
+		case domain.GovulncheckCompletedEmpty:
+			positiveOnly = false
+		default:
+			why = "govulncheck run outcome is unknown"
+		}
 	}
 
 	matched := map[string]bool{}
@@ -200,42 +295,63 @@ func (SymbolReachable) Evaluate(cond domain.Condition, c *domain.AnalysisCase) d
 		}
 	}
 
-	// govulncheck silence only means something when the advisory was in its
-	// database AND declared the symbols under evaluation — its call paths
-	// terminate at declared vulnerable symbols, so for subjects outside that
-	// set (e.g. fix-diff-derived root causes of a symbol-less entry) the
-	// absence of a trace proves nothing.
-	if c.GovulncheckCoverage != "covered" || !allDeclared(symbols, c.Vulnerability.AffectedSymbols) {
-		why := "advisory absent from govulncheck DB"
-		if c.GovulncheckCoverage == "covered" {
-			why = "govulncheck entry declares no affected symbols covering the subject(s); silence is not evidence of no path"
-		}
-		return libraryUsageVerdict(claim, c, symbols, why)
+	// Failed, not-run, and legacy-untyped measurements fall back
+	// positive-only: a tool failure is never negative evidence, and an
+	// unknown outcome cannot suppress a measured absence.
+	if run == nil || run.Outcome == domain.GovulncheckFailed || run.Outcome == domain.GovulncheckNotRun {
+		claim.Limitations = append(claim.Limitations,
+			why+"; reachability inferred from module-usage evidence only")
+		return libraryUsageVerdict(claim, c, symbols, why, true)
 	}
-
-	claim.EvidenceIDs = nil
-	claim.Result = domain.ClaimFalse
-	claim.Falsifier = domain.FalsifierGovulncheckSilence
-	claim.Explanation = fmt.Sprintf("govulncheck found no call path to any of %d affected symbol(s)", len(symbols))
-	claim.Limitations = append(claim.Limitations,
-		"FALSE is a candidate: interfaces/reflection/plugins may bypass static reachability")
-	return claim
+	if run.Outcome == domain.GovulncheckCompletedEmpty {
+		// Silence is a candidate only when this completed run actually
+		// evaluated the advisory, the advisory's OSV entry declared the
+		// subject symbols, and the scan pattern covered the whole build.
+		if run.Coverage.Advisory != domain.GovulncheckCoverageCovered {
+			return libraryUsageVerdict(claim, c, symbols,
+				"advisory absent from the govulncheck DB this run scanned", false)
+		}
+		if !run.Coverage.ScopeComplete {
+			return libraryUsageVerdict(claim, c, symbols,
+				"govulncheck scan scope was narrowed; packages outside it were not evaluated", false)
+		}
+		if !allDeclared(symbols, run.Coverage.Subjects) {
+			return libraryUsageVerdict(claim, c, symbols,
+				"govulncheck entry declares no affected symbols covering the subject(s); silence is not evidence of no path", false)
+		}
+		claim.EvidenceIDs = []domain.EvidenceID{measurement.ID}
+		claim.Result = domain.ClaimFalse
+		claim.Falsifier = domain.FalsifierGovulncheckSilence
+		claim.Explanation = fmt.Sprintf("govulncheck found no call path to any of %d affected symbol(s)", len(symbols))
+		claim.Limitations = append(claim.Limitations,
+			"FALSE is a candidate: interfaces/reflection/plugins may bypass static reachability")
+		return claim
+	}
+	// A completed-with-results run, or a typed record with an unknown
+	// outcome, cannot ground silence: the run's missing subject paths do not
+	// prove other subjects unreachable.
+	return libraryUsageVerdict(claim, c, symbols, why, positiveOnly)
 }
 
-// libraryUsageVerdict decides reachability when govulncheck could not evaluate
-// the advisory; `why` states which situation applies — the DB lacks the
-// advisory or the tool never ran — and is embedded into explanations so a
+// libraryUsageVerdict decides reachability when govulncheck could not
+// evaluate the advisory; `why` states which situation applies — the DB lacks
+// the advisory or the tool never ran — and is embedded into explanations so a
 // reader does not confuse "ran and silent" with "did not run".
-// Unexported library internals cannot be referenced by product code — they
-// execute inside the library's peer-driven path, so real evidence is whether
-// the product calls the module's API at all.
-func libraryUsageVerdict(claim domain.Claim, c *domain.AnalysisCase, subjects []domain.SymbolRef, why string) domain.Claim {
+// positiveOnly suppresses every negative conclusion: with a failed, not-run,
+// or untyped measurement, zero usage and dead call sites are UNKNOWN, never
+// no-module-usage/unreached-exported-subject/config-gated-off.
+// A positive requires a traced path: a direct call to an exported subject or a
+// recorded intra-module chain from a product-used API. Product calls into the
+// owning module are an observation — unexported internals execute inside the
+// module, but module API usage does not establish that the sink ran, so an
+// unexported subject without a traced chain stays UNKNOWN.
+func libraryUsageVerdict(claim domain.Claim, c *domain.AnalysisCase, subjects []domain.SymbolRef, why string, positiveOnly bool) domain.Claim {
 	// Attribute usage sites to the modules owning the subjects — under a
 	// multi-module advisory a call into module A says nothing about a
 	// subject in module B.
 	usages, stray := subjectModuleUsages(c, subjects)
 	if len(usages) == 0 {
-		if !moduleUsageChecked(c) {
+		if !moduleUsageChecked(c, subjects) {
 			claim.Limitations = append(claim.Limitations,
 				"module-usage scan did not run; absence of call sites is no evidence")
 			return claim
@@ -246,6 +362,11 @@ func libraryUsageVerdict(claim domain.Claim, c *domain.AnalysisCase, subjects []
 				stray))
 			return claim
 		}
+		if positiveOnly {
+			claim.Limitations = append(claim.Limitations,
+				why+"; positive-only fallback: zero module usage cannot falsify reachability without a completed, coverage-qualified govulncheck run")
+			return claim
+		}
 		claim.Result = domain.ClaimFalse
 		claim.Falsifier = domain.FalsifierNoModuleUsage
 		claim.Explanation = why + " and product makes no calls into the module(s) owning the subjects"
@@ -254,13 +375,9 @@ func libraryUsageVerdict(claim domain.Claim, c *domain.AnalysisCase, subjects []
 		return claim
 	}
 	if allUnexported(subjects) {
-		claim.Result = domain.ClaimTrue
-		claim.EvidenceIDs = moduleUsageEvidence(c)
-		claim.Explanation = fmt.Sprintf(
-			"product calls the subject-owning module's API at %d site(s); unexported sinks execute inside its peer-driven path (%s)",
-			len(usages), why)
-		claim.Limitations = append(claim.Limitations,
-			"transitive reach inferred from module API usage, not traced to the sink")
+		claim.Limitations = append(claim.Limitations, fmt.Sprintf(
+			"product calls the subject-owning module's API at %d site(s), but unexported sink(s) %s can only be reached through a traced intra-module path and none is recorded (%s)",
+			len(usages), joinSymbolNames(subjects), why))
 		return claim
 	}
 	// Exported sinks: TRUE when proven reachable — either directly invoked by
@@ -288,24 +405,30 @@ func libraryUsageVerdict(claim domain.Claim, c *domain.AnalysisCase, subjects []
 					}
 				}
 				if allDead {
-					claim.Result = domain.ClaimFalse
-					claim.Falsifier = domain.FalsifierConfigGatedOff
+					if !positiveOnly {
+						claim.Result = domain.ClaimFalse
+						claim.Falsifier = domain.FalsifierConfigGatedOff
+						claim.Explanation = fmt.Sprintf(
+							"%s; call chain to %s originates from %s which is dead code under disabled feature gate (%s)",
+							why, want, entry, gatedDetail)
+						return claim
+					}
+					claim.Limitations = append(claim.Limitations, fmt.Sprintf(
+						"%s; call chain to %s originates only from dead code under disabled feature gate (%s); positive-only fallback cannot falsify",
+						why, want, gatedDetail))
+				} else {
+					if gatedDetail != "" {
+						claim.Limitations = append(claim.Limitations,
+							"conditional-reachability (guarded by config: "+gatedDetail+")")
+					}
+					claim.Result = domain.ClaimTrue
+					claim.EvidenceIDs = append(moduleReachEvidence(c), moduleUsageEvidence(c)...)
 					claim.Explanation = fmt.Sprintf(
-						"%s; call chain to %s originates from %s which is dead code under disabled feature gate (%s)",
-						why, want, entry, gatedDetail)
+						"%s; %s reachable through module internals: %s",
+						why, want, strings.Join(chain, " -> "))
 					return claim
 				}
-				if gatedDetail != "" {
-					claim.Limitations = append(claim.Limitations,
-						"conditional-reachability (guarded by config: "+gatedDetail+")")
-				}
 			}
-			claim.Result = domain.ClaimTrue
-			claim.EvidenceIDs = append(moduleReachEvidence(c), moduleUsageEvidence(c)...)
-			claim.Explanation = fmt.Sprintf(
-				"%s; %s reachable through module internals: %s",
-				why, want, strings.Join(chain, " -> "))
-			return claim
 		}
 		var matchingUsages []domain.CallSite
 		for _, u := range usages {
@@ -325,33 +448,44 @@ func libraryUsageVerdict(claim domain.Claim, c *domain.AnalysisCase, subjects []
 				}
 			}
 			if allDead {
-				claim.Result = domain.ClaimFalse
-				claim.Falsifier = domain.FalsifierConfigGatedOff
+				if !positiveOnly {
+					claim.Result = domain.ClaimFalse
+					claim.Falsifier = domain.FalsifierConfigGatedOff
+					claim.Explanation = fmt.Sprintf(
+						"%s; all direct calls to %s are dead code under disabled feature gate (%s)",
+						why, want, gatedDetail)
+					return claim
+				}
+				claim.Limitations = append(claim.Limitations, fmt.Sprintf(
+					"%s; all direct calls to %s are dead code under disabled feature gate (%s); positive-only fallback cannot falsify",
+					why, want, gatedDetail))
+			} else {
+				claim.Result = domain.ClaimTrue
+				claim.EvidenceIDs = moduleUsageEvidence(c)
+				if gatedDetail != "" {
+					claim.Limitations = append(claim.Limitations,
+						"conditional-reachability (guarded by config: "+gatedDetail+")")
+				}
 				claim.Explanation = fmt.Sprintf(
-					"%s; all direct calls to %s are dead code under disabled feature gate (%s)",
-					why, want, gatedDetail)
+					"%s; product directly calls %s at %s:%d",
+					why, want, matchingUsages[0].File, matchingUsages[0].Line)
 				return claim
 			}
-			claim.Result = domain.ClaimTrue
-			claim.EvidenceIDs = moduleUsageEvidence(c)
-			if gatedDetail != "" {
-				claim.Limitations = append(claim.Limitations,
-					"conditional-reachability (guarded by config: "+gatedDetail+")")
-			}
-			claim.Explanation = fmt.Sprintf(
-				"%s; product directly calls %s at %s:%d",
-				why, want, matchingUsages[0].File, matchingUsages[0].Line)
-			return claim
 		}
+	}
+	if positiveOnly {
+		claim.Limitations = append(claim.Limitations,
+			why+"; positive-only fallback: module usage cannot ground a negative without a completed, coverage-qualified govulncheck run")
+		return claim
 	}
 	// FALSE only when the intra-module call graph was actually checked —
 	// without it, absence is unknown, not negative.
-	if !moduleReachChecked(c) {
+	if !moduleReachChecked(c, subjects) {
 		claim.Limitations = append(claim.Limitations,
 			why+"; module is used but exported sinks were not reachability-checked")
 		return claim
 	}
-	if moduleReachOpaque(c) {
+	if moduleReachOpaque(c, subjects) {
 		claim.Limitations = append(claim.Limitations,
 			why+"; module dispatch is opaque (func values/dynamic dispatch) — unreached subjects are not disproven")
 		return claim
@@ -378,6 +512,10 @@ func libraryUsageVerdict(claim domain.Claim, c *domain.AnalysisCase, subjects []
 //	UNKNOWN — the scan never ran (source index unavailable) or the
 //	  condition carries no subjects.
 func evalReadDirection(cond domain.Condition, c *domain.AnalysisCase) domain.Claim {
+	return admitNegative(c, cond, evalReadDirectionRaw(cond, c))
+}
+
+func evalReadDirectionRaw(cond domain.Condition, c *domain.AnalysisCase) domain.Claim {
 	claim := domain.Claim{
 		ID:          domain.ClaimID("CL-" + string(cond.ID)),
 		ConditionID: cond.ID,
@@ -438,6 +576,10 @@ func evalReadDirection(cond domain.Condition, c *domain.AnalysisCase) domain.Cla
 //	  never invoked.
 //	UNKNOWN — module usage was never collected.
 func evalSequencePair(cond domain.Condition, c *domain.AnalysisCase) domain.Claim {
+	return admitNegative(c, cond, evalSequencePairRaw(cond, c))
+}
+
+func evalSequencePairRaw(cond domain.Condition, c *domain.AnalysisCase) domain.Claim {
 	claim := domain.Claim{
 		ID:          domain.ClaimID("CL-" + string(cond.ID)),
 		ConditionID: cond.ID,
@@ -451,7 +593,7 @@ func evalSequencePair(cond domain.Condition, c *domain.AnalysisCase) domain.Clai
 			"sequence condition needs a pair of subject symbols")
 		return claim
 	}
-	if !moduleUsageChecked(c) {
+	if !moduleUsageChecked(c, subjects) {
 		claim.Limitations = append(claim.Limitations,
 			"module usage was not collected; the API pair cannot be verified")
 		return claim
@@ -475,7 +617,7 @@ func evalSequencePair(cond domain.Condition, c *domain.AnalysisCase) domain.Clai
 	}
 	// Missing members disprove the pair only when the module-internal
 	// graph is complete — opaque dispatch hides invocations.
-	if moduleReachOpaque(c) {
+	if moduleReachOpaque(c, subjects) {
 		claim.Limitations = append(claim.Limitations, fmt.Sprintf(
 			"pair member(s) %s not statically reached; module dispatch is opaque (func values/dynamic dispatch), so absence is unknown, not disproven",
 			strings.Join(missing, ", ")))
@@ -583,11 +725,79 @@ func containsModule(mods []string, target string) bool {
 	return false
 }
 
-// moduleUsageChecked reports whether the module-usage scan ran — its check
-// evidence is recorded even when zero call sites were found.
-func moduleUsageChecked(c *domain.AnalysisCase) bool {
-	for _, e := range c.EvidenceGraph.EvidenceList() {
-		if e.Tool == "goanalysis.Index.ModuleUsage" {
+// sourceScanRecords returns the typed source-level measurements bound to the
+// case's effective build context, in recording order. Records for another
+// build are measurements of something else and never answer a negative.
+func sourceScanRecords(c *domain.AnalysisCase) []*domain.Evidence {
+	if c == nil {
+		return nil
+	}
+	effective := domain.EffectiveBuildContext(c.Product)
+	evidence := c.EvidenceGraph.EvidenceList()
+	var out []*domain.Evidence
+	for i := range evidence {
+		e := &evidence[i]
+		if e.Kind != domain.EvidenceSourceScan || e.SourceScan == nil {
+			continue
+		}
+		if e.BuildContext == nil || e.BuildContext.Matches(effective) != nil {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
+// sourceScanForSubject returns the latest completed measurement covering the
+// subject's package. Nil means no measurement — absence of a record is never
+// a completed scan.
+func sourceScanForSubject(c *domain.AnalysisCase, s domain.SymbolRef) *domain.SourceScanRun {
+	var selected *domain.SourceScanRun
+	for _, e := range sourceScanRecords(c) {
+		r := e.SourceScan
+		if !r.Completed || !domain.PackageInModule(s.Package, r.Module) {
+			continue
+		}
+		selected = r
+	}
+	return selected
+}
+
+// moduleUsageChecked reports whether a completed source scan covers every
+// subject — its check record is written even when zero call sites were found.
+func moduleUsageChecked(c *domain.AnalysisCase, subjects []domain.SymbolRef) bool {
+	if len(subjects) == 0 {
+		return false
+	}
+	for _, s := range subjects {
+		if sourceScanForSubject(c, s) == nil {
+			return false
+		}
+	}
+	return true
+}
+
+// moduleReachChecked reports whether a completed source reachability
+// measurement with product-used entry symbols covers every subject.
+func moduleReachChecked(c *domain.AnalysisCase, subjects []domain.SymbolRef) bool {
+	if len(subjects) == 0 {
+		return false
+	}
+	for _, s := range subjects {
+		r := sourceScanForSubject(c, s)
+		if r == nil || len(r.EntrySymbols) == 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// moduleReachOpaque reports whether the applicable source reachability
+// measurement for the subjects recorded unresolvable dispatch. An unreached
+// subject is then UNKNOWN — absence cannot falsify reachability.
+func moduleReachOpaque(c *domain.AnalysisCase, subjects []domain.SymbolRef) bool {
+	for _, s := range subjects {
+		if r := sourceScanForSubject(c, s); r != nil && len(r.EntrySymbols) > 0 && r.Opaque {
 			return true
 		}
 	}
@@ -609,30 +819,6 @@ func condSubjects(cond domain.Condition) []domain.SymbolRef {
 		out = append(out, *cond.Subject)
 	}
 	return out
-}
-
-// moduleReachChecked reports whether the intra-module reachability scan ran
-// (its evidence record is written even when no chain was found).
-func moduleReachChecked(c *domain.AnalysisCase) bool {
-	for _, e := range c.EvidenceGraph.Evidence {
-		if e.Tool == "goanalysis.Index.ModuleInternalReach" && strings.Contains(e.Source, "reachability check") {
-			return true
-		}
-	}
-	return false
-}
-
-// moduleReachOpaque reports whether the intra-module reach scan found
-// calls whose callee cannot be resolved statically (func values, dynamic
-// dispatch). An unreached subject is then UNKNOWN — absence cannot
-// falsify reachability.
-func moduleReachOpaque(c *domain.AnalysisCase) bool {
-	for _, e := range c.EvidenceGraph.Evidence {
-		if e.Tool == "goanalysis.Index.ModuleInternalReach" && strings.Contains(e.Source, "opaque dispatch") {
-			return true
-		}
-	}
-	return false
 }
 
 // moduleUsageEvidence returns the IDs of the module-usage evidence collected
@@ -661,13 +847,16 @@ func moduleReachEvidence(c *domain.AnalysisCase) []domain.EvidenceID {
 }
 
 // SymbolExported reports whether the subject can be named by product code —
-// the inverse of the unexported check used for peer-driven internals.
+// the inverse of the unexported check used to decide whether a caller can
+// invoke the subject symbol directly.
 func SymbolExported(s domain.SymbolRef) bool {
 	return !allUnexported([]domain.SymbolRef{s})
 }
 
 // allUnexported reports whether every subject symbol is package-internal —
-// product code (and reflect/plugin lookups) cannot name them directly.
+// product code (and reflect/plugin lookups) cannot name them directly. That
+// only rules out a direct call; it does not make a call into the owning
+// module evidence of execution inside the package.
 func allUnexported(subjects []domain.SymbolRef) bool {
 	if len(subjects) == 0 {
 		return false
@@ -730,6 +919,15 @@ func linkedOnly(c *domain.AnalysisCase, subjects []domain.SymbolRef) []domain.Sy
 	return out
 }
 
+// joinSymbolNames renders the subject set for explanations and limitations.
+func joinSymbolNames(subjects []domain.SymbolRef) string {
+	names := make([]string, len(subjects))
+	for i, s := range subjects {
+		names[i] = s.Package + "." + s.Symbol
+	}
+	return strings.Join(names, ", ")
+}
+
 func containsSymbol(list []domain.SymbolRef, s domain.SymbolRef) bool {
 	for _, x := range list {
 		if x == s {
@@ -755,13 +953,34 @@ func allDeclared(subjects, declared []domain.SymbolRef) bool {
 	return true
 }
 
-func govulncheckRan(c *domain.AnalysisCase) bool {
-	for _, e := range c.EvidenceGraph.Evidence {
-		if e.Kind == domain.EvidenceGovulncheck {
-			return true
+// govulncheckEvidence selects the case's applicable typed govulncheck
+// measurement: the latest completed, context-matching run when one exists —
+// a failed auxiliary invocation must not veto a completed collector
+// measurement — otherwise the latest context-matching typed record. Nil
+// means no usable measurement: legacy untyped evidence or no run at all,
+// both of which can only support positive conclusions.
+func govulncheckEvidence(c *domain.AnalysisCase) *domain.Evidence {
+	effective := domain.EffectiveBuildContext(c.Product)
+	evidence := c.EvidenceGraph.EvidenceList()
+	var completed, latest *domain.Evidence
+	for i := range evidence {
+		e := &evidence[i]
+		if e.Kind != domain.EvidenceGovulncheck || e.Govulncheck == nil {
+			continue
+		}
+		if e.BuildContext == nil || e.BuildContext.Matches(effective) != nil {
+			continue
+		}
+		latest = e
+		switch e.Govulncheck.Outcome {
+		case domain.GovulncheckCompletedEmpty, domain.GovulncheckCompletedWithResults:
+			completed = e
 		}
 	}
-	return false
+	if completed != nil {
+		return completed
+	}
+	return latest
 }
 
 func appendUniqueID(ids []domain.EvidenceID, id domain.EvidenceID) []domain.EvidenceID {

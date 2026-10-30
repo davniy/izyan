@@ -8,7 +8,7 @@ import (
 )
 
 func reachabilityCase() *domain.AnalysisCase {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.Vulnerability = domain.Vulnerability{
 		ID: "GO-TEST-1",
 		AffectedSymbols: []domain.SymbolRef{
@@ -22,6 +22,32 @@ func reachabilityCase() *domain.AnalysisCase {
 	}
 	c.EvidenceGraph.AddEvidence(domain.Evidence{Kind: domain.EvidenceGovulncheck})
 	return c
+}
+
+// addTypedGovulncheck records a typed govulncheck run bound to the case's
+// effective build context. Legacy untyped evidence stays in the graph in the
+// helpers above, so a typed record wins only because it is the measurement.
+func addTypedGovulncheck(
+	c *domain.AnalysisCase,
+	outcome domain.GovulncheckOutcome,
+	advisory domain.GovulncheckAdvisoryCoverage,
+	scopeComplete bool,
+	subjects []domain.SymbolRef,
+) domain.EvidenceID {
+	build := domain.EffectiveBuildContext(c.Product)
+	return c.EvidenceGraph.AddEvidence(domain.Evidence{
+		Kind:         domain.EvidenceGovulncheck,
+		BuildContext: &build,
+		Govulncheck: &domain.GovulncheckRun{
+			Outcome: outcome,
+			Coverage: domain.GovulncheckCoverage{
+				AdvisoryID:    c.Vulnerability.ID,
+				Advisory:      advisory,
+				Subjects:      subjects,
+				ScopeComplete: scopeComplete,
+			},
+		},
+	})
 }
 
 func TestSymbolReachableTrueViaAdvisorySymbol(t *testing.T) {
@@ -43,17 +69,21 @@ func TestSymbolReachableTrueViaAdvisorySymbol(t *testing.T) {
 
 func TestSymbolReachableFalseCandidateNoTrace(t *testing.T) {
 	c := reachabilityCase()
-	c.GovulncheckCoverage = "covered"
 	// FALSE-candidate requires every evaluated subject to be declared in the
 	// advisory's affected symbols — only those were actually traced.
 	c.Vulnerability.AffectedSymbols = append(c.Vulnerability.AffectedSymbols,
 		domain.SymbolRef{Package: "lib/internal/transport", Symbol: "recvBuffer.put"})
+	addTypedGovulncheck(c, domain.GovulncheckCompletedEmpty,
+		domain.GovulncheckCoverageCovered, true, c.Vulnerability.AffectedSymbols)
 	claim := SymbolReachable{}.Evaluate(domain.Condition{
 		ID:   "C-REACH",
 		Kind: domain.ConditionSymbolReachable,
 	}, c)
 	if claim.Result != domain.ClaimFalse {
 		t.Fatalf("got %s, want FALSE candidate", claim.Result)
+	}
+	if claim.Falsifier != domain.FalsifierGovulncheckSilence {
+		t.Fatalf("falsifier=%q, want %q", claim.Falsifier, domain.FalsifierGovulncheckSilence)
 	}
 }
 
@@ -62,8 +92,9 @@ func TestSymbolReachableFalseCandidateNoTrace(t *testing.T) {
 // so the claim must fall back to module-usage instead of FALSE.
 func TestSymbolReachableSymbollessCoveredNotFalse(t *testing.T) {
 	c := reachabilityCase()
-	c.GovulncheckCoverage = "covered"
 	c.Vulnerability.AffectedSymbols = nil
+	addTypedGovulncheck(c, domain.GovulncheckCompletedEmpty,
+		domain.GovulncheckCoverageCovered, true, nil)
 	claim := SymbolReachable{}.Evaluate(domain.Condition{
 		ID:   "C-REACH",
 		Kind: domain.ConditionSymbolReachable,
@@ -78,9 +109,12 @@ func TestSymbolReachableSymbollessCoveredNotFalse(t *testing.T) {
 // declared and absent from the trace set.
 func TestSymbolReachableUndeclaredSubjectNotFalse(t *testing.T) {
 	c := reachabilityCase()
-	c.GovulncheckCoverage = "covered"
 	// reachabilityCase: declared {ServerStream.Read}, root cause
 	// {recvBuffer.put} — the root cause was never in the DB symbol list.
+	addTypedGovulncheck(c, domain.GovulncheckCompletedEmpty,
+		domain.GovulncheckCoverageCovered, true, []domain.SymbolRef{
+			{Package: "lib/internal/transport", Symbol: "ServerStream.Read"},
+		})
 	claim := SymbolReachable{}.Evaluate(domain.Condition{
 		ID:   "C-REACH",
 		Kind: domain.ConditionSymbolReachable,
@@ -94,8 +128,9 @@ func TestSymbolReachableUndeclaredSubjectNotFalse(t *testing.T) {
 // reachability regardless of govulncheck trace coverage.
 func TestSymbolReachableTrueViaModuleChain(t *testing.T) {
 	c := reachabilityCase()
-	c.GovulncheckCoverage = "covered"
 	c.Vulnerability.AffectedSymbols = nil
+	addTypedGovulncheck(c, domain.GovulncheckCompletedEmpty,
+		domain.GovulncheckCoverageCovered, true, nil)
 	c.EvidenceGraph.AddEvidence(domain.Evidence{Tool: "goanalysis.Index.ModuleUsage"})
 	c.EvidenceGraph.AddModuleUsages(domain.CallSite{Package: "prod/x", Function: "DialTLS", Callee: "lib/transport.DialTLS", ModuleOwner: "lib/transport"})
 	c.EvidenceGraph.AddModuleReachable("lib/internal/transport.recvBuffer.put", []string{
@@ -124,9 +159,10 @@ func TestSymbolReachableUnknownNoGovulncheck(t *testing.T) {
 
 func TestSymbolReachableWrongReceiverNoMatch(t *testing.T) {
 	c := reachabilityCase()
-	c.GovulncheckCoverage = "covered"
 	c.Vulnerability.AffectedSymbols = append(c.Vulnerability.AffectedSymbols,
 		domain.SymbolRef{Package: "lib/internal/transport", Symbol: "recvBuffer.put"})
+	addTypedGovulncheck(c, domain.GovulncheckCompletedEmpty,
+		domain.GovulncheckCoverageCovered, true, c.Vulnerability.AffectedSymbols)
 	cp := domain.CallPath{Frames: []domain.CallSite{
 		{Package: "lib/internal/transport", Function: "Read", Receiver: "*ClientStream"},
 	}}
@@ -141,27 +177,11 @@ func TestSymbolReachableWrongReceiverNoMatch(t *testing.T) {
 }
 
 func serverCase(frames []domain.CallSite) *domain.AnalysisCase {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.Vulnerability = domain.Vulnerability{ID: "GO-T", Module: "lib/grpc"}
 	c.EvidenceGraph.AddEvidence(domain.Evidence{Kind: domain.EvidenceGovulncheck})
 	c.EvidenceGraph.AddCallPath(domain.CallPath{Frames: frames})
 	return c
-}
-
-func TestServerTransportInputTrueOnServerFrame(t *testing.T) {
-	c := serverCase([]domain.CallSite{
-		{Package: "lib/grpc/internal/transport", Function: "HandleStreams", Receiver: "*http2Server"},
-		{Package: "prod", Function: "Start", Receiver: "*Consumer"},
-	})
-	claim := ServerTransportInput{}.Evaluate(domain.Condition{
-		ID: "C-ATTACK", Kind: domain.ConditionAttackerControl,
-	}, c)
-	if claim.Result != domain.ClaimTrue {
-		t.Fatalf("got %s, want TRUE: server transport reached", claim.Result)
-	}
-	if len(claim.Limitations) == 0 {
-		t.Fatal("expected exposure-scope limitation")
-	}
 }
 
 func TestServerTransportInputIgnoresClientFrames(t *testing.T) {
@@ -189,28 +209,8 @@ func TestServerTransportInputIgnoresProductServe(t *testing.T) {
 	}
 }
 
-func TestServerTransportInputTrustedPeerFalse(t *testing.T) {
-	c := serverCase([]domain.CallSite{
-		{Package: "lib/grpc/internal/transport", Function: "HandleStreams", Receiver: "*http2Server"},
-		{Package: "prod", Function: "Start", Receiver: "*Consumer"},
-	})
-	c.Product.TrustedPeer = true
-	claim := ServerTransportInput{}.Evaluate(domain.Condition{
-		ID: "C-ATTACK", Kind: domain.ConditionAttackerControl,
-	}, c)
-	if claim.Result != domain.ClaimFalse {
-		t.Fatalf("got %s, want FALSE: trusted peer deployment declared", claim.Result)
-	}
-	if claim.Falsifier != domain.FalsifierTrustedInfrastructure {
-		t.Fatalf("got falsifier %q, want %q", claim.Falsifier, domain.FalsifierTrustedInfrastructure)
-	}
-	if claim.NegativeVerification == nil || claim.NegativeVerification.Status != domain.NegativeVerified {
-		t.Fatalf("expected negative verification VERIFIED, got: %+v", claim.NegativeVerification)
-	}
-}
-
 func TestServerTransportInputTrustedPeerWantsPeerInputFalse(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.Product.TrustedPeer = true
 	claim := ServerTransportInput{}.Evaluate(domain.Condition{
 		ID: "C-PEER-INPUT", Kind: domain.ConditionAttackerControl,
@@ -228,7 +228,7 @@ func TestServerTransportInputTrustedPeerWantsPeerInputFalse(t *testing.T) {
 }
 
 func affectedCase(ver string) *domain.AnalysisCase {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.Affected = &domain.AffectedResult{
 		VersionAffected: domain.ClaimTrue,
 		ResolvedVersion: ver,
@@ -283,7 +283,7 @@ func TestVersionFactUnaffectedStaysUnknown(t *testing.T) {
 }
 
 func rabbitCase() *domain.AnalysisCase {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.Vulnerability = domain.Vulnerability{
 		ID:     "GHSA-test",
 		Module: "mod/amqp",
@@ -291,15 +291,19 @@ func rabbitCase() *domain.AnalysisCase {
 			{Package: "mod/amqp", Symbol: "readLongstr"},
 		},
 	}
-	c.GovulncheckCoverage = "not_in_db"
-	c.EvidenceGraph.AddEvidence(domain.Evidence{Kind: domain.EvidenceGovulncheck})
-	// CollectEvidence always records the usage-scan marker when Source is
-	// configured — even when zero call sites were found.
-	c.EvidenceGraph.AddEvidence(domain.Evidence{Tool: "goanalysis.Index.ModuleUsage"})
+	addTypedGovulncheck(c, domain.GovulncheckCompletedEmpty,
+		domain.GovulncheckCoverageNotInDB, true, nil)
+	// CollectEvidence always records the usage-scan measurement when Source
+	// is configured — even when zero call sites were found.
+	addUsageScan(c, c.Vulnerability.AffectedSymbols)
 	return c
 }
 
-func TestReachableNotInDBModuleUsedUnexported(t *testing.T) {
+// TestUnexportedSinkModuleUsageIsUnknown pins the removal of the
+// unexported-sink + module-usage TRUE. A product call into the owning module
+// is an observation about that module; it is not a traced path to the
+// package-internal sink. The claim stays UNKNOWN and names the missing path.
+func TestUnexportedSinkModuleUsageIsUnknown(t *testing.T) {
 	c := rabbitCase()
 	c.EvidenceGraph.AddModuleUsages(domain.CallSite{
 		Package: "prod/amqp", Function: "DialTLS", Callee: "mod/amqp.DialTLS", ModuleOwner: "mod/amqp",
@@ -307,9 +311,58 @@ func TestReachableNotInDBModuleUsedUnexported(t *testing.T) {
 	claim := SymbolReachable{}.Evaluate(domain.Condition{
 		ID: "C-REACH", Kind: domain.ConditionSymbolReachable,
 	}, c)
-	if claim.Result != domain.ClaimTrue {
-		t.Fatalf("got %s, want TRUE: unexported sink + module usage", claim.Result)
+	if claim.Result != domain.ClaimUnknown {
+		t.Fatalf("got %s, want UNKNOWN: module API usage is not a traced path to an unexported sink (%s)",
+			claim.Result, claim.Explanation)
 	}
+	if claim.Falsifier != "" || claim.NegativeVerification != nil {
+		t.Fatalf("a weak observation produced a negative record: %+v", claim)
+	}
+	why := strings.Join(claim.Limitations, " | ")
+	if !strings.Contains(why, "mod/amqp.readLongstr") {
+		t.Fatalf("limitations do not name the unproven subject: %v", claim.Limitations)
+	}
+	if !strings.Contains(why, "traced") && !strings.Contains(why, "intra-module") {
+		t.Fatalf("limitations do not name the missing traced path: %v", claim.Limitations)
+	}
+	if !strings.Contains(why, "module") {
+		t.Fatalf("limitations do not retain the module-usage observation: %v", claim.Limitations)
+	}
+}
+
+// TestDirectSubjectCallStillProvesReachability pins the positives the cutover
+// must keep: an exact direct call to the subject and a recorded intra-module
+// chain from a product-used API both still prove reachability.
+func TestDirectSubjectCallStillProvesReachability(t *testing.T) {
+	t.Run("direct call to the subject", func(t *testing.T) {
+		c := rabbitCase()
+		c.Vulnerability.AffectedSymbols = []domain.SymbolRef{{Package: "mod/amqp", Symbol: "Parse"}}
+		c.EvidenceGraph.AddModuleUsages(domain.CallSite{
+			Package: "prod/amqp", Function: "main", Callee: "mod/amqp.Parse", ModuleOwner: "mod/amqp",
+		})
+		claim := SymbolReachable{}.Evaluate(domain.Condition{
+			ID: "C-REACH", Kind: domain.ConditionSymbolReachable,
+		}, c)
+		if claim.Result != domain.ClaimTrue {
+			t.Fatalf("got %s, want TRUE: product calls the subject directly (%s)",
+				claim.Result, claim.Explanation)
+		}
+	})
+	t.Run("recorded intra-module chain", func(t *testing.T) {
+		c := rabbitCase()
+		c.EvidenceGraph.AddModuleUsages(domain.CallSite{
+			Package: "prod/amqp", Function: "main", Callee: "mod/amqp.DialTLS", ModuleOwner: "mod/amqp",
+		})
+		c.EvidenceGraph.AddModuleReachable("mod/amqp.readLongstr",
+			[]string{"mod/amqp.DialTLS", "mod/amqp.readLongstr"})
+		claim := SymbolReachable{}.Evaluate(domain.Condition{
+			ID: "C-REACH", Kind: domain.ConditionSymbolReachable,
+		}, c)
+		if claim.Result != domain.ClaimTrue {
+			t.Fatalf("got %s, want TRUE: typed intra-module chain proves reach (%s)",
+				claim.Result, claim.Explanation)
+		}
+	})
 }
 
 func TestReachableNotInDBNoUsageFalse(t *testing.T) {
@@ -338,7 +391,183 @@ func TestReachableNotInDBExportedUnknown(t *testing.T) {
 	}
 }
 
-func TestServerTransportClientSidePeerInput(t *testing.T) {
+// TestReachabilityRunOutcome: the fallback's negative direction depends on
+// the durable run outcome, not on evidence presence. Silence is a candidate
+// only from a completed-empty run with full advisory, subject and scope
+// coverage; failed/not-run/untyped runs are positive-only.
+func TestReachabilityRunOutcome(t *testing.T) {
+	reach := func(c *domain.AnalysisCase) domain.Claim {
+		return SymbolReachable{}.Evaluate(domain.Condition{
+			ID: "C-REACH", Kind: domain.ConditionSymbolReachable,
+		}, c)
+	}
+	base := func() *domain.AnalysisCase {
+		c := &domain.AnalysisCase{Product: admittedProduct()}
+		c.Vulnerability = domain.Vulnerability{
+			ID:     "GO-OUT-1",
+			Module: "mod/amqp",
+			AffectedSymbols: []domain.SymbolRef{
+				{Package: "mod/amqp", Symbol: "Parse"},
+			},
+		}
+		// The module-usage scan ran (its measurement is recorded even for
+		// zero call sites); the measurement outcome decides whether zero
+		// usage can falsify.
+		addUsageScan(c, c.Vulnerability.AffectedSymbols)
+		return c
+	}
+	declared := []domain.SymbolRef{{Package: "mod/amqp", Symbol: "Parse"}}
+
+	t.Run("completed-empty with full coverage can silence", func(t *testing.T) {
+		c := base()
+		evID := addTypedGovulncheck(c, domain.GovulncheckCompletedEmpty,
+			domain.GovulncheckCoverageCovered, true, declared)
+		claim := reach(c)
+		if claim.Result != domain.ClaimFalse || claim.Falsifier != domain.FalsifierGovulncheckSilence {
+			t.Fatalf("claim=%+v, want FALSE candidate with %s", claim, domain.FalsifierGovulncheckSilence)
+		}
+		if len(claim.EvidenceIDs) != 1 || claim.EvidenceIDs[0] != evID {
+			t.Fatalf("silence claim must cite its measurement: %v", claim.EvidenceIDs)
+		}
+	})
+
+	t.Run("completed-empty without advisory coverage cannot silence", func(t *testing.T) {
+		c := base()
+		addTypedGovulncheck(c, domain.GovulncheckCompletedEmpty,
+			domain.GovulncheckCoverageNotInDB, true, nil)
+		if claim := reach(c); claim.Falsifier == domain.FalsifierGovulncheckSilence {
+			t.Fatalf("silence without coverage: %+v", claim)
+		}
+	})
+
+	t.Run("completed-empty with partial scope cannot silence", func(t *testing.T) {
+		c := base()
+		addTypedGovulncheck(c, domain.GovulncheckCompletedEmpty,
+			domain.GovulncheckCoverageCovered, false, declared)
+		if claim := reach(c); claim.Falsifier == domain.FalsifierGovulncheckSilence {
+			t.Fatalf("silence from a narrowed scan: %+v", claim)
+		}
+	})
+
+	t.Run("completed-empty without subject coverage cannot silence", func(t *testing.T) {
+		c := base()
+		addTypedGovulncheck(c, domain.GovulncheckCompletedEmpty,
+			domain.GovulncheckCoverageCovered, true,
+			[]domain.SymbolRef{{Package: "mod/amqp", Symbol: "Other"}})
+		if claim := reach(c); claim.Falsifier == domain.FalsifierGovulncheckSilence {
+			t.Fatalf("silence about an undeclared subject: %+v", claim)
+		}
+	})
+
+	t.Run("completed-with-results missing paths are not silence", func(t *testing.T) {
+		c := base()
+		addTypedGovulncheck(c, domain.GovulncheckCompletedWithResults,
+			domain.GovulncheckCoverageCovered, true, declared)
+		if claim := reach(c); claim.Falsifier == domain.FalsifierGovulncheckSilence {
+			t.Fatalf("silence from a findings run: %+v", claim)
+		}
+	})
+
+	t.Run("failed is positive-only", func(t *testing.T) {
+		c := base()
+		addTypedGovulncheck(c, domain.GovulncheckFailed,
+			domain.GovulncheckCoverageUnknown, false, nil)
+		claim := reach(c)
+		if claim.Result != domain.ClaimUnknown || claim.Falsifier != "" {
+			t.Fatalf("claim=%+v, want UNKNOWN without a falsifier", claim)
+		}
+	})
+
+	t.Run("not run is positive-only", func(t *testing.T) {
+		c := base()
+		addTypedGovulncheck(c, domain.GovulncheckNotRun,
+			domain.GovulncheckCoverageUnknown, false, nil)
+		claim := reach(c)
+		if claim.Result != domain.ClaimUnknown || claim.Falsifier != "" {
+			t.Fatalf("claim=%+v, want UNKNOWN without a falsifier", claim)
+		}
+	})
+
+	t.Run("legacy untyped evidence is positive-only", func(t *testing.T) {
+		c := base()
+		c.EvidenceGraph.AddEvidence(domain.Evidence{Kind: domain.EvidenceGovulncheck})
+		claim := reach(c)
+		if claim.Result != domain.ClaimUnknown || claim.Falsifier != "" {
+			t.Fatalf("claim=%+v, want UNKNOWN without a falsifier", claim)
+		}
+	})
+
+	t.Run("context mismatch is non-admitting", func(t *testing.T) {
+		c := base()
+		foreign := domain.EffectiveBuildContext(c.Product)
+		foreign.Commit = "a-different-build"
+		c.EvidenceGraph.AddEvidence(domain.Evidence{
+			Kind:         domain.EvidenceGovulncheck,
+			BuildContext: &foreign,
+			Govulncheck: &domain.GovulncheckRun{
+				Outcome: domain.GovulncheckCompletedEmpty,
+				Coverage: domain.GovulncheckCoverage{
+					AdvisoryID:    c.Vulnerability.ID,
+					Advisory:      domain.GovulncheckCoverageCovered,
+					Subjects:      declared,
+					ScopeComplete: true,
+				},
+			},
+		})
+		claim := reach(c)
+		if claim.Result != domain.ClaimUnknown || claim.Falsifier != "" {
+			t.Fatalf("claim=%+v, want UNKNOWN for a foreign build context", claim)
+		}
+	})
+
+	t.Run("failed run keeps a direct-call positive", func(t *testing.T) {
+		c := base()
+		addTypedGovulncheck(c, domain.GovulncheckFailed,
+			domain.GovulncheckCoverageUnknown, false, nil)
+		c.EvidenceGraph.AddModuleUsages(domain.CallSite{
+			Package: "prod", Function: "main", Callee: "mod/amqp.Parse", ModuleOwner: "mod/amqp",
+		})
+		claim := reach(c)
+		if claim.Result != domain.ClaimTrue {
+			t.Fatalf("claim=%+v, want TRUE from a direct call", claim)
+		}
+	})
+
+	t.Run("failed run keeps a module-chain positive", func(t *testing.T) {
+		c := base()
+		addTypedGovulncheck(c, domain.GovulncheckFailed,
+			domain.GovulncheckCoverageUnknown, false, nil)
+		c.EvidenceGraph.AddModuleUsages(domain.CallSite{
+			Package: "prod", Function: "main", Callee: "mod/amqp.Dial", ModuleOwner: "mod/amqp",
+		})
+		c.EvidenceGraph.AddModuleReachable("mod/amqp.Parse", []string{"mod/amqp.Dial", "mod/amqp.Parse"})
+		claim := reach(c)
+		if claim.Result != domain.ClaimTrue {
+			t.Fatalf("claim=%+v, want TRUE from a module chain", claim)
+		}
+	})
+
+	t.Run("failed run emits no dead-code negative", func(t *testing.T) {
+		c := base()
+		addTypedGovulncheck(c, domain.GovulncheckFailed,
+			domain.GovulncheckCoverageUnknown, false, nil)
+		c.EvidenceGraph.AddModuleUsages(domain.CallSite{
+			Package: "prod", Function: "main", Callee: "mod/amqp.Parse",
+			ModuleOwner: "mod/amqp", DeadCode: true, GatedBy: "cfg.Disabled",
+		})
+		claim := reach(c)
+		if claim.Result != domain.ClaimUnknown || claim.Falsifier != "" {
+			t.Fatalf("claim=%+v, want UNKNOWN without a dead-code falsifier", claim)
+		}
+	})
+}
+
+// A module-usage observation on the client side is not peer control: the
+// product calling the vulnerable module's API says the module runs, not that
+// a remote peer supplies the bytes the sink consumes. Without a typed
+// transport witness (or a resolved provenance trace) the claim stays UNKNOWN;
+// the frame/receiver and module-usage hints remain explanatory limitations.
+func TestServerTransportClientSideModuleUsageIsObservation(t *testing.T) {
 	c := rabbitCase()
 	c.EvidenceGraph.AddModuleUsages(domain.CallSite{
 		Package: "prod/amqp", Function: "DialTLS", Callee: "mod/amqp.DialTLS", ModuleOwner: "mod/amqp",
@@ -347,8 +576,16 @@ func TestServerTransportClientSidePeerInput(t *testing.T) {
 		ID: "C-ATTACK", Kind: domain.ConditionAttackerControl,
 		Description: "A malicious or compromised AMQP server/broker sends crafted frames.",
 	}, c)
-	if claim.Result != domain.ClaimTrue {
-		t.Fatalf("got %s, want TRUE: peer controls broker frames", claim.Result)
+	if claim.Result != domain.ClaimUnknown {
+		t.Fatalf("got %s, want UNKNOWN: module API usage does not prove peer input (%s)",
+			claim.Result, claim.Explanation)
+	}
+	if claim.Falsifier != "" || claim.NegativeVerification != nil {
+		t.Fatalf("an observation produced a negative record: %+v", claim)
+	}
+	why := strings.Join(claim.Limitations, " | ")
+	if !strings.Contains(why, "subject-owning module") {
+		t.Fatalf("limitations do not retain the module-usage observation: %v", claim.Limitations)
 	}
 }
 
@@ -377,6 +614,7 @@ func TestModuleUsageCrossModuleIsolation(t *testing.T) {
 	c.Vulnerability.AffectedSymbols = []domain.SymbolRef{
 		{Package: "mod/other/peer", Symbol: "handleFrame"}, // unexported, module B
 	}
+	addUsageScan(c, c.Vulnerability.AffectedSymbols)
 	// Product calls module A's API — nothing into mod/other.
 	c.EvidenceGraph.AddModuleUsages(domain.CallSite{
 		Package: "prod/amqp", Function: "DialTLS", Callee: "mod/amqp.DialTLS", ModuleOwner: "mod/amqp",
@@ -392,9 +630,10 @@ func TestModuleUsageCrossModuleIsolation(t *testing.T) {
 	}
 }
 
-// The positive side of the same attribution: a call into the subject's
-// own module still proves the unexported sink runs.
-func TestModuleUsageOwningModuleTrue(t *testing.T) {
+// The observation side of the same attribution: a call into the subject's
+// own module is retained, but calling the module's API does not prove an
+// unexported sink runs. The claim stays UNKNOWN and names the subject.
+func TestModuleUsageOwningModuleIsObservation(t *testing.T) {
 	c := rabbitCase()
 	c.Affected = &domain.AffectedResult{
 		SelectedModules: []string{"mod/amqp", "mod/other"},
@@ -408,8 +647,13 @@ func TestModuleUsageOwningModuleTrue(t *testing.T) {
 	claim := SymbolReachable{}.Evaluate(domain.Condition{
 		ID: "C-REACH", Kind: domain.ConditionSymbolReachable,
 	}, c)
-	if claim.Result != domain.ClaimTrue {
-		t.Fatalf("got %s, want TRUE: subject-owning module is used", claim.Result)
+	if claim.Result != domain.ClaimUnknown {
+		t.Fatalf("got %s, want UNKNOWN: owning-module usage is not a traced path (%s)",
+			claim.Result, claim.Explanation)
+	}
+	why := strings.Join(claim.Limitations, " | ")
+	if !strings.Contains(why, "mod/other/peer.handleFrame") {
+		t.Fatalf("limitations do not name the unproven subject: %v", claim.Limitations)
 	}
 }
 
@@ -424,6 +668,7 @@ func TestModuleUsageNestedModuleIsolation(t *testing.T) {
 	c.Vulnerability.AffectedSymbols = []domain.SymbolRef{
 		{Package: "mod/amqp/v2/peer", Symbol: "handleFrame"},
 	}
+	addUsageScan(c, c.Vulnerability.AffectedSymbols)
 	// Product calls the PARENT module's API — nothing into mod/amqp/v2.
 	c.EvidenceGraph.AddModuleUsages(domain.CallSite{
 		Package: "prod/amqp", Function: "DialTLS", Callee: "mod/amqp.DialTLS", ModuleOwner: "mod/amqp",
@@ -439,9 +684,11 @@ func TestModuleUsageNestedModuleIsolation(t *testing.T) {
 	}
 }
 
-// Same nesting, positive direction: a call into mod/amqp/v2 still proves
-// the unexported sink runs — longest-match attribution is not a veto.
-func TestModuleUsageNestedModuleTrue(t *testing.T) {
+// Same nesting, observation direction: a call into mod/amqp/v2 is attributed
+// to the nested owner, but the unexported sink stays unproven without a
+// traced path. Longest-match attribution still decides which module the
+// observation is about.
+func TestModuleUsageNestedModuleIsObservation(t *testing.T) {
 	c := rabbitCase()
 	c.Affected = &domain.AffectedResult{
 		SelectedModules: []string{"mod/amqp", "mod/amqp/v2"},
@@ -455,8 +702,13 @@ func TestModuleUsageNestedModuleTrue(t *testing.T) {
 	claim := SymbolReachable{}.Evaluate(domain.Condition{
 		ID: "C-REACH", Kind: domain.ConditionSymbolReachable,
 	}, c)
-	if claim.Result != domain.ClaimTrue {
-		t.Fatalf("got %s, want TRUE: nested owning module is used", claim.Result)
+	if claim.Result != domain.ClaimUnknown {
+		t.Fatalf("got %s, want UNKNOWN: nested owning-module usage is not a traced path (%s)",
+			claim.Result, claim.Explanation)
+	}
+	why := strings.Join(claim.Limitations, " | ")
+	if !strings.Contains(why, "mod/amqp/v2/peer.handleFrame") {
+		t.Fatalf("limitations do not name the unproven subject: %v", claim.Limitations)
 	}
 }
 
@@ -490,7 +742,7 @@ func TestModuleUsageUnknownOwnerBlocksAbsence(t *testing.T) {
 // A confirmed module's version must not decide a condition whose subject
 // belongs to a pending (version-undecidable) module.
 func TestVersionFactPendingModuleSubject(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.Affected = &domain.AffectedResult{
 		VersionAffected: domain.ClaimTrue,
 		ResolvedVersion: "v1.0.0",
@@ -511,7 +763,7 @@ func TestVersionFactPendingModuleSubject(t *testing.T) {
 
 // Same version fact stays usable for subjects of the confirmed module.
 func TestVersionFactConfirmedModuleSubject(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.Affected = &domain.AffectedResult{
 		VersionAffected: domain.ClaimTrue,
 		ResolvedVersion: "v1.0.0",
@@ -587,7 +839,12 @@ func TestVersionFactStdlibSubjectSelectedModule(t *testing.T) {
 }
 
 func TestReachable_ConfigGatedDeadCode(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
+	// A completed run that did not cover this advisory keeps the module-use
+	// fallback's negative direction available; an untyped/failed run would
+	// leave the claim UNKNOWN.
+	addTypedGovulncheck(c, domain.GovulncheckCompletedEmpty,
+		domain.GovulncheckCoverageNotInDB, true, nil)
 	c.EvidenceGraph.AddEvidence(domain.Evidence{Tool: "goanalysis.Index.ModuleUsage"})
 	c.EvidenceGraph.AddModuleUsages(domain.CallSite{
 		Package:  "example.com/app",
@@ -613,7 +870,7 @@ func TestReachable_ConfigGatedDeadCode(t *testing.T) {
 }
 
 func TestReachable_ConfigGatedDynamic(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.EvidenceGraph.AddEvidence(domain.Evidence{Tool: "goanalysis.Index.ModuleUsage"})
 	c.EvidenceGraph.AddModuleUsages(domain.CallSite{
 		Package:  "example.com/app",

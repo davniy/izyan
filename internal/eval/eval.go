@@ -43,8 +43,10 @@ type Case struct {
 	ExploitModel string         `json:"exploit_model,omitempty"`
 	// NonLocus supplies expert necessity decisions for the defect-locus
 	// contract: declared symbols asserted not to be defect sites, with the
-	// recorded justification. The falsifier's coverage shrinks only by
-	// these recorded decisions — never by an unproven textual scan.
+	// recorded justification. Entries are explicit expert input (stamped
+	// with expert provenance at load). The falsifier's coverage shrinks only
+	// by these recorded decisions — never by an unproven textual scan or a
+	// machine proposal.
 	NonLocus []domain.LocusDecision `json:"non_locus,omitempty"`
 	// GoVersion requests the target toolchain ("1.21.13" or "go1.21.13") —
 	// the version the release was built with. Resolved via SDK/GOTOOLCHAIN;
@@ -68,9 +70,6 @@ type Case struct {
 	// contract as --deploy-manifests. Manifests ground perimeter and
 	// exposure facts for deployment-dependent falsifiers.
 	DeployManifests string `json:"deploy_manifests,omitempty"`
-	// AcceptLocusProposals adopts machine-generated non_locus recommendations
-	// into expert basis for this case.
-	AcceptLocusProposals bool `json:"accept_locus_proposals,omitempty"`
 	// Expect lists acceptable verdicts; empty means informational only
 	// (the case still counts toward distribution metrics).
 	Expect []string `json:"expect,omitempty"`
@@ -108,6 +107,7 @@ func (r *RootCauseRef) UnmarshalJSON(b []byte) error {
 			Symbol:    s[i+1:],
 			Role:      domain.RootCauseSink,
 			Mechanism: "provided manually via eval corpus",
+			Origin:    domain.RootCauseOriginManual,
 		}
 		return nil
 	}
@@ -122,6 +122,79 @@ func (c Case) Label() string {
 	return c.Vuln
 }
 
+// InputIdentity fingerprints the case's recorded inputs — the advisory, the
+// tree it is analyzed against, the product material and the resolved module
+// graph. Two runs of the same corpus produce the same identity; a case whose
+// label survived while its input changed does not, so a comparison can refuse
+// to pair them instead of pretending it measured one case twice.
+func (c Case) InputIdentity() string {
+	var b strings.Builder
+	write := func(field, value string) {
+		fmt.Fprintf(&b, "%s=%s\x00", field, value)
+	}
+	write("vuln", c.Vuln)
+	write("vuln_file", c.VulnFile)
+	write("repo", c.Repo)
+	write("ref", c.Ref)
+	write("product", c.Product)
+	write("module", c.Module)
+	write("exploit_model", c.ExploitModel)
+	write("go_version", c.GoVersion)
+	write("goos", c.GOOS)
+	write("goarch", c.GOARCH)
+	write("build_tags", strings.Join(c.BuildTags, ","))
+	deps := make([]string, 0, len(c.Deps))
+	for module, version := range c.Deps {
+		deps = append(deps, module+"@"+version)
+	}
+	sort.Strings(deps)
+	write("deps", strings.Join(deps, ","))
+	return b.String()
+}
+
+// ProofOriginRef is the calibration-visible witness behind a positive: which
+// independent assessment earned it, from which exact record bytes, for which
+// entry/mechanism and under which attribution. It never carries ground truth.
+type ProofOriginRef struct {
+	AssessmentID   string `json:"assessment_id"`
+	RecordID       string `json:"record_id"`
+	DocumentDigest string `json:"record_digest,omitempty"`
+	EntryRefs      []int  `json:"entry_refs,omitempty"`
+	MechanismID    string `json:"mechanism_id,omitempty"`
+	AttributionID  string `json:"attribution_id,omitempty"`
+	Profile        string `json:"profile,omitempty"`
+}
+
+// Projection is the requested-finding projection of one case: the terminal
+// classification every consumer shares. Available is false when the case
+// produced no publication projection at all — an execution failure, never a
+// verdict, a safe answer or an analysis failure.
+type Projection struct {
+	Available            bool
+	RequestedID          string
+	RequestedKind        string
+	Coverage             string
+	Outcome              domain.AssessmentOutcome
+	Verdict              domain.Verdict
+	Reason               string
+	ExploitabilityScope  string
+	Profile              string
+	Build                string
+	PrimaryRecord        string
+	PrimaryDigest        string
+	CandidateIDs         []string
+	AttributionOutcomes  []string
+	ProofOrigins         []ProofOriginRef
+	CorpusDigest         string
+	FailureCodes         []string
+	ExternalDependencies []string
+}
+
+// failedToken is the published outcome token of a FAILED assessment. A failure
+// has no verdict, so scoring uses this explicit token instead of an empty
+// string that could be mistaken for a missing answer.
+const failedToken = "FAILED"
+
 // Result is the outcome of one corpus case.
 type Result struct {
 	Case    Case              `json:"case"`
@@ -129,6 +202,34 @@ type Result struct {
 	Reason  string            `json:"reason,omitempty"`
 	Claims  map[string]string `json:"claims,omitempty"`
 	Err     string            `json:"error,omitempty"`
+	// AssessmentOutcome is the requested finding's terminal classification:
+	// DECIDED, EXTERNAL_DEPENDENCY or FAILED. Empty for a legacy result.
+	AssessmentOutcome string `json:"assessment_outcome,omitempty"`
+	// FailureCodes are the typed causes behind a FAILED outcome, rendered as
+	// OWNER/CODE.
+	FailureCodes []string `json:"failure_codes,omitempty"`
+	// Requested identity and coverage of the answer, not of the primary record.
+	RequestedID   string `json:"requested_id,omitempty"`
+	RequestedKind string `json:"requested_kind,omitempty"`
+	Coverage      string `json:"coverage,omitempty"`
+	// PrimaryRecord/PrimaryDigest pin the request's primary record bytes.
+	PrimaryRecord string `json:"primary_record,omitempty"`
+	PrimaryDigest string `json:"primary_record_digest,omitempty"`
+	// CandidateIDs are the independently assessed discovery candidates.
+	CandidateIDs []string `json:"candidate_ids,omitempty"`
+	// AttributionOutcomes records every directional CVE attribution attempt
+	// as "<attribution-id>=<admission>".
+	AttributionOutcomes []string `json:"attribution_outcomes,omitempty"`
+	// ProofOrigins name the admitted witnesses of a positive.
+	ProofOrigins []ProofOriginRef `json:"proof_origins,omitempty"`
+	// Profile/Build are the provenance of the admitted result.
+	Profile string `json:"profile,omitempty"`
+	Build   string `json:"build,omitempty"`
+	// CorpusDigest pins the corpus a declared negative rests on.
+	CorpusDigest string `json:"corpus_digest,omitempty"`
+	// ExternalDependencies name the decision-changing facts behind an
+	// EXTERNAL_DEPENDENCY outcome.
+	ExternalDependencies []string `json:"external_dependencies,omitempty"`
 	// ExpectOK is nil when the case carries no expectations.
 	ExpectOK  *bool `json:"expect_ok,omitempty"`
 	ClaimsOK  *bool `json:"claims_ok,omitempty"`
@@ -166,8 +267,21 @@ type Metrics struct {
 	// FalseSafe — cases reported NOT_AFFECTED or NO_EXPLOIT_PATH_FOUND
 	// while their expectation did not allow a safe verdict. The stop
 	// criterion: this must stay zero.
-	FalseSafe           int `json:"false_safe"`
-	Inconclusive        int `json:"inconclusive"`
+	FalseSafe int `json:"false_safe"`
+	// FalsePositive — cases that published EXPLOITABLE while their
+	// expectation did not allow it. The symmetric stop criterion.
+	FalsePositive int `json:"false_positive"`
+	// Inconclusive counts published INCONCLUSIVE answers (external
+	// dependencies). A FAILED assessment is not an abstention and is never
+	// counted here.
+	Inconclusive int `json:"inconclusive"`
+	// Decided/ExternalDependency/AnalysisFailed are the terminal
+	// classifications of the requested finding. A failed analysis is not a
+	// completed analysis, and an external dependency is not a definitive
+	// answer: readers must never add the last two to Decided.
+	Decided             int `json:"decided"`
+	ExternalDependency  int `json:"external_dependency"`
+	AnalysisFailed      int `json:"analysis_failed"`
 	GovulncheckSignals  int `json:"govulncheck_signals,omitempty"`
 	SignalCleared       int `json:"signal_cleared,omitempty"`
 	ReachableSignals    int `json:"reachable_signals,omitempty"`
@@ -237,11 +351,15 @@ func clearedKind(verdict string, falsifier string) string {
 	return ClearedKindDeeper
 }
 
-// Record folds one finished case into the report. falsifier and
-// groundBasis identify the grounding claim of a safe verdict (empty
-// for NOT_AFFECTED and non-safe verdicts); evidenceIDs point at the
-// claim's evidence for independent review.
-func (r *Report) Record(c Case, verdict domain.Verdict, reason string, claims map[string]string, falsifier, groundBasis string, evidenceIDs []string, runErr error) {
+// Record folds one finished case into the report. The projection is the
+// authoritative requested answer: when it is available its outcome, verdict
+// and diagnostics override the explicitly passed verdict/reason, so a caller
+// cannot accidentally score the primary record instead of the request. A
+// legacy caller (no projection) keeps the historical verdict-based accounting.
+// falsifier and groundBasis identify the grounding claim of the deciding
+// assessment (empty for NOT_AFFECTED and non-safe verdicts); evidenceIDs point
+// at the claim's evidence for independent review.
+func (r *Report) Record(c Case, verdict domain.Verdict, reason string, claims map[string]string, falsifier, groundBasis string, evidenceIDs []string, runErr error, projection Projection) {
 	res := Result{
 		Case:           c,
 		Claims:         claims,
@@ -250,24 +368,63 @@ func (r *Report) Record(c Case, verdict domain.Verdict, reason string, claims ma
 		GroundBasis:    groundBasis,
 		EvidenceIDs:    evidenceIDs,
 	}
+	if projection.Available {
+		res.AssessmentOutcome = string(projection.Outcome)
+		res.FailureCodes = projection.FailureCodes
+		res.RequestedID = projection.RequestedID
+		res.RequestedKind = projection.RequestedKind
+		res.Coverage = projection.Coverage
+		res.PrimaryRecord = projection.PrimaryRecord
+		res.PrimaryDigest = projection.PrimaryDigest
+		res.CandidateIDs = projection.CandidateIDs
+		res.AttributionOutcomes = projection.AttributionOutcomes
+		res.ProofOrigins = projection.ProofOrigins
+		res.Profile = projection.Profile
+		res.Build = projection.Build
+		res.CorpusDigest = projection.CorpusDigest
+		res.ExternalDependencies = projection.ExternalDependencies
+		// The projection is the one authoritative answer: it decides the
+		// published verdict and reason, not the caller's record-level view.
+		verdict = projection.Verdict
+		reason = projection.Reason
+	}
 	if runErr != nil {
 		res.Err = runErr.Error()
 		r.Metrics.Errors++
 	} else {
 		res.Verdict = string(verdict)
 		res.Reason = reason
-		if r.Metrics.Verdicts == nil {
-			r.Metrics.Verdicts = map[string]int{}
+		switch {
+		case projection.Available && projection.Outcome == domain.OutcomeFailed:
+			// A failure publishes no verdict, so it is neither a safe answer
+			// nor an abstention. It is not a completed analysis either.
+			r.Metrics.AnalysisFailed++
+		default:
+			if r.Metrics.Verdicts == nil {
+				r.Metrics.Verdicts = map[string]int{}
+			}
+			r.Metrics.Verdicts[res.Verdict]++
+			if verdict == domain.VerdictInconclusive {
+				r.Metrics.Inconclusive++
+			}
 		}
-		r.Metrics.Verdicts[res.Verdict]++
-		if verdict == domain.VerdictInconclusive {
-			r.Metrics.Inconclusive++
+		if projection.Available {
+			switch projection.Outcome {
+			case domain.OutcomeDecided:
+				r.Metrics.Decided++
+			case domain.OutcomeExternal:
+				r.Metrics.ExternalDependency++
+			}
 		}
 	}
 	if len(c.Expect) > 0 {
+		published := res.Verdict
+		if projection.Available && projection.Outcome == domain.OutcomeFailed {
+			published = failedToken
+		}
 		ok := false
 		for _, want := range c.Expect {
-			if res.Verdict == want {
+			if published == want {
 				ok = true
 			}
 		}
@@ -279,6 +436,9 @@ func (r *Report) Record(c Case, verdict domain.Verdict, reason string, claims ma
 			res.FalseSafe = safeVerdicts[verdict]
 			if res.FalseSafe {
 				r.Metrics.FalseSafe++
+			}
+			if verdict == domain.VerdictExploitable {
+				r.Metrics.FalsePositive++
 			}
 		}
 	} else {
@@ -348,6 +508,11 @@ func (r Report) Markdown() string {
 	fmt.Fprintf(&b, "cases: %d | errors: %d | expect pass: %d | expect fail: %d | **false-safe: %d** | inconclusive: %d\n\n",
 		r.Metrics.Total, r.Metrics.Errors, r.Metrics.ExpectPass, r.Metrics.ExpectFail,
 		r.Metrics.FalseSafe, r.Metrics.Inconclusive)
+	// The terminal classification is reported as three separate populations:
+	// moving tool limitations out of INCONCLUSIVE is not an increase in
+	// successful completion.
+	fmt.Fprintf(&b, "requested outcomes: decided: %d | external dependency: %d | analysis failed: %d | false-positive: %d\n\n",
+		r.Metrics.Decided, r.Metrics.ExternalDependency, r.Metrics.AnalysisFailed, r.Metrics.FalsePositive)
 	if r.Metrics.GovulncheckSignals > 0 {
 		fmt.Fprintf(&b, "signal cleared: %d/%d\n\n", r.Metrics.SignalCleared, r.Metrics.GovulncheckSignals)
 		fmt.Fprintf(&b, "reachable cleared: %d/%d | package-level cleared: %d/%d\n\n",
@@ -371,11 +536,18 @@ func (r Report) Markdown() string {
 		sort.Strings(vs)
 		fmt.Fprintf(&b, "verdicts: %s\n\n", strings.Join(vs, " "))
 	}
-	b.WriteString("| case | verdict | expect | claims | govulncheck | falsifier | note |\n|---|---|---|---|---|---|---|\n")
+	b.WriteString("| case | outcome | verdict | expect | claims | govulncheck | falsifier | note |\n|---|---|---|---|---|---|---|---|\n")
 	for _, res := range r.Results {
 		v := res.Verdict
 		if res.Err != "" {
 			v = "ERROR"
+		}
+		outcome := res.AssessmentOutcome
+		if outcome == "" {
+			outcome = "-"
+		}
+		if res.Err != "" {
+			outcome = "EXECUTION_ERROR"
 		}
 		exp := "-"
 		if res.ExpectOK != nil {
@@ -398,10 +570,15 @@ func (r Report) Markdown() string {
 			gv = "-"
 		}
 		note := ""
-		if res.FalseSafe {
+		switch {
+		case res.FalseSafe:
 			note = "**FALSE-SAFE**"
-		} else if res.Err != "" {
+		case res.Err != "":
 			note = res.Err
+		case len(res.FailureCodes) > 0:
+			note = strings.Join(res.FailureCodes, " ")
+		case len(res.ExternalDependencies) > 0:
+			note = "external: " + strings.Join(res.ExternalDependencies, "; ")
 		}
 		fals := res.Falsifier
 		if res.GroundBasis != "" {
@@ -413,7 +590,8 @@ func (r Report) Markdown() string {
 		if fals == "" {
 			fals = "-"
 		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s |\n", res.Case.Label(), v, exp, cl, gv, fals, note)
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s |\n",
+			res.Case.Label(), outcome, v, exp, cl, gv, fals, note)
 	}
 	return b.String()
 }

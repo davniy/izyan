@@ -193,7 +193,7 @@ func TestVerifyFalseStillContradictsOnExternalWriterOrigin(t *testing.T) {
 		ID: "C-INPUT", Kind: domain.ConditionAttackerControl,
 		Subject: &subject, ArgIndex: -1,
 	}
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: testProduct()}
 	claim := Verifier{Source: ix}.VerifyFalse(context.Background(), c,
 		domain.Claim{ConditionID: cond.ID, Result: domain.ClaimFalse}, cond)
 	if claim.NegativeVerification == nil || claim.NegativeVerification.Status != domain.NegativeContradicted {

@@ -29,7 +29,7 @@ func TestSymbolIsMethod(t *testing.T) {
 func TestReflectMarkerStandaloneFunctionScoping(t *testing.T) {
 	ix := fixture(t, "reflectprod")
 	v := Verifier{Source: ix}
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: testProduct()}
 	c.Vulnerability.Module = "example.com/dep"
 
 	// 1. Standalone function: reflect import does NOT widen call graph
@@ -86,7 +86,7 @@ func TestReflectMarkerStandaloneFunctionScoping(t *testing.T) {
 func TestGovulncheckSilenceWithUnexportedSubject(t *testing.T) {
 	ix := fixture(t, "constprod")
 	v := Verifier{Source: ix}
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: testProduct()}
 
 	unexportedSym := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "internalHelper"}
 
@@ -121,7 +121,7 @@ func TestGovulncheckSilenceWithUnexportedSubject(t *testing.T) {
 func TestVerifyInputFalse_ConstantPayloadVerified(t *testing.T) {
 	ix := fixture(t, "constprod")
 	v := Verifier{Source: ix}
-	c := &domain.AnalysisCase{
+	c := &domain.AnalysisCase{Product: testProduct(),
 		Vulnerability: domain.Vulnerability{Module: "gopkg.in/yaml.v2"},
 	}
 	subject := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "Parse"}
@@ -149,7 +149,7 @@ func TestVerifyInputFalse_ConstantPayloadVerified(t *testing.T) {
 func TestVerifyInputFalse_TrustedConfigVerified(t *testing.T) {
 	ix := fixture(t, "fieldprod")
 	v := Verifier{Source: ix}
-	c := &domain.AnalysisCase{
+	c := &domain.AnalysisCase{Product: testProduct(),
 		Vulnerability: domain.Vulnerability{Module: "example.com/dep"},
 	}
 	subject := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "Parse"}
@@ -177,7 +177,7 @@ func TestVerifyInputFalse_TrustedConfigVerified(t *testing.T) {
 func TestVerifyInputFalse_ExternalInputContradictsConstantAndConfig(t *testing.T) {
 	ix := fixture(t, "extprod")
 	v := Verifier{Source: ix}
-	c := &domain.AnalysisCase{
+	c := &domain.AnalysisCase{Product: testProduct(),
 		Vulnerability: domain.Vulnerability{Module: "example.com/dep"},
 	}
 	subject := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "Parse"}
@@ -201,13 +201,44 @@ func TestVerifyInputFalse_ExternalInputContradictsConstantAndConfig(t *testing.T
 	}
 }
 
+// reflectNarrowModule writes a product that invokes
+// reflect.Value.MethodByName and links example.com/dep/vuln WITHOUT any
+// dynamic materialization (no unsafe/plugin/reflect.New), so
+// instantiation narrowing stays enabled: only a provably uninstantiated
+// receiver may be narrowed away.
+func reflectNarrowModule(t *testing.T) *Index {
+	t.Helper()
+	dir := usageModule(t, map[string]string{
+		"main.go": `package main
+
+import (
+	"fmt"
+	"reflect"
+
+	"example.com/dep/vuln"
+)
+
+type svc struct{}
+
+func main() {
+	vuln.Parse("x")
+	fmt.Println(reflect.ValueOf(&svc{}).MethodByName("Serve").IsValid())
+}
+`,
+	})
+	return &Index{Build: testProduct(), Dir: dir}
+}
+
+// A declared, provably uninstantiated receiver type: the reflect_method
+// marker is narrowed away and the negative still verifies — narrowing
+// is sound here because the instantiation probe is complete.
 func TestNegativeVerification_ReflectMethodUninstantiatedType(t *testing.T) {
-	ix := fixture(t, "reflectprod")
+	ix := reflectNarrowModule(t)
 	v := Verifier{Source: ix}
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: testProduct()}
 	c.Vulnerability.Module = "example.com/dep"
 
-	sym := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "ExternalType.Action"}
+	sym := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "SafeFormatter.String"}
 	claim := domain.Claim{
 		ConditionID: "C-REACH",
 		Result:      domain.ClaimFalse,
@@ -230,14 +261,49 @@ func TestNegativeVerification_ReflectMethodUninstantiatedType(t *testing.T) {
 	}
 }
 
-func TestNegativeVerification_ReflectMethodMultiSubjectStandaloneAndUninstantiated(t *testing.T) {
-	ix := fixture(t, "reflectprod")
+// An unresolvable receiver type cannot be proven uninstantiated — the
+// reflect_method marker stays relevant and the limitation is carried.
+func TestNegativeVerification_ReflectMethodUnresolvedReceiver(t *testing.T) {
+	ix := reflectNarrowModule(t)
 	v := Verifier{Source: ix}
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: testProduct()}
+	c.Vulnerability.Module = "example.com/dep"
+
+	sym := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "Missing.Action"}
+	claim := domain.Claim{
+		ConditionID: "C-REACH",
+		Result:      domain.ClaimFalse,
+		Falsifier:   domain.FalsifierGovulncheckSilence,
+	}
+	cond := domain.Condition{
+		ID:       "C-REACH",
+		Kind:     domain.ConditionSymbolReachable,
+		Subjects: []domain.SymbolRef{sym},
+	}
+
+	out := v.VerifyFalse(context.Background(), c, claim, cond)
+	found := false
+	if out.NegativeVerification != nil {
+		for _, lim := range out.NegativeVerification.Limitations {
+			if strings.Contains(lim, "widens the call graph") {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("reflect_method marker must stay relevant for an unresolvable receiver: %+v",
+			out.NegativeVerification)
+	}
+}
+
+func TestNegativeVerification_ReflectMethodMultiSubjectStandaloneAndUninstantiated(t *testing.T) {
+	ix := reflectNarrowModule(t)
+	v := Verifier{Source: ix}
+	c := &domain.AnalysisCase{Product: testProduct()}
 	c.Vulnerability.Module = "example.com/dep"
 
 	// Condition with both an uninstantiated exported method and an exported standalone function.
-	methodSym := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "ExternalType.Action"}
+	methodSym := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "SafeFormatter.String"}
 	standaloneSym := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "NewDict"}
 
 	claim := domain.Claim{
@@ -263,7 +329,7 @@ func TestNegativeVerification_ReflectMethodMultiSubjectStandaloneAndUninstantiat
 }
 
 func TestIsReceiverTypeInstantiated(t *testing.T) {
-	ix := fixture(t, "reflectprod")
+	ix := fixture(t, "ifaceprod")
 
 	// Nil index -> returns true (conservative)
 	var nilIx *Index
@@ -276,27 +342,60 @@ func TestIsReceiverTypeInstantiated(t *testing.T) {
 		t.Fatal("expected standalone function to return true")
 	}
 
-	// Instantiated type (Conn is instantiated in reflectprod)
-	if !ix.IsReceiverTypeInstantiated(domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "Conn.Next"}) {
-		t.Fatal("expected instantiated type Conn.Next to return true")
+	// Instantiated type (URI is created in ifaceprod) -> returns true,
+	// including the parenthesized receiver spelling.
+	if !ix.IsReceiverTypeInstantiated(domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "URI.String"}) {
+		t.Fatal("expected instantiated type URI.String to return true")
 	}
-	if !ix.IsReceiverTypeInstantiated(domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "(*Conn).Next"}) {
-		t.Fatal("expected instantiated pointer type (*Conn).Next to return true")
+	if !ix.IsReceiverTypeInstantiated(domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "(*URI).String"}) {
+		t.Fatal("expected instantiated pointer type (*URI).String to return true")
 	}
 
-	// Uninstantiated external type -> returns false
-	if ix.IsReceiverTypeInstantiated(domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "ExternalType.Action"}) {
-		t.Fatal("expected uninstantiated ExternalType.Action to return false")
+	// Provably uninstantiated: SafeFormatter resolves, narrowing is
+	// enabled, no product package was skipped, and the type never
+	// appears in the instantiation set -> false.
+	if ix.IsReceiverTypeInstantiated(domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "SafeFormatter.String"}) {
+		t.Fatal("expected provably uninstantiated SafeFormatter.String to return false")
 	}
-	if ix.IsReceiverTypeInstantiated(domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "(*ExternalType).Action"}) {
-		t.Fatal("expected uninstantiated (*ExternalType).Action to return false")
+	if ix.IsReceiverTypeInstantiated(domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "(*SafeFormatter).String"}) {
+		t.Fatal("expected provably uninstantiated (*SafeFormatter).String to return false")
+	}
+
+	// Unresolvable receiver type -> true: an unproven receiver must
+	// never narrow dispatch or dynamic-invocation scope away.
+	if !ix.IsReceiverTypeInstantiated(domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "Missing.String"}) {
+		t.Fatal("expected unresolved receiver Missing.String to return true")
+	}
+
+	// Disabled narrowing: unsafe/plugin/reflect.New materialization in
+	// product code makes the set unproven -> every receiver reads true.
+	rx := fixture(t, "reflectprod")
+	if !rx.IsReceiverTypeInstantiated(domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "ExternalType.Action"}) {
+		t.Fatal("expected disabled narrowing (unsafe import) to return true")
+	}
+
+	// Incomplete scope: a product package that failed to type-check
+	// never entered the instantiation set -> unproven -> true.
+	dir := usageModule(t, map[string]string{
+		"main.go": `package main
+
+func main() {}
+`,
+		"broken/broken.go": `package broken
+
+func Broken() int { return undefinedIdentifier }
+`,
+	})
+	sx := &Index{Build: testProduct(), Dir: dir}
+	if !sx.IsReceiverTypeInstantiated(domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "SafeFormatter.String"}) {
+		t.Fatal("expected a skipped product package to block narrowing (return true)")
 	}
 }
 
 func TestNegativeVerification_InterfaceDispatchUninstantiatedType(t *testing.T) {
 	ix := fixture(t, "ifaceprod")
 	v := Verifier{Source: ix}
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: testProduct()}
 	c.Vulnerability.Module = "example.com/dep"
 
 	// 1. URI.String: URI is instantiated in ifaceprod, and render() calls fmt.Stringer.String().
@@ -368,7 +467,7 @@ func TestNegativeVerification_GovulncheckSilenceScopesToLocusSubjects(t *testing
 	calledUntouchedSym := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "Parse"}
 	uncalledLocusSym := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "NewDict"}
 
-	c := &domain.AnalysisCase{
+	c := &domain.AnalysisCase{Product: testProduct(),
 		Vulnerability: domain.Vulnerability{
 			Module:          "example.com/dep",
 			AffectedSymbols: []domain.SymbolRef{calledUntouchedSym, uncalledLocusSym},
@@ -393,5 +492,99 @@ func TestNegativeVerification_GovulncheckSilenceScopesToLocusSubjects(t *testing
 	if out.NegativeVerification == nil || out.NegativeVerification.Status != domain.NegativeVerified {
 		t.Fatalf("expected NegativeVerified because defect locus is uncalled, got status=%v notes=%q",
 			out.NegativeVerification.Status, out.NegativeVerification.Notes)
+	}
+}
+
+// A missing-pair-member FALSE cannot rest on "no product references" when
+// the never-invoked member is a method of a build interface: interface
+// dispatch (fmt.Stringer, callbacks inside the dependency) invokes it
+// without a static product reference. This mirrors the amqp091-go
+// URI.String/ParseURI smoke case, where the locus verifier already refuses
+// URI.String for the same reason.
+func TestSequencePairInterfaceMethodNotVerified(t *testing.T) {
+	dir := usageModule(t, map[string]string{
+		"main.go": `package main
+
+import (
+	"fmt"
+
+	"example.com/dep/vuln"
+)
+
+func main() {
+	u, _ := vuln.ParseURI("x")
+	fmt.Println(u)
+}
+`,
+	})
+	ix := &Index{Build: testProduct(), Dir: dir}
+	c := &domain.AnalysisCase{Product: testProduct()}
+	c.EvidenceGraph.AddModuleUsages(domain.CallSite{Callee: "example.com/dep/vuln.ParseURI"})
+
+	uriString := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "URI.String"}
+	parseURI := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "ParseURI"}
+	cond := domain.Condition{
+		ID:       "C-ROUNDTRIP",
+		Kind:     domain.ConditionSymbolReachable,
+		Subjects: []domain.SymbolRef{uriString, parseURI},
+		Params: map[string]string{
+			domain.ParamSequence: "example.com/dep/vuln.URI.String->example.com/dep/vuln.ParseURI",
+		},
+	}
+	claim := domain.Claim{
+		ConditionID: cond.ID, Result: domain.ClaimFalse,
+		Falsifier: domain.FalsifierMissingPairMember,
+	}
+	out := (Verifier{Source: ix}).VerifyFalse(context.Background(), c, claim, cond)
+	nv := out.NegativeVerification
+	if nv == nil || nv.Status != domain.NegativeInsufficientScope {
+		t.Fatalf("interface-dispatched pair member must not verify: nv=%+v", nv)
+	}
+	if !strings.Contains(nv.Notes, "build interfaces") {
+		t.Fatalf("notes=%q, want the interface-scope blocker", nv.Notes)
+	}
+}
+
+// Control: a never-invoked pair member that is a plain package function and
+// has no product references still verifies — the interface rule must not
+// turn every missing-pair-member claim into INSUFFICIENT_SCOPE.
+func TestSequencePairPlainFunctionStillVerified(t *testing.T) {
+	dir := usageModule(t, map[string]string{
+		"main.go": `package main
+
+import (
+	"fmt"
+
+	"example.com/dep/vuln"
+)
+
+func main() {
+	u, _ := vuln.ParseURI("x")
+	fmt.Println(u)
+}
+`,
+	})
+	ix := &Index{Build: testProduct(), Dir: dir}
+	c := &domain.AnalysisCase{Product: testProduct()}
+	c.EvidenceGraph.AddModuleUsages(domain.CallSite{Callee: "example.com/dep/vuln.ParseURI"})
+
+	parseURI := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "ParseURI"}
+	parse2 := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "Parse2"}
+	cond := domain.Condition{
+		ID:       "C-ROUNDTRIP",
+		Kind:     domain.ConditionSymbolReachable,
+		Subjects: []domain.SymbolRef{parseURI, parse2},
+		Params: map[string]string{
+			domain.ParamSequence: "example.com/dep/vuln.ParseURI->example.com/dep/vuln.Parse2",
+		},
+	}
+	claim := domain.Claim{
+		ConditionID: cond.ID, Result: domain.ClaimFalse,
+		Falsifier: domain.FalsifierMissingPairMember,
+	}
+	out := (Verifier{Source: ix}).VerifyFalse(context.Background(), c, claim, cond)
+	nv := out.NegativeVerification
+	if nv == nil || nv.Status != domain.NegativeVerified {
+		t.Fatalf("plain-function pair member with no references must verify: nv=%+v", nv)
 	}
 }

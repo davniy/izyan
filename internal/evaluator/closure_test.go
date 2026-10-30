@@ -10,7 +10,7 @@ func TestIngressClosureDoesNotExcludeUnconnectedInputs(t *testing.T) {
 	for _, origin := range []domain.DataOrigin{domain.OriginUnknown, domain.OriginExternalUntrusted, domain.OriginConfiguration} {
 		t.Run(string(origin), func(t *testing.T) {
 			cond := domain.Condition{ID: "C-INPUT", Kind: domain.ConditionAttackerControl}
-			c := &domain.AnalysisCase{}
+			c := &domain.AnalysisCase{Product: admittedProduct()}
 			c.Vulnerability.Module = "example.com/dep"
 			c.EvidenceGraph.DataFlows = []domain.DataFlow{{ConditionID: cond.ID, Origin: domain.OriginConstant}}
 			c.EvidenceGraph.AddIngressClosure(domain.IngressClosure{
@@ -27,7 +27,7 @@ func TestIngressClosureDoesNotExcludeUnconnectedInputs(t *testing.T) {
 
 func TestUnresolvedDependencyFlowCannotUseGuards(t *testing.T) {
 	cond := domain.Condition{ID: "C", Kind: domain.ConditionInputConstraint, ArgIndex: 0}
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.Vulnerability.Module = "example.com/dep"
 	site := domain.CallSite{File: "dep.go", Line: 8, Package: "example.com/dep/vuln"}
 	c.EvidenceGraph.DataFlows = []domain.DataFlow{{ConditionID: cond.ID, Sink: site, Arg: 0, Origin: domain.OriginUnknown}}

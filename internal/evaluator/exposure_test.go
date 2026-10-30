@@ -17,7 +17,7 @@ func exposureCond() domain.Condition {
 }
 
 func exposureCase(facts ...domain.ExposureFact) *domain.AnalysisCase {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	for _, f := range facts {
 		c.EvidenceGraph.AddExposure(f)
 	}
@@ -84,7 +84,7 @@ func TestExposureNoFacts(t *testing.T) {
 		t.Fatalf("result=%s, want UNKNOWN", cl.Result)
 	}
 	// no scan evidence at all → different limitation path
-	cl = Exposure{}.Evaluate(exposureCond(), &domain.AnalysisCase{})
+	cl = Exposure{}.Evaluate(exposureCond(), &domain.AnalysisCase{Product: admittedProduct()})
 	if cl.Result != domain.ClaimUnknown ||
 		!strings.Contains(cl.Limitations[0], "did not run") {
 		t.Fatalf("result=%s lims=%v", cl.Result, cl.Limitations)

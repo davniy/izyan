@@ -1,0 +1,17 @@
+{
+  "id": "OBS-0001",
+  "tool": "repository-preflight",
+  "fact": "snapshot <VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35 contained, replaces confined, content hash f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+  "scope": "VerifyContained + CheckPathReplacements + ContentHash over the snapshot tree",
+  "completeness": "COMPLETE",
+  "tool_status": "OK",
+  "scope_details": {
+    "snapshot_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+    "snapshot_root": "<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+    "coverage_rule": "closed walk of the snapshot tree (canonical hash)"
+  },
+  "data": {
+    "content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+    "snapshot_root": "<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35"
+  }
+}

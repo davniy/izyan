@@ -22,6 +22,10 @@ func (Validation) CanEvaluate(cond domain.Condition) bool {
 }
 
 func (Validation) Evaluate(cond domain.Condition, c *domain.AnalysisCase) domain.Claim {
+	return admitNegative(c, cond, evaluateValidation(cond, c))
+}
+
+func evaluateValidation(cond domain.Condition, c *domain.AnalysisCase) domain.Claim {
 	claim := domain.Claim{
 		ID:          domain.ClaimID("CL-" + string(cond.ID)),
 		ConditionID: cond.ID,

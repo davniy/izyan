@@ -1,0 +1,17 @@
+diff --git a/src/evaluate/agents/opencode.py b/src/evaluate/agents/opencode.py
+index 08a159b..c49cca3 100644
+--- a/src/evaluate/agents/opencode.py
++++ b/src/evaluate/agents/opencode.py
+@@ -22,6 +22,12 @@ MODEL2NAME = {
+     "kimi-k2.6": "Azure-Resource/Kimi-K2.6",
+     "deepseek-v4-flash": "Azure-Resource/DeepSeek-V4-Flash",
+     "deepseek-v4-pro": "Azure-Resource/DeepSeek-V4-Pro",
++    # Task 4.4-ext self-hosted providers. The value's prefix selects the
++    # provider block merged by ``opencode_c1._extend_config``; the suffix is
++    # the model key sent to that provider.
++    "qwen3.6-35b": "custom-openai/Qwen/Qwen3.6-35B-A3B",
++    "qwen3.8-27b": "custom-openai/Qwen/Qwen3.8-27B",
++    "gemini-3.8-flash-high": "antigravity/gemini-3.8-flash-high",
+ }
+ 
+ 

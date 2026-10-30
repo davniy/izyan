@@ -1,0 +1,293 @@
+{
+  "_meta": {
+    "image": "vex-bench-go-codex-c1:latest",
+    "model": "gpt-6.1-sol",
+    "stub_cve": "CVE-2000-0000",
+    "started_at_utc": "2026-10-08T03:40:55Z"
+  },
+  "allowexec.mcp_handshake": {
+    "ok": true,
+    "serverInfo": {
+      "name": "izyan-evidence-tools",
+      "version": "izyan-evidence-tools/0.1.0"
+    },
+    "protocolVersion": "2025-03-26",
+    "instructions_present": true
+  },
+  "allowexec.mcp_tool_catalog": {
+    "ok": true,
+    "tool_count": 31,
+    "tools": [
+      "check_call_site_guard",
+      "check_missing_call",
+      "dep_invocation_state",
+      "field_assignments",
+      "find_callers",
+      "find_dep_callers",
+      "find_entrypoints",
+      "find_may_callers",
+      "find_references",
+      "find_symbol",
+      "find_validations",
+      "gated_refs",
+      "get_advisory",
+      "get_dependency_graph",
+      "get_fix_diff",
+      "get_fix_references",
+      "get_module_version",
+      "get_product_snapshot",
+      "get_vulnerability",
+      "interface_dispatch_sites",
+      "module_internal_reach",
+      "module_usage",
+      "read_function",
+      "read_source",
+      "run_build",
+      "run_govulncheck",
+      "run_tests",
+      "scan_dynamic",
+      "search_source",
+      "sensitive_fields",
+      "trace_argument"
+    ],
+    "all_have_input_schema": true
+  },
+  "allowexec.mcp_forced_tool_error": {
+    "ok": true,
+    "statuses": {
+      "unknown_tool": "protocol_error",
+      "missing_file_arg": "is_error",
+      "nonexistent_file": "ERROR"
+    },
+    "positive_control_status": "OK"
+  },
+  "allowexec.mcp_traversal": {
+    "ok": true,
+    "statuses": {
+      "dotdot": "ERROR",
+      "dotdot_abs": "ERROR",
+      "absolute_etc": "ERROR",
+      "work_parent_escape": "ERROR",
+      "gt_search": "OK"
+    },
+    "gt_search_matches": 0,
+    "detail": "out-of-root reads must be rejected; GT pattern must not match snapshot bytes"
+  },
+  "allowexec.mcp_exec_gate": {
+    "ok": true,
+    "allow_exec": true,
+    "run_build_status": "OK"
+  },
+  "allowexec._audit_export": {
+    "ok": true,
+    "rc": 0,
+    "path": "<VA_REPO>/results/task4-c1/_synthetic/mcp-allowexec/izyan-audit/tool_calls.jsonl"
+  },
+  "allowexec.transcript": "<VA_REPO>/results/task4-c1/_synthetic/mcp-allowexec/mcp-transcript.jsonl",
+  "noexec.mcp_exec_gate": {
+    "ok": true,
+    "allow_exec": false,
+    "run_build_status": "UNSUPPORTED"
+  },
+  "container_fs_allowlist": {
+    "ok": true,
+    "forbidden_hits": [],
+    "env_names": [
+      "GOLANG_VERSION",
+      "GOPATH",
+      "GOTOOLCHAIN",
+      "HOME",
+      "HOSTNAME",
+      "LOCAL_PROXY_KEY",
+      "PATH",
+      "PWD"
+    ],
+    "secret_like_env": [],
+    "host_env_names": [],
+    "informational_env": [
+      "GOLANG_VERSION",
+      "GOPATH",
+      "GOTOOLCHAIN"
+    ],
+    "note": "no benchmark/GT/results files or host paths inside the attempt fs; LOCAL_PROXY_KEY is the declared credential"
+  },
+  "timeout": {
+    "ok": true,
+    "wall_seconds": 3.3,
+    "error_head": "container timed out after 3s",
+    "io_logs_written": true
+  },
+  "export_failure": {
+    "ok": true,
+    "report": [
+      {
+        "container_path": "/etc/hostname",
+        "name": "control-hostname",
+        "rc": 0,
+        "stderr": "",
+        "exported": true
+      },
+      {
+        "container_path": "/definitely/missing-c1-probe",
+        "name": "missing-artifact",
+        "rc": 1,
+        "stderr": "Error response from daemon: Could not find the file /definitely/missing-c1-probe in container 6fd2e2f0f3e9eb89315f6e9411002bc1e2ffe7406e0c7f91140df68fe5a539bc",
+        "exported": false
+      }
+    ],
+    "detail": "failed docker cp must appear in export-report.json (observable, not silent)"
+  },
+  "provider_refusal": {
+    "ok": true,
+    "status": {
+      "schema_version": "attempt-status/1",
+      "task_id": "refusal-case",
+      "attempt_id": "run_001",
+      "experiment_id": "c1-synthetic",
+      "execution": "provider_refusal",
+      "official_parse": "parse_fail",
+      "assessment_schema": "invalid",
+      "parser_audit": "no_object",
+      "overall": "failed",
+      "failure_reason": "provider_refusal",
+      "detail": "no JSON object with a category field found"
+    }
+  },
+  "invalid_output": {
+    "ok": true,
+    "status": {
+      "schema_version": "attempt-status/1",
+      "task_id": "invalid-case",
+      "attempt_id": "run_001",
+      "experiment_id": "c1-synthetic",
+      "execution": "invalid_terminal_answer",
+      "official_parse": "parse_fail",
+      "assessment_schema": "invalid",
+      "parser_audit": "no_object",
+      "overall": "failed",
+      "failure_reason": "invalid_terminal_answer",
+      "detail": "no JSON object with a category field found"
+    }
+  },
+  "no_output": {
+    "ok": true,
+    "status": {
+      "schema_version": "attempt-status/1",
+      "task_id": "nooutput-case",
+      "attempt_id": "run_001",
+      "experiment_id": "c1-synthetic",
+      "execution": "no_output",
+      "official_parse": "no_result",
+      "assessment_schema": "absent",
+      "parser_audit": "not_run",
+      "overall": "failed",
+      "failure_reason": "no_result",
+      "detail": null
+    }
+  },
+  "timeout_error_txt": {
+    "ok": true,
+    "status": {
+      "schema_version": "attempt-status/1",
+      "task_id": "timeout-case",
+      "attempt_id": "run_001",
+      "experiment_id": "c1-synthetic",
+      "execution": "timeout",
+      "official_parse": "no_result",
+      "assessment_schema": "absent",
+      "parser_audit": "not_run",
+      "overall": "failed",
+      "failure_reason": "timeout",
+      "detail": "container timed out after 3s"
+    }
+  },
+  "live_isolation_probe": {
+    "ok": true,
+    "wall_seconds": 49.4,
+    "mcp_read_source_statuses": {
+      "/etc/passwd": "ERROR",
+      "../go-tasks.jsonl": "ERROR",
+      "probe.go": "OK"
+    },
+    "mcp_call_count": 3,
+    "agent_report": {
+      "checks": [
+        {
+          "id": "A1",
+          "channel": "native",
+          "outcome": "not_found",
+          "summary": "No matching artifact paths returned; command exited 0."
+        },
+        {
+          "id": "A2",
+          "channel": "native",
+          "outcome": "found",
+          "summary": "/work contains go.mod and probe.go; no .jsonl files found."
+        },
+        {
+          "id": "A3",
+          "channel": "native",
+          "outcome": "found",
+          "summary": "Hostname: 42b2d08b4d79; /work/../host-marker and ../eval/c1/status.py both returned No such file or directory."
+        },
+        {
+          "id": "A4",
+          "channel": "native",
+          "outcome": "found",
+          "summary": "Found /tmp/izyan-audit/tool_calls.jsonl; /tmp listing succeeded."
+        },
+        {
+          "id": "B1",
+          "channel": "mcp",
+          "outcome": "denied",
+          "summary": "read_source rejected /etc/passwd: path escapes the analyzed repository/module cache."
+        },
+        {
+          "id": "B2",
+          "channel": "mcp",
+          "outcome": "denied",
+          "summary": "read_source rejected ../go-tasks.jsonl: path escapes the analyzed repository/module cache."
+        },
+        {
+          "id": "B3",
+          "channel": "mcp",
+          "outcome": "found",
+          "summary": "read_source successfully read all 143 bytes of probe.go; tool_status OK, completeness COMPLETE."
+        },
+        {
+          "id": "C",
+          "channel": "native",
+          "outcome": "found",
+          "summary": "Printed 23 sorted environment variable names, including LOCAL_PROXY_KEY; no values printed."
+        }
+      ],
+      "forbidden_artifacts_found": [],
+      "mcp_tools_listed": 31,
+      "probe_go_read_ok": true
+    },
+    "forbidden_artifacts_found": [],
+    "run_dir": "<VA_REPO>/results/task4-c1/_synthetic/live-isolation/synthetic-isolation/run_001"
+  },
+  "_summary": {
+    "checks": {
+      "allowexec.mcp_handshake": true,
+      "allowexec.mcp_tool_catalog": true,
+      "allowexec.mcp_forced_tool_error": true,
+      "allowexec.mcp_traversal": true,
+      "allowexec.mcp_exec_gate": true,
+      "allowexec._audit_export": true,
+      "noexec.mcp_exec_gate": true,
+      "container_fs_allowlist": true,
+      "timeout": true,
+      "export_failure": true,
+      "provider_refusal": true,
+      "invalid_output": true,
+      "no_output": true,
+      "timeout_error_txt": true,
+      "live_isolation_probe": true
+    },
+    "crashed": [],
+    "all_ok": true,
+    "failed": []
+  }
+}

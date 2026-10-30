@@ -1,0 +1,42 @@
+{
+  "schema": "r6-fixture/1",
+  "case_label": "synthetic-symbol-coverage",
+  "subjects": [
+    {
+      "module": "example.test/dep",
+      "package": "example.test/dep/vuln",
+      "symbol": "Decode"
+    },
+    {
+      "module": "example.test/dep",
+      "package": "example.test/dep/vuln",
+      "symbol": "Encode"
+    }
+  ],
+  "partial": {
+    "covered_subjects": ["symbol:example.test/dep|example.test/dep/vuln.Decode"],
+    "expected_disposition": "HOLD_UNKNOWN"
+  },
+  "complete": {
+    "covered_subjects": [
+      "symbol:example.test/dep|example.test/dep/vuln.Decode",
+      "symbol:example.test/dep|example.test/dep/vuln.Encode"
+    ],
+    "expected_disposition": "CLOSE_NO_EXPLOIT_PATH",
+    "expected_verdict": "NO_EXPLOIT_PATH_FOUND",
+    "expected_coverage": "COMPLETE",
+    "expected_auto_close": false
+  },
+  "scope": {
+    "declaration_complete": true,
+    "entrypoint_complete": true,
+    "product_references": [],
+    "may_call_sites": [],
+    "dependency_call_sites": [],
+    "interface_dispatch_sites": [],
+    "dynamic_markers": [],
+    "gated_references": [],
+    "module_reachable": [],
+    "limitations": []
+  }
+}

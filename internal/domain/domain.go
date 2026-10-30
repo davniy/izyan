@@ -40,25 +40,40 @@ const (
 	StateCreated              WorkflowState = "CREATED"
 	StateSnapshotProduct      WorkflowState = "SNAPSHOT_PRODUCT"
 	StateResolveVulnerability WorkflowState = "RESOLVE_VULNERABILITY"
-	StateCheckAffected        WorkflowState = "CHECK_AFFECTED"
-	StateResolveRootCause     WorkflowState = "RESOLVE_ROOT_CAUSE"
-	StateBuildExploitModel    WorkflowState = "BUILD_EXPLOIT_MODEL"
-	StateCollectEvidence      WorkflowState = "COLLECT_EVIDENCE"
-	StateEvaluateConditions   WorkflowState = "EVALUATE_CONDITIONS"
-	StateGapAnalysis          WorkflowState = "GAP_ANALYSIS"
-	StateNegativeCheck        WorkflowState = "NEGATIVE_CHECK"
-	StateReview               WorkflowState = "REVIEW"
-	StateRepairAnalysis       WorkflowState = "REPAIR_ANALYSIS"
-	StateEvaluateVerdict      WorkflowState = "EVALUATE_VERDICT"
-	StateBuildReport          WorkflowState = "BUILD_REPORT"
-	StateCompleted            WorkflowState = "COMPLETED"
-	StateInconclusive         WorkflowState = "INCONCLUSIVE"
-	StateFailed               WorkflowState = "FAILED"
+	// Request-level discovery and composition states. They bracket record
+	// assessment and never replace the record evaluator: discovery nominates
+	// candidates, assessment runs each record's own pipeline, and composition
+	// projects the independently earned results into one requested answer.
+	StateDiscoverRecords         WorkflowState = "DISCOVER_RECORDS"
+	StateAssessRelatedRecords    WorkflowState = "ASSESS_RELATED_RECORDS"
+	StateComposeRequestedFinding WorkflowState = "COMPOSE_REQUESTED_FINDING"
+	StateCheckAffected           WorkflowState = "CHECK_AFFECTED"
+	StateResolveRootCause        WorkflowState = "RESOLVE_ROOT_CAUSE"
+	StateBuildExploitModel       WorkflowState = "BUILD_EXPLOIT_MODEL"
+	StateCollectEvidence         WorkflowState = "COLLECT_EVIDENCE"
+	StateEvaluateConditions      WorkflowState = "EVALUATE_CONDITIONS"
+	StateGapAnalysis             WorkflowState = "GAP_ANALYSIS"
+	StateNegativeCheck           WorkflowState = "NEGATIVE_CHECK"
+	StateReview                  WorkflowState = "REVIEW"
+	StateRepairAnalysis          WorkflowState = "REPAIR_ANALYSIS"
+	StateEvaluateVerdict         WorkflowState = "EVALUATE_VERDICT"
+	StateBuildReport             WorkflowState = "BUILD_REPORT"
+	StateCompleted               WorkflowState = "COMPLETED"
+	StateInconclusive            WorkflowState = "INCONCLUSIVE"
+	StateFailed                  WorkflowState = "FAILED"
 )
 
 type Vulnerability struct {
-	ID               string            `json:"id"`
-	Aliases          []string          `json:"aliases,omitempty"`
+	ID      string         `json:"id"`
+	Scope   *AdvisoryScope `json:"scope,omitempty"`
+	Aliases []string       `json:"aliases,omitempty"`
+	// Related carries the record's direct related ids verbatim. It is a
+	// discovery relationship only: the OSV schema permits a related entry to
+	// name a similar but completely different vulnerability, so relatedness
+	// establishes neither identity nor fact inheritance. Attribution needs its
+	// own admitted basis, and exploitability needs the related record's own
+	// independently earned proof.
+	Related          []string          `json:"related,omitempty"`
 	Module           string            `json:"module,omitempty"`
 	Package          string            `json:"package,omitempty"`
 	AffectedVersions []VersionRange    `json:"affected_versions,omitempty"`
@@ -76,10 +91,8 @@ type Vulnerability struct {
 	BaseSeverity    string           `json:"base_severity,omitempty"`
 	BaseScore       float64          `json:"base_score,omitempty"`
 	// SeveritySource / ScoreSource record where BaseSeverity and BaseScore
-	// came from ("OSV", "GHSA", "NVD", "Scanner input", SourceAnalyzerDefault,
-	// ...). Empty means the origin is unknown and presentation must not
-	// claim one; SourceAnalyzerDefault marks values the analyzer itself
-	// synthesized because the advisory did not supply them.
+	// came from ("OSV", "GHSA", "NVD", "Scanner input", ...). Empty means
+	// the origin is unknown and presentation must not claim one.
 	SeveritySource string            `json:"severity_source,omitempty"`
 	ScoreSource    string            `json:"score_source,omitempty"`
 	CWE            []string          `json:"cwe,omitempty"`
@@ -106,36 +119,83 @@ type SymbolRef struct {
 	Symbol  string `json:"symbol"`
 }
 
-// SourceAnalyzerDefault marks a severity/score synthesized by the
-// analyzer (score defaulted from severity or vice versa, or the policy
-// baseline when the advisory supplied neither). It is deliberately not
-// an advisory source: presentation must label it as the analyzer's
-// assumption, never as e.g. "OSV".
-const SourceAnalyzerDefault = "analyzer default"
-
 type Reference struct {
 	Type string `json:"type,omitempty"`
 	URL  string `json:"url"`
 }
 
+// GoVersionSource identifies where ProductSnapshot.ReleaseGoVersion came
+// from. An empty value means no evidence was found: the release toolchain
+// is UNKNOWN and release-scoped applicability must stay unresolved.
+type GoVersionSource string
+
+const (
+	GoVersionSourceGoMod       GoVersionSource = "go.mod"       // toolchain directive in go.mod
+	GoVersionSourceToolchain   GoVersionSource = "toolchain"    // explicit toolchain directive
+	GoVersionSourceDockerfile  GoVersionSource = "dockerfile"   // FROM golang:X build stage
+	GoVersionSourceCI          GoVersionSource = "ci"           // CI setup-go version
+	GoVersionSourceVersionFile GoVersionSource = "version-file" // .go-version/mise/asdf/build script pin
+	GoVersionSourceBinary      GoVersionSource = "binary"       // go version -m on a release binary
+	GoVersionSourceExplicit    GoVersionSource = "explicit"     // operator flag/ticket metadata
+)
+
 type ProductSnapshot struct {
-	Repository        string             `json:"repository"`
-	Commit            string             `json:"commit"`
-	GoVersion         string             `json:"go_version"`
-	GoModDirective    string             `json:"go_mod_directive,omitempty"`
-	ReleaseGoVersion  string             `json:"release_go_version,omitempty"`
-	BinaryPath        string             `json:"binary_path,omitempty"`
-	GOOS              string             `json:"goos"`
-	GOARCH            string             `json:"goarch"`
-	BuildTags         []string           `json:"build_tags,omitempty"`
-	CGOEnabled        bool               `json:"cgo_enabled"`
-	VendorMode        bool               `json:"vendor_mode"`
-	GoWorkFile        string             `json:"go_work_file,omitempty"`
+	Repository       string   `json:"repository"`
+	Commit           string   `json:"commit"`
+	GoVersion        string   `json:"go_version"`
+	GoModDirective   string   `json:"go_mod_directive,omitempty"`
+	ReleaseGoVersion string   `json:"release_go_version,omitempty"`
+	BinaryPath       string   `json:"binary_path,omitempty"`
+	GOOS             string   `json:"goos"`
+	GOARCH           string   `json:"goarch"`
+	BuildTags        []string `json:"build_tags,omitempty"`
+	CGOEnabled       bool     `json:"cgo_enabled"`
+	// Target is the typed provenance of the GOOS/GOARCH/BuildTags/
+	// CGOEnabled facts above: artifact build-info bound to the artifact
+	// and build-info digests, release-metadata target facts, an explicit
+	// operator declaration, or the analyzer host default. Only a
+	// non-host target can ground a platform-scoped affected-chain
+	// conclusion, and a product-wide conclusion additionally requires an
+	// admitted supported-targets assumption.
+	Target     *ProductTarget `json:"target,omitempty"`
+	VendorMode bool           `json:"vendor_mode"`
+	GoWorkFile string         `json:"go_work_file,omitempty"`
+	// GoFlags records the effective GOFLAGS the snapshot resolved for
+	// package loading, so every build-dependent probe shares one value.
+	GoFlags           string             `json:"go_flags,omitempty"`
 	ReplaceDirectives []ReplaceDirective `json:"replace_directives,omitempty"`
 	TrustedPeer       bool               `json:"trusted_peer,omitempty"`
 	DeployManifests   []string           `json:"deploy_manifests,omitempty"`
 	DeployArchive     string             `json:"deploy_archive,omitempty"`
 	PerimeterOverride string             `json:"perimeter_override,omitempty"`
+	// MinimumGoVersion mirrors the go.mod `go` directive: the minimum
+	// toolchain the module declares. It is NOT the release toolchain.
+	MinimumGoVersion string `json:"minimum_go_version,omitempty"`
+	// GoVersionSource identifies where ReleaseGoVersion came from; empty
+	// means the release toolchain is UNKNOWN.
+	GoVersionSource GoVersionSource `json:"go_version_source,omitempty"`
+	// ExternalCommitSHA is the snapshot identity supplied by an external
+	// controller (benchmark); when set, no local git history is consulted.
+	ExternalCommitSHA string `json:"external_commit_sha,omitempty"`
+	// ContentHash is the canonical snapshot-tree hash acquired for native and
+	// external source snapshots before index binding or analysis.
+	ContentHash string `json:"content_hash,omitempty"`
+	// Shape is the proven product-shape record with its module ownership,
+	// source census and input fingerprint. Nil means no shape was proven
+	// (the proof never ran or the case is binary-only).
+	Shape *ProductShape `json:"shape,omitempty"`
+	// ReleaseEvidence is the classified, resolved record of every observed
+	// release-toolchain declaration. ReleaseGoVersion above is only ever
+	// populated from an AUTHORITATIVE selection inside this summary.
+	ReleaseEvidence *ReleaseEvidenceSummary `json:"release_evidence,omitempty"`
+	// ReleaseModules is the release binary's dependency module graph when
+	// an authoritative artifact was analyzed; it is distinct from the
+	// source snapshot's module resolution.
+	ReleaseModules []ReleaseModule `json:"release_modules,omitempty"`
+	// ReleaseEvidenceRequired records that an authoritative release-evidence
+	// channel was explicitly requested for this snapshot; its failure must
+	// surface as NOT_RUN, never as a silent fall back to supporting sources.
+	ReleaseEvidenceRequired bool `json:"release_evidence_required,omitempty"`
 }
 
 type ReplaceDirective struct {
@@ -144,11 +204,52 @@ type ReplaceDirective struct {
 }
 
 type AffectedResult struct {
-	ModulePresent    ClaimResult  `json:"module_present"`
-	ResolvedVersion  string       `json:"resolved_version,omitempty"`
-	VersionAffected  ClaimResult  `json:"version_affected"`
-	PackagePresent   ClaimResult  `json:"package_present"`
-	BuildRelevant    ClaimResult  `json:"build_relevant"`
+	Scope           *AdvisoryScope `json:"scope,omitempty"`
+	ModulePresent   ClaimResult    `json:"module_present"`
+	ResolvedVersion string         `json:"resolved_version,omitempty"`
+	VersionAffected ClaimResult    `json:"version_affected"`
+	PackagePresent  ClaimResult    `json:"package_present"`
+	BuildRelevant   ClaimResult    `json:"build_relevant"`
+	// VulnerableImplementationPresent is the affected chain's
+	// implementation-presence dimension: whether the advisory's
+	// vulnerable implementation (file/function/marker under an explicit
+	// build expression) is part of the recorded product build.
+	// FALSE means an admitted implementation-locus proposal was
+	// deterministically verified absent under an authoritative or
+	// declared product target scope; TRUE means a selected proposed or
+	// alternate implementation carries the marker. It is independent of
+	// BuildRelevant, which keeps its advisory/package platform
+	// restriction meaning. Default UNKNOWN.
+	VulnerableImplementationPresent ClaimResult `json:"vulnerable_implementation_present"`
+	// ImplementationLocus names the verified implementation locus
+	// (package, function, file, marker) the axis closed on. It is
+	// report text derived from deterministic verification records.
+	ImplementationLocus string `json:"implementation_locus,omitempty"`
+	// ImplementationTarget is the build target the verification ran
+	// under, e.g. "linux/amd64".
+	ImplementationTarget string `json:"implementation_target,omitempty"`
+	// ImplementationTargetScope is the scope the target facts cover:
+	// "product" only when an admitted product-scope supported-targets
+	// assumption covered the recorded target; "artifact", "release" or
+	// "operator" for a narrower target that may not close a
+	// product-wide conclusion.
+	ImplementationTargetScope string `json:"implementation_target_scope,omitempty"`
+	// ImplementationTargetSource is the ProductTarget source the target
+	// facts came from (artifact-build-info|release-metadata|
+	// operator-declared|host-default).
+	ImplementationTargetSource string `json:"implementation_target_source,omitempty"`
+	// ImplementationModules names the advisory module(s) the
+	// implementation axis covered, so downstream branch facts bind the
+	// predicate to the right module subject.
+	ImplementationModules []string `json:"implementation_modules,omitempty"`
+	// TestOnlyScope records the affected subjects that were found in the
+	// recorded build streams but only through test roots (ForTest variants
+	// and synthetic .test drivers) — the dependency is linked into the
+	// product's tests, not into any product binary. It is the typed basis
+	// for a PackagePresent=FALSE that must be reported as a test-scope
+	// exclusion rather than as an absence from the recorded closure.
+	// Empty means no subject was observed in test scope.
+	TestOnlyScope    []string     `json:"test_only_scope,omitempty"`
 	EvidenceIDs      []EvidenceID `json:"evidence_ids,omitempty"`
 	Limitations      []string     `json:"limitations,omitempty"`
 	UpgradeDropIn    bool         `json:"upgrade_drop_in,omitempty"`
@@ -180,6 +281,62 @@ type AffectedResult struct {
 	// never describe them — a version fact must not be consumed as if it
 	// proved a pending module's range.
 	PendingModules []string `json:"pending_modules,omitempty"`
+	// UnresolvedModules names every advisory-entry module whose version
+	// could not be resolved, regardless of package linkage — the
+	// population PendingModules draws from once a linked package is
+	// found. A pending module whose package never linked still carries
+	// an undecidable version verdict; downstream consumers must not read
+	// it as fixed merely because it is absent from SelectedModules.
+	UnresolvedModules []string `json:"unresolved_modules,omitempty"`
+	// VersionAffectedModules names every advisory-entry module whose
+	// version fell inside that entry's affected ranges. Membership is a
+	// version fact, independent of the package probe: an entry stays
+	// here even when its package is absent from the build closure
+	// (package absence is a reachability result, not a version result).
+	// SelectedModules narrows to the linked subset after the probe; this
+	// list keeps the version-side membership intact.
+	VersionAffectedModules []string `json:"version_affected_modules,omitempty"`
+	// VersionGraphSource names which module graph grounded module-version
+	// applicability: "release-artifact" when the authoritative release
+	// module graph was used, "source-snapshot" for the checkout's own
+	// go list/vendor resolution, "unavailable" when a required
+	// release-evidence channel failed and the source graph could not
+	// substitute. Empty on snapshots that never carried release evidence.
+	VersionGraphSource string `json:"version_graph_source,omitempty"`
+	// VersionGraphTrust is the release-evidence trust class of
+	// VersionGraphSource ("AUTHORITATIVE"); empty for source-snapshot
+	// resolution, which is not release evidence.
+	VersionGraphTrust string `json:"version_graph_trust,omitempty"`
+	// TicketCheck records the ticket-build identity comparison when a
+	// ticket input was supplied (see TicketClaims). A
+	// package-version mismatch sets VersionAxisBlocked: the version axis
+	// then refused to close — VersionAffected stays UNKNOWN and no
+	// "outside the affected range" negative may be produced for that
+	// subject. The module/package-absence routes are unaffected.
+	TicketCheck        *TicketCheck `json:"ticket_check,omitempty"`
+	VersionAxisBlocked bool         `json:"version_axis_blocked,omitempty"`
+	// ReleaseEvidenceStatus mirrors the snapshot's release-evidence
+	// outcome (RESOLVED/CONFLICTED/NOT_RUN/…) when it governed or blocked
+	// the version axis; ReleaseEvidenceReason is its named reason code.
+	ReleaseEvidenceStatus string `json:"release_evidence_status,omitempty"`
+	ReleaseEvidenceReason string `json:"release_evidence_reason,omitempty"`
+	// AssumptionIDs names the admitted declared-assumptions/1 member ids
+	// the applicability chain relied on (e.g. a product-wide supported
+	// target scope). They are policy references, never evidence ids —
+	// the assumptions live on the case's DeclaredAssumptions input.
+	AssumptionIDs []string `json:"assumption_ids,omitempty"`
+	// AnalysisGaps carries the typed causes the applicability resolver could not
+	// discharge (unresolved graph, parser/resolver failure, incomplete
+	// inventory, unsupported negative scope). They let the terminal outcome
+	// fail on a structured cause instead of abstaining on prose.
+	AnalysisGaps []AnalysisGap `json:"analysis_gaps,omitempty"`
+	// EffectiveSources records, per advisory affected[] entry, the identity of
+	// the source the recorded build actually selects: declared coordinate,
+	// effective coordinate or local-replacement/workspace identity, the
+	// applied replace/workspace provenance, and the stable source root. A
+	// failure entry is the typed reason no source was established; it never
+	// authorises reading the declared module's published bytes instead.
+	EffectiveSources []EffectiveSourceSelection `json:"effective_sources,omitempty"`
 }
 
 // AffectedModule is one OSV affected[] entry: a module path with its own
@@ -191,6 +348,13 @@ type AffectedModule struct {
 	FixedVersions    []string          `json:"fixed_versions,omitempty"`
 	AffectedPackages []AffectedPackage `json:"affected_packages,omitempty"`
 	AffectedSymbols  []SymbolRef       `json:"affected_symbols,omitempty"`
+	// Unnamed marks an advisory entry whose package name is empty: the
+	// document declares affected subjects without a module owner. Module
+	// stays empty and consumers must never classify such an entry as
+	// stdlib or as a named dependency; it may only keep applicability
+	// unresolved when one of its subjects is linked into the product.
+	// Never projected into selected/pending/unresolved module name lists.
+	Unnamed bool `json:"unnamed,omitempty"`
 }
 
 type RootCauseStatus string
@@ -209,41 +373,52 @@ const (
 	RootCauseSink        RootCauseRole = "SINK"
 )
 
+// RootCauseOrigin records where a candidate subject came from. Diagnostics
+// must distinguish an advisory-declared subject from a fix-derived candidate:
+// they carry different proof obligations, and calling both "declared" (or
+// both "unresolved in source") misstates what was verified.
+type RootCauseOrigin string
+
+const (
+	// RootCauseOriginAdvisory marks a subject the record itself declares —
+	// an affected symbol or an admitted prose vulnerable-operation binding.
+	RootCauseOriginAdvisory RootCauseOrigin = "ADVISORY_DECLARED"
+	// RootCauseOriginFixDerived marks a candidate derived from the fix diff.
+	RootCauseOriginFixDerived RootCauseOrigin = "FIX_DERIVED"
+	// RootCauseOriginLLMProposed marks an LLM-proposed candidate.
+	RootCauseOriginLLMProposed RootCauseOrigin = "LLM_PROPOSED"
+	// RootCauseOriginManual marks a root cause the operator supplied
+	// explicitly (--root-cause, a manual model, an eval corpus entry). It is
+	// an operator input that names its own subject; it carries no version
+	// derivation, so the selected-source binding rule does not re-decide it.
+	RootCauseOriginManual RootCauseOrigin = "MANUAL"
+)
+
 type RootCause struct {
 	Package     string        `json:"package"`
 	Symbol      string        `json:"symbol"`
 	Role        RootCauseRole `json:"role"`
 	Mechanism   string        `json:"mechanism"`
 	EvidenceIDs []EvidenceID  `json:"evidence_ids,omitempty"`
-	// Proposal is set when the candidate was proposed by an LLM producer;
-	// nil marks candidates derived from advisory data or the fix patch.
-	// Attribution lives here — not in a Mechanism string prefix.
-	Proposal *ProposalRef `json:"proposal,omitempty"`
+	// Origin is the typed candidate provenance. An empty value means the
+	// producer did not record one (legacy/manual models); consumers must
+	// say so rather than assume an origin.
+	Origin RootCauseOrigin `json:"origin,omitempty"`
 	// Absent marks a candidate whose package is proven absent from the
 	// product's build graph (`go list -deps`): the symbol is unresolved in
 	// source because the defect code is not linked in — resolved by
 	// absence, not a verification failure. It is kept in RootCauses so
 	// reachability evaluation can falsify mandatory conditions on it.
+	//
+	// It may only be recorded for a candidate whose identity as a subject of
+	// the selected version is established (see AbsenceIdentity): absence is
+	// evidence about real subjects only, and a candidate that does not exist
+	// in the selected version's own source is unmapped, not absent.
 	Absent bool `json:"absent,omitempty"`
-}
-
-// EnsureProposal stamps a canonical ROOT_CAUSE proposal reference onto an
-// LLM-proposed candidate. The controller owns the identity: an empty or
-// non-ROOT_CAUSE source is replaced, a missing id becomes
-// "ROOTCAUSE-<advisory>" and a missing revision becomes 1.
-func (r *RootCause) EnsureProposal(vulnID string) {
-	if r.Proposal == nil {
-		r.Proposal = &ProposalRef{Source: ProposalSourceRootCause}
-	}
-	if r.Proposal.Source != ProposalSourceRootCause {
-		r.Proposal.Source = ProposalSourceRootCause
-	}
-	if r.Proposal.ID == "" {
-		r.Proposal.ID = "ROOTCAUSE-" + vulnID
-	}
-	if r.Proposal.Revision <= 0 {
-		r.Proposal.Revision = 1
-	}
+	// Binding records how a candidate derived from fix material resolves
+	// into the selected version's own source. It is nil for record-declared
+	// subjects, whose identity comes from the advisory entry itself.
+	Binding *CandidateBinding `json:"binding,omitempty"`
 }
 
 type RootCauseModel struct {
@@ -258,6 +433,39 @@ type RootCauseModel struct {
 	Unverified  []RootCause `json:"unverified,omitempty"`
 	Limitations []string    `json:"limitations,omitempty"`
 	FixDiff     string      `json:"fix_diff,omitempty"`
+	// OperationDeclarations records every vulnerable-operation declaration the
+	// record's own prose makes, with its resolution outcome. Declarations that
+	// did not source-bind stay here: a positive model must not hide an
+	// operation the record declared but this build could not resolve.
+	OperationDeclarations []OperationDeclaration `json:"operation_declarations,omitempty"`
+	// OperationBindings carries the admitted own-record operation bindings this
+	// model was resolved from. Every consumer re-admits them against the record
+	// bytes and affected scope before relying on them.
+	OperationBindings []OperationBinding `json:"operation_bindings,omitempty"`
+	// AnalysisGaps carries the typed causes that kept the root-cause model
+	// unresolved (ambiguity, unsupported binding, missing proof artifact).
+	AnalysisGaps []AnalysisGap `json:"analysis_gaps,omitempty"`
+	// FixArtifacts is the per-locator account of every fix reference the record
+	// declared: complete captured bytes with their digest, or a typed outcome
+	// saying why no bytes (or no applicability) were established. Every declared
+	// locator appears exactly once, so a reader can tell an artifact the
+	// provider does not hold from one that is present but describes another
+	// release line.
+	FixArtifacts []FixArtifact `json:"fix_artifacts,omitempty"`
+	// FixProof is the persisted content-proof contract this model was resolved
+	// from: the canonical checker output together with the exact captured input
+	// bundle it was derived from. It grounds absence only after the pure checker
+	// re-derives it at the shared boundary; a saved status, cover or subject set
+	// is diagnostic and never authority. A model without one keeps the
+	// record/operator/exact-preimage routes.
+	FixProof *FixProof `json:"fix_proof,omitempty"`
+	// FixBinding is the preserved, withdrawn content-derived fix binding this
+	// model was resolved from. It is historical evidence only: the layer that
+	// could re-derive it is gone, so it establishes no identity, absence or
+	// completeness, and the shared absence admission refuses the subjects it
+	// named instead of letting the payload decay into a weaker route. The stored
+	// bytes are kept so a re-save never rewrites history.
+	FixBinding *WithdrawnFixBinding `json:"fix_binding,omitempty"`
 }
 
 type ConditionKind string
@@ -274,6 +482,15 @@ const (
 	ConditionRuntime         ConditionKind = "RUNTIME_CONDITION"
 	ConditionCustom          ConditionKind = "CUSTOM"
 	ConditionMissingCall     ConditionKind = "MISSING_CALL"
+	// ConditionCheckTrigger is the dedicated mandatory obligation of a
+	// DEFECTIVE_CHECK contract: one typed witness must establish the
+	// advisory's argument/type predicates and the receiver-field input on
+	// the same invocation and receiver.
+	ConditionCheckTrigger ConditionKind = "CHECK_TRIGGER"
+	// ConditionCheckInput is the receiver-field-bound input obligation of a
+	// DEFECTIVE_CHECK contract. It is separate from ordinary provenance:
+	// external origin alone never satisfies it.
+	ConditionCheckInput ConditionKind = "CHECK_INPUT"
 )
 
 type DataOrigin string
@@ -313,9 +530,15 @@ func SafeOrigin(o DataOrigin) bool {
 const (
 	// ParamInputSource declares where the condition's input is expected to
 	// come from: "peer" (remote peer of a listener/dialed service), "arg"
-	// (a product-code call argument) or "config" (deployment config).
+	// (a product-code call argument) or "config" (deployment config). Only a
+	// pattern template — selected by an authoritative class — or an
+	// established input route may declare it; a prose route nomination never
+	// fills it.
 	ParamInputSource = "input_source"
-	// ParamProtocolRole declares the required protocol role: "server", "client", or "symmetric".
+	// ParamProtocolRole declares the required protocol role: "server",
+	// "client" or "symmetric". It is a typed requirement: a producer must
+	// establish the role from evidence, and the prose/fix-name role
+	// nomination never fills it.
 	ParamProtocolRole = "protocol_role"
 	// ParamDirection selects the reachability direction: "read" looks for
 	// readers of the subject (data exposure), not paths to a sink.
@@ -433,16 +656,96 @@ type Condition struct {
 	VerificationHints []string          `json:"verification_hints,omitempty"`
 }
 
+// MechanismNominationKind names the mechanism-shaping signal a nomination is
+// about. Each kind mirrors one heuristic the builder records beside the
+// authoritative model instead of applying it.
+type MechanismNominationKind string
+
+const (
+	// MechanismNominationClass is the pattern-library class a textual or
+	// fix-diff signal suggested.
+	MechanismNominationClass MechanismNominationKind = "class"
+	// MechanismNominationProtocolRole is the protocol role the record's prose
+	// or the fix-diff file/symbol names suggested.
+	MechanismNominationProtocolRole MechanismNominationKind = "protocol_role"
+	// MechanismNominationInputRoute is the input route the record's prose
+	// suggested.
+	MechanismNominationInputRoute MechanismNominationKind = "input_route"
+)
+
+// MechanismNominationSource names the channel that produced a nomination.
+// Every channel is a search signal, never a measurement.
+type MechanismNominationSource string
+
+const (
+	// MechanismNominationKeywords is the advisory summary/description
+	// vocabulary table.
+	MechanismNominationKeywords MechanismNominationSource = "keywords"
+	// MechanismNominationFixDiff is the touched-file/symbol text of the fix.
+	MechanismNominationFixDiff MechanismNominationSource = "fix_diff"
+	// MechanismNominationProse is a prose regex over the record's own bytes.
+	MechanismNominationProse MechanismNominationSource = "prose"
+	// MechanismNominationConflict records that the record's own signals named
+	// two or more equally specific, incomparable mechanisms, so no single
+	// value could be nominated.
+	MechanismNominationConflict MechanismNominationSource = "conflict"
+)
+
+// MechanismNomination records one heuristic mechanism signal — a class, a
+// protocol role or an input route — with the channel that produced it.
+// Nominations are research and diagnostics material: they never select a
+// class pattern, replace a generic condition, fill an authoritative param,
+// narrow completeness, or establish a TRUE or FALSE. Value is empty for a
+// conflict nomination, where the signals named no single mechanism.
+type MechanismNomination struct {
+	Kind   MechanismNominationKind   `json:"kind"`
+	Value  string                    `json:"value,omitempty"`
+	Source MechanismNominationSource `json:"source"`
+}
+
 type ExploitModel struct {
-	// Class is the inferred vulnerability class (INFO_LEAK, URI_CONFUSION,
-	// ...) that selected the exploit pattern; "UNKNOWN" for the generic
-	// fallback model.
-	Class               string       `json:"class,omitempty"`
-	Impact              string       `json:"impact"`
+	// Class is the vulnerability class selected from the record's own
+	// structured CWE ids — the only class authority. A class nominated from
+	// keyword or fix-diff text never sets it; that nomination is recorded in
+	// MechanismNominations and the generic model stands.
+	Class string `json:"class,omitempty"`
+	// Impact is the record's stated impact, kept for presentation.
+	Impact string `json:"impact"`
+	// ProtocolRole is the protocol role nominated by the record's prose and
+	// fix-diff symbol names. It is a nomination: it is never written into a
+	// condition param and never decides a falsifier.
 	ProtocolRole        ProtocolRole `json:"protocol_role,omitempty"`
 	RootCauses          []SymbolRef  `json:"root_causes"`
 	MandatoryConditions []Condition  `json:"mandatory_conditions"`
 	SupportingFactors   []Condition  `json:"supporting_factors,omitempty"`
+	// MechanismNominations records the heuristic class, protocol-role and
+	// input-route guesses this model was built beside. They are recorded for
+	// research, diagnostics and review; none of them establishes necessity,
+	// completeness, a TRUE or a FALSE.
+	MechanismNominations []MechanismNomination `json:"mechanism_nominations,omitempty"`
+	// UnresolvedMechanism records that the defect mechanism was only
+	// nominated — keyword vocabulary, fix-diff text or conflicting prose —
+	// so no class pattern was applied and the modeled conjunction omits the
+	// conditions that nomination demanded. A non-empty conjunction over that
+	// reduced set cannot ground a positive: EXPLOITABLE is withheld while an
+	// independently verified mandatory falsifier may still ground a negative.
+	UnresolvedMechanism bool `json:"unresolved_mechanism,omitempty"`
+	// ProposedConditions carries model-generated condition nominations. The
+	// entries keep the model's descriptions, subjects and params for expert
+	// review, but are always non-authoritative: the model builder never
+	// merges them into MandatoryConditions, evaluators never evaluate them,
+	// and no review action can promote one. Mandatory is false on every
+	// entry. Parameter values (e.g. a bound) live only here — they never
+	// fill or rewrite an authoritative condition param.
+	ProposedConditions []Condition `json:"proposed_conditions,omitempty"`
+	// PendingConditionReviews names mandatory conditions a high-severity
+	// review finding criticised without an independently established
+	// repair — an action-less critique, or a demote nomination the narrow
+	// applicability contract did not reject. Such a critique is recorded
+	// but unresolved: a non-empty list keeps the verdict INCONCLUSIVE so
+	// review-budget exhaustion cannot leave NEPF/EXPLOITABLE next to open
+	// criticism of the model.
+	PendingConditionReviews []ConditionID `json:"pending_condition_reviews,omitempty"`
 	// UnresolvedSubjects are advisory-declared sinks that failed source
 	// verification or were resolved by package absence — the modeled
 	// conditions cover only the verified-present sinks, so EXPLOITABLE
@@ -467,11 +770,14 @@ type ExploitModel struct {
 	// anchors (guarded site vs enabler candidate) annotate the set for the
 	// expert but do not remove members.
 	LocusSubjects []SymbolRef `json:"locus_subjects,omitempty"`
-	// NonLocusBasis records expert-established exclusions from L: each
-	// entry asserts the named declared symbol is not a defect locus, with
-	// the justification kept verbatim. These decisions are expert input,
-	// not machine evidence — verification may check the falsifier's
-	// package coverage, never the truth of the basis itself.
+	// NonLocusBasis records exclusions from L: each entry asserts the named
+	// declared symbol is not a defect locus, with the justification kept
+	// verbatim. Only entries carrying explicit expert-input provenance
+	// (LocusSourceExpertInput) are honored — a machine-origin decision that
+	// was persisted here remains a proposal regardless of its authority
+	// label. These decisions are expert input, not machine evidence —
+	// verification may check the falsifier's package coverage, never the
+	// truth of the basis itself.
 	NonLocusBasis []LocusDecision `json:"non_locus_basis,omitempty"`
 	// ProposedNonLocus carries machine-generated non-locus proposals for
 	// declared symbols lacking defect-site anchors. Each entry keeps the
@@ -486,16 +792,71 @@ type ExploitModel struct {
 	// and the assessment block — they never shrink L either.
 	LocusAnnotations []LocusDecision `json:"locus_annotations,omitempty"`
 	EvidenceIDs      []EvidenceID    `json:"evidence_ids,omitempty"`
+	// InputRoute is the authoritative input-route decision this model was
+	// built under. Only an explicit structured advisory field may bind the
+	// vulnerable operation's input to a network peer, and the record
+	// contract carries none: the prose vocabulary that suggests a route is a
+	// nomination (MechanismNominations), never authority. The field is
+	// persisted so replay and review re-derive the same mandatory set; a
+	// route-gated pattern variant is eligible only under this value, and a
+	// nomination never fills an input_source or protocol_role param.
+	InputRoute string `json:"input_route,omitempty"`
+	// OperationBindings persists the own-record operation bindings this model
+	// used, re-admitted from the resolved root-cause model. They name the exact
+	// operation the record declared, so a saved model can be re-admitted
+	// against the record's own bytes instead of trusting a subject list.
+	OperationBindings []OperationBinding `json:"operation_bindings,omitempty"`
+	// DefectSemantics is the advisory-grounded selection between a defective
+	// check invocation, an omitted check, and unresolved semantics for a
+	// check-like advisory. It is the contract the mandatory conditions are
+	// built from; the verdict gate refuses a model that was constructed from
+	// a different mechanism (or from the removed heuristic).
+	DefectSemantics *DefectSemanticsContract `json:"defect_semantics,omitempty"`
 }
 
-// LocusDecision is one expert necessity decision: declared symbol S is
-// asserted not to be a defect locus for this advisory. Basis is the
-// recorded justification; Authority names who established it (e.g.
-// "expert", a ticket id, a review ref).
+// LocusDecisionSource records how a locus decision entered the case. Only
+// the explicit expert-input channel can establish an exclusion; a decision
+// that merely carries an expert-looking Authority string does not.
+type LocusDecisionSource string
+
+const (
+	// LocusSourceExpertInput marks decisions supplied through the explicit
+	// expert channel: the --non-locus-basis file or a corpus non_locus entry.
+	LocusSourceExpertInput LocusDecisionSource = "expert-input"
+	// LocusSourceMachineProposal marks machine-generated nominations. They
+	// are recorded for expert review and never shrink the authoritative L.
+	LocusSourceMachineProposal LocusDecisionSource = "machine-proposal"
+)
+
+// LocusDecision is one non-locus decision: declared symbol S is asserted not
+// to be a defect locus for this advisory. Basis is the recorded
+// justification; Authority names who is claimed to have established it
+// (e.g. "expert", a ticket id, a review ref) and is descriptive only. Source
+// records how the decision entered the case and is the only authority test:
+// an entry that did not come through explicit expert input is a proposal,
+// whatever its Authority says.
 type LocusDecision struct {
-	Symbol    SymbolRef `json:"symbol"`
-	Basis     string    `json:"basis"`
-	Authority string    `json:"authority,omitempty"`
+	Symbol    SymbolRef           `json:"symbol"`
+	Basis     string              `json:"basis"`
+	Authority string              `json:"authority,omitempty"`
+	Source    LocusDecisionSource `json:"source,omitempty"`
+}
+
+// ExpertLocusDecisions stamps decisions supplied through an explicit expert
+// channel with their provenance. It is called by the input readers (the
+// --non-locus-basis file and corpus non_locus entries) and by nothing else:
+// a decision loaded from persisted machine state is never promoted by this
+// helper because it is never passed through it.
+func ExpertLocusDecisions(in []LocusDecision) []LocusDecision {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]LocusDecision, len(in))
+	copy(out, in)
+	for i := range out {
+		out[i].Source = LocusSourceExpertInput
+	}
+	return out
 }
 
 type NegativeVerificationStatus string
@@ -506,11 +867,31 @@ const (
 	NegativeContradicted      NegativeVerificationStatus = "CONTRADICTED"
 )
 
+// NegativeVerification records the independent re-derivation of a FALSE
+// claim. EvidenceIDs are code evidence only: policy references
+// (declared-assumptions/1 ids) travel on Claim.AssumptionIDs and
+// VerdictResult.AssumptionIDs, never here — a verification record must
+// not let an owner policy read as a measured check.
 type NegativeVerification struct {
 	Status      NegativeVerificationStatus `json:"status"`
 	EvidenceIDs []EvidenceID               `json:"evidence_ids,omitempty"`
 	Notes       string                     `json:"notes,omitempty"`
 	Limitations []string                   `json:"limitations,omitempty"`
+	// BuildContext is the measurement identity the verification ran under.
+	// Nil makes a build-dependent verification non-admitting.
+	BuildContext *BuildContext `json:"build_context,omitempty"`
+	// CoverID and SubjectDigest are the necessary cover the negative relied
+	// on: the admitted cover identity and the digest of its complete,
+	// nonempty subject set. A content-derived absence records both, so an
+	// edited summary that narrows the claim to the absent member cannot
+	// re-admit. They are empty for a negative that rests on no content cover
+	// (a record declaration or an operator assertion).
+	CoverID       string `json:"cover_id,omitempty"`
+	SubjectDigest string `json:"subject_digest,omitempty"`
+	// AnalysisGaps carries the typed causes that kept the verification
+	// incomplete. A missing negative-verification capability fails the
+	// assessment; it never weakens the verdict to a softer one.
+	AnalysisGaps []AnalysisGap `json:"analysis_gaps,omitempty"`
 }
 
 type HypothesisID string
@@ -537,9 +918,15 @@ type Hypothesis struct {
 }
 
 type Claim struct {
-	ID                   ClaimID               `json:"id"`
-	ConditionID          ConditionID           `json:"condition_id"`
-	Result               ClaimResult           `json:"result"`
+	ID          ClaimID     `json:"id"`
+	ConditionID ConditionID `json:"condition_id"`
+	Result      ClaimResult `json:"result"`
+	// Proposal records a model nomination for this condition's result without
+	// establishing it. It is audit material: a proposal never gates the
+	// verdict and never justifies a locus reduction. TRUE is established only
+	// by deterministic re-evaluation (or the condition's own evaluator) and
+	// FALSE only by independent negative verification.
+	Proposal             ClaimResult           `json:"proposal,omitempty"`
 	EvidenceIDs          []EvidenceID          `json:"evidence_ids,omitempty"`
 	Explanation          string                `json:"explanation,omitempty"`
 	Limitations          []string              `json:"limitations,omitempty"`
@@ -556,6 +943,21 @@ type Claim struct {
 	// "auto-perimeter" = classifier-detected cluster isolation, "" = the
 	// falsifier rests on code-level provenance (e.g. config-file origin).
 	FalsifierBasis string `json:"falsifier_basis,omitempty"`
+	// AssumptionIDs names the admitted declared-assumptions/1 member ids
+	// this claim's falsifier additionally relied on — policy references,
+	// disjoint from EvidenceIDs; assumptions are inputs, not evidence.
+	AssumptionIDs []string `json:"assumption_ids,omitempty"`
+	// ControlBasis names what grounds a TRUE attacker-control conclusion.
+	// Empty for every deployment-origin claim; library-public-api marks the
+	// proven product-owned public library API → sink binding, which does
+	// not assert deployment exposure. transport-peer-input marks the
+	// admitted transport-input binding, which scopes the verdict to
+	// transport-peer without asserting deployed adversary access.
+	ControlBasis ControlBasis `json:"control_basis,omitempty"`
+	// AnalysisGaps carries the typed causes this claim's producer could not
+	// discharge. It is structured on purpose: outcome classification routes
+	// on gap codes, never on explanation or limitation text.
+	AnalysisGaps []AnalysisGap `json:"analysis_gaps,omitempty"`
 }
 
 type FalsifierKind string
@@ -589,7 +991,9 @@ const (
 	// call path or data flow into the defect code exists. Same premise as
 	// locus-package-absent, applied to non-locus conditions.
 	FalsifierPackageAbsent = "package-absent"
-	// FalsifierLocusFunctionUnreached grounds FALSE for a locus-reachability
+	// FalsifierDeclaredSymbolUnreached grounds a no-exploit-path decision only
+	// from a complete deterministic symbol-unreachability proof.
+	FalsifierDeclaredSymbolUnreached = "declared-symbol-unreached"
 	// condition: locus packages are present in the product's build graph, but
 	// the vulnerable functions have no observed call traces or module chains,
 	// requiring negative verification of callers and dynamic markers.
@@ -668,6 +1072,37 @@ type Evidence struct {
 	Content      string          `json:"content"`
 	ArtifactHash string          `json:"artifact_hash,omitempty"`
 	Limitations  []string        `json:"limitations,omitempty"`
+	// BuildContext is the measurement identity this evidence describes.
+	// Nil means the producer did not record one — such evidence is
+	// non-admitting for build-dependent conclusions.
+	BuildContext *BuildContext `json:"build_context,omitempty"`
+	// Govulncheck is the typed run record for EvidenceGovulncheck.
+	Govulncheck *GovulncheckRun `json:"govulncheck,omitempty"`
+	// PackageList is the typed inventory record for EvidencePackageList.
+	PackageList *PackageListRun `json:"package_list,omitempty"`
+	// SourceScan is the typed coverage record for source-level scans.
+	SourceScan *SourceScanRun `json:"source_scan,omitempty"`
+	// TransportInput is the rooted server-transport input witness this
+	// evidence pins. It is a structured binding, not a "proven" flag: the
+	// evaluator re-admits it against the case build and record before any
+	// claim may rest on it.
+	TransportInput *TransportInputWitness `json:"transport_input,omitempty"`
+	// TransportTrigger is the source/fix-bound mechanism witness this
+	// evidence pins. A partial witness is recorded on purpose: its failed
+	// obligations are what a typed TRIGGER_PROOF_INCOMPLETE gap reports.
+	TransportTrigger *TransportTriggerWitness `json:"transport_trigger,omitempty"`
+	// CheckTrigger is the typed incorrect-check invocation witness this
+	// evidence pins: operation, invocation/receiver identity, argument
+	// literal, receiver payload representation and control origin on one
+	// record. It is re-admitted by the evaluator and the verdict gate; a
+	// saved claim or a raw flow never substitutes for it.
+	CheckTrigger *CheckTriggerWitness `json:"check_trigger,omitempty"`
+	// MissingCall is the typed check/pipeline omission observation: exact
+	// check and pipeline identities, the measurement status and the advisory
+	// record it was taken for. The omission evaluators bind it to the admitted
+	// OMITTED_CHECK contract and the effective build; the record's build
+	// context supplies the measurement identity.
+	MissingCall *MissingCallWitness `json:"missing_call,omitempty"`
 }
 
 type CallSite struct {
@@ -711,6 +1146,11 @@ type DataFlow struct {
 	// declared input bounds.
 	Value           *int64 `json:"value,omitempty"`
 	PayloadUnproven bool   `json:"payload_unproven,omitempty"`
+	// LibraryInput is the proven public-library-formal → sink-argument
+	// binding for this flow. Origin stays UNKNOWN: the witness proves the
+	// payload is selectable by a library consumer, never that a deployment
+	// exposes it to an attacker.
+	LibraryInput *LibraryInputWitness `json:"library_input,omitempty"`
 }
 
 type Entrypoint struct {
@@ -881,6 +1321,7 @@ type EvidenceGraph struct {
 	// product code makes to it — empty list under a present key means
 	// "checked, no assignments".
 	ConfigFlags map[string][]ConfigAssignment `json:"config_flags,omitempty"`
+	ConfigWriters map[string]ConfigWriterEvidence `json:"config_writers,omitempty"`
 	// ConfigFieldKinds maps a knob key to the field's underlying kind
 	// ("bool", "string", …) — enables Go zero-value reasoning when the
 	// knob is never assigned.
@@ -927,6 +1368,13 @@ type ToolExecution struct {
 func (g *EvidenceGraph) AddEvidence(e Evidence) EvidenceID {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	return g.addEvidenceLocked(e)
+}
+
+// addEvidenceLocked is AddEvidence without the lock, so a multi-step writer
+// can record evidence and link it into other graph records atomically.
+// Callers MUST hold g.mu.
+func (g *EvidenceGraph) addEvidenceLocked(e Evidence) EvidenceID {
 	if e.ID == "" {
 		e.ID = EvidenceID(fmt.Sprintf("EV-%03d", len(g.Evidence)+1))
 	}
@@ -999,16 +1447,76 @@ func (g *EvidenceGraph) AddDataFlows(flows ...DataFlow) {
 	g.DataFlows = append(g.DataFlows, flows...)
 }
 
+// AddArgumentTrace records the evidence that grounds a traced argument flow,
+// attaches its assigned ids to every witness on the new flows, and appends
+// the flows. Evidence is recorded first so a persisted witness can never
+// reference an id that does not exist.
+func (g *EvidenceGraph) AddArgumentTrace(flows []DataFlow, evs []Evidence) []EvidenceID {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	ids := make([]EvidenceID, 0, len(evs))
+	for _, e := range evs {
+		ids = append(ids, g.addEvidenceLocked(e))
+	}
+	list := make([]DataFlow, len(flows))
+	copy(list, flows)
+	for i := range list {
+		attachWitnessEvidence(&list[i], ids)
+	}
+	g.DataFlows = append(g.DataFlows, list...)
+	return ids
+}
+
+// ReplaceArgumentTrace records the evidence, attaches its ids to the new
+// witness, then replaces the flow occupying the same trace slot. The old
+// flow — including its witness — is discarded whole: a replacement traced
+// without a witness must not retain the previous one. Appends when no slot
+// matches.
+func (g *EvidenceGraph) ReplaceArgumentTrace(flow DataFlow, evs []Evidence) []EvidenceID {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	ids := make([]EvidenceID, 0, len(evs))
+	for _, e := range evs {
+		ids = append(ids, g.addEvidenceLocked(e))
+	}
+	attachWitnessEvidence(&flow, ids)
+	g.replaceDataFlowLocked(flow)
+	return ids
+}
+
+// attachWitnessEvidence links the evidence that produced a traced flow to the
+// flow's library-input witness. The graph takes its own copy of the witness,
+// so a caller reusing or mutating the same witness object cannot rewrite a
+// persisted proof. A flow without a witness has nothing to reference, so the
+// ids stay in the graph's evidence list only.
+func attachWitnessEvidence(f *DataFlow, ids []EvidenceID) {
+	if f == nil || f.LibraryInput == nil {
+		return
+	}
+	w := *f.LibraryInput
+	w.Steps = append([]LibraryPayloadStep(nil), f.LibraryInput.Steps...)
+	w.EvidenceIDs = append(append([]EvidenceID(nil), f.LibraryInput.EvidenceIDs...), ids...)
+	f.LibraryInput = &w
+}
+
 // ReplaceDataFlow swaps the flow recorded for the same condition, sink
 // position and argument index (the gap-analysis loop's deeper trace
 // supersedes the shallower UNKNOWN one). Appends when nothing matches.
 func (g *EvidenceGraph) ReplaceDataFlow(f DataFlow) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	g.replaceDataFlowLocked(f)
+}
+
+// replaceDataFlowLocked is ReplaceDataFlow without the lock. The slot
+// identity includes the sink column: distinct calls on one line must not
+// overwrite each other's flows. Callers MUST hold g.mu.
+func (g *EvidenceGraph) replaceDataFlowLocked(f DataFlow) {
 	for i, ex := range g.DataFlows {
 		if ex.ConditionID == f.ConditionID &&
 			ex.Arg == f.Arg &&
-			ex.Sink.File == f.Sink.File && ex.Sink.Line == f.Sink.Line {
+			ex.Sink.File == f.Sink.File && ex.Sink.Line == f.Sink.Line &&
+			ex.Sink.Column == f.Sink.Column {
 			g.DataFlows[i] = f
 			return
 		}
@@ -1092,6 +1600,13 @@ func (g *EvidenceGraph) AddConfigFlag(subject string, a ...ConfigAssignment) {
 		g.ConfigFlags = map[string][]ConfigAssignment{}
 	}
 	g.ConfigFlags[subject] = append(g.ConfigFlags[subject], a...)
+}
+
+func (g *EvidenceGraph) AddConfigWriters(subject string, evidence ConfigWriterEvidence) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.ConfigWriters == nil { g.ConfigWriters = map[string]ConfigWriterEvidence{} }
+	g.ConfigWriters[subject] = evidence
 }
 
 // ConfigFlagsFor returns assignments recorded for the knob; checked
@@ -1243,12 +1758,25 @@ const (
 	ReviewRevise ReviewResult = "REVISE"
 )
 
+// ReviewAction names a reviewer's condition nomination. It is advisory:
+// RepairAnalysis never moves a condition because a reviewer asked. Only the
+// deterministic applicability contract may demote a condition (it names a
+// concrete mechanism mismatch), and no contract establishes necessity, so a
+// promote is recorded but never applied.
+type ReviewAction string
+
+const (
+	ReviewActionPromote ReviewAction = "promote"
+	ReviewActionDemote  ReviewAction = "demote"
+)
+
 type ReviewFinding struct {
-	TargetType    string `json:"target_type"`
-	TargetID      string `json:"target_id"`
-	Problem       string `json:"problem"`
-	RequiredCheck string `json:"required_check,omitempty"`
-	Severity      string `json:"severity,omitempty"`
+	TargetType    string       `json:"target_type"`
+	TargetID      string       `json:"target_id"`
+	Action        ReviewAction `json:"action,omitempty"`
+	Problem       string       `json:"problem"`
+	RequiredCheck string       `json:"required_check,omitempty"`
+	Severity      string       `json:"severity,omitempty"`
 }
 
 type Review struct {
@@ -1263,12 +1791,21 @@ type VerdictResult struct {
 	ConditionIDs []ConditionID `json:"condition_ids,omitempty"`
 	EvidenceIDs  []EvidenceID  `json:"evidence_ids,omitempty"`
 	Limitations  []string      `json:"limitations,omitempty"`
+	// ExploitabilityScope names the product boundary this verdict covers.
+	// Empty for every deployment-scoped verdict; library-api when a
+	// mandatory control claim rests on the proven library public API.
+	ExploitabilityScope ExploitabilityScope `json:"exploitability_scope,omitempty"`
 	// GroundBasis distinguishes what a NO_EXPLOIT_PATH_FOUND verdict rests
 	// on: "declared-trust" (operator-asserted perimeter), "auto-perimeter"
 	// (classifier-detected cluster isolation), "config-origin" (traced
 	// inputs resolve to host configuration). Empty = grounded by
 	// code-level verification (reachability/locus/provenance falsifiers).
 	GroundBasis string `json:"ground_basis,omitempty"`
+	// AssumptionIDs names the admitted declared-assumptions/1 member ids
+	// the verdict's grounding relied on. Policy references travel beside
+	// — never inside — EvidenceIDs so a consumer cannot mistake an
+	// operator-declared scope/trust assertion for measured evidence.
+	AssumptionIDs []string `json:"assumption_ids,omitempty"`
 }
 
 type RiskLevel string
@@ -1363,6 +1900,10 @@ type ProfileVerdict struct {
 	Priority       TriagePriority `json:"priority"`
 	SLA            string         `json:"sla"`
 	IsTargetActual bool           `json:"is_target_actual"`
+	// ExploitabilityScope is this profile's flattened copy of the actual
+	// verdict's scope — a ProfileVerdict stores a flattened verdict, not a
+	// VerdictResult.
+	ExploitabilityScope ExploitabilityScope `json:"exploitability_scope,omitempty"`
 }
 
 type AnalysisLimits struct {
@@ -1396,21 +1937,6 @@ type WorkflowStatus struct {
 	Usage   AnalysisUsage      `json:"usage"`
 }
 
-// Localization carries presentation-language renderings of externally
-// sourced prose (advisory summary/description, LLM mechanism summaries,
-// semantic-review findings). It is produced only when a translation
-// adapter is available; the original text remains the authoritative
-// source and is never replaced.
-type Localization struct {
-	SummaryRU     string `json:"summary_ru,omitempty"`
-	DescriptionRU string `json:"description_ru,omitempty"`
-	// TextRU maps an original source string to its Russian rendering
-	// (mechanism summaries, semantic-review findings).
-	TextRU      map[string]string `json:"text_ru,omitempty"`
-	Model       string            `json:"model,omitempty"`
-	Limitations []string          `json:"limitations,omitempty"`
-}
-
 type AnalysisCase struct {
 	// mu guards Usage counters when condition evaluators or scan workers
 	// touch the case concurrently. JSON ignores unexported fields.
@@ -1430,18 +1956,19 @@ type AnalysisCase struct {
 	Hypotheses      []Hypothesis    `json:"hypotheses,omitempty"`
 	Reviews         []Review        `json:"reviews,omitempty"`
 	Verdict         *VerdictResult  `json:"verdict,omitempty"`
-	// GovulncheckCoverage: "" unknown | "covered" the advisory exists in the
-	// govulncheck DB | "not_in_db" it was never evaluated — silence is not
-	// evidence of no path.
-	GovulncheckCoverage string `json:"govulncheck_coverage,omitempty"`
-	// NonLocusBasis carries expert necessity decisions for this case:
-	// declared symbols asserted not to be defect loci, with justifications.
-	// Expert input — it participates in the locus falsifier's coverage
-	// obligation but is never treated as machine-verified evidence.
+	// NonLocusBasis carries the case's non-locus decisions: declared
+	// symbols asserted not to be defect loci, with justifications. Only
+	// entries with explicit expert-input provenance participate in the
+	// locus falsifier's coverage obligation; any saved machine-origin entry
+	// remains a proposal and is never treated as machine-verified evidence.
 	NonLocusBasis []LocusDecision `json:"non_locus_basis,omitempty"`
-	// AcceptLocusProposals instructs the exploit model builder to adopt
-	// machine-generated non_locus proposals into NonLocusBasis.
-	AcceptLocusProposals bool `json:"accept_locus_proposals,omitempty"`
+	// DeclaredAssumptions is the operator-supplied declared-assumptions/1
+	// channel record (--declared-assumptions): the typed policy/scope
+	// inputs the run was given — administrator config trust and the
+	// supported target matrix — with provenance and the intake outcome.
+	// They are inputs, never evidence: nothing here enters the evidence
+	// graph, and no member substitutes for a deterministic proof.
+	DeclaredAssumptions *DeclaredAssumptionsInput `json:"declared_assumptions,omitempty"`
 	// StrictLLM causes the analyzer to fail fast on LLM errors/refusals without falling back to deterministic code.
 	StrictLLM bool `json:"strict_llm,omitempty"`
 	// PriorCase references the previous stored run of the same
@@ -1450,25 +1977,78 @@ type AnalysisCase struct {
 	Workflow  WorkflowStatus `json:"workflow"`
 
 	// CVE Analysis Slice A artifacts:
-	CVEAnalysisProfile AnalysisProfile      `json:"cve_analysis_profile,omitempty"`
-	CVEAnalysisBundle  *CVESourceBundle     `json:"cve_analysis_bundle,omitempty"`
-	CVEAnalysis        *CVEAnalysisProposal `json:"cve_analysis,omitempty"`
-	StrategyPlan       *StrategyPlan        `json:"strategy_plan,omitempty"`
-	SemanticReview     *SemanticReview      `json:"semantic_review,omitempty"`
-	// Localization holds optional Russian renderings of externally
-	// sourced prose for the human report; populated only when a
-	// translation adapter ran during BUILD_REPORT.
-	Localization       *Localization          `json:"localization,omitempty"`
+	CVEAnalysisProfile AnalysisProfile        `json:"cve_analysis_profile,omitempty"`
+	CVEAnalysisBundle  *CVESourceBundle       `json:"cve_analysis_bundle,omitempty"`
+	CVEAnalysis        *CVEAnalysisProposal   `json:"cve_analysis,omitempty"`
+	StrategyPlan       *StrategyPlan          `json:"strategy_plan,omitempty"`
+	SemanticReview     *SemanticReview        `json:"semantic_review,omitempty"`
 	Justification      *AnalysisJustification `json:"justification,omitempty"`
 	ContextualRisk     *ContextualRisk        `json:"contextual_risk,omitempty"`
 	DetectedPerimeter  string                 `json:"detected_perimeter,omitempty"`
 	PerimeterRationale string                 `json:"perimeter_rationale,omitempty"`
 	Profiles           []ProfileVerdict       `json:"profiles,omitempty"`
-	// ProposalVerifications persists deterministic check outcomes per
-	// displayed proposal assertion (symbol exists / reachable / role /
-	// mechanism), keyed by proposal identity — an LLM proposal's fate is
-	// read from these records, never inferred from membership or prose.
-	ProposalVerifications []ProposalVerification `json:"proposal_verifications,omitempty"`
+
+	// Schema discriminates the result contract. Empty marks a legacy case:
+	// it stays readable and must not acquire inferred outcome, discovery,
+	// attribution or corpus data. CaseSchemaV2 always carries
+	// RequestedFinding.
+	Schema CaseResultSchema `json:"schema,omitempty"`
+	// RequestedID is the caller's original request identity. Unlike the
+	// resolved advisory scope it survives a primary resolution failure, so
+	// discovery and composition can still answer a CVE request whose primary
+	// record could not be loaded.
+	RequestedID string `json:"requested_id,omitempty"`
+	// RecordPin identifies the exact record bytes this record-level
+	// assessment was derived from. It is the proof that no other record's
+	// ranges, symbols, claims, severity or completeness leaked in.
+	RecordPin *RecordPin `json:"record_pin,omitempty"`
+	// AdvisoryRecord persists the complete advisory bytes this record-level
+	// assessment was derived from, together with their pin. The pin names the
+	// document; the bytes let a future checker re-derive its inputs from the
+	// case itself. Nil on an identity-only resolution, which never claimed
+	// exact bytes.
+	AdvisoryRecord *AdvisoryRecordCapture `json:"advisory_record,omitempty"`
+	// WithdrawnEvidence records, on this evaluation copy only, the historical
+	// proofs the loader recognised as withdrawn (a stored content-derived fix
+	// binding). It is never persisted — the stored payload stays where it was
+	// written — and it authorises nothing: every entry is a diagnostic that
+	// says what was withdrawn rather than silently continuing with a weaker
+	// route.
+	WithdrawnEvidence []WithdrawnProof `json:"-"`
+	// CorpusDeclaration is the operator-declared corpus boundary this request
+	// was configured with. Addendum A closure requires it to match the
+	// observed manifest exactly; a mere feed configuration is not a
+	// declaration.
+	CorpusDeclaration *CorpusDeclaration `json:"corpus_declaration,omitempty"`
+	// CorpusManifest is the observed enumeration of the configured corpus.
+	// It is evidence about the corpus, never about any vulnerability.
+	CorpusManifest *CorpusManifest `json:"corpus_manifest,omitempty"`
+	// Attributions records directional CVE-to-record attribution attempts.
+	// Only AttributionAdmitted entries may bind a record's independently
+	// earned positive to the requested CVE.
+	Attributions []CVEAttribution `json:"attributions,omitempty"`
+	// RequestedFinding is the single authoritative answer to the caller's
+	// request, present on every v2 case including an exact request whose
+	// requested and resolved ids match.
+	RequestedFinding *RequestedFinding `json:"requested_finding,omitempty"`
+	// RelatedDiscovery records what the configured corpus nominated for this
+	// request: discovery only, never identity or fact inheritance.
+	RelatedDiscovery *RelatedDiscovery `json:"related_discovery,omitempty"`
+	// RelatedRecords holds each candidate's own assessment. The nested cases
+	// are pointers because an analysis case owns a mutex and an evidence
+	// graph; copying either by value would share or corrupt state.
+	RelatedRecords []RelatedRecordAssessment `json:"related_records,omitempty"`
+	// ProfileAssessments holds each threat profile's independent claim set and
+	// terminal result, including hypothetical profiles, kept distinct from the
+	// actual deployment assessment.
+	ProfileAssessments []ProfileAssessment `json:"profile_assessments,omitempty"`
+	// AnalysisGaps carries record-level typed causes that could not be
+	// discharged. Outcome classification routes on these codes.
+	AnalysisGaps []AnalysisGap `json:"analysis_gaps,omitempty"`
+	// PerimeterAssessment records the exposure classification together with
+	// what grounds it, so listener locality or topology can never select a
+	// trusted-peer actual profile.
+	PerimeterAssessment *PerimeterAssessment `json:"perimeter_assessment,omitempty"`
 }
 
 // AddHypothesis appends a hypothesis with an assigned H-id.
@@ -1480,68 +2060,6 @@ func (c *AnalysisCase) AddHypothesis(h Hypothesis) HypothesisID {
 	}
 	c.Hypotheses = append(c.Hypotheses, h)
 	return h.ID
-}
-
-// proposalSubjectKey is the identity of the checked subject inside a
-// verification record: the normalized symbol when present, else the raw
-// site text so an unresolvable reference still has a stable key.
-func proposalSubjectKey(v ProposalVerification) string {
-	if v.Subject != nil {
-		return v.Subject.Package + "." + v.Subject.Symbol
-	}
-	return v.SiteText
-}
-
-// sameVerificationKey reports whether two records describe the same
-// check on the same assertion of the same proposal revision.
-func sameVerificationKey(a, b ProposalVerification) bool {
-	return a.Proposal == b.Proposal &&
-		a.Assertion == b.Assertion &&
-		a.Check == b.Check &&
-		proposalSubjectKey(a) == proposalSubjectKey(b)
-}
-
-// UpsertProposalVerification replaces the record with rec's key or
-// appends it — repeated verification runs stay idempotent and keep the
-// emission order deterministic. Records under a different proposal
-// revision are never touched: they are the audit trail of the older
-// proposal text.
-func (c *AnalysisCase) UpsertProposalVerification(rec ProposalVerification) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	for i := range c.ProposalVerifications {
-		if sameVerificationKey(c.ProposalVerifications[i], rec) {
-			c.ProposalVerifications[i] = rec
-			return
-		}
-	}
-	c.ProposalVerifications = append(c.ProposalVerifications, rec)
-}
-
-// DiscardProposalVerifications drops every record bound to ref's
-// proposal identity — when ref.MechanismID is set, only that
-// mechanism's records. The controller calls it at proposal bind time so
-// verification records claiming the new revision are always regenerated
-// by deterministic checks; records of older revisions stay in the slice
-// as audit history.
-func (c *AnalysisCase) DiscardProposalVerifications(ref ProposalRef) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	kept := c.ProposalVerifications[:0]
-	for _, rec := range c.ProposalVerifications {
-		same := rec.Proposal.Source == ref.Source &&
-			rec.Proposal.ID == ref.ID &&
-			rec.Proposal.Revision == ref.Revision &&
-			(ref.MechanismID == "" || rec.Proposal.MechanismID == ref.MechanismID)
-		if !same {
-			kept = append(kept, rec)
-		}
-	}
-	// Nil out the tail so dropped subjects aren't retained by the array.
-	for i := len(kept); i < len(c.ProposalVerifications); i++ {
-		c.ProposalVerifications[i] = ProposalVerification{}
-	}
-	c.ProposalVerifications = kept
 }
 
 // Usage counter helpers — the only safe writers under parallelism.

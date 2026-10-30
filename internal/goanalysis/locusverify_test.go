@@ -20,13 +20,32 @@ var locusTestCond = domain.Condition{
 }
 
 func locusTestCase(paths ...string) *domain.AnalysisCase {
-	c := &domain.AnalysisCase{EvidenceGraph: domain.EvidenceGraph{}}
+	// The record declares the locus subject: since the absence-identity
+	// hardening, a package's absence from the build graph is evidence only for
+	// a subject the record itself names (or the operator asserts). The
+	// falsifier still needs no source index — its premise is the build graph.
+	c := &domain.AnalysisCase{
+		Product: testProduct(),
+		Vulnerability: domain.Vulnerability{
+			ID: "GO-TEST-LOCUS",
+			AffectedPackages: []domain.AffectedPackage{
+				{Path: "example.com/lib/internal/xds/server"},
+			},
+			AffectedSymbols: []domain.SymbolRef{
+				{Package: "example.com/lib/internal/xds/server", Symbol: "RouteAndProcess"},
+			},
+		},
+		EvidenceGraph: domain.EvidenceGraph{},
+	}
 	content := ""
 	for _, p := range paths {
 		content += `{"ImportPath":"` + p + `"}`
 	}
+	build := domain.EffectiveBuildContext(c.Product)
 	c.EvidenceGraph.Evidence = append(c.EvidenceGraph.Evidence, domain.Evidence{
 		ID: "EV-PKGS", Kind: domain.EvidencePackageList, Content: content,
+		BuildContext: &build,
+		PackageList:  &domain.PackageListRun{Completed: true, Complete: true, Pattern: "./..."},
 	})
 	return c
 }
@@ -40,8 +59,8 @@ func locusFalseClaim() domain.Claim {
 	}
 }
 
-// All locus packages absent from the build graph verifies the falsifier —
-// without a source index configured.
+// All locus packages absent from the build graph verifies the falsifier for a
+// record-declared subject — without a source index configured.
 func TestVerifyLocusAbsentVerified(t *testing.T) {
 	c := locusTestCase("example.com/prod", "example.com/lib/internal/transport")
 	out := (Verifier{}).VerifyFalse(context.Background(), c, locusFalseClaim(), locusTestCond)
@@ -65,7 +84,7 @@ func TestVerifyLocusAbsentContradicted(t *testing.T) {
 // Missing package-list evidence leaves the falsifier unverified — a loading
 // failure is never absence.
 func TestVerifyLocusAbsentNoEvidence(t *testing.T) {
-	c := &domain.AnalysisCase{EvidenceGraph: domain.EvidenceGraph{}}
+	c := &domain.AnalysisCase{Product: testProduct(), EvidenceGraph: domain.EvidenceGraph{}}
 	out := (Verifier{}).VerifyFalse(context.Background(), c, locusFalseClaim(), locusTestCond)
 	if out.NegativeVerification == nil ||
 		out.NegativeVerification.Status != domain.NegativeInsufficientScope {
@@ -75,7 +94,8 @@ func TestVerifyLocusAbsentNoEvidence(t *testing.T) {
 
 func TestVerifyLocusFunctionUnreached(t *testing.T) {
 	ix := &Index{
-		Dir: t.TempDir(),
+		Build: testProduct(),
+		Dir:   t.TempDir(),
 	}
 	v := Verifier{Source: ix}
 	claim := domain.Claim{
@@ -90,12 +110,12 @@ func TestVerifyLocusFunctionUnreached(t *testing.T) {
 			{Package: "google.golang.org/grpc/internal/xds/server", Symbol: "RouteAndProcess"},
 		},
 	}
-	c := &domain.AnalysisCase{
+	c := &domain.AnalysisCase{Product: testProduct(),
 		EvidenceGraph: domain.EvidenceGraph{},
 	}
 	verified := v.VerifyFalse(context.Background(), c, claim, cond)
-	if verified.NegativeVerification == nil || verified.NegativeVerification.Status != domain.NegativeVerified {
-		t.Fatalf("expected NegativeVerified, got %+v", verified.NegativeVerification)
+	if verified.NegativeVerification == nil || verified.NegativeVerification.Status != domain.NegativeInsufficientScope {
+		t.Fatalf("empty directory must not prove deadness, got %+v", verified.NegativeVerification)
 	}
 }
 
@@ -113,7 +133,7 @@ func TestVerifyLocusFunctionUnreached_ContradictedByCallPath(t *testing.T) {
 			{Package: "google.golang.org/grpc/internal/xds/server", Symbol: "RouteAndProcess"},
 		},
 	}
-	c := &domain.AnalysisCase{
+	c := &domain.AnalysisCase{Product: testProduct(),
 		EvidenceGraph: domain.EvidenceGraph{
 			CallPaths: []domain.CallPath{
 				{
@@ -148,7 +168,7 @@ func TestVerifyLocusFunctionUnreached_ContradictedByModuleReachable(t *testing.T
 			{Package: "google.golang.org/grpc/internal/xds/server", Symbol: "RouteAndProcess"},
 		},
 	}
-	c := &domain.AnalysisCase{
+	c := &domain.AnalysisCase{Product: testProduct(),
 		EvidenceGraph: domain.EvidenceGraph{
 			ModuleReachable: map[string][]string{
 				"google.golang.org/grpc/internal/xds/server.RouteAndProcess": {"Entry", "RouteAndProcess"},
@@ -178,7 +198,7 @@ func TestVerifyLocusFunctionUnreached_ContradictedByModuleUsage(t *testing.T) {
 			{Package: "google.golang.org/grpc/internal/xds/server", Symbol: "RouteAndProcess"},
 		},
 	}
-	c := &domain.AnalysisCase{
+	c := &domain.AnalysisCase{Product: testProduct(),
 		EvidenceGraph: domain.EvidenceGraph{
 			ModuleUsages: []domain.CallSite{
 				{
@@ -205,7 +225,7 @@ func main() {}
 		t.Fatal(err)
 	}
 
-	ix := &Index{Dir: dir}
+	ix := &Index{Build: testProduct(), Dir: dir}
 	v := Verifier{Source: ix}
 	claim := domain.Claim{
 		ID:          "CL-C-LOCUS",
@@ -219,12 +239,12 @@ func main() {}
 			{Package: "google.golang.org/grpc/internal/xds/server", Symbol: "RouteAndProcess"},
 		},
 	}
-	c := &domain.AnalysisCase{
+	c := &domain.AnalysisCase{Product: testProduct(),
 		EvidenceGraph: domain.EvidenceGraph{},
 	}
 	verified := v.VerifyFalse(context.Background(), c, claim, cond)
-	if verified.NegativeVerification == nil || verified.NegativeVerification.Status != domain.NegativeContradicted {
-		t.Fatalf("expected NegativeContradicted, got %+v", verified.NegativeVerification)
+	if verified.NegativeVerification == nil || verified.NegativeVerification.Status != domain.NegativeInsufficientScope {
+		t.Fatalf("unbound source import is not closed symbol evidence, got %+v", verified.NegativeVerification)
 	}
 }
 
@@ -239,7 +259,7 @@ func main() {}
 		t.Fatal(err)
 	}
 
-	ix := &Index{Dir: dir}
+	ix := &Index{Build: testProduct(), Dir: dir}
 	v := Verifier{Source: ix}
 	claim := domain.Claim{
 		ID:          "CL-C-LOCUS",
@@ -253,12 +273,12 @@ func main() {}
 			{Package: "google.golang.org/grpc/internal/xds/server", Symbol: "RouteAndProcess"},
 		},
 	}
-	c := &domain.AnalysisCase{
+	c := &domain.AnalysisCase{Product: testProduct(),
 		EvidenceGraph: domain.EvidenceGraph{},
 	}
 	verified := v.VerifyFalse(context.Background(), c, claim, cond)
-	if verified.NegativeVerification == nil || verified.NegativeVerification.Status != domain.NegativeContradicted {
-		t.Fatalf("expected NegativeContradicted, got %+v", verified.NegativeVerification)
+	if verified.NegativeVerification == nil || verified.NegativeVerification.Status != domain.NegativeInsufficientScope {
+		t.Fatalf("unbound source marker is not a closed kernel measurement, got %+v", verified.NegativeVerification)
 	}
 }
 
@@ -273,7 +293,7 @@ func TestVerifyLocusFunctionUnreached_NoSubjects(t *testing.T) {
 	cond := domain.Condition{
 		ID: "C-LOCUS",
 	}
-	c := &domain.AnalysisCase{
+	c := &domain.AnalysisCase{Product: testProduct(),
 		EvidenceGraph: domain.EvidenceGraph{},
 	}
 	verified := v.VerifyFalse(context.Background(), c, claim, cond)
@@ -296,7 +316,7 @@ func TestVerifyLocusFunctionUnreached_NonInternalNoSource(t *testing.T) {
 			{Package: "google.golang.org/grpc/xds", Symbol: "PublicFunc"},
 		},
 	}
-	c := &domain.AnalysisCase{
+	c := &domain.AnalysisCase{Product: testProduct(),
 		EvidenceGraph: domain.EvidenceGraph{},
 	}
 	verified := v.VerifyFalse(context.Background(), c, claim, cond)
@@ -307,7 +327,8 @@ func TestVerifyLocusFunctionUnreached_NonInternalNoSource(t *testing.T) {
 
 func TestVerifyLocusFunctionUnreached_MethodInInterface(t *testing.T) {
 	ix := &Index{
-		Dir: t.TempDir(),
+		Build: testProduct(),
+		Dir:   t.TempDir(),
 	}
 	v := Verifier{Source: ix}
 	claim := domain.Claim{
@@ -323,7 +344,7 @@ func TestVerifyLocusFunctionUnreached_MethodInInterface(t *testing.T) {
 			{Package: "example.com/dep/internal/pkg", Symbol: "MyStruct.Close"},
 		},
 	}
-	c := &domain.AnalysisCase{
+	c := &domain.AnalysisCase{Product: testProduct(),
 		EvidenceGraph: domain.EvidenceGraph{},
 	}
 	verified := v.VerifyFalse(context.Background(), c, claim, cond)

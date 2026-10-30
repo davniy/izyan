@@ -1,0 +1,111 @@
+{
+  "per_case_deltas": [
+    [
+      "aquasecurity-trivy-37da98d-CVE-2024-32473",
+      {
+        "vulnerability_mechanism": 0,
+        "root_cause": 0,
+        "alternative_paths": 0,
+        "product_exposure": 0.16666666666666669,
+        "evidence_quality": 0
+      }
+    ],
+    [
+      "cilium-cilium-43bff35-CVE-2026-35469",
+      {
+        "vulnerability_mechanism": 0.3333333333333333,
+        "root_cause": 0.3333333333333333,
+        "alternative_paths": -2.7755575615628914e-17,
+        "product_exposure": 0.16666666666666666,
+        "evidence_quality": 0.33333333333333337
+      }
+    ],
+    [
+      "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+      {
+        "vulnerability_mechanism": 0.3333333333333333,
+        "root_cause": 0.3333333333333333,
+        "alternative_paths": 0.33333333333333326,
+        "product_exposure": 0.33333333333333337,
+        "evidence_quality": 0.16666666666666663
+      }
+    ],
+    [
+      "istio-istio-042afc3-CVE-2023-48795",
+      {
+        "vulnerability_mechanism": 0.16666666666666663,
+        "root_cause": 0.16666666666666663,
+        "alternative_paths": 0.0,
+        "product_exposure": 0.0,
+        "evidence_quality": 0.0
+      }
+    ],
+    [
+      "juanfont-headscale-e172c29-CVE-2024-45338",
+      {
+        "vulnerability_mechanism": 0,
+        "root_cause": 0,
+        "alternative_paths": 0.16666666666666669,
+        "product_exposure": 0,
+        "evidence_quality": 0.16666666666666669
+      }
+    ],
+    [
+      "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+      {
+        "vulnerability_mechanism": 0.33333333333333337,
+        "root_cause": 0.5,
+        "alternative_paths": 0.33333333333333337,
+        "product_exposure": 0.16666666666666663,
+        "evidence_quality": 0.33333333333333337
+      }
+    ],
+    [
+      "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+      {
+        "vulnerability_mechanism": 0,
+        "root_cause": 0,
+        "alternative_paths": 0,
+        "product_exposure": 0,
+        "evidence_quality": 0
+      }
+    ],
+    [
+      "rancher-rancher-4dc4f53-CVE-2025-47914",
+      {
+        "vulnerability_mechanism": -0.16666666666666666,
+        "root_cause": -0.16666666666666666,
+        "alternative_paths": -0.16666666666666666,
+        "product_exposure": -0.16666666666666666,
+        "evidence_quality": 0.0
+      }
+    ],
+    [
+      "stretchr-testify-285adcc-CVE-2022-28948",
+      {
+        "vulnerability_mechanism": 0,
+        "root_cause": 0,
+        "alternative_paths": 0.3333333333333333,
+        "product_exposure": 0,
+        "evidence_quality": 0
+      }
+    ],
+    [
+      "zeromicro-go-zero-bae061a-CVE-2022-32149",
+      {
+        "vulnerability_mechanism": 0.3333333333333333,
+        "root_cause": 0.3333333333333333,
+        "alternative_paths": 0.16666666666666663,
+        "product_exposure": 0.49999999999999994,
+        "evidence_quality": 0.16666666666666663
+      }
+    ]
+  ],
+  "median_deltas": {
+    "vulnerability_mechanism": 0.083,
+    "root_cause": 0.083,
+    "alternative_paths": 0.083,
+    "product_exposure": 0.083,
+    "evidence_quality": 0.083
+  }
+}

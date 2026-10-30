@@ -25,6 +25,12 @@ func (ix *Index) GatedRefs(ctx context.Context, ref domain.SymbolRef) ([]domain.
 	if err := ix.load(ctx); err != nil {
 		return nil, err
 	}
+	return ix.gatedRefs(ref), nil
+}
+
+// gatedRefs is the lock-and-load-free core of GatedRefs; callers must
+// hold ix.mu with the index already loaded.
+func (ix *Index) gatedRefs(ref domain.SymbolRef) []domain.CallSite {
 	typeName, name := splitSymbol(ref.Symbol)
 	seen := map[string]bool{}
 	var out []domain.CallSite
@@ -41,7 +47,7 @@ func (ix *Index) GatedRefs(ctx context.Context, ref domain.SymbolRef) ([]domain.
 			out = append(out, gatedFileRefs(ix.fset, pkg, f, ref, typeName, name)...)
 		}
 	}
-	return out, nil
+	return out
 }
 
 // gatedFileRefs matches subject references in an untyped file: the file
@@ -70,9 +76,8 @@ func gatedFileRefs(fset *token.FileSet, pkg *packages.Package, f *ast.File,
 		return nil
 	}
 	typeReferenced := typeName == "" || aliases[""]
-	var enc *ast.FuncDecl
 	var out []domain.CallSite
-	site := func(n ast.Node) {
+	site := func(n ast.Node, enc *ast.FuncDecl) {
 		pos := fset.Position(n.Pos())
 		cs := domain.CallSite{File: pos.Filename, Line: pos.Line, Package: pkg.PkgPath}
 		if enc != nil && enc.Name != nil {
@@ -95,23 +100,20 @@ func gatedFileRefs(fset *token.FileSet, pkg *packages.Package, f *ast.File,
 			return !typeReferenced
 		})
 	}
-	ast.Inspect(f, func(n ast.Node) bool {
-		if fn, ok := n.(*ast.FuncDecl); ok {
-			enc = fn
-		}
+	inspectDecls(f, func(n ast.Node, enc *ast.FuncDecl) bool {
 		switch e := n.(type) {
 		case *ast.SelectorExpr:
 			id, ok := e.X.(*ast.Ident)
 			if ok && aliases[id.Name] && (e.Sel.Name == name || e.Sel.Name == typeName) {
-				site(e)
+				site(e, enc)
 				return true
 			}
 			if typeName != "" && typeReferenced && e.Sel.Name == name {
-				site(e)
+				site(e, enc)
 			}
 		case *ast.Ident:
 			if aliases[""] && e.Name == name {
-				site(e)
+				site(e, enc)
 			}
 		}
 		return true
@@ -125,20 +127,43 @@ func gatedFileRefs(fset *token.FileSet, pkg *packages.Package, f *ast.File,
 // resolves to the interface method, not to Type.Method. Each site is a
 // dispatch candidate — the concrete impl behind the interface may be the
 // subject's type, so a negative reachability claim over these sites is
-// not closed.
+// not closed — even when the interface itself is declared in the
+// subject's package (for a concrete subject the call still dispatches
+// to the impl; interface-typed receivers can never be a dynamic type
+// and return no candidates). When the subject's receiver type cannot
+// be resolved in the loaded packages the scan falls back to every
+// interface method call with a matching name — a superset of the real
+// candidates — so the enumeration stays open rather than report a
+// false empty set.
 func (ix *Index) InterfaceDispatchSites(ctx context.Context, ref domain.SymbolRef) ([]domain.CallSite, error) {
 	ix.mu.Lock()
 	defer ix.mu.Unlock()
 	if err := ix.load(ctx); err != nil {
 		return nil, err
 	}
+	sites, _, err := ix.interfaceDispatchSites(ctx, ref)
+	return sites, err
+}
+
+// interfaceDispatchSites is the lock-free core of InterfaceDispatchSites;
+// callers must hold ix.mu with the index already loaded. The bool result
+// is true when the receiver type could not be resolved: the returned
+// sites are then the name-matched superset, the real candidate set is
+// not proven covered, and instantiation narrowing must not run.
+func (ix *Index) interfaceDispatchSites(ctx context.Context, ref domain.SymbolRef) ([]domain.CallSite, bool, error) {
 	typeName, name := splitSymbol(ref.Symbol)
-	if typeName == "" {
-		return nil, nil // plain functions cannot be interface-dispatched
+	recvName := subjectRecvName(typeName)
+	if recvName == "" {
+		return nil, false, nil // plain functions cannot be interface-dispatched
 	}
-	recv := ix.lookupNamedType(ctx, ref.Package, typeName)
-	if recv == nil {
-		return nil, nil
+	recv := ix.lookupNamedType(ctx, ref.Package, recvName)
+	if recv != nil {
+		if _, isIface := recv.Underlying().(*types.Interface); isIface {
+			// An interface-typed receiver can never be the dynamic
+			// type of an interface call — calls to its method are the
+			// subject itself, not dispatch candidates.
+			return nil, false, nil
+		}
 	}
 	var out []domain.CallSite
 	for _, pkg := range ix.pkgs {
@@ -150,11 +175,7 @@ func (ix *Index) InterfaceDispatchSites(ctx context.Context, ref domain.SymbolRe
 			if ix.isTestFile(f) {
 				continue
 			}
-			var enc *ast.FuncDecl
-			ast.Inspect(f, func(n ast.Node) bool {
-				if fn, ok := n.(*ast.FuncDecl); ok {
-					enc = fn
-				}
+			inspectDecls(f, func(n ast.Node, enc *ast.FuncDecl) bool {
 				sel, ok := n.(*ast.SelectorExpr)
 				if !ok {
 					return true
@@ -167,13 +188,24 @@ func (ix *Index) InterfaceDispatchSites(ctx context.Context, ref domain.SymbolRe
 				if !ok {
 					return true // concrete receiver — SearchSymbol already covers
 				}
-				// Skip when the interface method itself IS the subject
-				// (declared in the subject's package): such calls are the
-				// subject, not a dispatch candidate.
-				if fn := seln.Obj().(*types.Func); fn.Pkg() != nil && fn.Pkg().Path() == ref.Package {
+				// With the receiver type resolved, only interfaces it
+				// satisfies are dispatch candidates. Unresolved, the
+				// subject's type may still implement this interface —
+				// keep every name-matched site open rather than claim
+				// the candidate set empty. A call to an interface method
+				// declared in the subject's package still counts: for a
+				// concrete receiver the dispatch can land on the impl.
+				if recv != nil && !types.Implements(recv, iface) &&
+					!types.Implements(types.NewPointer(recv), iface) {
 					return true
 				}
-				if !types.Implements(recv, iface) && !types.Implements(types.NewPointer(recv), iface) {
+				// With the receiver type resolved, only interfaces it
+				// satisfies are dispatch candidates. Unresolved, the
+				// subject's type may still implement this interface —
+				// keep every name-matched site open rather than claim
+				// the candidate set empty.
+				if recv != nil && !types.Implements(recv, iface) &&
+					!types.Implements(types.NewPointer(recv), iface) {
 					return true
 				}
 				pos := ix.fset.Position(sel.Pos())
@@ -190,7 +222,17 @@ func (ix *Index) InterfaceDispatchSites(ctx context.Context, ref domain.SymbolRe
 			})
 		}
 	}
-	return out, nil
+	return out, recv == nil, nil
+}
+
+// subjectRecvName normalizes a method symbol's receiver part to the bare
+// type name — "T" and "(*T)" both name receiver type T — matching the
+// normalization IsReceiverTypeInstantiated applies. "" for non-method
+// receivers.
+func subjectRecvName(typeName string) string {
+	t := strings.TrimSpace(typeName)
+	t = strings.Trim(t, "()*")
+	return strings.TrimSpace(t)
 }
 
 // lookupNamedType resolves a named type in pkgPath, searching product

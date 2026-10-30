@@ -1,0 +1,3 @@
+{"Path":"k8s.io/kubernetes","Main":true}
+{"Path":"golang.org/x/net","Version":"v0.17.0","Indirect":true}
+{"Path":"google.golang.org/grpc","Version":"v1.55.0","Indirect":true}

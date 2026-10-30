@@ -5,21 +5,24 @@ package states
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
-	"unicode"
 
 	"github.com/fedorovmv/izyan/internal/affected"
 	"github.com/fedorovmv/izyan/internal/cveanalysis"
 	"github.com/fedorovmv/izyan/internal/domain"
 	"github.com/fedorovmv/izyan/internal/evaluator"
+	"github.com/fedorovmv/izyan/internal/exploit"
 	"github.com/fedorovmv/izyan/internal/exposure"
+	"github.com/fedorovmv/izyan/internal/finding"
+	"github.com/fedorovmv/izyan/internal/fixbinding"
 	"github.com/fedorovmv/izyan/internal/goanalysis"
 	"github.com/fedorovmv/izyan/internal/justification"
 	"github.com/fedorovmv/izyan/internal/llm"
@@ -46,12 +49,21 @@ type SnapshotProduct struct {
 	Repo    repository.Snapshotter
 	Path    string
 	Options repository.SnapshotOptions
+	// Source is the case's source index. The resolved build context is
+	// bound to it here — before root-cause resolution, affected probes or
+	// evidence collection can load packages — so every later query observes
+	// one build. A different context after a load fails closed.
+	Source *goanalysis.Index
+	// Snapshot is a snapshot already resolved by the caller (scan mode
+	// resolves once for all cases). It is used instead of re-running the
+	// probe; its repository identity must match Path.
+	Snapshot *domain.ProductSnapshot
 }
 
 func (SnapshotProduct) State() domain.WorkflowState { return domain.StateSnapshotProduct }
 
 func (h SnapshotProduct) Run(ctx context.Context, c *domain.AnalysisCase) (workflow.Transition, error) {
-	snap, err := h.Repo.Snapshot(ctx, h.Path, h.Options)
+	snap, err := h.resolve(ctx)
 	if err != nil {
 		return workflow.Transition{
 			Next:   domain.StateFailed,
@@ -59,11 +71,37 @@ func (h SnapshotProduct) Run(ctx context.Context, c *domain.AnalysisCase) (workf
 		}, nil
 	}
 	c.Product = snap
+	// Bind the resolved build before any package load. Root-cause
+	// resolution is the first state that consumes the source index, so
+	// binding in CollectEvidence (later) would leave a loaded index
+	// already describing a different build context.
+	if h.Source != nil {
+		if err := h.Source.BindBuild(snap); err != nil {
+			return workflow.Transition{
+				Next:   domain.StateFailed,
+				Reason: fmt.Sprintf("product build context binding failed: %v", err),
+			}, nil
+		}
+	}
 	c.EvidenceGraph.AddRuntimeEvidence(domain.Evidence{
 		Quality: domain.QualityAuthoritative,
 		Source:  "product snapshot",
 		Content: fmt.Sprintf("go_version=%q goos=%s goarch=%s release_toolchain=%q go_mod=%q build_tags=%v",
 			snap.GoVersion, snap.GOOS, snap.GOARCH, snap.ReleaseGoVersion, snap.GoModDirective, snap.BuildTags),
+	})
+	// Per-case build provenance (including a scan snapshot reused across
+	// cases): the exact selection every probe must share.
+	build := domain.EffectiveBuildContext(snap)
+	targetSource := domain.ProductTargetSourceHostDefault
+	if snap.Target != nil {
+		targetSource = snap.Target.Source
+	}
+	c.EvidenceGraph.AddRuntimeEvidence(domain.Evidence{
+		Quality: domain.QualityAuthoritative,
+		Source:  "product build context",
+		Content: fmt.Sprintf("goos=%s goarch=%s build_tags=%v cgo=%v vendor=%v workspace=%q goflags=%q target=%s replace_directives=%d",
+			build.GOOS, build.GOARCH, build.BuildTags, build.CGOEnabled, build.VendorMode,
+			build.GoWorkFile, build.GoFlags, targetSource, len(build.ReplaceDirectives)),
 	})
 	if snap.BinaryPath != "" {
 		if info, err := repository.BinaryBuildInfo(ctx, snap.BinaryPath); err == nil {
@@ -78,31 +116,156 @@ func (h SnapshotProduct) Run(ctx context.Context, c *domain.AnalysisCase) (workf
 		} else {
 			c.EvidenceGraph.AddLimitation("binary build info unavailable: " + err.Error())
 		}
+		// The target-only gap is independent of the measured release
+		// toolchain: it never invalidates a toolchain version already read
+		// from the binary, and it never grounds a product target.
+		if snap.Target == nil || snap.Target.Source != domain.ProductTargetSourceArtifactBuildInfo {
+			c.EvidenceGraph.AddLimitation(fmt.Sprintf(
+				"plain --binary build-target extraction gap: the binary's embedded settings did not form a complete digest-bound target; target provenance remains %s (the release-toolchain channel is recorded separately)",
+				targetSource))
+		}
 	}
 	return workflow.Transition{Next: domain.StateResolveVulnerability, Reason: "product snapshot captured"}, nil
+}
+
+// resolve returns the case's snapshot: a caller-resolved scan snapshot when
+// present (identity-checked), else a fresh probe.
+func (h SnapshotProduct) resolve(ctx context.Context) (domain.ProductSnapshot, error) {
+	if h.Snapshot == nil {
+		if h.Repo == nil {
+			return domain.ProductSnapshot{}, fmt.Errorf("no snapshotter configured")
+		}
+		return h.Repo.Snapshot(ctx, h.Path, h.Options)
+	}
+	snap := *h.Snapshot
+	if h.Path != "" && snap.Repository != "" && !sameRepository(snap.Repository, h.Path) {
+		return domain.ProductSnapshot{}, fmt.Errorf(
+			"pre-resolved snapshot repository %q does not identify the case repository %q", snap.Repository, h.Path)
+	}
+	return snap, nil
+}
+
+// sameRepository compares two repository paths canonically: absolute,
+// cleaned, and symlink-resolved when possible.
+func sameRepository(a, b string) bool {
+	canon := func(p string) string {
+		if abs, err := filepath.Abs(p); err == nil {
+			p = abs
+		}
+		if resolved, err := filepath.EvalSymlinks(p); err == nil {
+			p = resolved
+		}
+		return filepath.Clean(p)
+	}
+	return canon(a) == canon(b)
 }
 
 type ResolveVulnerability struct {
 	Source vulnerability.Source
 	ID     string
+	// Exact requires loading the record's exact bytes and pinning them, so the
+	// primary assessment runs from its own document. Sources without
+	// LoadExact fall back to the legacy identity-only load with a limitation.
+	Exact bool
+	// Next is the state after resolution. Empty keeps the legacy
+	// CHECK_AFFECTED transition; request orchestration sets DISCOVER_RECORDS.
+	Next domain.WorkflowState
+	// Intake receives the exact primary record for request discovery and
+	// attribution. It is optional and runtime-only.
+	Intake *RecordIntake
 }
 
 func (ResolveVulnerability) State() domain.WorkflowState { return domain.StateResolveVulnerability }
 
+// exactLoader is the optional exact-bytes capability of a vulnerability
+// source. FileSource implements it; an identity-only source does not.
+type exactLoader interface {
+	LoadExact(ctx context.Context, recordID string) (vulnerability.LoadedRecord, error)
+}
+
 func (h ResolveVulnerability) Run(ctx context.Context, c *domain.AnalysisCase) (workflow.Transition, error) {
+	c.RequestedID = h.ID
+	next := h.Next
+	if next == "" {
+		next = domain.StateCheckAffected
+	}
+	if h.Exact {
+		if loader, ok := h.Source.(exactLoader); ok {
+			record, err := loader.LoadExact(ctx, h.ID)
+			if err != nil {
+				return h.unresolved(c, next, err), nil
+			}
+			c.Vulnerability = *record.Vuln
+			pin := record.Pin
+			c.RecordPin = &pin
+			c.AdvisoryRecord = advisoryRecordCapture(record)
+			if h.Intake != nil {
+				h.Intake.Set(record)
+			}
+			return workflow.Transition{Next: next, Reason: "exact vulnerability record pinned"}, nil
+		}
+		c.EvidenceGraph.AddLimitation(
+			"exact record bytes are unavailable from the configured source; the primary assessment is identity-only")
+	}
 	v, err := h.Source.Get(ctx, h.ID)
 	if err != nil {
+		return h.unresolved(c, next, err), nil
+	}
+	c.Vulnerability = *v
+	return workflow.Transition{Next: next, Reason: "vulnerability normalized"}, nil
+}
+
+// advisoryRecordCapture persists the complete advisory bytes one record-level
+// assessment was derived from. An identity-only load carries no bytes and
+// records no capture: the case must not claim exact document inputs it never
+// read.
+func advisoryRecordCapture(record vulnerability.LoadedRecord) *domain.AdvisoryRecordCapture {
+	if len(record.Raw) == 0 || record.Vuln == nil {
+		return nil
+	}
+	return &domain.AdvisoryRecordCapture{
+		Pin:   record.Pin,
+		Bytes: append([]byte(nil), record.Raw...),
+	}
+}
+
+// unresolved records a typed input-resolution cause. A request-orchestrated
+// run continues to discovery so available CVE candidates are still assessed;
+// a legacy single-record run keeps its historical FAILED terminal.
+func (h ResolveVulnerability) unresolved(c *domain.AnalysisCase, next domain.WorkflowState, err error) workflow.Transition {
+	gap := analysisGap(domain.GapOwnerInput, domain.GapInputResolutionFailed,
+		domain.ObligationDiscovery, assessmentIDFor(c), "vulnerability resolution failed: "+err.Error())
+	c.AnalysisGaps = appendGap(c.AnalysisGaps, gap)
+	c.EvidenceGraph.AddLimitation(gap.Message)
+	if h.Next == "" {
 		return workflow.Transition{
 			Next:   domain.StateFailed,
 			Reason: fmt.Sprintf("vulnerability resolution failed: %v", err),
-		}, nil
+		}
 	}
-	c.Vulnerability = *v
-	return workflow.Transition{Next: domain.StateCheckAffected, Reason: "vulnerability normalized"}, nil
+	return workflow.Transition{
+		Next:   next,
+		Reason: "primary resolution failed; request discovery continues",
+	}
 }
+
+// ImplementationAxisFunc evaluates the affected chain's
+// implementation-presence dimension after the deterministic chain has
+// resolved. The classic workflow has no admitted proposal channel, so the
+// hook stays nil there; a caller that does (the research lane) supplies
+// affected.EvaluateImplementationAxis with its admitted proposals. The
+// returned Affected result is the finalized chain (package/build facts
+// established for the proposal's package, axis, target provenance,
+// assumption ids, limitations); Evidence must be recorded by this state.
+type ImplementationAxisFunc func(ctx context.Context, c *domain.AnalysisCase, res domain.AffectedResult) affected.ImplementationAxisResult
 
 type CheckAffected struct {
 	Resolver affected.Resolver
+	// ImplementationAxis is optional. It is the ONLY route by which a
+	// non-authoritative implementation-locus proposal can influence the
+	// implementation axis; the returned ClaimResult is already the
+	// deterministic verifier's outcome.
+	ImplementationAxis ImplementationAxisFunc
 }
 
 func (CheckAffected) State() domain.WorkflowState { return domain.StateCheckAffected }
@@ -111,6 +274,33 @@ func (h CheckAffected) Run(ctx context.Context, c *domain.AnalysisCase) (workflo
 	res, ev, err := h.Resolver.Resolve(ctx, c.Vulnerability, c.Product)
 	if err != nil {
 		return workflow.Transition{}, err
+	}
+	// The implementation-presence axis runs after the deterministic
+	// chain and after proposal admission (the callback owns admission).
+	// It can only narrow the chain to FALSE with a deterministic
+	// verifier outcome; a nil callback leaves the axis UNKNOWN.
+	if h.ImplementationAxis != nil {
+		// The callback may mutate anything it is handed. Scope is the
+		// finding-level closure authority resolved from the advisory
+		// record, so it crosses the callback boundary as a deep copy and
+		// the authoritative value is restored afterwards — a callback
+		// cannot narrow the inventory, rewrite the record identity or
+		// change the closure decision.
+		scope := res.Scope
+		res.Scope = scope.Clone()
+		axis := h.ImplementationAxis(ctx, c, res)
+		res = axis.Affected
+		res.Scope = scope
+		res.VulnerableImplementationPresent = axis.Present
+		for _, e := range axis.Evidence {
+			id := c.EvidenceGraph.AddEvidence(e)
+			res.EvidenceIDs = append(res.EvidenceIDs, id)
+		}
+		if len(axis.AssumptionIDs) > 0 {
+			res.AssumptionIDs = mergeUniqueStrings(res.AssumptionIDs, axis.AssumptionIDs)
+		}
+		// axis.Affected already carries the axis limitations; appending
+		// axis.Limitations again would duplicate them.
 	}
 	c.Affected = &res
 	for _, e := range ev {
@@ -173,13 +363,62 @@ func (h CheckAffected) Run(ctx context.Context, c *domain.AnalysisCase) (workflo
 		}
 	}
 	c.EvidenceGraph.ComputeHash()
-	if res.ModulePresent == domain.ClaimFalse ||
-		res.VersionAffected == domain.ClaimFalse ||
-		res.PackagePresent == domain.ClaimFalse ||
-		res.BuildRelevant == domain.ClaimFalse {
-		return workflow.Transition{Next: domain.StateEvaluateVerdict, Reason: "deterministic negative: component not applicable"}, nil
+	// Without a selectable build every downstream measurement is meaningless:
+	// root-cause resolution and reachability would only report consequences
+	// of the same missing fact. Stop here so the request reports the
+	// external dependency instead of a cascade of analysis failures.
+	if c.Affected != nil && buildUnselected(*c.Affected) {
+		return workflow.Transition{
+			Next:   domain.StateEvaluateVerdict,
+			Reason: "the analyzed build selects no product files: the product's target and build tags were not identified",
+		}, nil
+	}
+	if c.Affected.HasNegative() {
+		if c.Affected.Scope.AllowsNegativeClosure() {
+			return workflow.Transition{Next: domain.StateEvaluateVerdict, Reason: "deterministic negative: component not applicable within advisory scope"}, nil
+		}
+		requested := c.Vulnerability.ID
+		if c.Affected.Scope != nil {
+			requested = c.Affected.Scope.RequestedID
+		}
+		limitation := fmt.Sprintf("partial advisory scope: checked modules %s do not establish complete coverage of %s; component-negative facts cannot close the requested scope", strings.Join(c.Affected.CheckedModules, ", "), requested)
+		c.Affected.Limitations = append(c.Affected.Limitations, limitation)
+		c.EvidenceGraph.AddLimitation(limitation)
+		return workflow.Transition{Next: domain.StateResolveRootCause, Reason: limitation}, nil
 	}
 	return workflow.Transition{Next: domain.StateResolveRootCause, Reason: "affected chain not refuted"}, nil
+}
+
+// buildUnselected reports whether package loading failed because the selected
+// build excludes every product file — a target/configuration mismatch rather
+// than a product or analyzer defect.
+func buildUnselected(res domain.AffectedResult) bool {
+	for _, g := range res.AnalysisGaps {
+		if g.Owner == domain.GapOwnerExternal && g.Code == domain.GapExternalDependencyUnresolved {
+			return true
+		}
+	}
+	return false
+}
+
+// mergeUniqueStrings appends values not already present, preserving order.
+func mergeUniqueStrings(dst, values []string) []string {
+	for _, v := range values {
+		if v == "" {
+			continue
+		}
+		found := false
+		for _, existing := range dst {
+			if existing == v {
+				found = true
+				break
+			}
+		}
+		if !found {
+			dst = append(dst, v)
+		}
+	}
+	return dst
 }
 
 // RootCauseResolver produces a root cause model — deterministic or
@@ -206,9 +445,16 @@ func (ResolveRootCause) State() domain.WorkflowState { return domain.StateResolv
 
 func (h ResolveRootCause) Run(ctx context.Context, c *domain.AnalysisCase) (workflow.Transition, error) {
 	if len(h.Manual) > 0 {
+		manual := make([]domain.RootCause, 0, len(h.Manual))
+		for _, rc := range h.Manual {
+			if rc.Origin == "" {
+				rc.Origin = domain.RootCauseOriginManual
+			}
+			manual = append(manual, rc)
+		}
 		c.RootCause = &domain.RootCauseModel{
 			Status:     domain.RootCauseResolved,
-			RootCauses: h.Manual,
+			RootCauses: manual,
 			Limitations: []string{
 				"root cause provided manually; symbol existence verified only if verifier configured",
 			},
@@ -217,19 +463,20 @@ func (h ResolveRootCause) Run(ctx context.Context, c *domain.AnalysisCase) (work
 			c.RootCause.Limitations = append(c.RootCause.Limitations,
 				h.Verifier.Verify(ctx, c, c.RootCause, c.Vulnerability)...)
 			if c.RootCause.Status != domain.RootCauseResolved {
-				return workflow.Transition{
-					Next:   domain.StateInconclusive,
-					Reason: "manual root cause failed verification",
-				}, nil
+				reason := "manual root cause failed verification: " + strings.Join(c.RootCause.Limitations, "; ")
+				c.RootCause.AnalysisGaps = appendGap(c.RootCause.AnalysisGaps,
+					rootCauseGap(c.ID, reason))
+				c.EvidenceGraph.AddLimitation(reason)
+				return workflow.Transition{Next: domain.StateEvaluateVerdict, Reason: reason}, nil
 			}
 		}
 		return workflow.Transition{Next: domain.StateBuildExploitModel, Reason: "manual root cause accepted"}, nil
 	}
 	if h.Resolver == nil {
-		return workflow.Transition{
-			Next:   domain.StateInconclusive,
-			Reason: "root cause unresolved: no resolver configured and --root-cause not provided",
-		}, nil
+		reason := "root cause unresolved: no resolver configured and --root-cause not provided"
+		c.AnalysisGaps = appendGap(c.AnalysisGaps, rootCauseGap(c.ID, reason))
+		c.EvidenceGraph.AddLimitation(reason)
+		return workflow.Transition{Next: domain.StateEvaluateVerdict, Reason: reason}, nil
 	}
 	if r, ok := h.Resolver.(*rootcause.Resolver); ok && r.Source == nil && h.Verifier != nil {
 		r.Source = h.Verifier.Source
@@ -237,15 +484,6 @@ func (h ResolveRootCause) Run(ctx context.Context, c *domain.AnalysisCase) (work
 	model, evs, err := h.Resolver.Resolve(ctx, c, c.Vulnerability)
 	if err != nil {
 		return workflow.Transition{}, fmt.Errorf("root cause resolve: %w", err)
-	}
-	// LLM-proposed candidates carry a Proposal ref; the controller owns
-	// the identity and drops any verification records claiming it — the
-	// verifier below regenerates them from deterministic checks.
-	for i := range model.RootCauses {
-		if model.RootCauses[i].Proposal != nil {
-			model.RootCauses[i].EnsureProposal(c.Vulnerability.ID)
-			c.DiscardProposalVerifications(*model.RootCauses[i].Proposal)
-		}
 	}
 	for _, e := range evs {
 		c.EvidenceGraph.AddEvidence(e)
@@ -264,10 +502,6 @@ func (h ResolveRootCause) Run(ctx context.Context, c *domain.AnalysisCase) (work
 			props, lims, err := p.Propose(ctx, c, c.Vulnerability)
 			model.Limitations = append(model.Limitations, lims...)
 			if err == nil && len(props) > 0 {
-				for i := range props {
-					props[i].EnsureProposal(c.Vulnerability.ID)
-					c.DiscardProposalVerifications(*props[i].Proposal)
-				}
 				model.RootCauses = props
 				model.Limitations = append(model.Limitations,
 					h.Verifier.Verify(ctx, c, model, c.Vulnerability)...)
@@ -278,39 +512,28 @@ func (h ResolveRootCause) Run(ctx context.Context, c *domain.AnalysisCase) (work
 		}
 	}
 	if model.Status != domain.RootCauseResolved {
-		nextState := domain.StateInconclusive
+		// An unresolvable root cause is a reason the mandatory conditions
+		// cannot be established — it is not a reason to abandon the case
+		// before a verdict exists. Record the typed cause and route through
+		// the verdict evaluator so the failure still reaches reports.
+		reason := fmt.Sprintf("root cause %s: %s", model.Status, strings.Join(model.Limitations, "; "))
+		model.AnalysisGaps = appendGap(model.AnalysisGaps, rootCauseGap(c.ID, reason))
+		c.EvidenceGraph.AddLimitation(reason)
 		if c.StrictLLM {
-			nextState = domain.StateFailed
+			return workflow.Transition{Next: domain.StateBuildReport, Reason: "strict-llm: " + reason}, nil
 		}
-		return workflow.Transition{
-			Next:   nextState,
-			Reason: fmt.Sprintf("root cause %s: %s", model.Status, strings.Join(model.Limitations, "; ")),
-		}, nil
+		return workflow.Transition{Next: domain.StateEvaluateVerdict, Reason: reason}, nil
 	}
 	if c.CVEAnalysisProfile == domain.ProfileAssist || c.CVEAnalysisProfile == domain.ProfileVerified {
 		if err := ActResearchCVE(ctx, c, cveanalysis.NewDefaultSourceResolver(""), h.LLMClient); err != nil {
+			reason := fmt.Sprintf("cve analysis failed: %v", err)
+			gap := analysisGap(domain.GapOwnerCode, domain.GapCVEAttributionUnresolved,
+				domain.ObligationAttribution, c.ID, reason)
 			if c.StrictLLM {
-				return workflow.Transition{
-					Next:   domain.StateFailed,
-					Reason: fmt.Sprintf("strict-llm: cve analysis failed: %v", err),
-				}, nil
+				c.AnalysisGaps = appendGap(c.AnalysisGaps, gap)
+				return workflow.Transition{Next: domain.StateBuildReport, Reason: "strict-llm: " + reason}, nil
 			}
-		}
-		// Verify the displayed proposal assertions against the source
-		// index before leaving RESOLVE_ROOT_CAUSE — a nil index records
-		// honest UNKNOWNs, never fabricated absence.
-		var source *goanalysis.Index
-		if h.Verifier != nil {
-			source = h.Verifier.Source
-		}
-		if err := cveanalysis.VerifySites(ctx, c, source); err != nil {
-			if c.StrictLLM {
-				return workflow.Transition{
-					Next:   domain.StateFailed,
-					Reason: fmt.Sprintf("strict-llm: proposal site verification failed: %v", err),
-				}, nil
-			}
-			c.EvidenceGraph.AddLimitation("proposal site verification failed: " + err.Error())
+			c.EvidenceGraph.AddLimitation(reason)
 		}
 	}
 	return workflow.Transition{Next: domain.StateBuildExploitModel, Reason: "root cause resolved from advisory/fix evidence"}, nil
@@ -332,40 +555,33 @@ func (h BuildExploitModel) Run(ctx context.Context, c *domain.AnalysisCase) (wor
 	if h.ModelPath != "" {
 		b, err := os.ReadFile(h.ModelPath)
 		if err != nil {
-			return workflow.Transition{}, fmt.Errorf("read exploit model: %w", err)
+			return failureTransition(c, inputGap(c.ID, domain.ObligationMeasurement,
+				"read exploit model: "+err.Error()), c.StrictLLM), nil
 		}
 		var m domain.ExploitModel
 		if err := json.Unmarshal(b, &m); err != nil {
-			return workflow.Transition{
-				Next:   domain.StateInconclusive,
-				Reason: fmt.Sprintf("exploit model file is invalid: %v", err),
-			}, nil
+			return failureTransition(c, inputGap(c.ID, domain.ObligationMeasurement,
+				fmt.Sprintf("exploit model file is invalid: %v", err)), c.StrictLLM), nil
 		}
 		if len(m.MandatoryConditions) == 0 {
-			return workflow.Transition{
-				Next:   domain.StateInconclusive,
-				Reason: "exploit model has no mandatory conditions",
-			}, nil
+			return failureTransition(c, measurementGap(c.ID, domain.ObligationMeasurement,
+				"exploit model has no mandatory conditions"), c.StrictLLM), nil
 		}
 		c.Exploit = &m
 		return workflow.Transition{Next: domain.StateCollectEvidence, Reason: "exploit model loaded"}, nil
 	}
 	if h.Builder == nil || c.RootCause == nil {
-		return workflow.Transition{
-			Next:   domain.StateInconclusive,
-			Reason: "no exploit model: provide --exploit-model or configure a builder",
-		}, nil
+		reason := "no exploit model: provide --exploit-model or configure a builder"
+		gap := rootCauseGap(c.ID, reason)
+		if h.Builder == nil && c.RootCause != nil {
+			gap = inputGap(c.ID, domain.ObligationMeasurement, reason)
+		}
+		return failureTransition(c, gap, c.StrictLLM), nil
 	}
 	m, limitations := h.Builder.Build(ctx, c, c.Vulnerability, c.RootCause)
 	if m == nil {
-		nextState := domain.StateInconclusive
-		if c.StrictLLM {
-			nextState = domain.StateFailed
-		}
-		return workflow.Transition{
-			Next:   nextState,
-			Reason: "exploit model could not be built: " + strings.Join(limitations, "; "),
-		}, nil
+		return failureTransition(c, measurementGap(c.ID, domain.ObligationMeasurement,
+			"exploit model could not be built: "+strings.Join(limitations, "; ")), c.StrictLLM), nil
 	}
 	for _, l := range limitations {
 		c.EvidenceGraph.AddLimitation(l)
@@ -377,19 +593,21 @@ func (h BuildExploitModel) Run(ctx context.Context, c *domain.AnalysisCase) (wor
 type CollectEvidence struct {
 	Govulncheck goanalysis.Runner
 	Source      *goanalysis.Index
-	// OSVBase, when set, lets coverage checks ask the vulnerability database
-	// whether the advisory exists as a GO-* record — distinguishing
-	// "evaluated, no path" from "unknown to the DB".
-	OSVBase string
 }
 
 func (CollectEvidence) State() domain.WorkflowState { return domain.StateCollectEvidence }
 
 func (h CollectEvidence) Run(ctx context.Context, c *domain.AnalysisCase) (workflow.Transition, error) {
-	if h.Govulncheck != nil {
-		h.runGovulncheck(ctx, c)
-	}
+	// The recorder always produces one typed run record — a nil runner is
+	// recorded as not_run rather than silently absent.
+	h.runGovulncheck(ctx, c)
 	if h.Source != nil {
+		// Case boundary: one index serves many advisories in scan/eval
+		// mode, so the session-scoped budget record must not carry a
+		// previous advisory's truncation into this one. The call is
+		// idempotent for the same case — every later query (including a
+		// re-run of this state) keeps the record sticky.
+		h.Source.BeginVerificationSession(c.ID)
 		// Pin the knowledge base the scans consulted — sources +
 		// content digest let a report be checked against the exact
 		// semantic revision that produced it.
@@ -399,11 +617,24 @@ func (h CollectEvidence) Run(ctx context.Context, c *domain.AnalysisCase) (workf
 			Source:  "knowledge base",
 			Content: fmt.Sprintf("sources=%v digest=%s", kb.Sources, kb.Digest()),
 		})
+		h.collectProductShape(ctx, c)
 		h.runSourceAnalysis(ctx, c)
+		h.collectTransportProof(ctx, c)
 		h.actCollectEvidence(ctx, c)
 		h.runListenerScan(ctx, c)
 		h.runModuleUsage(ctx, c)
 		h.runExposure(ctx, c)
+		// A budget exhausted during the source work truncated dependency
+		// coverage for the whole verification session. Name it on the case:
+		// an incomplete coverage set must never read as silent coverage, and
+		// the record persists across repeated verification of the same
+		// subject set.
+		for _, l := range h.Source.BudgetLimitations() {
+			c.EvidenceGraph.AddToolLimitation("source index budget truncation: " + l)
+			c.AnalysisGaps = appendGap(c.AnalysisGaps, analysisGap(domain.GapOwnerCode,
+				domain.GapAnalysisBudgetExhausted, domain.ObligationMeasurement, c.ID,
+				"source index budget truncation: "+l))
+		}
 	}
 	if h.Govulncheck == nil && h.Source == nil {
 		c.EvidenceGraph.AddLimitation("no evidence collectors beyond affected resolution are wired yet")
@@ -419,70 +650,52 @@ func (h CollectEvidence) Run(ctx context.Context, c *domain.AnalysisCase) (workf
 				c.Product.GoVersion, c.Product.GoModDirective))
 		}
 	}
-	// Proposal assertions re-derived against the evidence collected above:
-	// reachability records are only meaningful once module usage and call
-	// paths have been persisted.
-	cveanalysis.AttributeChecks(c)
 	c.EvidenceGraph.ComputeHash()
 	return workflow.Transition{Next: domain.StateEvaluateConditions, Reason: "deterministic evidence collection complete"}, nil
 }
 
 func (h CollectEvidence) runGovulncheck(ctx context.Context, c *domain.AnalysisCase) {
-	// The DB snapshot identity doubles as the tool's version for the
-	// audit trail and explains a not-covered advisory.
-	var toolVer string
-	if informer, ok := h.Govulncheck.(goanalysis.DBInformer); ok {
-		if info, err := informer.DBInfo(ctx); err == nil {
-			toolVer = info
+	record := goanalysis.RecordForCase(c)
+	ev, res := goanalysis.CollectGovulncheck(ctx, h.Govulncheck, c.Product, record)
+	run := ev.Govulncheck
+	if run != nil {
+		switch run.Outcome {
+		case domain.GovulncheckFailed:
+			c.EvidenceGraph.AddToolLimitation("govulncheck failed: " + run.Error)
+			c.AnalysisGaps = appendGap(c.AnalysisGaps, measurementGap(c.ID, domain.ObligationMeasurement,
+				"govulncheck failed: "+run.Error))
+		case domain.GovulncheckNotRun:
+			c.EvidenceGraph.AddToolLimitation("govulncheck did not run: " + run.Error)
+			c.AnalysisGaps = appendGap(c.AnalysisGaps, measurementGap(c.ID, domain.ObligationMeasurement,
+				"govulncheck did not run: "+run.Error))
 		}
-	}
-	raw, pattern, err := h.Govulncheck.RunGovulncheck(ctx, c.Product.Repository, c.Product)
-	if err != nil {
-		c.EvidenceGraph.AddToolLimitation(fmt.Sprintf("govulncheck failed: %v", err))
-		return
-	}
-	command := "govulncheck -json -mode source " + pattern
-	if c.Product.BinaryPath != "" {
-		command = "govulncheck -json -mode binary " + pattern
-	}
-	if c.Product.BinaryPath == "" && pattern != "./..." {
-		if pattern == "./cmd/..." && AllMainsInCmd(c.Product.Repository) {
-			// All production entry points (package main) reside in cmd/;
-			// govulncheck on ./cmd/... traces all production binaries and their dependencies.
-		} else {
+		if !run.Coverage.ScopeComplete && run.Pattern != "" &&
+			(run.Outcome == domain.GovulncheckCompletedEmpty ||
+				run.Outcome == domain.GovulncheckCompletedWithResults) {
+			// Narrowed fallback scope is a limitation, never full coverage:
+			// the directory/main-file heuristic cannot prove it complete.
 			c.EvidenceGraph.AddToolLimitation(fmt.Sprintf(
-				"govulncheck ran on narrowed scope %s after ./... failed; packages outside the pattern were not analyzed", pattern))
+				"govulncheck ran on narrowed scope %s; packages outside the pattern were not analyzed", run.Pattern))
+			c.AnalysisGaps = appendGap(c.AnalysisGaps, measurementGap(c.ID, domain.ObligationMeasurement,
+				fmt.Sprintf("govulncheck ran on narrowed scope %s; packages outside the pattern were not analyzed", run.Pattern)))
 		}
 	}
-	evID := c.EvidenceGraph.AddEvidence(domain.Evidence{
-		Kind:        domain.EvidenceGovulncheck,
-		Quality:     domain.QualityDeterministic,
-		Source:      command,
-		Tool:        "govulncheck",
-		ToolVersion: toolVer,
-		Command:     command,
-		Content:     string(raw),
-	})
-	res, err := goanalysis.Parse(raw)
-	if err != nil {
-		c.EvidenceGraph.AddToolLimitation(err.Error())
+	evID := c.EvidenceGraph.AddEvidence(ev)
+	if run == nil ||
+		(run.Outcome != domain.GovulncheckCompletedEmpty && run.Outcome != domain.GovulncheckCompletedWithResults) {
+		// A failed or not-run invocation has no consumable findings: the
+		// raw prefix stays in evidence for audit only.
 		return
 	}
-	covered := res.Covers(c.Vulnerability)
-	if !covered && c.Vulnerability.Module != "" {
-		covered = dbKnowsAdvisory(ctx, h.OSVBase, c.Vulnerability)
+	// Project the shared stream against this case's own record. Findings are
+	// never selected by a shared CVE key or alias, so another record's trace
+	// cannot become this case's call path.
+	projection, err := res.ProjectRecord(record)
+	if err != nil {
+		c.EvidenceGraph.AddToolLimitation("govulncheck record projection failed: " + err.Error())
+		return
 	}
-	if covered {
-		c.GovulncheckCoverage = "covered"
-	} else {
-		c.GovulncheckCoverage = "not_in_db"
-		lim := "govulncheck emitted no findings referencing this advisory; reachability was not evaluated (silence is not evidence of no path)"
-		if toolVer != "" {
-			lim += fmt.Sprintf(" (local DB: %s; advisory modified: %s)", toolVer, orUnknown(c.Vulnerability.Modified))
-		}
-		c.EvidenceGraph.AddLimitation(lim)
-	}
-	for _, f := range res.ForVulnerability(c.Vulnerability) {
+	for _, f := range projection.Findings {
 		if !f.HasCallPath() {
 			continue
 		}
@@ -495,72 +708,17 @@ func (h CollectEvidence) runGovulncheck(ctx context.Context, c *domain.AnalysisC
 	}
 }
 
-// isStdlibModule reports whether the module path is a Go standard library
-// package (first path element has no dot — "net/http", "crypto/tls") or the
-// toolchain pseudo-module.
+// isStdlibModule reports whether the advisory's module is one of the
+// explicitly supported Go standard-library/toolchain pseudo-modules
+// ("std", "stdlib", "toolchain", "cmd"). Classification is exact identity:
+// an empty module name or a dot-less third-party path is never stdlib —
+// the first-segment shape of an import path is not module identity.
 func isStdlibModule(module string) bool {
-	if module == "std" || module == "toolchain" || module == "cmd" {
+	switch module {
+	case "std", "stdlib", "toolchain", "cmd":
 		return true
 	}
-	first := module
-	if i := strings.IndexByte(module, '/'); i >= 0 {
-		first = module[:i]
-	}
-	return !strings.Contains(first, ".")
-}
-
-// AllMainsInCmd checks whether all non-test `package main` source files in repoDir reside
-// within a `cmd/` directory. When true, running govulncheck on `./cmd/...` covers all
-// executable entry points and their full transitive call graphs in the repository.
-func AllMainsInCmd(repoDir string) bool {
-	if repoDir == "" {
-		return false
-	}
-	cmdStat, err := os.Stat(filepath.Join(repoDir, "cmd"))
-	if err != nil || !cmdStat.IsDir() {
-		return false
-	}
-	fset := token.NewFileSet()
-	hasAnyMainInCmd := false
-	allInCmd := true
-
-	_ = filepath.Walk(repoDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || !allInCmd {
-			return nil
-		}
-		if info.IsDir() {
-			name := info.Name()
-			if strings.HasPrefix(name, ".") || name == "vendor" || name == "testdata" || name == "node_modules" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-		rel, rerr := filepath.Rel(repoDir, path)
-		if rerr != nil {
-			return nil
-		}
-		cleanRel := filepath.ToSlash(rel)
-		inCmd := strings.HasPrefix(cleanRel, "cmd/") || cleanRel == "cmd"
-
-		fileAst, perr := parser.ParseFile(fset, path, nil, parser.PackageClauseOnly)
-		if perr != nil {
-			return nil
-		}
-		if fileAst.Name != nil && fileAst.Name.Name == "main" {
-			if inCmd {
-				hasAnyMainInCmd = true
-			} else {
-				allInCmd = false
-				return filepath.SkipDir
-			}
-		}
-		return nil
-	})
-
-	return allInCmd && hasAnyMainInCmd
+	return false
 }
 
 // runListenerScan records product functions that open network listeners or
@@ -661,17 +819,30 @@ func (h CollectEvidence) runExposure(ctx context.Context, c *domain.AnalysisCase
 		c.EvidenceGraph.AddExposure(f)
 	}
 
-	scope, rationale := exposure.ClassifyPerimeter(c.EvidenceGraph.ExposuresList(), productNames(c))
-	if c.Product.PerimeterOverride != "" && c.Product.PerimeterOverride != "auto" {
-		if c.Product.PerimeterOverride == "cluster" || c.Product.PerimeterOverride == domain.PerimeterClusterInternal {
-			scope = domain.PerimeterClusterInternal
-		} else {
-			scope = c.Product.PerimeterOverride
+	assessment := exposure.ClassifyPerimeter(c.EvidenceGraph.ExposuresList(), productNames(c))
+	// An explicit operator trust selection is the only other admitted basis:
+	// it is a declared perimeter, not an inference from exposure shape.
+	operatorPerimeter := c.Product.TrustedPeer ||
+		(c.Product.PerimeterOverride != "" && c.Product.PerimeterOverride != "auto")
+	if operatorPerimeter {
+		perimeter := assessment.Perimeter
+		switch {
+		case c.Product.PerimeterOverride == "cluster" || c.Product.PerimeterOverride == domain.PerimeterClusterInternal:
+			perimeter = domain.PerimeterClusterInternal
+		case c.Product.PerimeterOverride != "" && c.Product.PerimeterOverride != "auto":
+			perimeter = c.Product.PerimeterOverride
+		case c.Product.TrustedPeer:
+			perimeter = domain.PerimeterClusterInternal
 		}
-		rationale = "perimeter overridden by configuration: " + c.Product.PerimeterOverride
+		rationale := "perimeter explicitly selected by the operator"
+		if c.Product.PerimeterOverride != "" && c.Product.PerimeterOverride != "auto" {
+			rationale = "perimeter overridden by configuration: " + c.Product.PerimeterOverride
+		}
+		assessment = domain.NewPerimeterAssessment(perimeter, domain.PerimeterBasisOperatorDeclared, rationale)
 	}
-	c.DetectedPerimeter = scope
-	c.PerimeterRationale = rationale
+	c.PerimeterAssessment = &assessment
+	c.DetectedPerimeter = assessment.Perimeter
+	c.PerimeterRationale = assessment.Rationale
 
 	var summary strings.Builder
 	fmt.Fprintf(&summary, "%d exposure fact(s):", len(facts))
@@ -797,6 +968,27 @@ func (h CollectEvidence) moduleUsage(ctx context.Context, c *domain.AnalysisCase
 		Tool:    "goanalysis.Index.ModuleUsage",
 		Content: fmt.Sprintf("%d product call site(s) with prefix %s; %d owner-confirmed", len(sites), module, owned),
 	})
+	// The exact subject set this scan is evidence about, computed whether or
+	// not any call site exists. The typed record is what a negative claim
+	// cites: completion and census completeness are measured facts, not
+	// inferred from the nil error above.
+	var subjects []domain.SymbolRef
+	for _, sym := range c.Vulnerability.AffectedSymbols {
+		if domain.OwnerModule(sym.Package, linked) == module {
+			subjects = append(subjects, sym)
+		}
+	}
+	if c.RootCause != nil {
+		for _, rc := range c.RootCause.RootCauses {
+			if domain.OwnerModule(rc.Package, linked) == module {
+				subjects = append(subjects, domain.SymbolRef{Package: rc.Package, Symbol: rc.Symbol})
+			}
+		}
+	}
+	usageComplete := h.Source.SourceScanComplete()
+	recordSourceScan(c, module, subjects, nil, true, usageComplete, false,
+		fmt.Sprintf("%d product call site(s) with prefix %s (%d owner-confirmed); census complete=%v",
+			len(sites), module, owned, usageComplete))
 	if len(sites) == 0 {
 		return
 	}
@@ -818,19 +1010,6 @@ func (h CollectEvidence) moduleUsage(ctx context.Context, c *domain.AnalysisCase
 			entries[s.Callee] = true
 		}
 	}
-	var subjects []domain.SymbolRef
-	for _, sym := range c.Vulnerability.AffectedSymbols {
-		if domain.OwnerModule(sym.Package, linked) == module {
-			subjects = append(subjects, sym)
-		}
-	}
-	if c.RootCause != nil {
-		for _, rc := range c.RootCause.RootCauses {
-			if domain.OwnerModule(rc.Package, linked) == module {
-				subjects = append(subjects, domain.SymbolRef{Package: rc.Package, Symbol: rc.Symbol})
-			}
-		}
-	}
 	var entryList []string
 	for e := range entries {
 		entryList = append(entryList, e)
@@ -838,7 +1017,7 @@ func (h CollectEvidence) moduleUsage(ctx context.Context, c *domain.AnalysisCase
 	if len(subjects) == 0 || len(entryList) == 0 {
 		return
 	}
-	reach, opaque, err := h.Source.ModuleInternalReach(ctx, module, entryList, subjects)
+	reach, err := h.Source.ModuleInternalReach(ctx, module, entryList, subjects)
 	if err != nil {
 		c.EvidenceGraph.AddToolLimitation(fmt.Sprintf("module internal reach scan failed: %v", err))
 		return
@@ -857,9 +1036,12 @@ func (h CollectEvidence) moduleUsage(ctx context.Context, c *domain.AnalysisCase
 		Content: fmt.Sprintf("checked %d subject(s) against %d product-used API entr(ies): %s",
 			len(subjects), len(entryList), strings.Join(checked, ", ")),
 	})
+	recordSourceScan(c, module, subjects, entryList, true, reach.Complete, reach.Opaque,
+		fmt.Sprintf("checked %d subject(s) against %d product-used API entr(ies): %s; complete=%v opaque=%v",
+			len(subjects), len(entryList), strings.Join(checked, ", "), reach.Complete, reach.Opaque))
 	// Opaque dispatch (func values, non-interface map calls) makes the call
 	// graph incomplete: an unreached subject is UNKNOWN, not disproven.
-	if opaque {
+	if reach.Opaque {
 		c.EvidenceGraph.AddEvidence(domain.Evidence{
 			Kind:    domain.EvidenceSourceSnippet,
 			Quality: domain.QualityDeterministic,
@@ -868,7 +1050,7 @@ func (h CollectEvidence) moduleUsage(ctx context.Context, c *domain.AnalysisCase
 			Content: "module contains calls whose callee cannot be resolved (func values/dynamic dispatch); unreached subjects are not disproven",
 		})
 	}
-	for key, chain := range reach {
+	for key, chain := range reach.Reachable {
 		c.EvidenceGraph.AddModuleReachable(key, chain)
 		c.EvidenceGraph.AddEvidence(domain.Evidence{
 			Kind:    domain.EvidenceSourceSnippet,
@@ -878,6 +1060,74 @@ func (h CollectEvidence) moduleUsage(ctx context.Context, c *domain.AnalysisCase
 			Content: fmt.Sprintf("%s reached from product-used API via: %s", key, strings.Join(chain, " -> ")),
 		})
 	}
+}
+
+// recordSourceScan persists one typed source-level measurement. The build
+// context is captured now, so a later admission compares the measurement's
+// actual identity rather than the case's current snapshot.
+func recordSourceScan(c *domain.AnalysisCase, module string, subjects []domain.SymbolRef,
+	entries []string, completed, complete, opaque bool, content string) {
+	if c == nil {
+		return
+	}
+	build := domain.EffectiveBuildContext(c.Product)
+	tool := "goanalysis.Index.ModuleUsage"
+	source := "source index: module usage measurement"
+	if len(entries) > 0 {
+		tool = "goanalysis.Index.ModuleInternalReach"
+		source = "source index: module-internal reachability measurement"
+	}
+	c.EvidenceGraph.AddEvidence(domain.Evidence{
+		Kind:         domain.EvidenceSourceScan,
+		Quality:      domain.QualityDeterministic,
+		Source:       source,
+		Tool:         tool,
+		Content:      content,
+		BuildContext: &build,
+		SourceScan: &domain.SourceScanRun{
+			Module:       module,
+			Subjects:     append([]domain.SymbolRef(nil), subjects...),
+			EntrySymbols: append([]string(nil), entries...),
+			Completed:    completed,
+			Complete:     complete,
+			Opaque:       opaque,
+		},
+	})
+}
+
+// collectProductShape proves the product shape before any source analysis:
+// it is the prerequisite for library-scope admission. Module ownership and
+// the source census are persisted with their evidence, and the evidence ids
+// are linked back into the shape. Binary-mode cases stay ineligible even when
+// a source index exists; a failed or stale proof publishes an UNKNOWN shape
+// with its reason and never a library proof.
+func (h CollectEvidence) collectProductShape(ctx context.Context, c *domain.AnalysisCase) {
+	if c.Product.BinaryPath != "" {
+		c.Product.Shape = &domain.ProductShape{
+			Kind: domain.ProductShapeUnknown,
+			Limitations: []string{
+				"binary-mode analysis: no product source census exists, so the product shape is UNKNOWN",
+			},
+		}
+		return
+	}
+	shape, evs, err := h.Source.BuildProductShape(ctx)
+	if err != nil {
+		c.EvidenceGraph.AddToolLimitation(fmt.Sprintf("product shape proof failed: %v", err))
+		c.Product.Shape = &domain.ProductShape{
+			Kind:        domain.ProductShapeUnknown,
+			Limitations: []string{"product shape proof failed: " + err.Error()},
+		}
+		return
+	}
+	ids := make([]domain.EvidenceID, 0, len(evs))
+	for _, e := range evs {
+		ids = append(ids, c.EvidenceGraph.AddEvidence(e))
+	}
+	if shape != nil {
+		shape.EvidenceIDs = append(shape.EvidenceIDs, ids...)
+	}
+	c.Product.Shape = shape
 }
 
 // runSourceAnalysis gathers call sites, argument provenance and validations
@@ -903,6 +1153,13 @@ func (h CollectEvidence) runSourceAnalysis(ctx context.Context, c *domain.Analys
 			subjects = append(append([]domain.SymbolRef{}, subjects...), *cond.Subject)
 		}
 		switch {
+		case cond.Kind == domain.ConditionCheckTrigger && cond.Mandatory:
+			cert, err := h.Source.CaptureConfigWriterCertificate(ctx,c,cond)
+			if err != nil {
+				c.EvidenceGraph.AddToolLimitation(fmt.Sprintf("configuration certificate %s: %v",cond.ID,err))
+			} else if evidence, err := goanalysis.ConfigCertificateEvidence(cert); err == nil {
+				c.EvidenceGraph.AddEvidence(evidence)
+			}
 		case cond.Params[domain.ParamCheck] == domain.CheckSymbolPresent:
 			h.collectPresence(ctx, c, dedupSubjects(subjects))
 		case cond.Params[domain.ParamCheck] == domain.CheckConfigFlag:
@@ -983,7 +1240,23 @@ func (h CollectEvidence) collectSinkClosure(ctx context.Context, c *domain.Analy
 	if isStdlibModule(c.Vulnerability.Module) {
 		return
 	}
-	closure, evs, err := h.Source.SinkClosure(ctx, cond.ID, c.Vulnerability.Module, "",
+	// The sink set carries a completeness contract only for the
+	// exact-argument attacker-control shape the post-reach route
+	// consumes, and only when the declared subject set is complete.
+	// Every other condition stays KNOWN_ONLY exactly as before, so the
+	// constant/generated-input route is unchanged.
+	basis := ""
+	if cond.Kind == domain.ConditionAttackerControl && cond.ArgIndex >= 0 &&
+		cond.Params[domain.ParamInputSource] != domain.InputPeer {
+		var proof *domain.ContentAdmission
+		if c != nil {
+			proof = fixbinding.AdmitModelProof(fixbinding.AdmissionForCase(c), c.RootCause)
+		}
+		if b, ok := goanalysis.SinkSetBasis(c, subjects, proof); ok {
+			basis = b
+		}
+	}
+	closure, evs, err := h.Source.SinkClosure(ctx, cond.ID, c.Vulnerability.Module, basis,
 		subjects, cond.ArgIndex, sinkClosureHops)
 	if err != nil {
 		c.EvidenceGraph.AddToolLimitation(fmt.Sprintf(
@@ -994,6 +1267,41 @@ func (h CollectEvidence) collectSinkClosure(ctx context.Context, c *domain.Analy
 		c.EvidenceGraph.AddEvidence(e)
 	}
 	c.EvidenceGraph.AddSinkClosure(closure)
+	// Persist the exact site/argument trace for every live payload
+	// position: the post-reach contract matches each live SinkSite to a
+	// recorded DataFlow with the same sink, ArgIndex, origin,
+	// transformations and summary. TraceArgumentBound is the same
+	// bounded primitive the collector used for product call sites; a
+	// site already traced by collectProvenance keeps its recorded flow —
+	// gap analysis owns deepening unresolved ones.
+	traced := map[string]bool{}
+	for _, f := range c.EvidenceGraph.DataFlows {
+		if f.ConditionID != cond.ID {
+			continue
+		}
+		traced[fmt.Sprintf("%s:%d:%d:%s:%d", f.Sink.File, f.Sink.Line, f.Sink.Column, f.Sink.Function, f.Arg)] = true
+	}
+	for _, site := range closure.Sites {
+		if !site.Live {
+			continue
+		}
+		if cond.ArgIndex >= 0 && site.Arg != cond.ArgIndex {
+			continue
+		}
+		key := fmt.Sprintf("%s:%d:%d:%s:%d", site.File, site.Line, site.Column, site.Function, site.Arg)
+		if traced[key] {
+			continue
+		}
+		flow, fevs, ferr := h.Source.TraceArgumentBound(ctx, site.CallSite, site.Arg, sinkClosureHops)
+		if ferr != nil {
+			c.EvidenceGraph.AddToolLimitation(fmt.Sprintf(
+				"sink-site trace %s:%d arg %d (cond %s): %v",
+				site.File, site.Line, site.Arg, cond.ID, ferr))
+			continue
+		}
+		flow.ConditionID = cond.ID
+		c.EvidenceGraph.AddArgumentTrace([]domain.DataFlow{flow}, fevs)
+	}
 }
 
 // sinkClosureHops matches the negative-verification trace budget so the
@@ -1076,13 +1384,10 @@ func (h CollectEvidence) collectProvenance(ctx context.Context, c *domain.Analys
 			c.EvidenceGraph.AddToolLimitation(fmt.Sprintf("trace_argument %s:%d: %v", site.File, site.Line, err))
 			continue
 		}
-		for _, flow := range flows {
-			flow.ConditionID = cond.ID
-			c.EvidenceGraph.AddDataFlows(flow)
+		for i := range flows {
+			flows[i].ConditionID = cond.ID
 		}
-		for _, e := range evs {
-			c.EvidenceGraph.AddEvidence(e)
-		}
+		c.EvidenceGraph.AddArgumentTrace(flows, evs)
 		// Unpinned input position scans every argument; a pinned one
 		// scans just that arg — records carry the Arg index either way.
 		var vals []domain.Validation
@@ -1190,18 +1495,21 @@ func (h CollectEvidence) collectConfigFlag(ctx context.Context, c *domain.Analys
 	if kind, kerr := h.Source.SymbolFieldType(ctx, ref); kerr == nil && kind != "" {
 		c.EvidenceGraph.AddConfigFieldKind(key, kind)
 	}
-	assigns, err := h.Source.FieldAssignments(ctx, ref)
+	writers, err := h.Source.ConfigWriters(ctx, ref)
 	if err != nil {
 		c.EvidenceGraph.AddToolLimitation(fmt.Sprintf("config flag %s assignments: %v", key, err))
 		return
 	}
+	assigns := writers.Assignments
+	c.EvidenceGraph.AddConfigWriters(key, writers)
+	for _, blocker := range writers.Blockers { c.EvidenceGraph.AddToolLimitation("config writers " + key + ": " + blocker) }
 	c.EvidenceGraph.AddConfigFlag(key, assigns...)
 	content += fmt.Sprintf("; %d assignment(s) in product code", len(assigns))
 	c.EvidenceGraph.AddEvidence(domain.Evidence{
 		Kind:    domain.EvidenceSearchResult,
 		Quality: domain.QualityDeterministic,
 		Source:  "config flag check " + key,
-		Tool:    "goanalysis.Index.FindSymbol+FieldAssignments",
+		Tool:    "goanalysis.Index.FindSymbol+ConfigWriters",
 		Content: content,
 	})
 }
@@ -1359,6 +1667,9 @@ func (h NegativeCheck) Run(ctx context.Context, c *domain.AnalysisCase) (workflo
 			cl.NegativeVerification = &domain.NegativeVerification{
 				Status:      domain.NegativeInsufficientScope,
 				Limitations: []string{"negative verifier not configured"},
+				AnalysisGaps: []domain.AnalysisGap{
+					negativeVerificationGap(c.ID, cl.ConditionID, "negative verifier not configured"),
+				},
 			}
 			continue
 		}
@@ -1367,6 +1678,9 @@ func (h NegativeCheck) Run(ctx context.Context, c *domain.AnalysisCase) (workflo
 			cl.NegativeVerification = &domain.NegativeVerification{
 				Status: domain.NegativeInsufficientScope,
 				Notes:  "cannot resolve condition for falsification",
+				AnalysisGaps: []domain.AnalysisGap{
+					negativeVerificationGap(c.ID, cl.ConditionID, "cannot resolve condition for falsification"),
+				},
 			}
 			continue
 		}
@@ -1418,13 +1732,26 @@ func (h Review) Run(_ context.Context, c *domain.AnalysisCase) (workflow.Transit
 		maxIt = 2
 	}
 	if len(c.Reviews) >= maxIt {
-		c.EvidenceGraph.AddLimitation("review iteration budget exhausted; verdict computed on repaired claims")
-		return workflow.Transition{Next: domain.StateEvaluateVerdict, Reason: "review budget exhausted"}, nil
+		reason := "review iteration budget exhausted; unresolved criticism blocks a final verdict"
+		c.AnalysisGaps = appendGap(c.AnalysisGaps, analysisGap(domain.GapOwnerProof,
+			domain.GapReviewUnresolved, domain.ObligationCondition, c.ID, reason))
+		c.EvidenceGraph.AddLimitation(reason)
+		return workflow.Transition{Next: domain.StateEvaluateVerdict, Reason: reason}, nil
 	}
 
 	// The proposed verdict is computed deterministically before review;
 	// the reviewer may only repair claims, never set the verdict.
-	proposed := h.Evaluator.Evaluate(affectedOf(c), exploitOf(c), c.Claims)
+	proposed := h.Evaluator.Evaluate(evaluator.VerdictInput{
+		Product:       c.Product,
+		Affected:      affectedOf(c),
+		Model:         exploitOf(c),
+		Claims:        c.Claims,
+		Evidence:      c.EvidenceGraph.EvidenceList(),
+		Vulnerability: c.Vulnerability,
+		RootCause:     c.RootCause,
+		RecordPin:     c.RecordPin,
+		AdvisoryRecord: c.AdvisoryRecord,
+	})
 	rev := h.Reviewer.Review(c, proposed)
 	rev.ID = domain.ReviewID(fmt.Sprintf("REV-%d", len(c.Reviews)+1))
 	c.Reviews = append(c.Reviews, rev)
@@ -1437,10 +1764,11 @@ func (h Review) Run(_ context.Context, c *domain.AnalysisCase) (workflow.Transit
 	if c.StrictLLM {
 		for _, f := range rev.Findings {
 			if strings.HasPrefix(f.Problem, "strict-llm:") {
-				return workflow.Transition{
-					Next:   domain.StateFailed,
-					Reason: f.Problem,
-				}, nil
+				gap := analysisGap(domain.GapOwnerProof, domain.GapReviewUnresolved,
+					domain.ObligationCondition, c.ID, f.Problem)
+				c.AnalysisGaps = appendGap(c.AnalysisGaps, gap)
+				c.Verdict = nil
+				return workflow.Transition{Next: domain.StateBuildReport, Reason: f.Problem}, nil
 			}
 		}
 	}
@@ -1450,11 +1778,18 @@ func (h Review) Run(_ context.Context, c *domain.AnalysisCase) (workflow.Transit
 }
 
 // RepairAnalysis applies the bounded repair for the latest review's
-// findings: high-severity claim findings demote the claim to UNKNOWN.
-// Repairs only remove unsupported strength — never add evidence or
-// promote a claim. A repaired case goes back to REVIEW so the reviewer
-// sees the repaired claim set; an unrepairable finding (model/verdict
-// targets) falls through to the verdict.
+// findings. High-severity claim findings demote the claim to UNKNOWN.
+// Condition actions are nominations, not mutations: a demote is applied
+// only when the deterministic applicability contract names a concrete
+// mechanism mismatch for that condition, and a promote is never applied
+// because no contract establishes necessity (a no-mismatch applicability
+// result is not proof). An unresolved high-severity condition criticism
+// stays in PendingConditionReviews so the verdict cannot close around it.
+// Repairs never edit a claim's result, falsifier, evidence or
+// negative-verification record, and never set the verdict. A repaired
+// case goes back to REVIEW so the reviewer sees the repaired package; an
+// unrepairable finding (model/verdict targets) falls through to the
+// verdict.
 type RepairAnalysis struct{}
 
 func (RepairAnalysis) State() domain.WorkflowState { return domain.StateRepairAnalysis }
@@ -1464,23 +1799,83 @@ func (RepairAnalysis) Run(_ context.Context, c *domain.AnalysisCase) (workflow.T
 		return workflow.Transition{Next: domain.StateEvaluateVerdict, Reason: "repair without a review"}, nil
 	}
 	rev := c.Reviews[len(c.Reviews)-1]
+	reviewID := rev.ID
+	if reviewID == "" {
+		reviewID = domain.ReviewID(fmt.Sprintf("REV-%d", len(c.Reviews)))
+	}
 	repaired := false
+
+	if c.Exploit != nil {
+		// Condition actions are nominations. A demote is applied only when
+		// the deterministic applicability contract names a concrete
+		// mechanism mismatch for that condition; an empty result means no
+		// mismatch was detected, not that necessity is proved. A promote
+		// has no deterministic proof channel at all, so it never applies.
+		actions := conditionActions(rev.Findings)
+		for _, id := range sortedConditionIDs(actions) {
+			cond := findCondition(c.Exploit, id)
+			if cond == nil {
+				continue
+			}
+			switch actions[id] {
+			case domain.ReviewActionDemote:
+				if !hasMandatoryCondition(c.Exploit, id) {
+					continue
+				}
+				mismatch := exploit.ValidateConditionApplicability(c.Vulnerability, c.RootCause, *cond)
+				if mismatch == "" {
+					// An unproven demotion may not narrow the conjunction,
+					// and closure may not proceed around the open critique.
+					if !slices.Contains(c.Exploit.PendingConditionReviews, id) {
+						c.Exploit.PendingConditionReviews = append(c.Exploit.PendingConditionReviews, id)
+					}
+					c.EvidenceGraph.AddLimitation(fmt.Sprintf(
+						"condition %s demote nomination in review %s was not applied: no deterministic applicability mismatch; the critique remains pending and blocks closure",
+						id, reviewID))
+					continue
+				}
+				if demoteCondition(c.Exploit, id) {
+					repaired = true
+					c.EvidenceGraph.AddLimitation(fmt.Sprintf(
+						"condition %s demoted to supporting by deterministic applicability mismatch on review %s: %s (%s)",
+						id, reviewID,
+						conditionActionProblem(rev.Findings, id, domain.ReviewActionDemote), mismatch))
+				}
+				removePendingConditionReview(c.Exploit, id)
+			case domain.ReviewActionPromote:
+				c.EvidenceGraph.AddLimitation(fmt.Sprintf(
+					"condition %s promote nomination in review %s was not applied: no deterministic necessity proof exists (a no-mismatch applicability result does not prove necessity); the condition keeps its current necessity",
+					id, reviewID))
+			}
+		}
+		// An action-less high finding on a mandatory condition is an
+		// unresolved critique of the conjunction, not a caveat to attach
+		// next to a closure verdict.
+		for _, f := range rev.Findings {
+			if f.Severity != "high" || f.TargetType != "condition" || f.TargetID == "" {
+				continue
+			}
+			if f.Action == domain.ReviewActionPromote || f.Action == domain.ReviewActionDemote {
+				continue
+			}
+			id := domain.ConditionID(f.TargetID)
+			// An explicit action in the same review already resolves this
+			// condition's critique: a duplicate action-less finding must
+			// not re-open it as pending.
+			if _, acted := actions[id]; acted {
+				continue
+			}
+			if !hasMandatoryCondition(c.Exploit, id) {
+				continue
+			}
+			if !slices.Contains(c.Exploit.PendingConditionReviews, id) {
+				c.Exploit.PendingConditionReviews = append(c.Exploit.PendingConditionReviews, id)
+			}
+		}
+	}
+
 	for _, f := range rev.Findings {
 		if f.Severity != "high" {
-			continue
-		}
-		if f.TargetType == "condition" && c.Exploit != nil {
-			for idx, sc := range c.Exploit.SupportingFactors {
-				if string(sc.ID) == f.TargetID {
-					promoted := sc
-					promoted.Mandatory = true
-					c.Exploit.MandatoryConditions = append(c.Exploit.MandatoryConditions, promoted)
-					c.Exploit.SupportingFactors = append(c.Exploit.SupportingFactors[:idx], c.Exploit.SupportingFactors[idx+1:]...)
-					c.EvidenceGraph.AddLimitation(fmt.Sprintf("condition %s promoted to mandatory by reviewer: %s", sc.ID, f.Problem))
-					repaired = true
-					break
-				}
-			}
 			continue
 		}
 		if f.TargetType != "claim" {
@@ -1525,10 +1920,108 @@ func (RepairAnalysis) Run(_ context.Context, c *domain.AnalysisCase) (workflow.T
 	}
 	if !repaired {
 		return workflow.Transition{Next: domain.StateEvaluateVerdict,
-			Reason: "review REVISE: no repairable claims"}, nil
+			Reason: "review REVISE: no repairable conditions or claims"}, nil
 	}
 	return workflow.Transition{Next: domain.StateReview,
-		Reason: "repaired claims; re-review"}, nil
+		Reason: "repaired conditions and claims; re-review"}, nil
+}
+
+// conditionActions resolves the explicit high-severity condition actions
+// in one review by target ID. An unknown or missing action carries no
+// nomination semantics; for a promote/demote conflict on the same ID the
+// demote wins regardless of order.
+func conditionActions(findings []domain.ReviewFinding) map[domain.ConditionID]domain.ReviewAction {
+	actions := map[domain.ConditionID]domain.ReviewAction{}
+	for _, f := range findings {
+		if f.Severity != "high" || f.TargetType != "condition" || f.TargetID == "" {
+			continue
+		}
+		id := domain.ConditionID(f.TargetID)
+		switch f.Action {
+		case domain.ReviewActionDemote:
+			actions[id] = domain.ReviewActionDemote
+		case domain.ReviewActionPromote:
+			if actions[id] != domain.ReviewActionDemote {
+				actions[id] = domain.ReviewActionPromote
+			}
+		}
+	}
+	return actions
+}
+
+func sortedConditionIDs(actions map[domain.ConditionID]domain.ReviewAction) []domain.ConditionID {
+	ids := make([]domain.ConditionID, 0, len(actions))
+	for id := range actions {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	return ids
+}
+
+func conditionActionProblem(findings []domain.ReviewFinding, id domain.ConditionID, action domain.ReviewAction) string {
+	for _, f := range findings {
+		if f.Severity == "high" && f.TargetType == "condition" &&
+			f.TargetID == string(id) && f.Action == action {
+			return f.Problem
+		}
+	}
+	return ""
+}
+
+// demoteCondition physically moves the condition out of the mandatory
+// conjunction into supporting factors. The condition record (claim,
+// evidence, verification) is untouched; only its necessity changes. The
+// only caller applies it after the deterministic applicability contract
+// named a concrete mismatch — a reviewer request alone never demotes. The
+// operation is idempotent: an already-demoted condition is not duplicated.
+func demoteCondition(m *domain.ExploitModel, id domain.ConditionID) bool {
+	idx := -1
+	for i := range m.MandatoryConditions {
+		if m.MandatoryConditions[i].ID == id {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return false
+	}
+	cond := m.MandatoryConditions[idx]
+	cond.Mandatory = false
+	m.MandatoryConditions = append(m.MandatoryConditions[:idx], m.MandatoryConditions[idx+1:]...)
+	for i := range m.SupportingFactors {
+		if m.SupportingFactors[i].ID == id {
+			m.SupportingFactors[i].Mandatory = false
+			return true
+		}
+	}
+	m.SupportingFactors = append(m.SupportingFactors, cond)
+	return true
+}
+
+func hasMandatoryCondition(m *domain.ExploitModel, id domain.ConditionID) bool {
+	for i := range m.MandatoryConditions {
+		if m.MandatoryConditions[i].ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+func removePendingConditionReview(m *domain.ExploitModel, id domain.ConditionID) {
+	if len(m.PendingConditionReviews) == 0 {
+		return
+	}
+	kept := m.PendingConditionReviews[:0]
+	for _, pending := range m.PendingConditionReviews {
+		if pending != id {
+			kept = append(kept, pending)
+		}
+	}
+	if len(kept) == 0 {
+		m.PendingConditionReviews = nil
+		return
+	}
+	m.PendingConditionReviews = kept
 }
 
 // claimCitesMissingEvidence reports whether the claim references evidence
@@ -1716,19 +2209,26 @@ func cloneCaseForRisk(c *domain.AnalysisCase, claims []domain.Claim, trustedPeer
 
 type EvaluateVerdict struct {
 	Evaluator evaluator.VerdictEvaluator
+	// Next is the state after the record's profile assessments. Empty keeps
+	// the historical BUILD_REPORT transition; root orchestration sets
+	// ASSESS_RELATED_RECORDS and record-only runs stop at BUILD_REPORT.
+	Next domain.WorkflowState
 }
 
 func (EvaluateVerdict) State() domain.WorkflowState { return domain.StateEvaluateVerdict }
 
 func (h EvaluateVerdict) Run(_ context.Context, c *domain.AnalysisCase) (workflow.Transition, error) {
-	var affected domain.AffectedResult
-	if c.Affected != nil {
-		affected = *c.Affected
-	}
-	var model domain.ExploitModel
-	if c.Exploit != nil {
-		model = *c.Exploit
-	}
+	affected := affectedOf(c)
+	model := exploitOf(c)
+	build := domain.EffectiveBuildContext(c.Product)
+	stampCaseGapIDs(c)
+
+	// Both profile claim sets are captured before the actual-profile
+	// assignment overwrites c.Claims. The cluster-perimeter set stays a
+	// hypothesis: it is only rewritten into trusted-infrastructure facts when
+	// the typed perimeter basis independently admits trust.
+	claimsZT := append([]domain.Claim(nil), c.Claims...)
+	claimsCP := append([]domain.Claim(nil), c.Claims...)
 
 	conds := make(map[domain.ConditionID]domain.Condition, len(model.MandatoryConditions)+len(model.SupportingFactors))
 	for _, cond := range model.MandatoryConditions {
@@ -1738,157 +2238,426 @@ func (h EvaluateVerdict) Run(_ context.Context, c *domain.AnalysisCase) (workflo
 		conds[cond.ID] = cond
 	}
 
-	// Profile 1: zero_trust (TrustedPeer = false)
-	vZT := h.Evaluator.Evaluate(affected, model, c.Claims)
-	vZT.Limitations = append(vZT.Limitations, c.EvidenceGraph.Limitations...)
-
-	// Profile 2: cluster_perimeter (TrustedPeer = true)
 	operatorAsserted := c.Product.TrustedPeer ||
 		(c.Product.PerimeterOverride != "" && c.Product.PerimeterOverride != "auto")
-	profileBasis := domain.BasisAutoPerimeter
-	if operatorAsserted {
-		profileBasis = domain.BasisDeclaredTrust
-	}
-	claimsCP := make([]domain.Claim, len(c.Claims))
-	copy(claimsCP, c.Claims)
+	trustAdmitted := operatorAsserted ||
+		(c.PerimeterAssessment != nil && c.PerimeterAssessment.AllowsTrustedPeerSelection())
+	profileBasis := domain.BasisDeclaredTrust
 	rewritten := make([]bool, len(claimsCP))
-	for i := range claimsCP {
-		cl := &claimsCP[i]
-		cond := conds[cl.ConditionID]
-		isPeerInput := (cond.Kind == domain.ConditionAttackerControl || cond.Kind == domain.ConditionInputConstraint) &&
-			cond.Params[domain.ParamInputSource] != domain.InputArg &&
-			cond.Params[domain.ParamInputSource] != domain.InputConfig &&
-			evaluator.WantsPeerInput(cond, c.Vulnerability)
-		if isPeerInput || cl.Falsifier == domain.FalsifierTrustedInfrastructure {
-			if cl.Result != domain.ClaimFalse {
-				rewritten[i] = true
-				cl.Falsifier = domain.FalsifierTrustedInfrastructure
+	if trustAdmitted {
+		for i := range claimsCP {
+			cl := &claimsCP[i]
+			// A proven library public-API payload path is a code-level positive:
+			// the cluster-perimeter trust heuristic speaks about deployment peer
+			// input, so it must not replace this claim with trusted-infrastructure
+			// FALSE. The library boundary is reported through the scope axis.
+			if cl.Result == domain.ClaimTrue && cl.ControlBasis == domain.ControlBasisLibraryPublicAPI {
+				continue
 			}
-			cl.Result = domain.ClaimFalse
-			if cl.Falsifier == "" {
-				cl.Falsifier = domain.FalsifierTrustedInfrastructure
-			}
-			if cl.Falsifier == domain.FalsifierTrustedInfrastructure {
-				if evaluator.HasConfigOriginOutbound(c, c.Vulnerability.Module) {
-					cl.FalsifierBasis = domain.BasisConfigOrigin
+			cond := conds[cl.ConditionID]
+			isPeerInput := (cond.Kind == domain.ConditionAttackerControl || cond.Kind == domain.ConditionInputConstraint) &&
+				cond.Params[domain.ParamInputSource] != domain.InputArg &&
+				cond.Params[domain.ParamInputSource] != domain.InputConfig &&
+				evaluator.WantsPeerInput(cond, c.Vulnerability)
+			if isPeerInput || cl.Falsifier == domain.FalsifierTrustedInfrastructure {
+				if cl.Result != domain.ClaimFalse {
+					rewritten[i] = true
+					cl.Falsifier = domain.FalsifierTrustedInfrastructure
+				}
+				cl.Result = domain.ClaimFalse
+				if cl.Falsifier == "" {
+					cl.Falsifier = domain.FalsifierTrustedInfrastructure
+				}
+				if cl.Falsifier == domain.FalsifierTrustedInfrastructure {
+					if evaluator.HasConfigOriginOutbound(c, c.Vulnerability.Module) {
+						cl.FalsifierBasis = domain.BasisConfigOrigin
+						// The config-origin basis is a code trace measured under
+						// this build: without an admitted target it cannot be
+						// verified, so no VERIFIED record is fabricated.
+						if domain.ValidateNegativeTarget(c.Product) == nil {
+							build := domain.EffectiveBuildContext(c.Product)
+							cl.NegativeVerification = &domain.NegativeVerification{
+								Status:       domain.NegativeVerified,
+								Notes:        "outbound destination endpoints are statically configured or loaded from trusted configuration (config-origin)",
+								BuildContext: &build,
+							}
+						}
+					} else if cl.FalsifierBasis == "" {
+						cl.FalsifierBasis = profileBasis
+					}
+				}
+				if cl.Explanation == "" {
+					if cl.FalsifierBasis == domain.BasisConfigOrigin {
+						cl.Explanation = "outbound destination endpoints are statically configured or loaded from trusted configuration (config-origin)"
+					} else {
+						cl.Explanation = "FALSE is decided by trusted cluster infrastructure / perimeter"
+					}
+				}
+				if cl.NegativeVerification == nil {
 					cl.NegativeVerification = &domain.NegativeVerification{
 						Status: domain.NegativeVerified,
-						Notes:  "outbound destination endpoints are statically configured or loaded from trusted configuration (config-origin)",
+						Notes:  "FALSE is decided by product snapshot deployment trust facts (cluster-internal perimeter)",
 					}
-				} else if cl.FalsifierBasis == "" {
-					cl.FalsifierBasis = profileBasis
-				}
-			}
-			if cl.Explanation == "" {
-				if cl.FalsifierBasis == domain.BasisConfigOrigin {
-					cl.Explanation = "outbound destination endpoints are statically configured or loaded from trusted configuration (config-origin)"
-				} else {
-					cl.Explanation = "FALSE is decided by trusted cluster infrastructure / perimeter"
-				}
-			}
-			if cl.NegativeVerification == nil {
-				cl.NegativeVerification = &domain.NegativeVerification{
-					Status: domain.NegativeVerified,
-					Notes:  "FALSE is decided by product snapshot deployment trust facts (cluster-internal perimeter)",
 				}
 			}
 		}
 	}
-	vCP := h.Evaluator.Evaluate(affected, model, claimsCP)
-	vCP.Limitations = append(vCP.Limitations, c.EvidenceGraph.Limitations...)
 
-	// An operator assertion cannot discharge sinks the exploit model
-	// never resolved: a perimeter-rewritten FALSE covers only the modeled
-	// conditions. With unresolved advisory subjects the unmodeled exploit
-	// shape stays unproven — demote to INCONCLUSIVE. Subjects proven
-	// absent from the build graph carry no unexplored exploit shape and
-	// do not trigger the demotion. Auto-detected perimeter rests on
-	// structural deploy facts and is allowed through.
-	if vCP.Verdict == domain.VerdictNoExploitPathFound && operatorAsserted {
-		absent := make(map[domain.SymbolRef]bool, len(model.AbsentSubjects))
-		for _, s := range model.AbsentSubjects {
-			absent[s] = true
-		}
-		var unmodeled []domain.SymbolRef
-		for _, s := range model.UnresolvedSubjects {
-			if !absent[s] {
-				unmodeled = append(unmodeled, s)
-			}
-		}
-		if len(unmodeled) > 0 {
-			demote := false
-			for _, cid := range vCP.ConditionIDs {
-				for i := range claimsCP {
-					if claimsCP[i].ConditionID == cid && rewritten[i] {
-						demote = true
-					}
-				}
-			}
-			if demote {
-				vCP.Verdict = domain.VerdictInconclusive
-				vCP.Reason = fmt.Sprintf(
-					"cluster-perimeter verdict rests on a declared trust boundary, but %d advisory-declared subject(s) are unresolved: an operator assertion cannot discharge an unmodeled exploit shape",
-					len(unmodeled))
-				vCP.ConditionIDs = nil
-				vCP.EvidenceIDs = nil
-			}
-		}
+	ztResult := finding.Assess(finding.AssessmentInput{
+		VerdictInput: evaluator.VerdictInput{
+			Product:   c.Product,
+			Affected:  affected,
+			Model:     model,
+			Claims:    claimsZT,
+			Evidence:  c.EvidenceGraph.EvidenceList(),
+			RecordPin: c.RecordPin,
+			AdvisoryRecord: c.AdvisoryRecord,
+		},
+		RootCause:     c.RootCause,
+		Vulnerability: c.Vulnerability,
+		Gaps:          c.AnalysisGaps,
+		AssessmentID:  c.ID,
+	})
+	cpResult := finding.Assess(finding.AssessmentInput{
+		VerdictInput: evaluator.VerdictInput{
+			Product:   c.Product,
+			Affected:  affected,
+			Model:     model,
+			Claims:    claimsCP,
+			Evidence:  c.EvidenceGraph.EvidenceList(),
+			RecordPin: c.RecordPin,
+			AdvisoryRecord: c.AdvisoryRecord,
+		},
+		RootCause:     c.RootCause,
+		Vulnerability: c.Vulnerability,
+		Gaps:          c.AnalysisGaps,
+		AssessmentID:  c.ID,
+	})
+	ztResult.Limitations = append(ztResult.Limitations, c.EvidenceGraph.Limitations...)
+	cpResult.Limitations = append(cpResult.Limitations, c.EvidenceGraph.Limitations...)
+	if !trustAdmitted {
+		cpResult.Limitations = append(cpResult.Limitations,
+			"hypothetical cluster-perimeter profile: the recorded deployment basis does not establish trusted peers, so no trusted-peer rewrite was applied and this result must not be read as a deployment fact")
 	}
+	// An operator assertion cannot discharge sinks the exploit model never
+	// resolved: a perimeter-rewritten FALSE covers only the modeled
+	// conditions, so the unmodeled exploit shape stays unproven and the
+	// assessment fails with a reachability gap.
+	demoteOperatorNEPF(&cpResult, operatorAsserted, rewritten, claimsCP, model, c.ID)
 
-	setGroundBasis(c.Claims, &vZT)
-	setGroundBasis(claimsCP, &vCP)
+	setGroundBasis(claimsZT, ztResult.Verdict)
+	setGroundBasis(claimsCP, cpResult.Verdict)
 
-	cClonedZT := cloneCaseForRisk(c, c.Claims, false)
-	cClonedCP := cloneCaseForRisk(c, claimsCP, true)
+	cRiskZT := riskForAssessment(c.Vulnerability, cloneCaseForRisk(c, claimsZT, false), ztResult)
+	cRiskCP := riskForAssessment(c.Vulnerability, cloneCaseForRisk(c, claimsCP, true), cpResult)
 
-	cRiskZT := risk.Assess(c.Vulnerability, cClonedZT, vZT)
-	cRiskCP := risk.Assess(c.Vulnerability, cClonedCP, vCP)
-
-	isClusterTarget := c.DetectedPerimeter == domain.PerimeterClusterInternal ||
-		c.DetectedPerimeter == "cluster" ||
-		c.Product.PerimeterOverride == "cluster" ||
-		c.Product.PerimeterOverride == domain.PerimeterClusterInternal ||
-		c.Product.TrustedPeer
+	// A trusted-peer actual profile exists only when the typed perimeter
+	// basis admitted trust (an operator declaration or an admitted deployment
+	// policy). Listener locality and ClusterIP topology select nothing.
+	isClusterTarget := trustAdmitted
 
 	ztProfile := domain.ProfileVerdict{
-		Profile:        domain.ProfileZeroTrust,
-		Title:          "Внешний периметр (Zero Trust / Недоверенный пир)",
-		Verdict:        vZT.Verdict,
-		Reason:         vZT.Reason,
-		Priority:       cRiskZT.Priority,
-		SLA:            cRiskZT.SLA,
-		IsTargetActual: !isClusterTarget,
+		Profile:             domain.ProfileZeroTrust,
+		Title:               "Внешний периметр (Zero Trust / Недоверенный пир)",
+		Verdict:             verdictOf(ztResult),
+		Reason:              assessmentReason(ztResult),
+		Priority:            cRiskZT.Priority,
+		SLA:                 cRiskZT.SLA,
+		IsTargetActual:      !isClusterTarget,
+		ExploitabilityScope: scopeOf(ztResult),
 	}
-	var cpFalsifier domain.FalsifierKind
-	for _, id := range vCP.ConditionIDs {
-		for _, cl := range claimsCP {
-			if cl.ConditionID == id && cl.Falsifier != "" {
-				cpFalsifier = domain.FalsifierKind(cl.Falsifier)
+	cpProfile := domain.ProfileVerdict{
+		Profile:             domain.ProfileClusterPerimeter,
+		Title:               "Внутренний кластер (K8s ClusterIP / Service Mesh)",
+		Verdict:             verdictOf(cpResult),
+		Reason:              assessmentReason(cpResult),
+		Falsifier:           falsifierOf(cpResult, claimsCP),
+		Priority:            cRiskCP.Priority,
+		SLA:                 cRiskCP.SLA,
+		IsTargetActual:      isClusterTarget,
+		ExploitabilityScope: scopeOf(cpResult),
+	}
+	c.Profiles = []domain.ProfileVerdict{ztProfile, cpProfile}
+	c.ProfileAssessments = []domain.ProfileAssessment{
+		profileAssessment(domain.ProfileZeroTrust, !isClusterTarget, build, claimsZT, ztResult, &cRiskZT),
+		profileAssessment(domain.ProfileClusterPerimeter, isClusterTarget, build, claimsCP, cpResult, &cRiskCP),
+	}
+
+	actual := ztResult
+	actualClaims := claimsZT
+	actualRisk := cRiskZT
+	if isClusterTarget {
+		actual = cpResult
+		actualClaims = claimsCP
+		actualRisk = cRiskCP
+	}
+	c.Claims = actualClaims
+	c.Verdict = actual.Verdict
+	c.ContextualRisk = &actualRisk
+	c.AnalysisGaps = append([]domain.AnalysisGap(nil), actual.Gaps...)
+
+	reason := "assessment FAILED"
+	if actual.Verdict != nil {
+		reason = "verdict evaluated: " + string(actual.Verdict.Verdict)
+	}
+	next := h.Next
+	if next == "" {
+		next = domain.StateBuildReport
+	}
+	return workflow.Transition{Next: next, Reason: reason}, nil
+}
+
+// stampCaseGapIDs binds every producer-emitted gap to this assessment once.
+// Producers that do not know the case id leave the field empty; an unbound gap
+// cannot be validated or re-admitted on replay.
+func stampCaseGapIDs(c *domain.AnalysisCase) {
+	id := assessmentIDFor(c)
+	stamp := func(gaps []domain.AnalysisGap) {
+		for i := range gaps {
+			if gaps[i].AssessmentID == "" {
+				gaps[i].AssessmentID = id
 			}
 		}
 	}
-	cpProfile := domain.ProfileVerdict{
-		Profile:        domain.ProfileClusterPerimeter,
-		Title:          "Внутренний кластер (K8s ClusterIP / Service Mesh)",
-		Verdict:        vCP.Verdict,
-		Reason:         vCP.Reason,
-		Falsifier:      cpFalsifier,
-		Priority:       cRiskCP.Priority,
-		SLA:            cRiskCP.SLA,
-		IsTargetActual: isClusterTarget,
+	stamp(c.AnalysisGaps)
+	if c.Affected != nil {
+		stamp(c.Affected.AnalysisGaps)
 	}
-	c.Profiles = []domain.ProfileVerdict{ztProfile, cpProfile}
-
-	if isClusterTarget {
-		c.Verdict = &vCP
-		c.ContextualRisk = &cRiskCP
-		c.Claims = claimsCP
-	} else {
-		c.Verdict = &vZT
-		c.ContextualRisk = &cRiskZT
+	if c.RootCause != nil {
+		stamp(c.RootCause.AnalysisGaps)
 	}
+	for i := range c.Claims {
+		stamp(c.Claims[i].AnalysisGaps)
+		if nv := c.Claims[i].NegativeVerification; nv != nil {
+			stamp(nv.AnalysisGaps)
+		}
+	}
+}
 
-	return workflow.Transition{Next: domain.StateBuildReport, Reason: "verdict evaluated: " + string(c.Verdict.Verdict)}, nil
+func assessmentIDFor(c *domain.AnalysisCase) domain.CaseID {
+	if c != nil && c.ID != "" {
+		return c.ID
+	}
+	return domain.CaseID("assessment")
+}
+
+func normalizeAssessmentID(id domain.CaseID) domain.CaseID {
+	if id != "" {
+		return id
+	}
+	return domain.CaseID("assessment")
+}
+
+// appendGap appends a typed diagnostic once. A re-entered analysis state or a
+// resumed case must not multiply the same cause.
+func appendGap(gaps []domain.AnalysisGap, gap domain.AnalysisGap) []domain.AnalysisGap {
+	for _, existing := range gaps {
+		if existing.Owner == gap.Owner && existing.Code == gap.Code &&
+			existing.Obligation == gap.Obligation && existing.ConditionID == gap.ConditionID &&
+			existing.Message == gap.Message {
+			return gaps
+		}
+	}
+	return append(gaps, gap)
+}
+
+func analysisGap(owner domain.GapOwner, code domain.GapCode, obligation domain.Obligation,
+	id domain.CaseID, message string) domain.AnalysisGap {
+	return domain.AnalysisGap{
+		Owner:        owner,
+		Code:         code,
+		Obligation:   obligation,
+		AssessmentID: normalizeAssessmentID(id),
+		Message:      message,
+	}
+}
+
+func rootCauseGap(id domain.CaseID, message string) domain.AnalysisGap {
+	return analysisGap(domain.GapOwnerCode, domain.GapRootCauseUnresolved,
+		domain.ObligationRootCause, id, message)
+}
+
+func inputGap(id domain.CaseID, obligation domain.Obligation, message string) domain.AnalysisGap {
+	return analysisGap(domain.GapOwnerInput, domain.GapInputResolutionFailed, obligation, id, message)
+}
+
+func measurementGap(id domain.CaseID, obligation domain.Obligation, message string) domain.AnalysisGap {
+	return analysisGap(domain.GapOwnerProof, domain.GapMeasurementNotCompleted, obligation, id, message)
+}
+
+func negativeVerificationGap(id domain.CaseID, condition domain.ConditionID, message string) domain.AnalysisGap {
+	gap := analysisGap(domain.GapOwnerProof, domain.GapNegativeVerificationIncomplete,
+		domain.ObligationCondition, id, message)
+	gap.ConditionID = condition
+	return gap
+}
+
+func budgetConditionGap(c *domain.AnalysisCase, condition domain.ConditionID, message string) domain.AnalysisGap {
+	gap := analysisGap(domain.GapOwnerCode, domain.GapAnalysisBudgetExhausted,
+		domain.ObligationCondition, assessmentIDFor(c), message)
+	gap.ConditionID = condition
+	return gap
+}
+
+// appendClaimGap attaches a cause to the claim that owns the condition, or to
+// the case when the claim set no longer carries it.
+func appendClaimGap(c *domain.AnalysisCase, condition domain.ConditionID, gap domain.AnalysisGap) {
+	if cl := findClaim(c.Claims, condition); cl != nil {
+		cl.AnalysisGaps = appendGap(cl.AnalysisGaps, gap)
+		return
+	}
+	c.AnalysisGaps = appendGap(c.AnalysisGaps, gap)
+}
+
+// unresolvedConditionGap records the producer-side cause for a mandatory
+// condition the bounded gap loop could not resolve. It routes on the typed
+// condition kind, never on limitation text.
+func unresolvedConditionGap(c *domain.AnalysisCase, cond domain.Condition) domain.AnalysisGap {
+	code := domain.GapUnclassifiedAnalysisGap
+	switch cond.Kind {
+	case domain.ConditionSymbolReachable:
+		code = domain.GapReachabilityProofIncomplete
+	case domain.ConditionAttackerControl, domain.ConditionInputConstraint:
+		code = domain.GapInputTraceIncomplete
+	case domain.ConditionCheckTrigger, domain.ConditionCheckInput:
+		code = domain.GapTriggerProofIncomplete
+	}
+	gap := analysisGap(domain.GapOwnerCode, code, domain.ObligationCondition,
+		assessmentIDFor(c),
+		fmt.Sprintf("gap analysis exhausted without resolving %s condition %s", cond.Kind, cond.ID))
+	gap.ConditionID = cond.ID
+	return gap
+}
+
+// failureTransition records an analysis failure and routes it to the verdict
+// evaluator (which produces failed profile assessments) or, for strict-LLM
+// aborts, straight to report writing with no verdict. Analysis failures never
+// terminate before the diagnostic deliverable exists.
+func failureTransition(c *domain.AnalysisCase, gap domain.AnalysisGap, strict bool) workflow.Transition {
+	c.AnalysisGaps = appendGap(c.AnalysisGaps, gap)
+	c.EvidenceGraph.AddLimitation(gap.Message)
+	if strict {
+		c.Verdict = nil
+		return workflow.Transition{Next: domain.StateBuildReport, Reason: gap.Message}
+	}
+	return workflow.Transition{Next: domain.StateEvaluateVerdict, Reason: gap.Message}
+}
+
+// demoteOperatorNEPF turns a declared-trust NEPF into an explicit analysis
+// failure when the exploit model leaves an advisory-declared sink unresolved.
+// An operator's trust assertion cannot discharge an exploit shape the model
+// never covered; the claim set is preserved, only the verdict is withheld.
+func demoteOperatorNEPF(result *domain.AssessmentResult, operatorAsserted bool, rewritten []bool,
+	claims []domain.Claim, model domain.ExploitModel, id domain.CaseID) {
+	if !operatorAsserted || result == nil || result.Verdict == nil ||
+		result.Verdict.Verdict != domain.VerdictNoExploitPathFound {
+		return
+	}
+	absent := make(map[domain.SymbolRef]bool, len(model.AbsentSubjects))
+	for _, s := range model.AbsentSubjects {
+		absent[s] = true
+	}
+	unmodeled := 0
+	for _, s := range model.UnresolvedSubjects {
+		if !absent[s] {
+			unmodeled++
+		}
+	}
+	if unmodeled == 0 {
+		return
+	}
+	demote := false
+	for _, cid := range result.Verdict.ConditionIDs {
+		for i := range claims {
+			if claims[i].ConditionID == cid && rewritten[i] {
+				demote = true
+			}
+		}
+	}
+	if !demote {
+		return
+	}
+	reason := fmt.Sprintf(
+		"cluster-perimeter verdict rests on a declared trust boundary, but %d advisory-declared subject(s) are unresolved: an operator assertion cannot discharge an unmodeled exploit shape",
+		unmodeled)
+	result.Outcome = domain.OutcomeFailed
+	result.Verdict = nil
+	result.Gaps = append(result.Gaps, domain.AnalysisGap{
+		Owner:        domain.GapOwnerCode,
+		Code:         domain.GapReachabilityProofIncomplete,
+		Obligation:   domain.ObligationCondition,
+		AssessmentID: id,
+		Message:      reason,
+	})
+	result.Limitations = append(result.Limitations, reason)
+}
+
+// riskForAssessment derives the profile risk from the earned verdict. A failed
+// assessment carries an explicitly unassessed risk: a stale DISMISSED priority
+// beside a failure would read as a safe conclusion.
+func riskForAssessment(v domain.Vulnerability, c *domain.AnalysisCase, result domain.AssessmentResult) domain.ContextualRisk {
+	if result.Verdict != nil {
+		return risk.Assess(v, c, *result.Verdict)
+	}
+	r := risk.Assess(v, c, domain.VerdictResult{Verdict: domain.VerdictInconclusive})
+	r.Status = domain.RiskStatusUnassessed
+	r.AdjustmentReason = "Assessment FAILED: no verdict was earned, so the analysis is incomplete and must not be read as safe."
+	return r
+}
+
+func verdictOf(result domain.AssessmentResult) domain.Verdict {
+	if result.Verdict == nil {
+		return ""
+	}
+	return result.Verdict.Verdict
+}
+
+func scopeOf(result domain.AssessmentResult) domain.ExploitabilityScope {
+	if result.Verdict == nil {
+		return ""
+	}
+	return result.Verdict.ExploitabilityScope
+}
+
+func assessmentReason(result domain.AssessmentResult) string {
+	if result.Verdict != nil {
+		return result.Verdict.Reason
+	}
+	parts := make([]string, 0, len(result.Gaps))
+	for _, g := range result.Gaps {
+		parts = append(parts, string(g.Code)+": "+g.Message)
+	}
+	if len(parts) == 0 {
+		return "analysis FAILED without a typed cause"
+	}
+	return "analysis FAILED: " + strings.Join(parts, "; ")
+}
+
+func falsifierOf(result domain.AssessmentResult, claims []domain.Claim) domain.FalsifierKind {
+	if result.Verdict == nil {
+		return ""
+	}
+	var out domain.FalsifierKind
+	for _, id := range result.Verdict.ConditionIDs {
+		for _, cl := range claims {
+			if cl.ConditionID == id && cl.Falsifier != "" {
+				out = domain.FalsifierKind(cl.Falsifier)
+			}
+		}
+	}
+	return out
+}
+
+func profileAssessment(profile domain.ThreatProfile, actual bool, build domain.BuildContext,
+	claims []domain.Claim, result domain.AssessmentResult, risk *domain.ContextualRisk) domain.ProfileAssessment {
+	return domain.ProfileAssessment{
+		Profile:        profile,
+		IsTargetActual: actual,
+		Build:          build,
+		Claims:         append([]domain.Claim(nil), claims...),
+		Result:         result,
+		ContextualRisk: risk,
+	}
 }
 
 // setGroundBasis records what a NO_EXPLOIT_PATH_FOUND verdict rests on
@@ -1897,7 +2666,7 @@ func (h EvaluateVerdict) Run(_ context.Context, c *domain.AnalysisCase) (workflo
 // and code-level config origin. Non-trust-grounded verdicts keep
 // GroundBasis empty — their falsifier is already code-level.
 func setGroundBasis(claims []domain.Claim, v *domain.VerdictResult) {
-	if v.Verdict != domain.VerdictNoExploitPathFound {
+	if v == nil || v.Verdict != domain.VerdictNoExploitPathFound {
 		return
 	}
 	for _, id := range v.ConditionIDs {
@@ -1922,13 +2691,6 @@ type BuildReport struct {
 	// Prior is the previous stored run of the same vuln/repo pair; when
 	// set, its tool_executions hashes are diffed against this run's.
 	Prior *domain.AnalysisCase
-	// Translator, when set, renders externally sourced prose into Russian
-	// for report.md. nil = no translation (original English text is quoted).
-	Translator interface {
-		Translate(ctx context.Context, text string) (string, error)
-	}
-	// TranslateToRussian gates translation to the RU human report.
-	TranslateToRussian bool
 }
 
 // diffToolExecutions records the reproducibility-diff between a prior
@@ -1958,6 +2720,15 @@ func (h BuildReport) Run(ctx context.Context, c *domain.AnalysisCase) (workflow.
 	if h.Prior != nil {
 		diffToolExecutions(c, h.Prior)
 	}
+	// A request-orchestrated run must publish the requested-finding envelope
+	// even when an earlier state short-circuited straight to reporting (a
+	// strict-LLM abort). Composition is additive: it never rewrites the
+	// primary's verdict, claims or census.
+	if c.RelatedDiscovery != nil && c.RequestedFinding == nil {
+		if err := finding.Finalize(c); err != nil {
+			return workflow.Transition{}, fmt.Errorf("build report: compose requested finding: %w", err)
+		}
+	}
 	if c.CVEAnalysisProfile == domain.ProfileAssist || c.CVEAnalysisProfile == domain.ProfileVerified || c.Justification != nil {
 		dossier := justification.Build(c)
 		c.Justification = &dossier
@@ -1965,9 +2736,6 @@ func (h BuildReport) Run(ctx context.Context, c *domain.AnalysisCase) (workflow.
 	if c.ContextualRisk == nil && c.Verdict != nil {
 		cRisk := risk.Assess(c.Vulnerability, c, *c.Verdict)
 		c.ContextualRisk = &cRisk
-	}
-	if h.TranslateToRussian && h.Translator != nil {
-		h.localizeReportText(ctx, c)
 	}
 	if err := report.Write(h.Dir, c); err != nil {
 		return workflow.Transition{}, fmt.Errorf("build report: %w", err)
@@ -1977,31 +2745,135 @@ func (h BuildReport) Run(ctx context.Context, c *domain.AnalysisCase) (workflow.
 			c.EvidenceGraph.AddToolLimitation("tracker publish failed: " + err.Error())
 		}
 	}
+	// The diagnostic deliverable is written before the terminal state is
+	// chosen: an analysis failure must still leave a report behind, and only
+	// an earned requested outcome (definitive, external-dependency
+	// INCONCLUSIVE or corpus-bounded negative) completes the run.
+	if c.RequestedFinding != nil {
+		if c.RequestedFinding.Outcome == domain.OutcomeFailed {
+			return workflow.Transition{Next: domain.StateFailed, Reason: "requested assessment FAILED; diagnostic report written to " + h.Dir}, nil
+		}
+		return workflow.Transition{Next: domain.StateCompleted, Reason: "requested finding written to " + h.Dir}, nil
+	}
+	if c.Verdict == nil {
+		return workflow.Transition{Next: domain.StateFailed, Reason: "analysis failed; diagnostic report written to " + h.Dir}, nil
+	}
 	return workflow.Transition{Next: domain.StateCompleted, Reason: "report written to " + h.Dir}, nil
 }
 
-// dbKnowsAdvisory reports whether the Go vulnerability database (mirrored by
-// the OSV API) holds a GO-* record matching the vulnerability or its aliases.
-// Only GO-* entries count: govulncheck's DB contains Go-ecosystem records; a
-// bare GHSA/OSV document does not imply coverage.
-func dbKnowsAdvisory(ctx context.Context, base string, v domain.Vulnerability) bool {
-	refs, err := vulnerability.QueryOSVRefs(ctx, base, v.Module)
+// transportProofEntryRefs binds the rooted transport proof to the record's own
+// affected entries. An admitted attribution that names the same record bytes is
+// authoritative; otherwise the record's represented inventory refs are used.
+func transportProofEntryRefs(c *domain.AnalysisCase) []int {
+	if c == nil {
+		return nil
+	}
+	if c.RecordPin != nil {
+		for _, attribution := range c.Attributions {
+			if attribution.Admitted() && len(attribution.EntryRefs) > 0 &&
+				attribution.Candidate.Same(*c.RecordPin) {
+				return append([]int(nil), attribution.EntryRefs...)
+			}
+		}
+	}
+	if c.Vulnerability.Scope != nil && c.Vulnerability.Scope.RecordInventory != nil {
+		return append([]int(nil), c.Vulnerability.Scope.RecordInventory.RepresentedRefs...)
+	}
+	return nil
+}
+
+// collectTransportProof runs the rooted server-transport proof for cases whose
+// exploit model needs peer input at a server transport. It records only
+// evidence and typed gaps: an incomplete proof never becomes a claim, and the
+// claim evaluators re-admit the persisted witness themselves.
+//
+// The model's need for the capability is not evidence that it applies, so the
+// specialized checker runs only after the source index establishes
+// applicability from the affected module's own source. A refusal is an
+// observation, never a blocking gap: an unsupported transport leaves the
+// ordinary evaluation in place for the human investigation to continue.
+func (h CollectEvidence) collectTransportProof(ctx context.Context, c *domain.AnalysisCase) {
+	if h.Source == nil || c.Exploit == nil {
+		return
+	}
+	if !needsRootedTransportProof(c) {
+		return
+	}
+	module := c.Vulnerability.Module
+	if module == "" || isStdlibModule(module) {
+		return
+	}
+	if c.RecordPin == nil {
+		// The witness must pin the exact advisory bytes it was bound
+		// to; without the pin the proof cannot be re-admitted, so it is
+		// not attempted and the missing input is named.
+		c.AnalysisGaps = append(c.AnalysisGaps, domain.AnalysisGap{
+			Owner:        domain.GapOwnerInput,
+			Code:         domain.GapInputResolutionFailed,
+			Obligation:   domain.ObligationCondition,
+			AssessmentID: c.ID,
+			Message:      "rooted transport proof requires the exact advisory-record document pin; this case carries none",
+		})
+		return
+	}
+	fixURI, fixDigest, fixDiff := transportFixEvidence(c)
+	applicability, err := h.Source.TransportApplicabilityFor(ctx, goanalysis.TransportProofScope{
+		Record:    *c.RecordPin,
+		EntryRefs: transportProofEntryRefs(c),
+		Subjects:  transportProofSubjects(c),
+		Product:   c.Product,
+		FixURI:    fixURI,
+		FixDigest: fixDigest,
+		FixDiff:   fixDiff,
+	})
 	if err != nil {
+		c.EvidenceGraph.AddToolLimitation("rooted transport applicability probe failed: " + err.Error())
+		return
+	}
+	if applicability.Refused() {
+		c.EvidenceGraph.AddLimitation(
+			"rooted transport proof is not applicable: " + applicability.Reason())
+		return
+	}
+	proof, err := h.Source.ProveServerTransport(ctx, applicability.Request)
+	if err != nil {
+		c.EvidenceGraph.AddToolLimitation("rooted transport proof failed: " + err.Error())
+		return
+	}
+	for _, ev := range proof.Evidence {
+		c.EvidenceGraph.AddEvidence(ev)
+	}
+	if proof.Trigger != nil && proof.Trigger.Mechanism != "" {
+		// The mechanism is a discovered fact, so the condition that must
+		// discharge it records which one the witness proved. A replayed
+		// claim is then checked against the mechanism it speaks about.
+		recordTransportMechanism(c, proof.Trigger.Mechanism)
+	}
+	for _, gap := range proof.Gaps {
+		if gap.AssessmentID == "" {
+			gap.AssessmentID = c.ID
+		}
+		c.AnalysisGaps = append(c.AnalysisGaps, gap)
+	}
+}
+
+// needsRootedTransportProof reports whether the model requires peer-controlled
+// bytes at a server-side transport: a peer-input attacker-control or input
+// constraint condition and a server protocol role. Client-side and
+// role-undetermined models keep their existing evaluation.
+func needsRootedTransportProof(c *domain.AnalysisCase) bool {
+	if c == nil || c.Exploit == nil {
 		return false
 	}
-	want := map[string]bool{v.ID: true}
-	for _, a := range v.Aliases {
-		want[a] = true
+	if c.Exploit.ProtocolRole != domain.ProtocolRoleServer {
+		return false
 	}
-	for _, r := range refs {
-		if !strings.HasPrefix(r.ID, "GO-") {
-			continue
-		}
-		if want[r.ID] {
-			return true
-		}
-		for _, a := range r.Aliases {
-			if want[a] {
+	conditions := append([]domain.Condition{}, c.Exploit.MandatoryConditions...)
+	conditions = append(conditions, c.Exploit.SupportingFactors...)
+	for _, cond := range conditions {
+		switch cond.Kind {
+		case domain.ConditionAttackerControl, domain.ConditionInputConstraint:
+			if evaluator.WantsPeerInput(cond, c.Vulnerability) {
 				return true
 			}
 		}
@@ -2009,110 +2881,71 @@ func dbKnowsAdvisory(ctx context.Context, base string, v domain.Vulnerability) b
 	return false
 }
 
-// containsCyrillic reports whether s already holds Russian text — such
-// strings are quoted verbatim instead of spending LLM calls on them.
-func containsCyrillic(s string) bool {
-	for _, r := range s {
-		if unicode.Is(unicode.Cyrillic, r) {
-			return true
+// transportProofSubjects collects the advisory's own affected packages and
+// symbols; the module itself is the fallback subject so module-level records
+// still bind a module identity.
+func transportProofSubjects(c *domain.AnalysisCase) []domain.SymbolRef {
+	var out []domain.SymbolRef
+	seen := map[domain.SymbolRef]bool{}
+	add := func(s domain.SymbolRef) {
+		if s.Package == "" || seen[s] {
+			return
+		}
+		seen[s] = true
+		out = append(out, s)
+	}
+	for _, s := range c.Vulnerability.AffectedSymbols {
+		add(s)
+	}
+	for _, p := range c.Vulnerability.AffectedPackages {
+		add(domain.SymbolRef{Package: p.Path})
+	}
+	for _, m := range c.Vulnerability.AffectedModules {
+		for _, s := range m.AffectedSymbols {
+			add(s)
+		}
+		for _, p := range m.AffectedPackages {
+			add(domain.SymbolRef{Package: p.Path})
 		}
 	}
-	return false
+	if len(out) == 0 && c.Vulnerability.Module != "" {
+		add(domain.SymbolRef{Package: c.Vulnerability.Module})
+	}
+	return out
 }
 
-// localizeReportText fills c.Localization by translating advisory prose and
-// LLM-authored text for the Russian human report. Failures are recorded as
-// Localization.Limitations and never abort report building.
-func (h BuildReport) localizeReportText(ctx context.Context, c *domain.AnalysisCase) {
-	loc := &domain.Localization{}
-	if m, ok := h.Translator.(interface{ ModelName() string }); ok {
-		loc.Model = m.ModelName()
-	}
-	cache := map[string]string{}
-	failed := map[string]bool{}
-	tr := func(kind, src string) (string, bool) {
-		if v, ok := cache[src]; ok {
-			return v, true
-		}
-		if failed[src] {
-			return "", false
-		}
-		out, err := h.Translator.Translate(ctx, src)
-		if err != nil {
-			failed[src] = true
-			loc.Limitations = append(loc.Limitations,
-				fmt.Sprintf("translation failed for %s: %v", kind, err))
-			return "", false
-		}
-		c.IncLLMCalls()
-		cache[src] = out
-		return out, true
-	}
-	textRU := map[string]string{}
-	for _, item := range []struct {
-		kind string
-		src  string
-		dst  *string
-	}{
-		{"advisory summary", c.Vulnerability.Summary, &loc.SummaryRU},
-		{"advisory description", c.Vulnerability.Description, &loc.DescriptionRU},
-	} {
-		if item.src == "" || containsCyrillic(item.src) {
+// transportFixEvidence returns the first collected fix diff with its own digest
+// over the recorded bytes. The digest pins what was actually read, so a
+// truncated patch can never be presented as the full fix.
+func transportFixEvidence(c *domain.AnalysisCase) (uri, digest, diff string) {
+	for _, ev := range c.EvidenceGraph.EvidenceList() {
+		if ev.Kind != domain.EvidenceFixDiff || ev.Content == "" {
 			continue
 		}
-		if out, ok := tr(item.kind, item.src); ok {
-			*item.dst = out
-		}
+		sum := sha256.Sum256([]byte(ev.Content))
+		return ev.Source, "sha256:" + hex.EncodeToString(sum[:]), ev.Content
 	}
-	var extras []struct {
-		kind string
-		src  string
-	}
-	if c.CVEAnalysis != nil {
-		for _, m := range c.CVEAnalysis.Mechanisms {
-			extras = append(extras, struct {
-				kind string
-				src  string
-			}{"mechanism summary", m.Summary})
-		}
-	}
-	if c.SemanticReview != nil {
-		for _, f := range c.SemanticReview.Findings {
-			extras = append(extras, struct {
-				kind string
-				src  string
-			}{"semantic review finding", f})
-		}
-	}
-	if c.StrategyPlan != nil && c.StrategyPlan.SelectedStrategy != "" {
-		extras = append(extras, struct {
-			kind string
-			src  string
-		}{"strategy plan", c.StrategyPlan.SelectedStrategy})
-	}
-	if c.Exploit != nil && c.Exploit.Impact != "" {
-		extras = append(extras, struct {
-			kind string
-			src  string
-		}{"recorded impact", c.Exploit.Impact})
-	}
-	for _, item := range extras {
-		if item.src == "" || containsCyrillic(item.src) {
-			continue
-		}
-		if out, ok := tr(item.kind, item.src); ok {
-			textRU[item.src] = out
-		}
-	}
-	if len(textRU) > 0 {
-		loc.TextRU = textRU
-	}
-	c.Localization = loc
+	return "", "", ""
 }
 
-func orUnknown(s string) string {
-	if s == "" {
-		return "unknown"
+// recordTransportMechanism stamps the detected mechanism on the peer-input
+// constraint conditions it obliges. It records a discovered source fact; it
+// never asserts the mechanism on a condition the proof did not prove.
+func recordTransportMechanism(c *domain.AnalysisCase, mechanism string) {
+	if c == nil || c.Exploit == nil || mechanism == "" {
+		return
 	}
-	return s
+	for i := range c.Exploit.MandatoryConditions {
+		cond := &c.Exploit.MandatoryConditions[i]
+		if cond.Kind != domain.ConditionInputConstraint {
+			continue
+		}
+		if !evaluator.WantsPeerInput(*cond, c.Vulnerability) {
+			continue
+		}
+		if cond.Params == nil {
+			cond.Params = map[string]string{}
+		}
+		cond.Params[domain.ParamMechanism] = mechanism
+	}
 }

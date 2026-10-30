@@ -1,0 +1,71 @@
+{
+  "schema": "research-conditions/1",
+  "conditions": [
+    {
+      "id": "module-present",
+      "role": "applicability",
+      "polarity": "POSITIVE",
+      "description": "The advisory-declared module is present in the resolved module graph."
+    },
+    {
+      "id": "version-in-range",
+      "role": "applicability",
+      "polarity": "POSITIVE",
+      "description": "The resolved module version falls inside an advisory-declared affected range."
+    },
+    {
+      "id": "declared-symbol-unreachable",
+      "role": "path",
+      "polarity": "POSITIVE",
+      "description": "Every advisory-declared symbol is proven unreachable from the recorded product scope."
+    },
+    {
+      "id": "package-linked",
+      "role": "applicability",
+      "polarity": "POSITIVE",
+      "description": "The advisory-declared package is linked into the product build closure."
+    },
+    {
+      "id": "deployment-perimeter",
+      "role": "deployment",
+      "polarity": "POSITIVE",
+      "description": "The declared deployment perimeter places the affected surface inside the recorded network boundary."
+    },
+    {
+      "id": "peer-trust",
+      "role": "deployment",
+      "polarity": "POSITIVE",
+      "description": "The deployment is declared to operate strictly with authenticated, trusted peers."
+    },
+    {
+      "id": "config-mode",
+      "role": "deployment",
+      "polarity": "POSITIVE",
+      "description": "The deployment's declared configuration mode gates the affected code path."
+    },
+    {
+      "id": "build-variant",
+      "role": "deployment",
+      "polarity": "POSITIVE",
+      "description": "The delivered build variant changes whether the affected code is part of the shipped artifact."
+    },
+    {
+      "id": "delivered-artifact",
+      "role": "deployment",
+      "polarity": "POSITIVE",
+      "description": "The artifact actually delivered to the environment differs in which affected components it embeds."
+    },
+    {
+      "id": "protocol-role",
+      "role": "deployment",
+      "polarity": "POSITIVE",
+      "description": "The product's exclusive protocol role (server vs client) contradicts the role the vulnerability requires."
+    }
+  ],
+  "variables": [
+    {
+      "id": "deployment_perimeter",
+      "allowed_values": ["cluster-internal", "public"]
+    }
+  ]
+}

@@ -127,6 +127,39 @@ izyan remediate --repo /path/to/project --vuln GO-2025-3595 --apply --run-tests
 izyan eval --corpus eval/corpus-real.json -j 4
 ```
 
+### LLM-first triage для человека
+
+`izyan analyze` публикует authoritative verdict Product A. Отдельный
+`izyan triage` готовит решение для человека: действие, причинное
+обоснование, проверенные факты, отдельно помеченные интерпретации,
+неизвестные, вычисленный уровень support, условия изменения рекомендации
+и сохранение Accept/Reject. Прогон создаёт `decision.json`
+(`decision-package.v3`) и карточку `decision.md`.
+
+```bash
+# finding.v1 (компонент/репозиторий уже известны)
+izyan triage --input finding.json --out ./triage-out
+
+# generic intake через site config
+izyan triage --ticket ticket.txt --config triage-site.yaml --out ./triage-out
+
+# решение человека: отдельная immutable-запись, без модели и сети
+izyan triage --record-decision ./triage-out/<finding-id> \
+    --decision accept --actor alice --reason "reviewed the captured build graph"
+
+# офлайн replay: без модели, сети и исходного репозитория
+izyan triage --replay-run ./triage-out/<finding-id> --out ./triage-replay
+
+# офлайн-сравнение с внешним контролем (не live-гейт)
+izyan eval triage --run ./triage-out/<finding-id> \
+    --baseline triage-baselines.json --out ./triage-eval
+```
+
+Severity и внешняя baseline опциональны: без них человеческий результат
+всё равно доставляется, а машинное снижение удерживается. Exit 0 означает
+доставку пакета, **не** разрешение на автоматическое закрытие или VEX.
+Подробно — [CLI-справочник](docs/cli.md#triage--человеческий-результат-llm-first-расследования).
+
 ### Двухконтурная оценка угроз (Dual-Track Perimeter Assessment)
 
 Izyan автоматически рассчитывает вердикты параллельно для двух моделей угроз без необходимости вручную указывать параметры доверия:
@@ -149,8 +182,7 @@ Izyan поддерживает гибкие варианты передачи в
 ## Выходные артефакты
 
 По результатам анализа в каталоге `.izyan/<case-id>/` (или `.vuln-analyzer/<case-id>/`) формируются:
-* **`report.md`** (русский) и **`report.en.md`** (английский): короткий человекочитаемый отчёт (вердикт, суть уязвимости, применимость, подтверждённые факты, неизвестные, triage, исправление, использование AI) для мгновенной вставки в задачу Jira/GitLab;
-* **`report.audit.md`** (русский) и **`report.audit.en.md`** (английский): технический аудит (claims, evidence, потоки данных, журнал инструментов, ревью, гипотезы, внутренние машинные гипотезы и профили периметра) для отладки и воспроизводимости;
+* **`report.md`** (русский) и **`report.en.md`** (английский): структурированные отчёты с готовым разделом **`## Резюме`** для мгновенной вставки в задачу Jira/GitLab;
 * **`openvex.json`** и **`cyclonedx.json`**: стандартизированные машиночитаемые документы VEX для интеграции с DevSecOps-пайплайнами;
 * **`report.json`**: полный структурированный аудит-дамп досье и выполненных проверок.
 

@@ -7,7 +7,7 @@ import (
 )
 
 func TestValidationFalseWhenAllGuarded(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.EvidenceGraph.DataFlows = []domain.DataFlow{
 		{ConditionID: "C-V", Sink: domain.CallSite{File: "a.go", Line: 40}},
 		{ConditionID: "C-V", Sink: domain.CallSite{File: "b.go", Line: 20}},
@@ -23,7 +23,7 @@ func TestValidationFalseWhenAllGuarded(t *testing.T) {
 }
 
 func TestValidationUnknownOnPartialCoverage(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.EvidenceGraph.DataFlows = []domain.DataFlow{
 		{ConditionID: "C-V", Sink: domain.CallSite{File: "a.go", Line: 40}},
 		{ConditionID: "C-V", Sink: domain.CallSite{File: "b.go", Line: 20}},
@@ -40,7 +40,7 @@ func TestValidationUnknownOnPartialCoverage(t *testing.T) {
 func TestValidationUnknownNoFlows(t *testing.T) {
 	cl := Validation{}.Evaluate(
 		domain.Condition{ID: "C-V", Kind: domain.ConditionValidation},
-		&domain.AnalysisCase{})
+		&domain.AnalysisCase{Product: admittedProduct()})
 	if cl.Result != domain.ClaimUnknown || len(cl.Limitations) == 0 {
 		t.Fatalf("claim=%+v", cl)
 	}
@@ -48,7 +48,7 @@ func TestValidationUnknownNoFlows(t *testing.T) {
 
 func TestInputConstraintFalseWhenAllBounded(t *testing.T) {
 	sink := domain.CallSite{File: "a.go", Line: 40}
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.EvidenceGraph.DataFlows = []domain.DataFlow{
 		{ConditionID: "C-C", Sink: sink, Origin: domain.OriginConfiguration},
 	}
@@ -65,7 +65,7 @@ func TestInputConstraintFalseWhenAllBounded(t *testing.T) {
 
 func TestInputConstraintUnknownWithUnresolvedOrigin(t *testing.T) {
 	sink := domain.CallSite{File: "a.go", Line: 40}
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.EvidenceGraph.DataFlows = []domain.DataFlow{
 		{ConditionID: "C-C", Sink: sink, Origin: domain.OriginConfiguration},
 		{ConditionID: "C-C", Sink: sink, Origin: domain.OriginUnknown},
@@ -81,7 +81,7 @@ func TestInputConstraintUnknownWithUnresolvedOrigin(t *testing.T) {
 }
 
 func TestAttackerControlConstantInputHasFalsifier(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.EvidenceGraph.DataFlows = []domain.DataFlow{{
 		ConditionID: "C-INPUT", Origin: domain.OriginConstant,
 		Sink: domain.CallSite{File: "a.go", Line: 10}, Arg: 0,
@@ -95,7 +95,7 @@ func TestAttackerControlConstantInputHasFalsifier(t *testing.T) {
 }
 
 func TestAttackerControlEmptyOriginCannotFalsify(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.EvidenceGraph.DataFlows = []domain.DataFlow{{
 		ConditionID: "C-INPUT", Sink: domain.CallSite{File: "a.go", Line: 10}, Arg: 0,
 	}}

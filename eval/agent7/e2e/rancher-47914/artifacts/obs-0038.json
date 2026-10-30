@@ -1,0 +1,14 @@
+{
+  "id": "OBS-0038",
+  "tool": "",
+  "fact": "dial-sites failed: context deadline exceeded",
+  "scope": "check not performed",
+  "completeness": "UNKNOWN",
+  "tool_status": "ERROR",
+  "scope_details": {
+    "snapshot_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+    "external_sha": "4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+    "subject": "golang.org/x/crypto"
+  },
+  "error": "context deadline exceeded"
+}

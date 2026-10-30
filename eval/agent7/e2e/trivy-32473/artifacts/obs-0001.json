@@ -1,0 +1,17 @@
+{
+  "id": "OBS-0001",
+  "tool": "repository-preflight",
+  "fact": "snapshot <VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02 contained, replaces confined, content hash 7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+  "scope": "VerifyContained + CheckPathReplacements + ContentHash over the snapshot tree",
+  "completeness": "COMPLETE",
+  "tool_status": "OK",
+  "scope_details": {
+    "snapshot_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+    "snapshot_root": "<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02",
+    "coverage_rule": "closed walk of the snapshot tree (canonical hash)"
+  },
+  "data": {
+    "content_hash": "7fcadd51adb044d776a1ac74404e7832da5485f12ce6ea989d9de6a1540560f5",
+    "snapshot_root": "<VA_VEXBENCH>/repos/aquasecurity/trivy/37da98df45f6014fcd5f1744e2e26351b61d2a02"
+  }
+}

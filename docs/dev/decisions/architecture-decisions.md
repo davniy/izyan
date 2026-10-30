@@ -69,3 +69,37 @@ Confidence используется только для review priority/UI.
 override. Совпадение контуров повышает уверенность в выводе; расхождение
 — чекпоинт ревью. Смысл: LLM делает работу рассуждения, движок — работу
 доказательства; прозрачная граница аудируется, а не прячется.
+
+## D17. Dual-product authority and adapter boundary
+
+Shadow владеет авторитетным контуром: canonical `AnalysisCase`,
+`EvidenceGraph`, `Claim`, `NegativeVerification`, `VerdictResult` и
+детерминистический verdict принадлежат только Product A — под `internal/`
+canonical packages. Product B (портированный triage runtime, research
+lane, heldout gate) живёт в `internal/productb/**` как adapter:
+не-авторитетный, proposal-only, его артефакты никогда не переходят в
+вердикт/claim/NV.
+
+Правила границы:
+
+- no V2 `internal/domain`/`affected`/`evaluator` merge — типы мапятся на
+  канонические только через `internal/productb/domain` aliases (§14.3.2
+  "map" disposition) или адаптер-локальные DTO; типа, для которого нет
+  канонического эквивалента, в adapter не протаскивается (явный
+  unsupported, не угадывание);
+- Product B outputs (assessment, falsifier proposals, research reports,
+  decision package, deployment projection) — measurement/proposal
+  material only; admission в canonical contract — через proposal-only
+  ingress и `AdmitAssumption`-эквивалентные fail-closed gates;
+- failure rules: PARTIAL/UNKNOWN/conflict/foreign/cross-run never admit;
+  missing manifest → unknown, never isolation; malformed input → typed
+  technical error, не silent admit;
+- Product A mechanics (goanalysis, evidencetools, fix, toolaudit, llm)
+  остаются shared — это canonical mechanics, не authority boundary;
+- boundary pinned by `internal/productb/boundary_s12_test.go` +
+  `internal/productb/triage/boundary_test.go`: forbidden imports
+  отклоняются на уровне import graph + source scan, не конвенцией.
+
+Escalation: любая попытка добавить authority/type/verdict в Product B
+или ослабить fail-closed поведение в адаптере — blocking review item, не
+рефакторинг.

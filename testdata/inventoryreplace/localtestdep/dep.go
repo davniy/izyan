@@ -1,0 +1,3 @@
+package testdependency
+
+func TestOnly() {}

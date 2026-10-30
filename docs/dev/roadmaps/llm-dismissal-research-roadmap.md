@@ -666,21 +666,21 @@ govulncheck `reachable` baseline (символ `http2Server.HandleStreams`
 
 | Вариант | Продукт | Ожидание по контракту |
 |---|---|---|
-| mode-off | `products/micro-plain` (plain `grpc.NewServer`) | `internal/xds/server` вне build graph → NEPF |
-| mode-on | `products/micro-xds` (`xds.NewGRPCServer`) | трейс через `RouteAndProcess` → не негатив |
-| wrapper | новый `products/micro-xds-wrap` — включение режима через func value/factory/callback | пакет в графе → call-site-проверка дала бы ложный негатив; контракт обязан сохранить сигнал |
-| pkg-present | новый `products/micro-xds-pkg` — пакет локуса импортирован (в графе), функция не вызывается | пакет в графе ≠ достижимость → INCONCLUSIVE, не NEPF |
+| mode-off | `products/service-plain` (plain `grpc.NewServer`) | `internal/xds/server` вне build graph → NEPF |
+| mode-on | `products/service-xds` (`xds.NewGRPCServer`) | трейс через `RouteAndProcess` → не негатив |
+| wrapper | новый `products/service-xds-wrap` — включение режима через func value/factory/callback | пакет в графе → call-site-проверка дала бы ложный негатив; контракт обязан сохранить сигнал |
+| pkg-present | новый `products/service-xds-pkg` — пакет локуса импортирован (в графе), функция не вызывается | пакет в графе ≠ достижимость → INCONCLUSIVE, не NEPF |
 
 - [x] Скопировать публичный advisory `GO-2026-6443.json` в
   `eval/advisories/real/` (источник — Go vuln DB, данные публичные).
-- [x] Создать `micro-xds-wrap` и `micro-xds-pkg`; gofmt.
+- [x] Создать `service-xds-wrap` и `service-xds-pkg`; gofmt.
 - [x] Добавить 4 кейса в `eval/corpus-real.json` (формат как у
-  `real-micro-xds`); `expect` пиннить только после зафиксированного
+  `real-service-xds`); `expect` пиннить только после зафиксированного
   ground truth в `eval/ground-truth/`.
 - [x] Снять govulncheck baseline каждого варианта:
   подтверждено — все четыре `reachable`; `RouteAndProcess` в трейсе
-  только при включённом режиме (mode-on, wrapper); micro-plain и
-  micro-xds-pkg — трейс до `HandleStreams`. Go devel + govulncheck
+  только при включённом режиме (mode-on, wrapper); service-plain и
+  service-xds-pkg — трейс до `HandleStreams`. Go devel + govulncheck
   (версии из прогона зафиксированы в логах tmp/xds-pool).
 
 ### Шаг 6.2. Замкнуть necessity для GO-2026-6443

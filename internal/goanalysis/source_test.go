@@ -2,9 +2,12 @@ package goanalysis
 
 import (
 	"context"
+	"errors"
 	"go/token"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -21,7 +24,7 @@ func fixture(t *testing.T, name string) *Index {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ix := &Index{Dir: abs}
+	ix := &Index{Dir: abs, Build: testProduct()}
 	return ix
 }
 
@@ -443,6 +446,33 @@ func TestInstantiatedNarrowing(t *testing.T) {
 	live := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "RealRunner.Run"}
 	if got := ix.ifaceCallerRefs(live); len(got) == 0 {
 		t.Fatal("RealRunner.Run lost its iface callers — narrowing over-fired")
+	}
+}
+
+// A product package that failed to type-check never entered the
+// instantiation inventory: absence there cannot narrow — the interface
+// caller set must stay open exactly as if the impl were instantiated.
+func TestIfaceCallerRefsSkippedPackageBlocksNarrowing(t *testing.T) {
+	dir := usageModule(t, map[string]string{
+		"main.go": `package main
+
+func main() {}
+`,
+		"broken/broken.go": `package broken
+
+func Broken() int { return undefinedIdentifier }
+`,
+	})
+	ix := &Index{Dir: dir}
+	if err := ix.load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ix.loadExtra(context.Background(), "example.com/dep/vuln"); err != nil {
+		t.Fatal(err)
+	}
+	dead := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "NeverRunner.Run"}
+	if got := ix.ifaceCallerRefs(dead); len(got) == 0 {
+		t.Fatal("a skipped product package must keep iface callers — narrowing over-fired")
 	}
 }
 
@@ -1180,5 +1210,258 @@ func (r *Runner) Execute() {
 
 	if !opaque["example.com/testpkg.Runner.Execute"] {
 		t.Fatalf("Runner.Execute should be marked opaque when struct field func is unresolvable")
+	}
+}
+
+// A package that fails to type-check stays in the scope denominator with
+// actionable diagnostics: its path, the import edges recovered from its
+// syntax, and the compiler error text — so a report can say *why* the
+// package is invisible instead of only naming it.
+func TestSkippedPackageDiagnostics(t *testing.T) {
+	ix := fixture(t, "skippprod")
+	diags, err := ix.SkippedPackageDiagnostics(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diags) != 1 {
+		t.Fatalf("expected exactly one skipped package, got %+v", diags)
+	}
+	d := diags[0]
+	if d.Path != "example.com/skippprod/broken" {
+		t.Fatalf("skipped path = %q", d.Path)
+	}
+	if !slices.Contains(d.Imports, "example.com/unreachdep/vulnlib") {
+		t.Fatalf("recovered imports missing the dep edge: %v", d.Imports)
+	}
+	if len(d.Errors) == 0 || !strings.Contains(strings.Join(d.Errors, " "), "undefinedIdentifier") {
+		t.Fatalf("compiler error text must name the failure: %v", d.Errors)
+	}
+	if !d.SourceVisible {
+		t.Fatal("parseable-but-broken package must report SourceVisible")
+	}
+
+	// SkippedPackages is the path projection of the same canonical record.
+	paths, err := ix.SkippedPackages(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(paths, []string{"example.com/skippprod/broken"}) {
+		t.Fatalf("SkippedPackages=%v", paths)
+	}
+	// The recovered edge still answers SkippedPackagesImporting.
+	if got := ix.SkippedPackagesImporting("example.com/unreachdep/vulnlib"); len(got) != 1 {
+		t.Fatalf("SkippedPackagesImporting=%v", got)
+	}
+}
+
+// A package whose source cannot be read at all stays visible in the skip
+// record with SourceVisible=false — the strongest possible scope gap.
+func TestSkippedPackageDiagnosticsUnrecoverable(t *testing.T) {
+	dir := usageModule(t, map[string]string{
+		"main.go": `package main
+
+func main() {}
+`,
+		"unreadable/gone.go": `package unreadable
+
+import "fmt"
+
+func Gone() { fmt.Println("x") }
+`,
+	})
+	gone := filepath.Join(dir, "unreadable", "gone.go")
+	if err := os.Chmod(gone, 0o000); err != nil {
+		t.Skipf("cannot drop read permission: %v", err)
+	}
+	t.Cleanup(func() { os.Chmod(gone, 0o644) })
+
+	ix := &Index{Dir: dir}
+	diags, err := ix.SkippedPackageDiagnostics(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var d *SkippedPackage
+	for i := range diags {
+		if diags[i].Path == "example.com/usageprod/unreadable" {
+			d = &diags[i]
+		}
+	}
+	if d == nil {
+		t.Fatalf("unrecoverable package missing from diagnostics: %+v", diags)
+	}
+	if d.SourceVisible {
+		t.Fatal("an unreadable file must report SourceVisible=false")
+	}
+	if len(d.Errors) == 0 {
+		t.Fatal("the loader error must be recorded even when no source is recoverable")
+	}
+}
+
+// The cmqc.h shape: a cgo package fails the load because a system C header
+// prerequisite is absent. The diagnostic must carry the compiler's own
+// message naming the missing header — an actionable prerequisite/build
+// limitation, never a silent exclusion. Needs a C toolchain: skipped when
+// none is installed.
+func TestSkippedPackageDiagnosticsMissingCHeader(t *testing.T) {
+	if _, err := exec.LookPath("cc"); err != nil {
+		t.Skip("no C toolchain; cgo header failure cannot be exercised")
+	}
+	dir := usageModuleGomod(t, "module example.com/cgoprod\n\ngo 1.23\n",
+		map[string]string{
+			"main.go": `package main
+
+func main() {}
+`,
+			"bridge/bridge.go": `package bridge
+
+// #include <missing_system_prereq_header.h>
+import "C"
+
+func Bridge() int { return 0 }
+`,
+		})
+	ix := &Index{Dir: dir, Build: domain.ProductSnapshot{CGOEnabled: true}}
+	diags, err := ix.SkippedPackageDiagnostics(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var d *SkippedPackage
+	for i := range diags {
+		if diags[i].Path == "example.com/cgoprod/bridge" {
+			d = &diags[i]
+		}
+	}
+	if d == nil {
+		t.Fatalf("cgo package missing from diagnostics: %+v", diags)
+	}
+	joined := strings.Join(d.Errors, " ")
+	if !strings.Contains(joined, "missing_system_prereq_header.h") {
+		t.Fatalf("diagnostic must name the missing header prerequisite: %v", d.Errors)
+	}
+	// The cgo file itself stays parseable: its import edges are
+	// recoverable even though the C prerequisite is absent.
+	if !d.SourceVisible {
+		t.Fatal("parseable cgo source must not count as unrecoverable")
+	}
+}
+
+// The exact trigger argument is bound positionally: a configuration-derived
+// document argument does not make an external trigger argument safe.
+func TestTraceArgument_WrongArgumentStaysExternal(t *testing.T) {
+	ix := fixture(t, "configwrongargprod")
+	sites, err := ix.FindCallers(context.Background(), domain.SymbolRef{
+		Package: "example.com/postreachdep/transformer", Symbol: "Query"})
+	if err != nil || len(sites) != 1 {
+		t.Fatalf("FindCallers(Query): sites=%v err=%v", sites, err)
+	}
+	doc, _, err := ix.TraceArgumentBound(context.Background(), sites[0], 0, 6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Origin != domain.OriginConfiguration {
+		t.Fatalf("doc arg origin=%s want CONFIGURATION (summary: %s)", doc.Origin, doc.Summary)
+	}
+	trigger, _, err := ix.TraceArgumentBound(context.Background(), sites[0], 1, 6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if trigger.Arg != 1 {
+		t.Fatalf("trigger arg=%d want 1", trigger.Arg)
+	}
+	if trigger.Origin != domain.OriginExternalUntrusted {
+		t.Fatalf("trigger arg origin=%s want EXTERNAL_UNTRUSTED (summary: %s)", trigger.Origin, trigger.Summary)
+	}
+}
+
+// vendorRefusingModule writes a snapshot whose module graph the Go loader
+// refuses: the go 1.15 module replaces example.com/dep by module version,
+// which a modern toolchain will not resolve under -mod=vendor ("updates to
+// go.mod needed"). The vendored package is still on disk — the shape the
+// k8s-3121 snapshot has.
+func vendorRefusingModule(t *testing.T, withVendoredSource bool) string {
+	t.Helper()
+	files := map[string]string{
+		"prod.go":            "package prod\n\nfunc Main() {}\n",
+		"vendor/modules.txt": "# example.com/dep v1.0.0 => example.com/dep v1.0.0\n## explicit\nexample.com/dep/pkg\n",
+	}
+	if withVendoredSource {
+		files["vendor/example.com/dep/pkg/file.go"] = "" +
+			"package pkg\n" + // 1
+			"\n" + // 2
+			"type unmarshal struct{}\n" + // 3
+			"\n" + // 4
+			"func (p *unmarshal) Generate() {}\n" + // 5
+			"\n" + // 6
+			"func (p *unmarshal) field() {}\n" // 7
+	}
+	return usageModuleGomod(t,
+		"module example.com/prod\n\ngo 1.15\n\nrequire example.com/dep v1.0.0\n\nreplace example.com/dep => example.com/dep v1.0.0\n",
+		files)
+}
+
+func vendorRefusingIndex(dir string) *Index {
+	return &Index{
+		Dir:        dir,
+		Build:      domain.ProductSnapshot{VendorMode: true},
+		ReplaceEnv: true,
+		Env:        []string{"GOPROXY=off", "GOWORK=off"},
+	}
+}
+
+// A loader refusal on a vendored snapshot must not become "symbol not
+// found": the vendored tree is the build input, and its declaration is the
+// evidence root-cause verification needs.
+func TestLookupSymbolVendoredSourceFallback(t *testing.T) {
+	ix := vendorRefusingIndex(vendorRefusingModule(t, true))
+	if err := ix.Loaded(context.Background()); err == nil {
+		t.Fatal("fixture no longer reproduces the loader refusal; rebuild it before trusting this test")
+	}
+	for _, tc := range []struct {
+		symbol string
+		line   int
+	}{
+		{"unmarshal.Generate", 5},
+		{"unmarshal.field", 7},
+	} {
+		lk, err := ix.LookupSymbol(context.Background(), domain.SymbolRef{
+			Package: "example.com/dep/pkg", Symbol: tc.symbol,
+		})
+		if err != nil {
+			t.Fatalf("%s: vendored fallback did not resolve: %v", tc.symbol, err)
+		}
+		if !lk.Vendored || lk.LoaderError == nil {
+			t.Fatalf("%s: lookup must record the loader failure: %+v", tc.symbol, lk)
+		}
+		if lk.Site == nil {
+			t.Fatalf("%s: no declaration site", tc.symbol)
+		}
+		if got := filepath.ToSlash(lk.Site.File); !strings.HasSuffix(got, "vendor/example.com/dep/pkg/file.go") {
+			t.Fatalf("%s: file=%q, want the vendored source", tc.symbol, lk.Site.File)
+		}
+		if lk.Site.Line != tc.line || lk.Site.Package != "example.com/dep/pkg" {
+			t.Fatalf("%s: site=%+v", tc.symbol, lk.Site)
+		}
+	}
+}
+
+// Absence semantics stay untouched: when vendor/ does not carry the package,
+// the loader failure is returned as-is — never a verified symbol, and never
+// a typed "not found in package".
+func TestLookupSymbolVendoredSourceMissingStaysUnverified(t *testing.T) {
+	ix := vendorRefusingIndex(vendorRefusingModule(t, false))
+	lk, err := ix.LookupSymbol(context.Background(), domain.SymbolRef{
+		Package: "example.com/dep/pkg", Symbol: "unmarshal.Generate",
+	})
+	if err == nil {
+		t.Fatalf("a package with no vendored source must stay unverified: %+v", lk)
+	}
+	if lk.Site != nil || lk.Vendored {
+		t.Fatalf("vendored lookup invented a site: %+v", lk)
+	}
+	if lk.LoaderError == nil {
+		t.Fatal("the loader failure must be reported, not converted into a verification")
+	}
+	if errors.Is(err, ErrSymbolNotFoundInPackage) {
+		t.Fatalf("loader failure reported as symbol absence: %v", err)
 	}
 }

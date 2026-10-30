@@ -1,0 +1,17 @@
+{
+  "id": "OBS-0001",
+  "tool": "repository-preflight",
+  "fact": "snapshot <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3 contained, replaces confined, content hash 6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+  "scope": "VerifyContained + CheckPathReplacements + ContentHash over the snapshot tree",
+  "completeness": "COMPLETE",
+  "tool_status": "OK",
+  "scope_details": {
+    "snapshot_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+    "snapshot_root": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+    "coverage_rule": "closed walk of the snapshot tree (canonical hash)"
+  },
+  "data": {
+    "content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+    "snapshot_root": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3"
+  }
+}

@@ -1,0 +1,1160 @@
+{
+  "schema": "task6-task5-reference/1",
+  "frozen_at_utc": "2026-10-09T15:48:18Z",
+  "experiment_id": "task6",
+  "purpose": "Phase 6.0 \u2014 re-verify the Task-5 scorer before Task 6 reuses its metrics; freeze the Task-5 gate-feasibility tables by attempt AND by unique case; explain the 19 + 26 < 46 union anomaly. All Task-5 inputs are read-only.",
+  "inputs": {
+    "matrix": "eval/task5/scoring/matrix.json",
+    "safety_report": "eval/task5/scoring/safety-report.md",
+    "gate_feasibility": "eval/task5/gate-feasibility.md",
+    "manifest": "eval/task5/experiment-manifest.json",
+    "t1_run_root": "eval/task5/results/t1/5d6c640c6945/opencode-c1/qwen3.6-35b",
+    "t1_model_level_found": true,
+    "harness_dir": "<VA_VEXBENCH>/agent-ctl"
+  },
+  "input_file_sha256": {
+    "matrix.json": "1fba6d83e031b91e49c4c812bdfa8904ed8a0f5e512113597cf3d3692a4e09e4",
+    "safety-report.md": "e5c1e842e1be4a51e7d4980d9512c1196c9965c24b460fd75ffc3ae953825066",
+    "gate-feasibility.md": "6d763ee908fb548f20dabfc8a9897b82091ba58fc0b321a9c5eee6940dfb0290",
+    "experiment-manifest.json": "804ffc316380292426bd97f523e61674533ff31d4b4e12c6e44f1a900cd57407"
+  },
+  "headline": {
+    "recomputed": {
+      "false_safe_attempts": 5,
+      "exploitable_attempts": 21,
+      "correct_safe_attempts": 63,
+      "safe_ground_truth_attempts": 69,
+      "false_safe_cases": 3,
+      "correct_safe_cases": 23,
+      "note": "scored-safe denominator = parser-audit outcome 'safe' (68 of 90 attempts; official projection yields the same 5/63 split on this matrix)"
+    },
+    "reported": {
+      "false_safe": "5/21",
+      "correct_safe": "63/69"
+    },
+    "confirmed": true
+  },
+  "gate_rules": {
+    "denominators": {
+      "total_attempts": 90,
+      "exploitable_ground_truth_attempts": 21,
+      "safe_ground_truth_attempts": 69,
+      "exploitable_ground_truth_cases": 7,
+      "safe_ground_truth_cases": 23,
+      "scored_safe_attempts": 68,
+      "scored_safe_cases": 26,
+      "false_safe_attempts": 5,
+      "false_safe_cases": 3,
+      "correct_safe_attempts": 63,
+      "correct_safe_cases": 23,
+      "attempts_without_observations": 3
+    },
+    "by_attempt": {
+      "RG": {
+        "false_safe_blocked": 2,
+        "false_safe_of": 5,
+        "correct_safe_lost": 19,
+        "correct_safe_of": 63,
+        "reported": {
+          "false_safe_blocked": 2,
+          "correct_safe_lost": 19
+        },
+        "matches_reported": true
+      },
+      "RH": {
+        "false_safe_blocked": 2,
+        "false_safe_of": 5,
+        "correct_safe_lost": 25,
+        "correct_safe_of": 63,
+        "reported": {
+          "false_safe_blocked": 2,
+          "correct_safe_lost": 28
+        },
+        "matches_reported": false
+      },
+      "R5": {
+        "false_safe_blocked": 3,
+        "false_safe_of": 5,
+        "correct_safe_lost": 29,
+        "correct_safe_of": 63,
+        "reported": null,
+        "matches_reported": false
+      },
+      "R6": {
+        "false_safe_blocked": 3,
+        "false_safe_of": 5,
+        "correct_safe_lost": 26,
+        "correct_safe_of": 63,
+        "reported": {
+          "false_safe_blocked": 3,
+          "correct_safe_lost": 26
+        },
+        "matches_reported": true
+      },
+      "UNION": {
+        "false_safe_blocked": 5,
+        "false_safe_of": 5,
+        "correct_safe_lost": 45,
+        "correct_safe_of": 63,
+        "reported": {
+          "false_safe_blocked": 5,
+          "correct_safe_lost": 46
+        },
+        "matches_reported": false
+      }
+    },
+    "by_case": {
+      "RG": {
+        "false_safe_cases_blocked": 2,
+        "false_safe_cases_of": 3,
+        "correct_safe_cases_lost": 10,
+        "correct_safe_cases_fully_lost": 4,
+        "correct_safe_cases_of": 23
+      },
+      "RH": {
+        "false_safe_cases_blocked": 2,
+        "false_safe_cases_of": 3,
+        "correct_safe_cases_lost": 15,
+        "correct_safe_cases_fully_lost": 5,
+        "correct_safe_cases_of": 23
+      },
+      "R5": {
+        "false_safe_cases_blocked": 1,
+        "false_safe_cases_of": 3,
+        "correct_safe_cases_lost": 12,
+        "correct_safe_cases_fully_lost": 9,
+        "correct_safe_cases_of": 23
+      },
+      "R6": {
+        "false_safe_cases_blocked": 1,
+        "false_safe_cases_of": 3,
+        "correct_safe_cases_lost": 11,
+        "correct_safe_cases_fully_lost": 8,
+        "correct_safe_cases_of": 23
+      },
+      "UNION": {
+        "false_safe_cases_blocked": 3,
+        "false_safe_cases_of": 3,
+        "correct_safe_cases_lost": 21,
+        "correct_safe_cases_fully_lost": 12,
+        "correct_safe_cases_of": 23
+      }
+    },
+    "union_anomaly": {
+      "published": {
+        "RG_correct_safe_lost": 19,
+        "R6_correct_safe_lost": 26,
+        "UNION_correct_safe_lost": 46
+      },
+      "arithmetic": "|RG \u222a R6| \u2264 |RG| + |R6| = 19 + 26 = 45 < 46 \u2014 the published UNION count exceeds the maximum union of its own operands, so it cannot have been measured on the same basis.",
+      "recomputed": {
+        "RG_correct_safe_lost_attempts": 19,
+        "R6_correct_safe_lost_attempts": 26,
+        "overlap_attempts": 0,
+        "union_correct_safe_lost_attempts": 45,
+        "overlap_cases": 0,
+        "union_correct_safe_lost_cases": 21
+      },
+      "explanation": "Recomputation reproduces the published operand counts exactly (RG = 19, R6 = 26 blocked correct-safe attempts) and shows the two sets are DISJOINT: the union is 45 = 19 + 26, the largest union these operands can have. The printed 46 therefore records a measure mix in the throwaway union script (attempts vs unique cases \u2014 testify-28948 is three attempts of one case) or an off-by-one, not an overlap artefact: overlap could only LOWER the union below 45, never raise it above. Either way the published 46 is arithmetically impossible; the corrected UNION is 45/63 correct-safe attempts lost (71.4%)."
+    },
+    "per_attempt": [
+      {
+        "task_id": "aquasecurity-trivy-37da98d-CVE-2024-32473",
+        "run_id": "run_001",
+        "category": "code_not_present",
+        "bucket": "correct_safe",
+        "observations": 3,
+        "flags": {}
+      },
+      {
+        "task_id": "aquasecurity-trivy-37da98d-CVE-2024-32473",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 8,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "aquasecurity-trivy-37da98d-CVE-2024-32473",
+        "run_id": "run_003",
+        "category": "code_not_present",
+        "bucket": "correct_safe",
+        "observations": 3,
+        "flags": {}
+      },
+      {
+        "task_id": "aquasecurity-trivy-98e136e-CVE-2024-24791",
+        "run_id": "run_002",
+        "category": "false_positive",
+        "bucket": "correct_safe",
+        "observations": 5,
+        "flags": {}
+      },
+      {
+        "task_id": "aquasecurity-trivy-98e136e-CVE-2024-24791",
+        "run_id": "run_003",
+        "category": "code_not_present",
+        "bucket": "correct_safe",
+        "observations": 0,
+        "flags": {}
+      },
+      {
+        "task_id": "cilium-cilium-3977f6a-CVE-2026-33186",
+        "run_id": "run_001",
+        "category": "requires_dependency",
+        "bucket": "correct_safe",
+        "observations": 11,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "cilium-cilium-3977f6a-CVE-2026-33186",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 13,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "cilium-cilium-3977f6a-CVE-2026-33186",
+        "run_id": "run_003",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 5,
+        "flags": {}
+      },
+      {
+        "task_id": "cilium-cilium-43bff35-CVE-2026-35469",
+        "run_id": "run_001",
+        "category": "requires_configuration",
+        "bucket": "correct_safe",
+        "observations": 7,
+        "flags": {}
+      },
+      {
+        "task_id": "cilium-cilium-43bff35-CVE-2026-35469",
+        "run_id": "run_002",
+        "category": "requires_configuration",
+        "bucket": "correct_safe",
+        "observations": 7,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "containers-podman-38ccfa2-CVE-2024-37298",
+        "run_id": "run_001",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 17,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "containers-podman-38ccfa2-CVE-2024-37298",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 6,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "containers-podman-38ccfa2-CVE-2024-37298",
+        "run_id": "run_003",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 10,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "containers-podman-5ae6347-CVE-2025-47914",
+        "run_id": "run_001",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 18,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "containers-podman-5ae6347-CVE-2025-47914",
+        "run_id": "run_002",
+        "category": "code_not_present",
+        "bucket": "correct_safe",
+        "observations": 9,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "containers-podman-5ae6347-CVE-2025-47914",
+        "run_id": "run_003",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 11,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "containers-podman-6541fc4-CVE-2025-58181",
+        "run_id": "run_001",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 20,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "containers-podman-6541fc4-CVE-2025-58181",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 15,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "containers-podman-6541fc4-CVE-2025-58181",
+        "run_id": "run_003",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 17,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+        "run_id": "run_001",
+        "category": "requires_configuration",
+        "bucket": "correct_safe",
+        "observations": 11,
+        "flags": {
+          "R5": true
+        }
+      },
+      {
+        "task_id": "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 9,
+        "flags": {}
+      },
+      {
+        "task_id": "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+        "run_id": "run_003",
+        "category": "requires_configuration",
+        "bucket": "correct_safe",
+        "observations": 16,
+        "flags": {
+          "R5": true
+        }
+      },
+      {
+        "task_id": "helm-helm-b76a950-CVE-2024-25621",
+        "run_id": "run_001",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 7,
+        "flags": {
+          "RH": true,
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "helm-helm-b76a950-CVE-2024-25621",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 6,
+        "flags": {}
+      },
+      {
+        "task_id": "helm-helm-b76a950-CVE-2024-25621",
+        "run_id": "run_003",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 4,
+        "flags": {}
+      },
+      {
+        "task_id": "helm-helm-fbb24fe-CVE-2021-21334",
+        "run_id": "run_001",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 4,
+        "flags": {}
+      },
+      {
+        "task_id": "helm-helm-fbb24fe-CVE-2021-21334",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 11,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "helm-helm-fbb24fe-CVE-2021-21334",
+        "run_id": "run_003",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 3,
+        "flags": {}
+      },
+      {
+        "task_id": "istio-istio-042afc3-CVE-2023-48795",
+        "run_id": "run_001",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 9,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "istio-istio-042afc3-CVE-2023-48795",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 8,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "istio-istio-042afc3-CVE-2023-48795",
+        "run_id": "run_003",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 7,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "istio-istio-8903f65-CVE-2024-45338",
+        "run_id": "run_001",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 16,
+        "flags": {
+          "RH": true,
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "istio-istio-8903f65-CVE-2024-45338",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 13,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "istio-istio-8903f65-CVE-2024-45338",
+        "run_id": "run_003",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 9,
+        "flags": {
+          "RH": true,
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "juanfont-headscale-e172c29-CVE-2024-45338",
+        "run_id": "run_001",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 14,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "juanfont-headscale-e172c29-CVE-2024-45338",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 13,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "juanfont-headscale-e172c29-CVE-2024-45338",
+        "run_id": "run_003",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 14,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+        "run_id": "run_001",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 6,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 11,
+        "flags": {}
+      },
+      {
+        "task_id": "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+        "run_id": "run_002",
+        "category": "code_not_present",
+        "bucket": "correct_safe",
+        "observations": 9,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+        "run_id": "run_003",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 13,
+        "flags": {}
+      },
+      {
+        "task_id": "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "false_safe",
+        "observations": 5,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "kubernetes-minikube-e7bf515-CVE-2019-5736",
+        "run_id": "run_001",
+        "category": "code_not_present",
+        "bucket": "correct_safe",
+        "observations": 6,
+        "flags": {}
+      },
+      {
+        "task_id": "kubernetes-minikube-e7bf515-CVE-2019-5736",
+        "run_id": "run_002",
+        "category": "code_not_present",
+        "bucket": "correct_safe",
+        "observations": 6,
+        "flags": {}
+      },
+      {
+        "task_id": "kubernetes-minikube-e7bf515-CVE-2019-5736",
+        "run_id": "run_003",
+        "category": "false_positive",
+        "bucket": "correct_safe",
+        "observations": 6,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "labstack-echo-fdacff0-CVE-2020-26160",
+        "run_id": "run_001",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 11,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "labstack-echo-fdacff0-CVE-2020-26160",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 7,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "labstack-echo-fdacff0-CVE-2020-26160",
+        "run_id": "run_003",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 12,
+        "flags": {
+          "RH": true,
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "moby-moby-3ede246-CVE-2026-39984",
+        "run_id": "run_003",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 15,
+        "flags": {
+          "RH": true,
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "moby-moby-caea5f7-CVE-2026-39883",
+        "run_id": "run_001",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 17,
+        "flags": {
+          "RH": true,
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "moby-moby-caea5f7-CVE-2026-39883",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 11,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "moby-moby-caea5f7-CVE-2026-39883",
+        "run_id": "run_003",
+        "category": "requires_environment",
+        "bucket": "correct_safe",
+        "observations": 18,
+        "flags": {
+          "R5": true
+        }
+      },
+      {
+        "task_id": "rancher-rancher-4dc4f53-CVE-2025-47914",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "false_safe",
+        "observations": 9,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "rancher-rancher-4dc4f53-CVE-2025-58181",
+        "run_id": "run_001",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 7,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "rancher-rancher-4dc4f53-CVE-2025-58181",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 10,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "rancher-rancher-4dc4f53-CVE-2025-58181",
+        "run_id": "run_003",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 11,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "rancher-rancher-8761419-CVE-2026-24051",
+        "run_id": "run_001",
+        "category": "requires_environment",
+        "bucket": "correct_safe",
+        "observations": 13,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "rancher-rancher-8761419-CVE-2026-24051",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 13,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "rancher-rancher-8761419-CVE-2026-24051",
+        "run_id": "run_003",
+        "category": "requires_environment",
+        "bucket": "correct_safe",
+        "observations": 8,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "rancher-rancher-8761419-CVE-2026-39883",
+        "run_id": "run_001",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 6,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "rancher-rancher-8761419-CVE-2026-39883",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 12,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "rancher-rancher-8761419-CVE-2026-39883",
+        "run_id": "run_003",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 7,
+        "flags": {
+          "RG": true,
+          "RH": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "stretchr-testify-285adcc-CVE-2022-28948",
+        "run_id": "run_001",
+        "category": "code_not_reachable",
+        "bucket": "false_safe",
+        "observations": 11,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "stretchr-testify-285adcc-CVE-2022-28948",
+        "run_id": "run_002",
+        "category": "code_not_reachable",
+        "bucket": "false_safe",
+        "observations": 13,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "stretchr-testify-285adcc-CVE-2022-28948",
+        "run_id": "run_003",
+        "category": "code_not_reachable",
+        "bucket": "false_safe",
+        "observations": 10,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "zeromicro-go-zero-bae061a-CVE-2022-32149",
+        "run_id": "run_001",
+        "category": "code_not_reachable",
+        "bucket": "correct_safe",
+        "observations": 20,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "zeromicro-go-zero-bae061a-CVE-2022-32149",
+        "run_id": "run_002",
+        "category": "code_not_present",
+        "bucket": "correct_safe",
+        "observations": 12,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      },
+      {
+        "task_id": "zeromicro-go-zero-bae061a-CVE-2022-32149",
+        "run_id": "run_003",
+        "category": "code_not_present",
+        "bucket": "correct_safe",
+        "observations": 11,
+        "flags": {
+          "R5": true,
+          "R6": true,
+          "UNION": true
+        }
+      }
+    ],
+    "rule_definitions": {
+      "negative_claim": "attempt parser-audit outcome == 'safe' (the projection the gate-feasibility table denominates on: 68 safe-scored attempts = 5 false-safe + 63 correct-safe)",
+      "reachability_observation": "observation.tool in ['dep_invocation_state', 'find_callers', 'find_dep_callers', 'find_may_callers', 'find_references', 'gated_refs', 'interface_dispatch_sites', 'module_internal_reach', 'scan_dynamic']",
+      "RG": "safe outcome AND \u22651 reachability observation AND none with tool_status == 'OK'",
+      "RH": "safe outcome AND \u22651 reachability observation with tool_status == 'ERROR'",
+      "R5": "safe outcome AND \u22651 observation with tool_status 'OK', completeness != 'COMPLETE', a zero enumeration (('count', 'possible_count', 'callers_inside_module', 'matches') == 0) and non-empty limitations",
+      "R6": "R5 AND attempt category in ['code_not_present', 'code_not_reachable']",
+      "UNION": "RG \u222a R6 (computed from the operand sets)"
+    }
+  },
+  "hashes": {
+    "matrix_result_sha256": {
+      "checked": 90,
+      "mismatched": [],
+      "missing_attempt_dirs": [],
+      "missing_result_files": []
+    },
+    "manifest_file_pins": {
+      "checks": [
+        {
+          "section": "izyan.prompt_files_sha256",
+          "file": "eval/task5/prompts/hashes.json",
+          "recorded": "e7d0bc7213fa970357672f5775b69ee7aa5dc8b73d3e2608cbde189c63159c1d",
+          "recomputed": "a4c21c16de0e0a0335fceb8fc9db410d09177cfa7e76d79eb1ee129314a293d0",
+          "match": false
+        },
+        {
+          "section": "izyan.prompt_files_sha256",
+          "file": "eval/task5/prompts/p1-t1.diff",
+          "recorded": "a2254ff9aacdebedbbc983c76e0030f52a155e5494b5bf6db223b150390577bb",
+          "recomputed": "a2254ff9aacdebedbbc983c76e0030f52a155e5494b5bf6db223b150390577bb",
+          "match": true
+        },
+        {
+          "section": "izyan.prompt_files_sha256",
+          "file": "eval/task5/prompts/vuln_safety_v1.txt",
+          "recorded": "14c1396c9094e11c939e02a09ce8d1d6f5c6ac61daa60fa86b74a9f59208e2da",
+          "recomputed": "14c1396c9094e11c939e02a09ce8d1d6f5c6ac61daa60fa86b74a9f59208e2da",
+          "match": true
+        },
+        {
+          "section": "izyan.prompt_files_sha256",
+          "file": "eval/task5/prompts/vuln_safety_v1_tools.txt",
+          "recorded": "5d6c640c6945e8c0f9156ee2592f3228c5a9c66ab7cbf5237486d7b432682893",
+          "recomputed": "5d6c640c6945e8c0f9156ee2592f3228c5a9c66ab7cbf5237486d7b432682893",
+          "match": true
+        },
+        {
+          "section": "izyan.prompt_files_sha256",
+          "file": "eval/vexbench-prompts/official-vuln-c0a5c8458b77.txt",
+          "recorded": "c0a5c8458b77015d57b82eefca563d01c870ea027562381715c8ab9d70ffabda",
+          "recomputed": "c0a5c8458b77015d57b82eefca563d01c870ea027562381715c8ab9d70ffabda",
+          "match": true
+        },
+        {
+          "section": "izyan.controller_files_sha256",
+          "file": "eval/c1/assessment.py",
+          "recorded": "656765417c5eec15b21b2e4b1d7fc96dbf5fa3c4a6ab42722cd61b7ebfda697d",
+          "recomputed": "656765417c5eec15b21b2e4b1d7fc96dbf5fa3c4a6ab42722cd61b7ebfda697d",
+          "match": true
+        },
+        {
+          "section": "izyan.controller_files_sha256",
+          "file": "eval/c1/collect.py",
+          "recorded": "a1da6e90370997f0574223e08bcc09622c501ff50f094adafe6af1475e86d885",
+          "recomputed": "a1da6e90370997f0574223e08bcc09622c501ff50f094adafe6af1475e86d885",
+          "match": true
+        },
+        {
+          "section": "izyan.controller_files_sha256",
+          "file": "eval/c1/parser_audit.py",
+          "recorded": "c3577c085e92bed66087e660c4b6e712c3efd510b2859cf0e01e9f3d44d72022",
+          "recomputed": "c3577c085e92bed66087e660c4b6e712c3efd510b2859cf0e01e9f3d44d72022",
+          "match": true
+        },
+        {
+          "section": "izyan.controller_files_sha256",
+          "file": "eval/c1/report.py",
+          "recorded": "7070f28280b16c0e64e76ec9fe5854aa10d5e4cffaf9ccd5e2fb83fc7326d1d7",
+          "recomputed": "7070f28280b16c0e64e76ec9fe5854aa10d5e4cffaf9ccd5e2fb83fc7326d1d7",
+          "match": true
+        },
+        {
+          "section": "izyan.controller_files_sha256",
+          "file": "eval/c1/runner.py",
+          "recorded": "709f6c176b6ba0da6edc1ea925e6b2cb114f33df2769b1d14ed6fec13447c5f0",
+          "recomputed": "709f6c176b6ba0da6edc1ea925e6b2cb114f33df2769b1d14ed6fec13447c5f0",
+          "match": true
+        },
+        {
+          "section": "izyan.controller_files_sha256",
+          "file": "eval/c1/status.py",
+          "recorded": "8433ec5dcac45b1e9b3ec751d513f93ad3887a5c7d7ebd68b9977f740c585da5",
+          "recomputed": "8433ec5dcac45b1e9b3ec751d513f93ad3887a5c7d7ebd68b9977f740c585da5",
+          "match": true
+        },
+        {
+          "section": "izyan.controller_files_sha256",
+          "file": "eval/task5/collect.py",
+          "recorded": "bb7b89bd3367296a06a13c5f7717fccf6d45ea9807ac0084493bb355a6390580",
+          "recomputed": "f4a0237fc76bc3a48c272ed23b575df8fcf8070dd33cfe462d6ab67d9664ff71",
+          "match": false
+        },
+        {
+          "section": "izyan.controller_files_sha256",
+          "file": "eval/task5/freeze.py",
+          "recorded": "9d7eab361033961dd9dcd285168385cbf0e78516f32c5139ad71fdcd11bca9ff",
+          "recomputed": "9d7eab361033961dd9dcd285168385cbf0e78516f32c5139ad71fdcd11bca9ff",
+          "match": true
+        },
+        {
+          "section": "izyan.controller_files_sha256",
+          "file": "eval/task5/manifest.py",
+          "recorded": "4f757ff2c6813538b0bffe382f10dc70718d278589f0926026a378fa70ffe006",
+          "recomputed": "4f757ff2c6813538b0bffe382f10dc70718d278589f0926026a378fa70ffe006",
+          "match": true
+        },
+        {
+          "section": "izyan.controller_files_sha256",
+          "file": "eval/task5/protocol.py",
+          "recorded": "1260d1c7633a74bf45a43b16dec72f177c5cd1119d1ae2af545353bec991cc36",
+          "recomputed": "1260d1c7633a74bf45a43b16dec72f177c5cd1119d1ae2af545353bec991cc36",
+          "match": true
+        },
+        {
+          "section": "izyan.controller_files_sha256",
+          "file": "eval/task5/report.py",
+          "recorded": "15c47baf54b03b7f98d26ffa5261a74598d99fd776fe192105034d8eeba3fb65",
+          "recomputed": "15c47baf54b03b7f98d26ffa5261a74598d99fd776fe192105034d8eeba3fb65",
+          "match": true
+        },
+        {
+          "section": "spec.files_sha256",
+          "file": "docs/dev/specs/2026-10-09-task5-prompt-tools-gate-comparison-v2.md",
+          "recorded": "6b5b10a7b3e206dc1b520586abbff828c4cf0472605de56ca0b5f817d51d2a43",
+          "recomputed": "6b5b10a7b3e206dc1b520586abbff828c4cf0472605de56ca0b5f817d51d2a43",
+          "match": true
+        },
+        {
+          "section": "spec.files_sha256",
+          "file": "docs/dev/specs/task5-prompt-tools-gate-spec.md",
+          "recorded": "6b5b10a7b3e206dc1b520586abbff828c4cf0472605de56ca0b5f817d51d2a43",
+          "recomputed": "6b5b10a7b3e206dc1b520586abbff828c4cf0472605de56ca0b5f817d51d2a43",
+          "match": true
+        },
+        {
+          "section": "harness.scoring_files_sha256",
+          "file": "src/evaluate/metrics.py",
+          "recorded": "f08aced0059d1fe1a48652e532786e8eb65dc8e1076ce8a5abadcc3f51a75a5c",
+          "recomputed": "f08aced0059d1fe1a48652e532786e8eb65dc8e1076ce8a5abadcc3f51a75a5c",
+          "match": true
+        },
+        {
+          "section": "harness.scoring_files_sha256",
+          "file": "src/evaluate/parse.py",
+          "recorded": "c7d5af64d3573731bae1c66ec0bd2f63f3bdcb0d9c8b0b6d4c22d3058969740b",
+          "recomputed": "c7d5af64d3573731bae1c66ec0bd2f63f3bdcb0d9c8b0b6d4c22d3058969740b",
+          "match": true
+        },
+        {
+          "section": "harness.scoring_files_sha256",
+          "file": "src/evaluate/result_parser.py",
+          "recorded": "a6d7ceaa7b60b1be2bfcef4bca6324efbfa08652bad630bc041efdfaaa9dba7c",
+          "recomputed": "a6d7ceaa7b60b1be2bfcef4bca6324efbfa08652bad630bc041efdfaaa9dba7c",
+          "match": true
+        },
+        {
+          "section": "harness.arm_files_sha256",
+          "file": "src/evaluate/agents/__init__.py",
+          "recorded": "ceb7bedd6eea813853f3a306509562869317100b05b610ccf974c0b019093bef",
+          "recomputed": "ceb7bedd6eea813853f3a306509562869317100b05b610ccf974c0b019093bef",
+          "match": true
+        },
+        {
+          "section": "harness.arm_files_sha256",
+          "file": "src/evaluate/agents/opencode.py",
+          "recorded": "6013b9552fe8deb0678353060d503de937c31539fafdf3b481d767be6497267e",
+          "recomputed": "6a8ac5e4af1532f3024daa8f3dcd07d5ccdbc65c79f1c9d99a4d2adfd8f41287",
+          "match": false
+        },
+        {
+          "section": "harness.arm_files_sha256",
+          "file": "src/evaluate/agents/opencode_c1.py",
+          "recorded": "df902268f8f046561ef9db707e45b4e27837ae905b27b7ad30c831f47f7fcde7",
+          "recomputed": "df902268f8f046561ef9db707e45b4e27837ae905b27b7ad30c831f47f7fcde7",
+          "match": true
+        },
+        {
+          "section": "harness.arm_files_sha256",
+          "file": "src/evaluate/prompts.py",
+          "recorded": "c88ba9cfc9cdf6d8516a749f79d51d2804b5eab4cc671452104111079851582a",
+          "recomputed": "c88ba9cfc9cdf6d8516a749f79d51d2804b5eab4cc671452104111079851582a",
+          "match": true
+        },
+        {
+          "section": "harness.patch_sha256",
+          "file": "eval/task5/harness/vexbench-agent-ctl-task5.patch",
+          "recorded": "75cdcd21b80055d404743f4d0af857c21717cbbdb93faf72943ce33a06216586",
+          "recomputed": "75cdcd21b80055d404743f4d0af857c21717cbbdb93faf72943ce33a06216586",
+          "match": true
+        },
+        {
+          "section": "harness.task4_patch_sha256",
+          "file": "eval/c1/harness/vexbench-agent-ctl-c1.patch",
+          "recorded": "7c47f5c39b94b862cfc576f32540400a3001b64740d81667ba5dbc84c05b0840",
+          "recomputed": "7c47f5c39b94b862cfc576f32540400a3001b64740d81667ba5dbc84c05b0840",
+          "match": true
+        }
+      ],
+      "checked": 27,
+      "mismatched": [
+        {
+          "section": "izyan.prompt_files_sha256",
+          "file": "eval/task5/prompts/hashes.json",
+          "recorded": "e7d0bc7213fa970357672f5775b69ee7aa5dc8b73d3e2608cbde189c63159c1d",
+          "recomputed": "a4c21c16de0e0a0335fceb8fc9db410d09177cfa7e76d79eb1ee129314a293d0",
+          "match": false
+        },
+        {
+          "section": "izyan.controller_files_sha256",
+          "file": "eval/task5/collect.py",
+          "recorded": "bb7b89bd3367296a06a13c5f7717fccf6d45ea9807ac0084493bb355a6390580",
+          "recomputed": "f4a0237fc76bc3a48c272ed23b575df8fcf8070dd33cfe462d6ab67d9664ff71",
+          "match": false
+        },
+        {
+          "section": "harness.arm_files_sha256",
+          "file": "src/evaluate/agents/opencode.py",
+          "recorded": "6013b9552fe8deb0678353060d503de937c31539fafdf3b481d767be6497267e",
+          "recomputed": "6a8ac5e4af1532f3024daa8f3dcd07d5ccdbc65c79f1c9d99a4d2adfd8f41287",
+          "match": false
+        }
+      ],
+      "skipped": false
+    },
+    "all_verified": false
+  },
+  "limitations": [
+    "The published UNION row (46) is arithmetically impossible and is replaced by the recomputed union (45); per-rule rows RG/R6 reproduce, RH does not (recomputed 31 vs reported 28) \u2014 the companion row used an undocumented variant.",
+    "The throwaway gate scripts are gone; rule sets are the documented reconstruction validated by the exact RG/R6 reproduction, not byte-recovery of the originals.",
+    "Audit trails are read-only; P1 (no-MCP) attempts carry no observations and are never gate-eligible."
+  ]
+}

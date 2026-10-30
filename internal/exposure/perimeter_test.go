@@ -27,7 +27,7 @@ func TestClassifyPerimeter_ClusterIPOnly(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts, nil)
+	scope, rationale := classifyPerimeter(facts, nil)
 	if scope != domain.PerimeterClusterInternal {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterClusterInternal, scope, rationale)
 	}
@@ -56,7 +56,7 @@ func TestClassifyPerimeter_PublicIngress(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts, nil)
+	scope, rationale := classifyPerimeter(facts, nil)
 	if scope != domain.PerimeterPublic {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterPublic, scope, rationale)
 	}
@@ -77,7 +77,7 @@ func TestClassifyPerimeter_PublicListener(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts, nil)
+	scope, rationale := classifyPerimeter(facts, nil)
 	if scope != domain.PerimeterPublic {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterPublic, scope, rationale)
 	}
@@ -105,7 +105,7 @@ func TestClassifyPerimeter_IstioMesh(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts, nil)
+	scope, rationale := classifyPerimeter(facts, nil)
 	if scope != domain.PerimeterClusterInternal {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterClusterInternal, scope, rationale)
 	}
@@ -115,7 +115,7 @@ func TestClassifyPerimeter_IstioMesh(t *testing.T) {
 }
 
 func TestClassifyPerimeter_Empty(t *testing.T) {
-	scope, rationale := ClassifyPerimeter(nil, nil)
+	scope, rationale := classifyPerimeter(nil, nil)
 	if scope != domain.PerimeterUnknown {
 		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
 	}
@@ -137,7 +137,7 @@ func TestClassifyPerimeter_ServiceLoadBalancer(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts, nil)
+	scope, rationale := classifyPerimeter(facts, nil)
 	if scope != domain.PerimeterPublic {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterPublic, scope, rationale)
 	}
@@ -155,7 +155,7 @@ func TestClassifyPerimeter_ServiceNodePort(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts, nil)
+	scope, rationale := classifyPerimeter(facts, nil)
 	if scope != domain.PerimeterPublic {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterPublic, scope, rationale)
 	}
@@ -181,7 +181,7 @@ func TestClassifyPerimeter_UnixAndConfiguredDial(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts, nil)
+	scope, rationale := classifyPerimeter(facts, nil)
 	if scope != domain.PerimeterClusterInternal {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterClusterInternal, scope, rationale)
 	}
@@ -199,7 +199,7 @@ func TestClassifyPerimeter_IPv6Loopback(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts, nil)
+	scope, rationale := classifyPerimeter(facts, nil)
 	if scope != domain.PerimeterClusterInternal {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterClusterInternal, scope, rationale)
 	}
@@ -219,7 +219,7 @@ func TestClassifyPerimeter_OutboundDialOnlyIsUnknown(t *testing.T) {
 		},
 	}
 
-	scope, _ := ClassifyPerimeter(facts, nil)
+	scope, _ := classifyPerimeter(facts, nil)
 	if scope != domain.PerimeterUnknown {
 		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
 	}
@@ -236,7 +236,7 @@ func TestClassifyPerimeter_MeshOnlyIsUnknown(t *testing.T) {
 		},
 	}
 
-	scope, _ := ClassifyPerimeter(facts, nil)
+	scope, _ := classifyPerimeter(facts, nil)
 	if scope != domain.PerimeterUnknown {
 		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
 	}
@@ -264,7 +264,7 @@ func TestClassifyPerimeter_UnresolvedListenerBlocksListenerTier(t *testing.T) {
 		},
 	}
 
-	scope, _ := ClassifyPerimeter(facts, nil)
+	scope, _ := classifyPerimeter(facts, nil)
 	if scope != domain.PerimeterUnknown {
 		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
 	}
@@ -292,7 +292,7 @@ func TestClassifyPerimeter_UnresolvedListenerBoundedByClusterIP(t *testing.T) {
 		},
 	}
 
-	scope, rationale := ClassifyPerimeter(facts, nil)
+	scope, rationale := classifyPerimeter(facts, nil)
 	if scope != domain.PerimeterClusterInternal {
 		t.Fatalf("expected scope %q, got %q (rationale: %s)", domain.PerimeterClusterInternal, scope, rationale)
 	}
@@ -313,7 +313,7 @@ func TestClassifyPerimeter_ForeignClusterIPIgnored(t *testing.T) {
 		},
 	}
 
-	scope, _ := ClassifyPerimeter(facts, []string{"myapp"})
+	scope, _ := classifyPerimeter(facts, []string{"myapp"})
 	if scope != domain.PerimeterUnknown {
 		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
 	}
@@ -332,7 +332,7 @@ func TestClassifyPerimeter_AttributedClusterIP(t *testing.T) {
 		},
 	}
 
-	scope, _ := ClassifyPerimeter(facts, []string{"myapp"})
+	scope, _ := classifyPerimeter(facts, []string{"myapp"})
 	if scope != domain.PerimeterClusterInternal {
 		t.Fatalf("expected scope %q, got %q", domain.PerimeterClusterInternal, scope)
 	}
@@ -353,7 +353,7 @@ func TestClassifyPerimeter_SiblingPrefixClusterIPNotCredited(t *testing.T) {
 		},
 	}
 
-	scope, _ := ClassifyPerimeter(facts, []string{"myapp"})
+	scope, _ := classifyPerimeter(facts, []string{"myapp"})
 	if scope != domain.PerimeterUnknown {
 		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
 	}
@@ -384,7 +384,7 @@ func TestClassifyPerimeter_SiblingPrefixIngressVetoesCluster(t *testing.T) {
 		},
 	}
 
-	scope, _ := ClassifyPerimeter(facts, []string{"myapp"})
+	scope, _ := classifyPerimeter(facts, []string{"myapp"})
 	if scope != domain.PerimeterUnknown {
 		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
 	}
@@ -412,7 +412,7 @@ func TestClassifyPerimeter_ForeignIngressIgnored(t *testing.T) {
 		},
 	}
 
-	scope, _ := ClassifyPerimeter(facts, []string{"myapp"})
+	scope, _ := classifyPerimeter(facts, []string{"myapp"})
 	if scope != domain.PerimeterClusterInternal {
 		t.Fatalf("expected scope %q, got %q", domain.PerimeterClusterInternal, scope)
 	}
@@ -441,8 +441,118 @@ func TestClassifyPerimeter_UnattributedDeployFactBlocksCluster(t *testing.T) {
 		},
 	}
 
-	scope, _ := ClassifyPerimeter(facts, []string{"myapp"})
+	scope, _ := classifyPerimeter(facts, []string{"myapp"})
 	if scope != domain.PerimeterUnknown {
 		t.Fatalf("expected scope %q, got %q", domain.PerimeterUnknown, scope)
 	}
+}
+
+// classifyPerimeter keeps the exposure-classification tests focused on the
+// exposure answer; the typed basis (and the trust gate that reads it) is
+// asserted by TestPerimeterTrustBasis.
+func classifyPerimeter(facts []domain.ExposureFact, productNames []string) (string, string) {
+	assessment := ClassifyPerimeter(facts, productNames)
+	return assessment.Perimeter, assessment.Rationale
+}
+
+// TestPerimeterTrustBasis: the classifier observes exposure shape only.
+// Loopback/unix listeners and ClusterIP topology describe where a listener
+// sits; they never establish that peers are trusted and never select a
+// trusted-peer actual profile. Only independently admitted deployment policy
+// or an explicit operator declaration can do that.
+func TestPerimeterTrustBasis(t *testing.T) {
+	cases := []struct {
+		name          string
+		facts         []domain.ExposureFact
+		wantPerimeter string
+		wantBasis     domain.PerimeterBasis
+		wantTrust     bool
+	}{
+		{
+			name: "loopback listener alone is exposure shape",
+			facts: []domain.ExposureFact{{
+				Direction: "inbound", Kind: "listener", Target: "net.Listen",
+				Address: "127.0.0.1:8080", Scope: domain.ScopeLoopback,
+			}},
+			wantPerimeter: domain.PerimeterClusterInternal,
+			wantBasis:     domain.PerimeterBasisListenerLocality,
+		},
+		{
+			name: "unix socket alone is exposure shape",
+			facts: []domain.ExposureFact{{
+				Direction: "inbound", Kind: "listener", Target: "net.Listen",
+				Address: "/run/product.sock", Scope: domain.ScopeUnix,
+			}},
+			wantPerimeter: domain.PerimeterClusterInternal,
+			wantBasis:     domain.PerimeterBasisListenerLocality,
+		},
+		{
+			name: "ClusterIP service alone is topology",
+			facts: []domain.ExposureFact{{
+				Direction: "inbound", Kind: "deployment", Target: "k8s:Service:ClusterIP",
+				Address: "ClusterIP", Owner: "myapp",
+			}},
+			wantPerimeter: domain.PerimeterClusterInternal,
+			wantBasis:     domain.PerimeterBasisDeploymentTopology,
+		},
+		{
+			name: "public ingress is exposure",
+			facts: []domain.ExposureFact{{
+				Direction: "inbound", Kind: "deployment", Target: "k8s:Ingress", Owner: "myapp",
+			}},
+			wantPerimeter: domain.PerimeterPublic,
+			wantBasis:     domain.PerimeterBasisDeploymentTopology,
+		},
+		{
+			name:          "no facts stays unknown",
+			wantPerimeter: domain.PerimeterUnknown,
+			wantBasis:     domain.PerimeterBasisUnknown,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assessment := ClassifyPerimeter(tc.facts, []string{"myapp"})
+			if assessment.Perimeter != tc.wantPerimeter {
+				t.Fatalf("perimeter=%s want %s (%s)", assessment.Perimeter, tc.wantPerimeter, assessment.Rationale)
+			}
+			if assessment.Basis != tc.wantBasis {
+				t.Fatalf("basis=%s want %s", assessment.Basis, tc.wantBasis)
+			}
+			if assessment.AllowsTrustedPeerSelection() {
+				t.Fatalf("classifier basis %s selected a trusted-peer actual profile", assessment.Basis)
+			}
+			if err := assessment.Validate(); err != nil {
+				t.Fatalf("assessment invalid: %v", err)
+			}
+		})
+	}
+
+	// Independent admitted bases are the only trust route.
+	for _, basis := range []domain.PerimeterBasis{domain.PerimeterBasisDeploymentPolicy, domain.PerimeterBasisOperatorDeclared} {
+		assessment := domain.NewPerimeterAssessment(domain.PerimeterClusterInternal, basis, "explicit policy")
+		if !assessment.AllowsTrustedPeerSelection() {
+			t.Fatalf("admitted basis %s did not select a trusted-peer profile", basis)
+		}
+		if err := assessment.Validate(); err != nil {
+			t.Fatalf("admitted assessment invalid: %v", err)
+		}
+	}
+	for _, basis := range []domain.PerimeterBasis{domain.PerimeterBasisListenerLocality, domain.PerimeterBasisDeploymentTopology, domain.PerimeterBasisUnknown} {
+		assessment := domain.NewPerimeterAssessment(domain.PerimeterClusterInternal, basis, "shape only")
+		if assessment.AllowsTrustedPeerSelection() {
+			t.Fatalf("exposure-shape basis %s selected trust", basis)
+		}
+		if !hasLimitation(assessment.Limitations, domain.PerimeterLocalityNotTrustLimitation) {
+			t.Fatalf("basis %s lacks the locality-not-trust limitation: %v", basis, assessment.Limitations)
+		}
+	}
+}
+
+func hasLimitation(limitations []string, want string) bool {
+	for _, l := range limitations {
+		if l == want {
+			return true
+		}
+	}
+	return false
 }

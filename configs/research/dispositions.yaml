@@ -1,0 +1,40 @@
+{
+  "schema": "research-dispositions/1",
+  "dispositions": [
+    {
+      "id": "CLOSE_NOT_AFFECTED",
+      "code_grounded": true,
+      "environment_premise_allowed": false,
+      "requires_complete_coverage": true,
+      "description": "Deterministic applicability chain proved the advisory does not apply to the recorded snapshot; closure rests only on verified deterministic premises."
+    },
+    {
+      "id": "CLOSE_NO_EXPLOIT_PATH",
+      "code_grounded": true,
+      "environment_premise_allowed": false,
+      "requires_complete_coverage": true,
+      "description": "A typed falsifier was independently verified over a closed scope bound to every advisory-declared subject."
+    },
+    {
+      "id": "ACCEPT_ENVIRONMENTAL_MITIGATION",
+      "code_grounded": false,
+      "environment_premise_allowed": true,
+      "requires_complete_coverage": false,
+      "description": "Contextual mitigation branch resting on recorded environment assertions (declared trust, perimeter posture); never a code-level negative and never CLOSE_NO_EXPLOIT_PATH."
+    },
+    {
+      "id": "KEEP_OPEN_FOR_REMEDIATION",
+      "code_grounded": false,
+      "environment_premise_allowed": true,
+      "requires_complete_coverage": false,
+      "description": "Keep the finding open with a remediation recommendation."
+    },
+    {
+      "id": "HOLD_UNKNOWN",
+      "code_grounded": false,
+      "environment_premise_allowed": true,
+      "requires_complete_coverage": false,
+      "description": "Explicit fallback: the evidence does not decide; the artifact does not pretend otherwise."
+    }
+  ]
+}

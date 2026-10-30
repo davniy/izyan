@@ -175,6 +175,12 @@ func runEval(args []string) error {
 	}
 	ctx, stop := applyMemoryLimit(context.Background(), budget)
 	defer stop()
+	// One pinned corpus serves every case: discovery is request-scoped, the
+	// corpus bytes are not. Invalid operator input fails here, before any case
+	// runs.
+	if err := resolveAdvisorySources(ctx, &o); err != nil {
+		return err
+	}
 	gen := eval.Gen{GoBin: o.toolchain.GoBin, Env: o.toolchain.Env, Force: *clean}
 	genRoot := filepath.Join(base, ".gen")
 
@@ -226,8 +232,9 @@ func runEval(args []string) error {
 			mark = "??"
 		} else {
 			ok := false
+			published := outcome.published()
 			for _, want := range outcome.c.Expect {
-				if string(outcome.verdict) == want {
+				if published == want {
 					ok = true
 					break
 				}
@@ -241,7 +248,7 @@ func runEval(args []string) error {
 			errStr = outcome.err.Error()
 		}
 		fmt.Printf("%s [%d/%d] %-28s %-22s %s (%.0fs)\n", mark, completed, total, outcome.c.Label(),
-			firstNonEmpty(string(outcome.verdict), errStr), outcome.reason, outcome.duration.Seconds())
+			firstNonEmpty(outcome.display(), errStr), outcome.reason, outcome.duration.Seconds())
 		if outcome.topTimingsStr != "" {
 			fmt.Fprintf(os.Stderr, "  states: %s\n", outcome.topTimingsStr)
 		}
@@ -251,7 +258,8 @@ func runEval(args []string) error {
 	productDirs := map[string]string{}
 	for _, outcome := range outcomes {
 		rep.Record(outcome.c, outcome.verdict, outcome.reason, outcome.claims,
-			outcome.falsifier, outcome.groundBasis, outcome.evidenceIDs, outcome.err)
+			outcome.falsifier, outcome.groundBasis, outcome.evidenceIDs, outcome.err,
+			outcome.projection)
 		if outcome.baseline != "" {
 			rep.RecordBaseline(outcome.baseline)
 		}
@@ -263,6 +271,11 @@ func runEval(args []string) error {
 	m := rep.Metrics
 	fmt.Printf("\ncases=%d errors=%d expect pass=%d fail=%d claims-fail=%d false-safe=%d inconclusive=%d\n",
 		m.Total, m.Errors, m.ExpectPass, m.ExpectFail, m.ClaimsFail, m.FalseSafe, m.Inconclusive)
+	// Three separate populations: reclassifying tool limitations as failures
+	// must not be presented as increased successful completion, and an external
+	// dependency is not a definitive answer.
+	fmt.Printf("requested outcomes: decided=%d external=%d failed=%d false-positive=%d\n",
+		m.Decided, m.ExternalDependency, m.AnalysisFailed, m.FalsePositive)
 	if m.GovulncheckSignals > 0 {
 		fmt.Printf("signal-cleared=%d/%d (auto=%d expert=%d)\n",
 			m.SignalCleared, m.GovulncheckSignals, m.SignalClearedAuto, m.SignalClearedExpert)
@@ -353,6 +366,82 @@ type caseOutcome struct {
 	baseline      string
 	duration      time.Duration
 	topTimingsStr string
+	// projection is the case's requested-finding projection: the one
+	// authoritative classification the harness scores.
+	projection eval.Projection
+}
+
+// published is the token the harness scores: the requested verdict, or the
+// explicit FAILED token when the analysis published no verdict. An external
+// dependency publishes INCONCLUSIVE and is therefore never a definitive answer.
+func (o caseOutcome) published() string {
+	if o.projection.Available && o.projection.Outcome == domain.OutcomeFailed {
+		return failedResultToken
+	}
+	return string(o.verdict)
+}
+
+// display renders the progress-stream classification.
+func (o caseOutcome) display() string {
+	if o.err != nil {
+		return ""
+	}
+	if !o.projection.Available {
+		return string(o.verdict)
+	}
+	parts := []string{string(o.projection.Outcome)}
+	if o.projection.Verdict != "" {
+		parts = append(parts, string(o.projection.Verdict))
+	}
+	if len(o.projection.FailureCodes) > 0 {
+		parts = append(parts, strings.Join(o.projection.FailureCodes, ","))
+	}
+	if len(o.projection.ExternalDependencies) > 0 {
+		parts = append(parts, strings.Join(o.projection.ExternalDependencies, ", "))
+	}
+	return strings.Join(parts, " ")
+}
+
+const failedResultToken = "FAILED"
+
+// evalProjection projects one requested finding into the harness's result
+// fields. Every value comes from the publication projection: no heuristic here
+// re-reads the primary record's conclusion.
+func evalProjection(view requestedView) eval.Projection {
+	f := view.Finding
+	projection := eval.Projection{
+		Available:            true,
+		RequestedID:          f.RequestedID,
+		RequestedKind:        string(f.RequestedKind),
+		Coverage:             string(f.Coverage),
+		Outcome:              f.Outcome,
+		Verdict:              f.Verdict,
+		Reason:               f.Reason,
+		ExploitabilityScope:  string(f.ExploitabilityScope),
+		Profile:              string(f.Profile),
+		Build:                buildLabel(f.Build),
+		CandidateIDs:         projectedCandidates(view.View.Primary),
+		AttributionOutcomes:  projectedAttributions(view.View.Primary),
+		CorpusDigest:         projectedCorpusDigest(view.View.Primary, f.FindingProfile),
+		FailureCodes:         projectedFailureCodes(f.FindingProfile),
+		ExternalDependencies: projectedExternalFacts(f.FindingProfile),
+	}
+	if primary := view.View.Primary; primary != nil && primary.RecordPin != nil {
+		projection.PrimaryRecord = primary.RecordPin.RecordID
+		projection.PrimaryDigest = primary.RecordPin.DocumentDigest
+	}
+	for _, origin := range f.ProofOrigins {
+		projection.ProofOrigins = append(projection.ProofOrigins, eval.ProofOriginRef{
+			AssessmentID:   string(origin.AssessmentID),
+			RecordID:       origin.Record.RecordID,
+			DocumentDigest: origin.Record.DocumentDigest,
+			EntryRefs:      append([]int(nil), origin.EntryRefs...),
+			MechanismID:    origin.MechanismID,
+			AttributionID:  origin.AttributionID,
+			Profile:        string(origin.Profile),
+		})
+	}
+	return projection
 }
 
 func runCase(ctx context.Context, idx, total int, c eval.Case, o analyzeOpts, base, genRoot string, gen eval.Gen) caseOutcome {
@@ -385,7 +474,9 @@ func runCase(ctx context.Context, idx, total int, c eval.Case, o analyzeOpts, ba
 	for _, rc := range c.RootCauses {
 		co.manualRC = append(co.manualRC, rc.RootCause)
 	}
-	co.nonLocusBasis = c.NonLocus
+	// The corpus non_locus field is an explicit expert-input channel;
+	// stamping keeps its provenance distinct from machine proposals.
+	co.nonLocusBasis = domain.ExpertLocusDecisions(c.NonLocus)
 	if c.TrustedPeer {
 		co.trustedPeer = true
 	}
@@ -394,9 +485,6 @@ func runCase(ctx context.Context, idx, total int, c eval.Case, o analyzeOpts, ba
 	}
 	if c.DeployManifests != "" {
 		co.deployManifests = c.DeployManifests
-	}
-	if c.AcceptLocusProposals {
-		co.acceptLocusProposals = true
 	}
 	var productDir string
 	switch {
@@ -437,55 +525,46 @@ func runCase(ctx context.Context, idx, total int, c eval.Case, o analyzeOpts, ba
 		co.caseDir = filepath.Join(o.caseDir, sanitizeCaseName(c.Label()))
 	}
 	cs, err := analyzeCase(ctx, co)
+	var projection eval.Projection
 	var verdict domain.Verdict
 	var reason string
 	var falsifier, groundBasis string
 	var evidenceIDs []string
 	claims := map[string]string{}
 	var topTimingsStr string
+	if err == nil {
+		// A workflow error is an execution error; a FAILED requested
+		// assessment is an ordinary result and is scored as such below.
+		view, perr := projectRequested(cs)
+		if perr != nil {
+			err = fmt.Errorf("requested finding projection: %w", perr)
+		} else {
+			projection = evalProjection(view)
+			verdict = projection.Verdict
+			reason = projection.Reason
+			// The claim and falsifier projection comes from the record that
+			// grounds the answer, so a composed CVE positive reports its
+			// witness's conditions rather than the primary record's.
+			grounding := view.groundingRecord()
+			claims = claimResults(grounding)
+			falsifier, groundBasis, evidenceIDs = groundingClaim(grounding)
+		}
+	}
 	if cs != nil {
-		if cs.Verdict != nil {
-			verdict = cs.Verdict.Verdict
-			reason = cs.Verdict.Reason
-			groundBasis = cs.Verdict.GroundBasis
-		}
-		for _, cl := range cs.Claims {
-			claims[string(cl.ConditionID)] = string(cl.Result)
-		}
-		// The verdict's grounding claim carries the falsifier that
-		// cleared the case — the evidence class an independent
-		// reviewer needs (B29).
-		if cs.Verdict != nil && len(cs.Verdict.ConditionIDs) > 0 {
-			for _, cl := range cs.Claims {
-				if cl.ConditionID == cs.Verdict.ConditionIDs[0] {
-					falsifier = cl.Falsifier
-					for _, id := range cl.EvidenceIDs {
-						evidenceIDs = append(evidenceIDs, string(id))
-					}
-					break
-				}
-			}
-		}
 		topTimingsStr = topTimings(cs.Workflow.Timings, 3)
 	}
 
 	var baseline string
 	if productDir != "" {
-		var gvRaw []byte
-		if cs != nil {
-			for _, ev := range cs.EvidenceGraph.Evidence {
-				if ev.Kind == domain.EvidenceGovulncheck && ev.Content != "" {
-					gvRaw = []byte(ev.Content)
-					break
-				}
-			}
-		}
-		if len(gvRaw) > 0 {
-			baseline = eval.BaselineFromOutput(gvRaw, baselineVuln(ctx, c, cs))
+		vuln := baselineVuln(ctx, c, cs)
+		if got, ok := recordedBaseline(cs, vuln); ok {
+			baseline = got
 		} else {
+			// No collected run record exists at all: this is the only case
+			// that may start a second, standalone baseline execution.
 			baseline = eval.Baseline(ctx,
 				goanalysis.ExecRunner{Env: co.toolchain.Env}, productDir,
-				baselineVuln(ctx, c, cs), domain.ProductSnapshot{
+				vuln, domain.ProductSnapshot{
 					GOOS: co.goos, GOARCH: co.goarch, BuildTags: splitCSV(co.tags),
 				})
 		}
@@ -505,7 +584,55 @@ func runCase(ctx context.Context, idx, total int, c eval.Case, o analyzeOpts, ba
 		baseline:      baseline,
 		duration:      time.Since(caseStart),
 		topTimingsStr: topTimingsStr,
+		projection:    projection,
 	}
+}
+
+// selectRecordedGovulncheck returns the govulncheck evidence the case
+// already collected. The latest completed typed run wins over failed/not-run
+// records (the same rule the evaluator applies). A legacy record without a
+// typed outcome is returned as-is so it is classified as unknown instead of
+// triggering a second, unreported baseline execution.
+func selectRecordedGovulncheck(cs *domain.AnalysisCase) *domain.Evidence {
+	if cs == nil {
+		return nil
+	}
+	evidence := cs.EvidenceGraph.EvidenceList()
+	var completed, latest *domain.Evidence
+	for i := range evidence {
+		e := &evidence[i]
+		if e.Kind != domain.EvidenceGovulncheck {
+			continue
+		}
+		latest = e
+		if e.Govulncheck != nil &&
+			(e.Govulncheck.Outcome == domain.GovulncheckCompletedEmpty ||
+				e.Govulncheck.Outcome == domain.GovulncheckCompletedWithResults) {
+			completed = e
+		}
+	}
+	if completed != nil {
+		return completed
+	}
+	return latest
+}
+
+// recordedBaseline classifies the case's collected govulncheck record. ok is
+// false only when no govulncheck record exists at all — the sole condition
+// for a standalone baseline execution. A record from a different build is
+// reported as an error, never reclassified as this build's measurement and
+// never silently re-run.
+func recordedBaseline(cs *domain.AnalysisCase, v domain.Vulnerability) (baseline string, ok bool) {
+	ev := selectRecordedGovulncheck(cs)
+	if ev == nil {
+		return "", false
+	}
+	if ev.BuildContext != nil {
+		if err := ev.BuildContext.Matches(domain.EffectiveBuildContext(cs.Product)); err != nil {
+			return eval.BaselineError + ": recorded govulncheck run describes a different build: " + err.Error(), true
+		}
+	}
+	return eval.BaselineFromEvidence(*ev, v), true
 }
 
 func sanitizeCaseName(s string) string {
@@ -515,4 +642,109 @@ func sanitizeCaseName(s string) string {
 		}
 		return '_'
 	}, s)
+}
+
+const evalCompareUsage = `usage:
+  izyan eval compare --before <report.json> --after <report.json> --out <delta.json>
+
+  Compare two saved Product A evaluation runs and quantify what an authority
+  change did to the answers. The comparison is offline: it reads the two
+  recorded reports, never re-analyzes a case, and never consults an LLM.
+
+  The runs are paired by case, input and build identity. A case present on one
+  side only, or one identity recorded twice, refuses the comparison: a delta
+  over unmatched material measures nothing. Every direction is reported
+  separately — lost and gained definitive positives, lost and gained negatives,
+  new and cleared failures, and each condition's own result transition — so a
+  lost weak positive is stated as a loss rather than netted away.
+
+Exit codes: 0 compared without a new false-safe; 1 the comparison gained a
+false-safe; 2 malformed inputs or unmatched material.
+`
+
+// Offline authority-delta exit codes. A measured loss is a completed
+// comparison; only a new false-safe is a stop-the-line outcome.
+const (
+	evalCompareExitFalseSafe = 1
+	evalCompareExitError     = 2
+)
+
+// runEvalCompare implements `izyan eval compare`.
+func runEvalCompare(args []string) error {
+	fs := flag.NewFlagSet("eval compare", flag.ContinueOnError)
+	fs.Usage = func() { fmt.Fprint(os.Stderr, evalCompareUsage) }
+	beforePath := fs.String("before", "", "saved JSON report of the pre-change run")
+	afterPath := fs.String("after", "", "saved JSON report of the post-change run")
+	outPath := fs.String("out", "", "file to write the authority delta JSON to")
+	if err := fs.Parse(args); err != nil {
+		return exitErr(evalCompareExitError, err)
+	}
+	if fs.NArg() != 0 {
+		return exitErr(evalCompareExitError, fmt.Errorf(
+			"eval compare: unexpected positional arguments: %v", fs.Args()))
+	}
+	if *beforePath == "" || *afterPath == "" || *outPath == "" {
+		fs.Usage()
+		return exitErr(evalCompareExitError, fmt.Errorf(
+			"eval compare: --before, --after and --out are required"))
+	}
+
+	before, err := loadEvalReport(*beforePath)
+	if err != nil {
+		return exitErr(evalCompareExitError, fmt.Errorf("eval compare: --before: %w", err))
+	}
+	after, err := loadEvalReport(*afterPath)
+	if err != nil {
+		return exitErr(evalCompareExitError, fmt.Errorf("eval compare: --after: %w", err))
+	}
+
+	delta, err := eval.CompareAuthorityResults(before.Results, after.Results)
+	if err != nil {
+		return exitErr(evalCompareExitError, fmt.Errorf("eval compare: %w", err))
+	}
+	delta.Before = absPath(*beforePath)
+	delta.After = absPath(*afterPath)
+
+	raw, err := json.MarshalIndent(delta, "", "  ")
+	if err != nil {
+		return exitErr(evalCompareExitError, fmt.Errorf("eval compare: encode delta: %w", err))
+	}
+	raw = append(raw, '\n')
+	if err := os.WriteFile(*outPath, raw, 0o644); err != nil {
+		return exitErr(evalCompareExitError, fmt.Errorf("eval compare: write delta: %w", err))
+	}
+
+	fmt.Fprint(os.Stdout, delta.Summary())
+	if len(delta.FalseSafeGained) > 0 {
+		return exitErr(evalCompareExitFalseSafe, fmt.Errorf(
+			"eval compare: %d case(s) became false-safe under the authority change; see %s",
+			len(delta.FalseSafeGained), *outPath))
+	}
+	return nil
+}
+
+// loadEvalReport decodes one saved report. Only the results are authoritative
+// for a comparison: the recorded metrics describe the run, not the pairing.
+func loadEvalReport(path string) (eval.Report, error) {
+	var report eval.Report
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return report, err
+	}
+	if err := json.Unmarshal(raw, &report); err != nil {
+		return report, fmt.Errorf("decode %s: %w", path, err)
+	}
+	if len(report.Results) == 0 {
+		return report, fmt.Errorf("%s carries no results", path)
+	}
+	return report, nil
+}
+
+// absPath renders a path for the record so the delta names the runs it
+// compared even when the caller used a relative path.
+func absPath(path string) string {
+	if abs, err := filepath.Abs(path); err == nil {
+		return abs
+	}
+	return path
 }

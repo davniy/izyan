@@ -514,11 +514,11 @@ govulncheck `reachable` baseline во всех вариантах:
 
 | Вариант | analyzer | govulncheck | Контракт |
 |---|---|---|---|
-| real-micro-plain-6443 | **EXPLOITABLE** — сигнал сохранён, не подтверждение эксплуатации (без basis весь declared set в L; HandleStreams в трейсе → `C-LOCUS` TRUE) | reachable (`HandleStreams`) | автоматическое исключение запрещено — машина совпадает с govulncheck |
-| real-micro-plain-6443x | **NO_EXPLOIT_PATH_FOUND** | reachable | expert `non_locus` на HandleStreams+operateHeaders записан в модель → `C-LOCUS` FALSE + `locus-package-absent` VERIFIED |
-| real-micro-xds-6443 | EXPLOITABLE | reachable (`RouteAndProcess` в трейсе) | `C-LOCUS` TRUE — сигнал сохранён |
-| real-micro-wrap-6443 | EXPLOITABLE | reachable | factory-обёртка не ослабила: module-internal chain доказал локус |
-| real-micro-pkg-6443 | INCONCLUSIVE | reachable | пакет в графе, функция не вызвана → `C-LOCUS` UNKNOWN, NEPF не выносится |
+| real-service-plain-6443 | **EXPLOITABLE** — сигнал сохранён, не подтверждение эксплуатации (без basis весь declared set в L; HandleStreams в трейсе → `C-LOCUS` TRUE) | reachable (`HandleStreams`) | автоматическое исключение запрещено — машина совпадает с govulncheck |
+| real-service-plain-6443x | **NO_EXPLOIT_PATH_FOUND** | reachable | expert `non_locus` на HandleStreams+operateHeaders записан в модель → `C-LOCUS` FALSE + `locus-package-absent` VERIFIED |
+| real-service-xds-6443 | EXPLOITABLE | reachable (`RouteAndProcess` в трейсе) | `C-LOCUS` TRUE — сигнал сохранён |
+| real-service-wrap-6443 | EXPLOITABLE | reachable | factory-обёртка не ослабила: module-internal chain доказал локус |
+| real-service-pkg-6443 | INCONCLUSIVE | reachable | пакет в графе, функция не вызвана → `C-LOCUS` UNKNOWN, NEPF не выносится |
 
 На реальном вендореном снапшоте (grpc v1.80.0, `internal/xds` отсутствует
 в vendor): `RouteAndProcess` не резолвится в source → `UnresolvedSubjects`,

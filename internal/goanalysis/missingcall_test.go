@@ -13,12 +13,12 @@ func TestCheckMissingCall_Omitted(t *testing.T) {
 	check := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "MapClaims.VerifyAudience"}
 	pipeline := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "MapClaims.Valid"}
 
-	omitted, content, callers, err := ix.CheckMissingCall(context.Background(), check, pipeline)
+	status, content, callers, err := ix.CheckMissingCall(context.Background(), check, pipeline)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !omitted {
-		t.Fatalf("expected omitted = true, got false; content: %s", content)
+	if status != domain.MissingCallOmitted {
+		t.Fatalf("expected status %q, got %q; content: %s", domain.MissingCallOmitted, status, content)
 	}
 	if len(callers) == 0 {
 		t.Fatalf("expected at least 1 caller reaching pipeline, got 0")
@@ -36,12 +36,12 @@ func TestCheckMissingCall_ExplicitlyInvoked(t *testing.T) {
 	check := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "MapClaims.VerifyAudience"}
 	pipeline := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "MapClaims.Valid"}
 
-	omitted, content, _, err := ix.CheckMissingCall(context.Background(), check, pipeline)
+	status, content, _, err := ix.CheckMissingCall(context.Background(), check, pipeline)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if omitted {
-		t.Fatalf("expected omitted = false when check is invoked in product code, got true; content: %s", content)
+	if status != domain.MissingCallPresent {
+		t.Fatalf("expected status %q when check is invoked in product code, got %q; content: %s", domain.MissingCallPresent, status, content)
 	}
 	if !strings.Contains(content, "invoked") {
 		t.Fatalf("expected content to explain check was invoked: %s", content)
@@ -53,12 +53,12 @@ func TestCheckMissingCall_PipelineNotReached(t *testing.T) {
 	check := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "MapClaims.VerifyAudience"}
 	pipeline := domain.SymbolRef{Package: "example.com/dep/vuln", Symbol: "MapClaims.Valid"}
 
-	omitted, content, _, err := ix.CheckMissingCall(context.Background(), check, pipeline)
+	status, content, _, err := ix.CheckMissingCall(context.Background(), check, pipeline)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if omitted {
-		t.Fatalf("expected omitted = false when pipeline is not reached, got true; content: %s", content)
+	if status != domain.MissingCallNotEstablished {
+		t.Fatalf("expected status %q when pipeline is not reached, got %q; content: %s", domain.MissingCallNotEstablished, status, content)
 	}
 	if !strings.Contains(content, "not reached") {
 		t.Fatalf("expected content to explain pipeline was not reached: %s", content)
@@ -71,12 +71,12 @@ func TestCheckMissingCall_PipelineDeclNotFound(t *testing.T) {
 	// fmt.Stringer.String is reached as an interface call, but has no ast.FuncDecl in AST.
 	pipeline := domain.SymbolRef{Package: "fmt", Symbol: "Stringer.String"}
 
-	omitted, content, _, err := ix.CheckMissingCall(context.Background(), check, pipeline)
+	status, content, _, err := ix.CheckMissingCall(context.Background(), check, pipeline)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if omitted {
-		t.Fatalf("expected omitted = false when pipeline decl is not found, got true; content: %s", content)
+	if status != domain.MissingCallNotEstablished {
+		t.Fatalf("expected status %q when pipeline decl is not found, got %q; content: %s", domain.MissingCallNotEstablished, status, content)
 	}
 	if !strings.Contains(content, "declaration Stringer.String not found") && !strings.Contains(content, "cannot inspect pipeline") {
 		t.Fatalf("expected content to explain declaration not found: %s", content)

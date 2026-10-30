@@ -1,0 +1,846 @@
+{
+  "schema": "task5-freeze/1",
+  "frozen_at_utc": "2026-10-09T01:57:43Z",
+  "purpose": "phase 5.0 freeze: read-only index of Task 3/4 evidence; original names/roots retained, nothing rewritten \u2014 new indexes live only under eval/task5/freeze/",
+  "provenance": {
+    "pins": {
+      "harness_commit_task4": "c71f512a3304d1a0d0d9f5e19e8dbc06e9f1dc93",
+      "task4_patch_sha256": "7c47f5c39b94b862cfc576f32540400a3001b64740d81667ba5dbc84c05b0840",
+      "izyan_commit_task4": "0a9b404ab8d69d1bf9200e0f94f71627a2b656c4"
+    },
+    "checks": {
+      "harness_head_now": "4f2881bccf25dacb6da30c917acf4ad9e1466feb",
+      "harness_pin_is_ancestor": true,
+      "task4_patch_sha256_match": true,
+      "task4_patch_sha256_actual": "7c47f5c39b94b862cfc576f32540400a3001b64740d81667ba5dbc84c05b0840",
+      "izyan_head_now": "36ea9b0396ba376922830e75543ec1d5aeb51bd8",
+      "izyan_pin_is_ancestor": true,
+      "c1_manifest": {
+        "izyan_commit": "0a9b404ab8d69d1bf9200e0f94f71627a2b656c4",
+        "harness_commit": "c71f512a3304d1a0d0d9f5e19e8dbc06e9f1dc93",
+        "dirty_at_freeze": true,
+        "note": "Codex-specific model/prompt fields in the frozen manifest are Codex provenance, not Qwen provenance (plan \u00a76)"
+      }
+    }
+  },
+  "historical_qwen_headline": {
+    "q36_plain": {
+      "fs": 1,
+      "recall": "6/7",
+      "scr": "19/23",
+      "repeats": 1
+    },
+    "q36_tools": {
+      "fs": 3,
+      "recall": "4/7",
+      "scr": "20/23",
+      "repeats": 1
+    },
+    "q38_plain": {
+      "fs": 0,
+      "recall": "7/7",
+      "scr": "20/23",
+      "repeats": 1,
+      "note": "audit-projection after full-JSON parse repair"
+    },
+    "q38_tools": {
+      "fs": 3,
+      "recall": "4/7",
+      "scr": "21/23",
+      "repeats": 1
+    }
+  },
+  "mcp_error_accounting": {
+    "reported": {
+      "total_calls": 513,
+      "error": 100,
+      "unsupported": 2,
+      "context_canceled": 65,
+      "govulncheck_missing": 8,
+      "go_mod_updates_needed": 5
+    },
+    "recounted_totals": {
+      "total_calls": 513,
+      "error": 100,
+      "unsupported": 2,
+      "context_canceled": 65,
+      "govulncheck_missing": 8,
+      "go_mod_updates_needed": 5
+    },
+    "reported_vs_recounted": {
+      "total_calls": {
+        "reported": 513,
+        "recounted": 513
+      },
+      "error": {
+        "reported": 100,
+        "recounted": 100
+      },
+      "unsupported": {
+        "reported": 2,
+        "recounted": 2
+      },
+      "context_canceled": {
+        "reported": 65,
+        "recounted": 65
+      },
+      "govulncheck_missing": {
+        "reported": 8,
+        "recounted": 8
+      },
+      "go_mod_updates_needed": {
+        "reported": 5,
+        "recounted": 5
+      }
+    },
+    "per_cohort": {
+      "q36_tools": {
+        "root": "<VA_REPO>/results/task4-c1/qwen-tools-full/q36",
+        "audit_files": 30,
+        "total_calls": 268,
+        "by_tool_status": {
+          "ERROR": 58,
+          "OK": 208,
+          "UNSUPPORTED": 2
+        },
+        "error_classes": {
+          "context_canceled": 39,
+          "fetch_failed": 2,
+          "go_mod_updates_needed": 4,
+          "govulncheck_missing": 2,
+          "other": 13
+        },
+        "unclassified_errors": [
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q36/d748ca6dd273/opencode-c1/qwen3.6-35b/aquasecurity-trivy-98e136e-CVE-2024-24791/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "read_source",
+            "detail": "path /go escapes the analyzed repository/module cache"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q36/d748ca6dd273/opencode-c1/qwen3.6-35b/containers-podman-5ae6347-CVE-2025-47914/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "trace_argument",
+            "detail": "call site /test:1 not found"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q36/d748ca6dd273/opencode-c1/qwen3.6-35b/containers-podman-6a65597-CVE-2023-48795/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "find_validations",
+            "detail": "call site /work/pkg/bindings/connection.go:118 not found"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q36/d748ca6dd273/opencode-c1/qwen3.6-35b/gitleaks-gitleaks-f487f85-CVE-2025-22871/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "read_source",
+            "detail": "path /usr/local/go/src/net/http/internal/chunked.go escapes the analyzed repository/module cache"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q36/d748ca6dd273/opencode-c1/qwen3.6-35b/helm-helm-fbb24fe-CVE-2021-21334/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "check_missing_call",
+            "detail": "check and pipeline symbol refs are required"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q36/d748ca6dd273/opencode-c1/qwen3.6-35b/labstack-echo-fdacff0-CVE-2020-26160/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "read_source",
+            "detail": "read gate: /go/pkg/mod/github.com/dgrijalva/jwt-go@v3.2.0+incompatible/jwt.go does not resolve: lstat /go/pkg/mod/github.com/dgrijalva/jwt-go@v3.2.0+incompatible/jwt.go: no such file or directory"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q36/d748ca6dd273/opencode-c1/qwen3.6-35b/rancher-rancher-4dc4f53-CVE-2025-47914/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "module_internal_reach",
+            "detail": "entries and subjects are required"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q36/d748ca6dd273/opencode-c1/qwen3.6-35b/rancher-rancher-8761419-CVE-2026-24051/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "run_tests",
+            "detail": "run_test executes repository code; exec permission is off (pass --allow-exec)"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q36/d748ca6dd273/opencode-c1/qwen3.6-35b/rancher-rancher-8761419-CVE-2026-24051/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "run_build",
+            "detail": "run_build executes repository code; exec permission is off (pass --allow-exec)"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q36/d748ca6dd273/opencode-c1/qwen3.6-35b/rancher-rancher-8761419-CVE-2026-39883/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "check_missing_call",
+            "detail": "check and pipeline symbol refs are required"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q36/d748ca6dd273/opencode-c1/qwen3.6-35b/stretchr-testify-285adcc-CVE-2022-28948/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "trace_argument",
+            "detail": "call site work/assert/assertions.go:1573 not found"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q36/d748ca6dd273/opencode-c1/qwen3.6-35b/stretchr-testify-285adcc-CVE-2022-28948/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "trace_argument",
+            "detail": "call site work/assert/assertions.go:1577 not found"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q36/d748ca6dd273/opencode-c1/qwen3.6-35b/zeromicro-go-zero-bae061a-CVE-2022-32149/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "find_validations",
+            "detail": "call site /work/tools/goctl/util/stringx/string.go:60 not found"
+          }
+        ]
+      },
+      "q38_tools": {
+        "root": "<VA_REPO>/results/task4-c1/qwen-tools-full/q38",
+        "audit_files": 30,
+        "total_calls": 245,
+        "by_tool_status": {
+          "ERROR": 42,
+          "OK": 203
+        },
+        "error_classes": {
+          "context_canceled": 26,
+          "fetch_failed": 2,
+          "go_mod_updates_needed": 1,
+          "govulncheck_missing": 6,
+          "other": 7
+        },
+        "unclassified_errors": [
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q38/d748ca6dd273/opencode-c1/qwen3.8-27b/containers-podman-38ccfa2-CVE-2024-37298/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "read_function",
+            "detail": "function Decode not found in /work/vendor/github.com/gorilla/schema/decoder.go"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q38/d748ca6dd273/opencode-c1/qwen3.8-27b/containers-podman-5ae6347-CVE-2025-47914/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "read_function",
+            "detail": "function parseConstraints not found in vendor/golang.org/x/crypto/ssh/agent/server.go"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q38/d748ca6dd273/opencode-c1/qwen3.8-27b/containers-podman-5ae6347-CVE-2025-47914/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "read_function",
+            "detail": "function ServeAgent not found in vendor/golang.org/x/crypto/ssh/agent/server.go"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q38/d748ca6dd273/opencode-c1/qwen3.8-27b/containers-podman-5ae6347-CVE-2025-47914/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "read_function",
+            "detail": "function ForwardToAgent not found in vendor/golang.org/x/crypto/ssh/agent/forward.go"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q38/d748ca6dd273/opencode-c1/qwen3.8-27b/gitleaks-gitleaks-f487f85-CVE-2025-22871/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "read_source",
+            "detail": "path /usr/local/go/src/net/http/internal/chunked.go escapes the analyzed repository/module cache"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q38/d748ca6dd273/opencode-c1/qwen3.8-27b/kubernetes-minikube-e7bf515-CVE-2019-5736/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "get_advisory",
+            "detail": "osv get https://api.osv.dev/v1/vulns/GO-2019-0002: unexpected status 404"
+          },
+          {
+            "file": "<VA_REPO>/results/task4-c1/qwen-tools-full/q38/d748ca6dd273/opencode-c1/qwen3.8-27b/rancher-rancher-8761419-CVE-2026-24051/run_001/artifacts/izyan-audit/tool_calls.jsonl",
+            "tool": "read_source",
+            "detail": "read gate: /work/go.opentelemetry.io/otel/sdk@v1.33.0/sdk/resource/host_id.go does not resolve: lstat /work/go.opentelemetry.io: no such file or directory"
+          }
+        ]
+      }
+    },
+    "policy": "all raw records preserved under the cohort roots; unclassified residuals stay listed verbatim, not just the summary buckets"
+  },
+  "codex_status": {
+    "b1p": "PARTIAL 8/90",
+    "c1": "PARTIAL 6/90",
+    "note": "frozen as-is per task4-codex-partial-state.md; capacity-contaminated and timeout-bug cohorts are excluded from matched evidence"
+  },
+  "cohorts": [
+    {
+      "id": "A_izyan_baseline",
+      "role": "deterministic_baseline_A",
+      "root": "/tmp/vexbench-baseline/runs/external-baseline-1",
+      "doc": "eval/baselines/vexbench/external-baseline-1.md",
+      "admission": "frozen_reference",
+      "root_exists": true,
+      "attempts": {
+        "model_level": null,
+        "attempts": 0,
+        "task_ids_present": []
+      }
+    },
+    {
+      "id": "B1_codex_plain",
+      "role": "official_plain_codex_3x",
+      "root": "/tmp/vexbench-plain/full",
+      "doc": "eval/baselines/vexbench/plain-agent-baseline-1.md",
+      "admission": "frozen_reference",
+      "root_exists": true,
+      "attempts": {
+        "model_level": "/tmp/vexbench-plain/full/results/c0a5c8458b77/codex/gpt-6.1-sol",
+        "exists": true,
+        "attempts": 90,
+        "with_result": 90,
+        "with_error": 0,
+        "finalized": 0,
+        "task_ids_present": [
+          "aquasecurity-trivy-37da98d-CVE-2024-32473",
+          "aquasecurity-trivy-98e136e-CVE-2024-24791",
+          "caddyserver-caddy-8dc7667-CVE-2025-29785",
+          "cilium-cilium-1228cbc-CVE-2026-35469",
+          "cilium-cilium-3977f6a-CVE-2026-33186",
+          "cilium-cilium-43bff35-CVE-2026-35469",
+          "containers-podman-38ccfa2-CVE-2024-37298",
+          "containers-podman-5ae6347-CVE-2025-47914",
+          "containers-podman-6541fc4-CVE-2025-58181",
+          "containers-podman-6a65597-CVE-2023-48795",
+          "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+          "helm-helm-b76a950-CVE-2024-25621",
+          "helm-helm-fbb24fe-CVE-2021-21334",
+          "istio-istio-042afc3-CVE-2023-48795",
+          "istio-istio-8903f65-CVE-2024-45338",
+          "juanfont-headscale-e172c29-CVE-2024-45338",
+          "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+          "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+          "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+          "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+          "kubernetes-minikube-e7bf515-CVE-2019-5736",
+          "labstack-echo-fdacff0-CVE-2020-26160",
+          "moby-moby-3ede246-CVE-2026-39984",
+          "moby-moby-caea5f7-CVE-2026-39883",
+          "rancher-rancher-4dc4f53-CVE-2025-47914",
+          "rancher-rancher-4dc4f53-CVE-2025-58181",
+          "rancher-rancher-8761419-CVE-2026-24051",
+          "rancher-rancher-8761419-CVE-2026-39883",
+          "stretchr-testify-285adcc-CVE-2022-28948",
+          "zeromicro-go-zero-bae061a-CVE-2022-32149"
+        ],
+        "missing_task_ids": [],
+        "unexpected_task_ids": []
+      }
+    },
+    {
+      "id": "B2_gemini_host",
+      "role": "plain_gemini_host_run",
+      "root": "/tmp/vexbench-plain/b2",
+      "admission": "excluded_contaminated",
+      "note": "host process, GT read in 11/29 transcripts (plain-agent-baseline-1.md \u00a77) \u2014 descriptive only",
+      "root_exists": true,
+      "attempts": {
+        "model_level": null,
+        "attempts": 0,
+        "task_ids_present": []
+      }
+    },
+    {
+      "id": "B2_iso_gemini",
+      "role": "isolated_gemini_rerun",
+      "root": "/tmp/vexbench-gemini-iso",
+      "admission": "excluded_retry_composite",
+      "note": "7 selective retries under run_001 + 3 filter truncations (\u00a78) \u2014 not a first-attempt baseline",
+      "root_exists": true,
+      "attempts": {
+        "model_level": "/tmp/vexbench-gemini-iso/smoke-results/c0a5c8458b77/opencode/gemini-3.8-flash-high",
+        "exists": true,
+        "attempts": 30,
+        "with_result": 30,
+        "with_error": 0,
+        "finalized": 0,
+        "task_ids_present": [
+          "aquasecurity-trivy-37da98d-CVE-2024-32473",
+          "aquasecurity-trivy-98e136e-CVE-2024-24791",
+          "caddyserver-caddy-8dc7667-CVE-2025-29785",
+          "cilium-cilium-1228cbc-CVE-2026-35469",
+          "cilium-cilium-3977f6a-CVE-2026-33186",
+          "cilium-cilium-43bff35-CVE-2026-35469",
+          "containers-podman-38ccfa2-CVE-2024-37298",
+          "containers-podman-5ae6347-CVE-2025-47914",
+          "containers-podman-6541fc4-CVE-2025-58181",
+          "containers-podman-6a65597-CVE-2023-48795",
+          "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+          "helm-helm-b76a950-CVE-2024-25621",
+          "helm-helm-fbb24fe-CVE-2021-21334",
+          "istio-istio-042afc3-CVE-2023-48795",
+          "istio-istio-8903f65-CVE-2024-45338",
+          "juanfont-headscale-e172c29-CVE-2024-45338",
+          "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+          "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+          "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+          "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+          "kubernetes-minikube-e7bf515-CVE-2019-5736",
+          "labstack-echo-fdacff0-CVE-2020-26160",
+          "moby-moby-3ede246-CVE-2026-39984",
+          "moby-moby-caea5f7-CVE-2026-39883",
+          "rancher-rancher-4dc4f53-CVE-2025-47914",
+          "rancher-rancher-4dc4f53-CVE-2025-58181",
+          "rancher-rancher-8761419-CVE-2026-24051",
+          "rancher-rancher-8761419-CVE-2026-39883",
+          "stretchr-testify-285adcc-CVE-2022-28948",
+          "zeromicro-go-zero-bae061a-CVE-2022-32149"
+        ],
+        "missing_task_ids": [],
+        "unexpected_task_ids": []
+      }
+    },
+    {
+      "id": "B3_qwen_host",
+      "role": "plain_qwen_host_run",
+      "root": "/tmp/vexbench-plain/b3-qwen-subagent",
+      "admission": "excluded_no_isolation",
+      "note": "host subagent process, no container isolation",
+      "root_exists": true,
+      "attempts": {
+        "model_level": null,
+        "attempts": 0,
+        "task_ids_present": []
+      }
+    },
+    {
+      "id": "q36_plain",
+      "role": "task5_p0_historical",
+      "root": "/tmp/vexbench-qwen-iso/q36",
+      "agent": "opencode",
+      "model": "qwen3.6-35b",
+      "prompt": "vuln",
+      "mcp": false,
+      "repeats": 1,
+      "admission": "matched_evidence",
+      "note": "n=1, timeout=1800 \u2014 historical comparator only",
+      "results_jsonl": {
+        "path": "/tmp/vexbench-qwen-iso/q36/final/results.jsonl",
+        "exists": true,
+        "sha256": "4eae221b3ca164be16e3239329a3f6e0a15df682ac442351b58f7cfd3d58c835"
+      },
+      "root_exists": true,
+      "attempts": {
+        "model_level": "/tmp/vexbench-qwen-iso/q36/c0a5c8458b77/opencode/qwen3.6-35b",
+        "exists": true,
+        "attempts": 30,
+        "with_result": 29,
+        "with_error": 1,
+        "finalized": 0,
+        "task_ids_present": [
+          "aquasecurity-trivy-37da98d-CVE-2024-32473",
+          "aquasecurity-trivy-98e136e-CVE-2024-24791",
+          "caddyserver-caddy-8dc7667-CVE-2025-29785",
+          "cilium-cilium-1228cbc-CVE-2026-35469",
+          "cilium-cilium-3977f6a-CVE-2026-33186",
+          "cilium-cilium-43bff35-CVE-2026-35469",
+          "containers-podman-38ccfa2-CVE-2024-37298",
+          "containers-podman-5ae6347-CVE-2025-47914",
+          "containers-podman-6541fc4-CVE-2025-58181",
+          "containers-podman-6a65597-CVE-2023-48795",
+          "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+          "helm-helm-b76a950-CVE-2024-25621",
+          "helm-helm-fbb24fe-CVE-2021-21334",
+          "istio-istio-042afc3-CVE-2023-48795",
+          "istio-istio-8903f65-CVE-2024-45338",
+          "juanfont-headscale-e172c29-CVE-2024-45338",
+          "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+          "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+          "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+          "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+          "kubernetes-minikube-e7bf515-CVE-2019-5736",
+          "labstack-echo-fdacff0-CVE-2020-26160",
+          "moby-moby-3ede246-CVE-2026-39984",
+          "moby-moby-caea5f7-CVE-2026-39883",
+          "rancher-rancher-4dc4f53-CVE-2025-47914",
+          "rancher-rancher-4dc4f53-CVE-2025-58181",
+          "rancher-rancher-8761419-CVE-2026-24051",
+          "rancher-rancher-8761419-CVE-2026-39883",
+          "stretchr-testify-285adcc-CVE-2022-28948",
+          "zeromicro-go-zero-bae061a-CVE-2022-32149"
+        ],
+        "missing_task_ids": [],
+        "unexpected_task_ids": []
+      }
+    },
+    {
+      "id": "q38_plain",
+      "role": "historical_second_cohort",
+      "root": "/tmp/vexbench-qwen-iso/q38",
+      "agent": "opencode",
+      "model": "qwen3.8-27b",
+      "prompt": "vuln",
+      "mcp": false,
+      "repeats": 1,
+      "admission": "matched_evidence",
+      "note": "separate cohort \u2014 never pooled with q36 (plan \u00a72)",
+      "root_exists": true,
+      "attempts": {
+        "model_level": "/tmp/vexbench-qwen-iso/q38/c0a5c8458b77/opencode/qwen3.8-27b",
+        "exists": true,
+        "attempts": 30,
+        "with_result": 30,
+        "with_error": 0,
+        "finalized": 0,
+        "task_ids_present": [
+          "aquasecurity-trivy-37da98d-CVE-2024-32473",
+          "aquasecurity-trivy-98e136e-CVE-2024-24791",
+          "caddyserver-caddy-8dc7667-CVE-2025-29785",
+          "cilium-cilium-1228cbc-CVE-2026-35469",
+          "cilium-cilium-3977f6a-CVE-2026-33186",
+          "cilium-cilium-43bff35-CVE-2026-35469",
+          "containers-podman-38ccfa2-CVE-2024-37298",
+          "containers-podman-5ae6347-CVE-2025-47914",
+          "containers-podman-6541fc4-CVE-2025-58181",
+          "containers-podman-6a65597-CVE-2023-48795",
+          "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+          "helm-helm-b76a950-CVE-2024-25621",
+          "helm-helm-fbb24fe-CVE-2021-21334",
+          "istio-istio-042afc3-CVE-2023-48795",
+          "istio-istio-8903f65-CVE-2024-45338",
+          "juanfont-headscale-e172c29-CVE-2024-45338",
+          "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+          "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+          "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+          "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+          "kubernetes-minikube-e7bf515-CVE-2019-5736",
+          "labstack-echo-fdacff0-CVE-2020-26160",
+          "moby-moby-3ede246-CVE-2026-39984",
+          "moby-moby-caea5f7-CVE-2026-39883",
+          "rancher-rancher-4dc4f53-CVE-2025-47914",
+          "rancher-rancher-4dc4f53-CVE-2025-58181",
+          "rancher-rancher-8761419-CVE-2026-24051",
+          "rancher-rancher-8761419-CVE-2026-39883",
+          "stretchr-testify-285adcc-CVE-2022-28948",
+          "zeromicro-go-zero-bae061a-CVE-2022-32149"
+        ],
+        "missing_task_ids": [],
+        "unexpected_task_ids": []
+      }
+    },
+    {
+      "id": "q36_tools",
+      "role": "task4_tools_arm",
+      "root": "<VA_REPO>/results/task4-c1/qwen-tools-full/q36",
+      "agent": "opencode-c1",
+      "model": "qwen3.6-35b",
+      "prompt": "vuln_tools",
+      "mcp": true,
+      "repeats": 1,
+      "admission": "matched_evidence",
+      "root_exists": true,
+      "attempts": {
+        "model_level": "<VA_REPO>/results/task4-c1/qwen-tools-full/q36/d748ca6dd273/opencode-c1/qwen3.6-35b",
+        "exists": true,
+        "attempts": 30,
+        "with_result": 30,
+        "with_error": 0,
+        "finalized": 0,
+        "task_ids_present": [
+          "aquasecurity-trivy-37da98d-CVE-2024-32473",
+          "aquasecurity-trivy-98e136e-CVE-2024-24791",
+          "caddyserver-caddy-8dc7667-CVE-2025-29785",
+          "cilium-cilium-1228cbc-CVE-2026-35469",
+          "cilium-cilium-3977f6a-CVE-2026-33186",
+          "cilium-cilium-43bff35-CVE-2026-35469",
+          "containers-podman-38ccfa2-CVE-2024-37298",
+          "containers-podman-5ae6347-CVE-2025-47914",
+          "containers-podman-6541fc4-CVE-2025-58181",
+          "containers-podman-6a65597-CVE-2023-48795",
+          "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+          "helm-helm-b76a950-CVE-2024-25621",
+          "helm-helm-fbb24fe-CVE-2021-21334",
+          "istio-istio-042afc3-CVE-2023-48795",
+          "istio-istio-8903f65-CVE-2024-45338",
+          "juanfont-headscale-e172c29-CVE-2024-45338",
+          "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+          "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+          "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+          "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+          "kubernetes-minikube-e7bf515-CVE-2019-5736",
+          "labstack-echo-fdacff0-CVE-2020-26160",
+          "moby-moby-3ede246-CVE-2026-39984",
+          "moby-moby-caea5f7-CVE-2026-39883",
+          "rancher-rancher-4dc4f53-CVE-2025-47914",
+          "rancher-rancher-4dc4f53-CVE-2025-58181",
+          "rancher-rancher-8761419-CVE-2026-24051",
+          "rancher-rancher-8761419-CVE-2026-39883",
+          "stretchr-testify-285adcc-CVE-2022-28948",
+          "zeromicro-go-zero-bae061a-CVE-2022-32149"
+        ],
+        "missing_task_ids": [],
+        "unexpected_task_ids": []
+      }
+    },
+    {
+      "id": "q38_tools",
+      "role": "task4_tools_arm",
+      "root": "<VA_REPO>/results/task4-c1/qwen-tools-full/q38",
+      "agent": "opencode-c1",
+      "model": "qwen3.8-27b",
+      "prompt": "vuln_tools",
+      "mcp": true,
+      "repeats": 1,
+      "admission": "matched_evidence",
+      "root_exists": true,
+      "attempts": {
+        "model_level": "<VA_REPO>/results/task4-c1/qwen-tools-full/q38/d748ca6dd273/opencode-c1/qwen3.8-27b",
+        "exists": true,
+        "attempts": 30,
+        "with_result": 30,
+        "with_error": 0,
+        "finalized": 0,
+        "task_ids_present": [
+          "aquasecurity-trivy-37da98d-CVE-2024-32473",
+          "aquasecurity-trivy-98e136e-CVE-2024-24791",
+          "caddyserver-caddy-8dc7667-CVE-2025-29785",
+          "cilium-cilium-1228cbc-CVE-2026-35469",
+          "cilium-cilium-3977f6a-CVE-2026-33186",
+          "cilium-cilium-43bff35-CVE-2026-35469",
+          "containers-podman-38ccfa2-CVE-2024-37298",
+          "containers-podman-5ae6347-CVE-2025-47914",
+          "containers-podman-6541fc4-CVE-2025-58181",
+          "containers-podman-6a65597-CVE-2023-48795",
+          "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+          "helm-helm-b76a950-CVE-2024-25621",
+          "helm-helm-fbb24fe-CVE-2021-21334",
+          "istio-istio-042afc3-CVE-2023-48795",
+          "istio-istio-8903f65-CVE-2024-45338",
+          "juanfont-headscale-e172c29-CVE-2024-45338",
+          "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+          "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+          "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+          "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+          "kubernetes-minikube-e7bf515-CVE-2019-5736",
+          "labstack-echo-fdacff0-CVE-2020-26160",
+          "moby-moby-3ede246-CVE-2026-39984",
+          "moby-moby-caea5f7-CVE-2026-39883",
+          "rancher-rancher-4dc4f53-CVE-2025-47914",
+          "rancher-rancher-4dc4f53-CVE-2025-58181",
+          "rancher-rancher-8761419-CVE-2026-24051",
+          "rancher-rancher-8761419-CVE-2026-39883",
+          "stretchr-testify-285adcc-CVE-2022-28948",
+          "zeromicro-go-zero-bae061a-CVE-2022-32149"
+        ],
+        "missing_task_ids": [],
+        "unexpected_task_ids": []
+      }
+    },
+    {
+      "id": "codex_b1p_partial",
+      "role": "task4_codex_control",
+      "root": "<VA_REPO>/results/task4-c1/b1p-full",
+      "agent": "codex-b1p",
+      "model": "gpt-6.1-sol",
+      "prompt": "vuln_assess",
+      "mcp": false,
+      "repeats": 3,
+      "admission": "partial_excluded",
+      "note": "8/90 attempts \u2014 stopped partial cohort (task4-codex-partial-state.md); never matched evidence",
+      "root_exists": true,
+      "attempts": {
+        "model_level": "<VA_REPO>/results/task4-c1/b1p-full/c45dfc39af34/codex-b1p/gpt-6.1-sol",
+        "exists": true,
+        "attempts": 9,
+        "with_result": 8,
+        "with_error": 0,
+        "finalized": 0,
+        "task_ids_present": [
+          "aquasecurity-trivy-37da98d-CVE-2024-32473",
+          "caddyserver-caddy-8dc7667-CVE-2025-29785",
+          "kubernetes-minikube-e7bf515-CVE-2019-5736"
+        ],
+        "missing_task_ids": [
+          "juanfont-headscale-e172c29-CVE-2024-45338",
+          "zeromicro-go-zero-bae061a-CVE-2022-32149",
+          "cilium-cilium-43bff35-CVE-2026-35469",
+          "containers-podman-6541fc4-CVE-2025-58181",
+          "rancher-rancher-4dc4f53-CVE-2025-47914",
+          "rancher-rancher-4dc4f53-CVE-2025-58181",
+          "cilium-cilium-3977f6a-CVE-2026-33186",
+          "moby-moby-3ede246-CVE-2026-39984",
+          "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+          "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+          "stretchr-testify-285adcc-CVE-2022-28948",
+          "labstack-echo-fdacff0-CVE-2020-26160",
+          "aquasecurity-trivy-98e136e-CVE-2024-24791",
+          "containers-podman-38ccfa2-CVE-2024-37298",
+          "containers-podman-6a65597-CVE-2023-48795",
+          "cilium-cilium-1228cbc-CVE-2026-35469",
+          "helm-helm-b76a950-CVE-2024-25621",
+          "rancher-rancher-8761419-CVE-2026-24051",
+          "rancher-rancher-8761419-CVE-2026-39883",
+          "istio-istio-042afc3-CVE-2023-48795",
+          "istio-istio-8903f65-CVE-2024-45338",
+          "helm-helm-fbb24fe-CVE-2021-21334",
+          "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+          "containers-podman-5ae6347-CVE-2025-47914",
+          "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+          "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+          "moby-moby-caea5f7-CVE-2026-39883"
+        ],
+        "unexpected_task_ids": []
+      }
+    },
+    {
+      "id": "codex_c1_partial",
+      "role": "task4_codex_tools",
+      "root": "<VA_REPO>/results/task4-c1/c1-full",
+      "agent": "codex-c1",
+      "model": "gpt-6.1-sol",
+      "prompt": "vuln_c1",
+      "mcp": true,
+      "repeats": 3,
+      "admission": "partial_excluded",
+      "note": "6/90 attempts \u2014 stopped partial cohort (task4-codex-partial-state.md); never matched evidence",
+      "root_exists": true,
+      "attempts": {
+        "model_level": "<VA_REPO>/results/task4-c1/c1-full/6eda998ea66c/codex-c1/gpt-6.1-sol",
+        "exists": true,
+        "attempts": 7,
+        "with_result": 6,
+        "with_error": 0,
+        "finalized": 0,
+        "task_ids_present": [
+          "aquasecurity-trivy-37da98d-CVE-2024-32473",
+          "caddyserver-caddy-8dc7667-CVE-2025-29785",
+          "kubernetes-minikube-e7bf515-CVE-2019-5736"
+        ],
+        "missing_task_ids": [
+          "juanfont-headscale-e172c29-CVE-2024-45338",
+          "zeromicro-go-zero-bae061a-CVE-2022-32149",
+          "cilium-cilium-43bff35-CVE-2026-35469",
+          "containers-podman-6541fc4-CVE-2025-58181",
+          "rancher-rancher-4dc4f53-CVE-2025-47914",
+          "rancher-rancher-4dc4f53-CVE-2025-58181",
+          "cilium-cilium-3977f6a-CVE-2026-33186",
+          "moby-moby-3ede246-CVE-2026-39984",
+          "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+          "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+          "stretchr-testify-285adcc-CVE-2022-28948",
+          "labstack-echo-fdacff0-CVE-2020-26160",
+          "aquasecurity-trivy-98e136e-CVE-2024-24791",
+          "containers-podman-38ccfa2-CVE-2024-37298",
+          "containers-podman-6a65597-CVE-2023-48795",
+          "cilium-cilium-1228cbc-CVE-2026-35469",
+          "helm-helm-b76a950-CVE-2024-25621",
+          "rancher-rancher-8761419-CVE-2026-24051",
+          "rancher-rancher-8761419-CVE-2026-39883",
+          "istio-istio-042afc3-CVE-2023-48795",
+          "istio-istio-8903f65-CVE-2024-45338",
+          "helm-helm-fbb24fe-CVE-2021-21334",
+          "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+          "containers-podman-5ae6347-CVE-2025-47914",
+          "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+          "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+          "moby-moby-caea5f7-CVE-2026-39883"
+        ],
+        "unexpected_task_ids": []
+      }
+    },
+    {
+      "id": "codex_c1_timeout_bug",
+      "role": "task4_defect_artifact",
+      "root": "<VA_REPO>/results/task4-c1/c1-full-timeout-bug",
+      "admission": "excluded_harness_defect",
+      "note": "run under the pre-fix subprocess timeout bug \u2014 attempts ran past --timeout; excluded from all evidence",
+      "root_exists": true,
+      "attempts": {
+        "model_level": null,
+        "attempts": 0,
+        "task_ids_present": []
+      }
+    },
+    {
+      "id": "codex_c1_capacity",
+      "role": "task4_contaminated_artifact",
+      "root": "<VA_REPO>/results/task4-c1/c1-full-capacity-contaminated",
+      "admission": "excluded_provider_capacity",
+      "note": "provider 'at capacity' contamination \u2014 not evidence",
+      "root_exists": true,
+      "attempts": {
+        "model_level": null,
+        "attempts": 0,
+        "task_ids_present": []
+      }
+    },
+    {
+      "id": "scoring_dryrun",
+      "role": "task4_tooling_dryrun",
+      "root": "<VA_REPO>/results/task4-c1/_scoring-dryrun-contaminated",
+      "admission": "excluded_scoring_dryrun",
+      "root_exists": true,
+      "attempts": {
+        "model_level": null,
+        "attempts": 0,
+        "task_ids_present": []
+      }
+    },
+    {
+      "id": "c1_smokes",
+      "role": "task4_technical_smoke",
+      "root": "<VA_REPO>/results/task4-c1/c1-smoke",
+      "admission": "smoke_only",
+      "note": "diagnostic admission \u2014 never pooled into scored runs",
+      "root_exists": true,
+      "attempts": {
+        "model_level": null,
+        "attempts": 5,
+        "task_ids_present": [
+          "aquasecurity-trivy-37da98d-CVE-2024-32473",
+          "caddyserver-caddy-8dc7667-CVE-2025-29785",
+          "cilium-cilium-43bff35-CVE-2026-35469"
+        ]
+      }
+    },
+    {
+      "id": "c1_smoke_opencode",
+      "role": "task4_technical_smoke",
+      "root": "<VA_REPO>/results/task4-c1/c1-smoke-opencode",
+      "admission": "smoke_only",
+      "root_exists": true,
+      "attempts": {
+        "model_level": null,
+        "attempts": 8,
+        "task_ids_present": [
+          "aquasecurity-trivy-37da98d-CVE-2024-32473",
+          "stretchr-testify-285adcc-CVE-2022-28948"
+        ]
+      }
+    },
+    {
+      "id": "qwen_arms_smoke",
+      "role": "task4_technical_smoke",
+      "root": "<VA_REPO>/results/task4-c1/qwen-arms-smoke",
+      "admission": "smoke_only",
+      "note": "cached-smoke exposure is recorded, not reused (plan \u00a76)",
+      "root_exists": true,
+      "attempts": {
+        "model_level": null,
+        "attempts": 0,
+        "task_ids_present": []
+      }
+    },
+    {
+      "id": "c1_smoke_qwen_arms",
+      "role": "task4_technical_smoke",
+      "root": "<VA_REPO>/results/task4-c1/c1-smoke-qwen-arms",
+      "admission": "smoke_only",
+      "root_exists": true,
+      "attempts": {
+        "model_level": null,
+        "attempts": 7,
+        "task_ids_present": [
+          "stretchr-testify-285adcc-CVE-2022-28948"
+        ]
+      }
+    },
+    {
+      "id": "flaky_probe",
+      "role": "diagnostic_probe",
+      "root": "/tmp/vexbench-qwen-iso/flaky-probe",
+      "admission": "diagnostic_only",
+      "root_exists": true,
+      "attempts": {
+        "model_level": null,
+        "attempts": 0,
+        "task_ids_present": []
+      }
+    },
+    {
+      "id": "risk_probe",
+      "role": "diagnostic_probe",
+      "root": "/tmp/vexbench-qwen-iso/risk-probe",
+      "admission": "diagnostic_only",
+      "root_exists": true,
+      "attempts": {
+        "model_level": null,
+        "attempts": 0,
+        "task_ids_present": []
+      }
+    }
+  ],
+  "limitations": [
+    "historical Qwen cohorts: n=1 per arm, timeout=1800 \u2014 reference only, not a causal baseline (plan \u00a72)",
+    "q38_plain 0/7 FS is a parser-audit projection, not the official-strict score; risky repeats were observed",
+    "P0\u2194P1 will pair only observed attempts (run_001); missing repeats are never invented",
+    "Codex cohorts stopped partial (6/90, 8/90) \u2014 excluded from matched evidence",
+    "B2 host run contaminated (GT in transcripts); B2-ISO is a retry composite \u2014 neither is a valid blind baseline"
+  ]
+}

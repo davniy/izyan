@@ -1,0 +1,13 @@
+{
+  "id": "GO-EVAL-RI-PKG",
+  "summary": "Whole dep/vuln package is affected",
+  "affected": [
+    {
+      "package": {"name": "example.com/dep", "ecosystem": "Go"},
+      "ranges": [{"type": "SEMVER", "events": [{"introduced": "0"}]}],
+      "ecosystem_specific": {
+        "imports": [{"path": "example.com/dep/vuln"}]
+      }
+    }
+  ]
+}

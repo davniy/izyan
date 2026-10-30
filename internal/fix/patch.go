@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,6 +19,16 @@ import (
 type Provider interface {
 	Fetch(ctx context.Context, ref Reference) (string, error)
 }
+
+// ErrUnsupportedLocator marks a locator whose acquisition form the provider does
+// not implement. It is not a statement about the artifact: nothing was measured
+// in either direction, so it must never be reported as missing bytes.
+var ErrUnsupportedLocator = errors.New("unsupported fix locator")
+
+// ErrArtifactUnavailable marks a locator the transport definitively does not
+// serve (HTTP 404/410). A transport failure establishes nothing about the
+// artifact and never carries this sentinel.
+var ErrArtifactUnavailable = errors.New("fix artifact unavailable")
 
 // HTTPProvider resolves patch URLs for common VCS layouts:
 //   - github.com/<org>/<repo>/commit/<sha>        -> +".patch"
@@ -52,6 +63,9 @@ func (p HTTPProvider) Fetch(ctx context.Context, ref Reference) (string, error) 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone {
+			return "", fmt.Errorf("fetch patch %s: HTTP %d: %w", redact(u), resp.StatusCode, ErrArtifactUnavailable)
+		}
 		return "", fmt.Errorf("fetch patch %s: HTTP %d", redact(u), resp.StatusCode)
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, max+1))
@@ -75,7 +89,7 @@ func (p HTTPProvider) Fetch(ctx context.Context, ref Reference) (string, error) 
 func patchURL(raw string) (string, error) {
 	u, err := url.Parse(raw)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%w: %s is not a usable URL", ErrUnsupportedLocator, redact(raw))
 	}
 	switch {
 	case strings.HasSuffix(u.Path, ".patch"), strings.HasSuffix(u.Path, ".diff"):
@@ -95,7 +109,7 @@ func patchURL(raw string) (string, error) {
 		u.Path = strings.TrimSuffix(u.Path, "/") + ".patch"
 		return u.String(), nil
 	}
-	return "", fmt.Errorf("unsupported fix reference: %s", redact(raw))
+	return "", fmt.Errorf("%w: %s", ErrUnsupportedLocator, redact(raw))
 }
 
 // needsBase64 reports whether the response body is base64-encoded

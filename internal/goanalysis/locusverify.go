@@ -2,6 +2,7 @@ package goanalysis
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"go/build"
 	"go/parser"
@@ -25,7 +26,7 @@ import (
 // the falsifier's premise is the build graph itself, so package absence
 // cannot be escaped by wrappers, callbacks or dynamic dispatch.
 func (v Verifier) verifyLocusAbsent(c *domain.AnalysisCase, claim domain.Claim,
-	cond domain.Condition) domain.Claim {
+	cond domain.Condition, proof *domain.ContentAdmission) domain.Claim {
 
 	subjects := append([]domain.SymbolRef{}, cond.Subjects...)
 	if cond.Subject != nil {
@@ -55,6 +56,14 @@ func (v Verifier) verifyLocusAbsent(c *domain.AnalysisCase, claim domain.Claim,
 	}
 	nv.EvidenceIDs = append(nv.EvidenceIDs, evID)
 
+	// One admission for this measurement. The cover check below and the
+	// per-subject identity check are answered by the same record the verdict
+	// boundary and publication consult, so a fresh verification and a replay
+	// cannot disagree.
+	absenceAdmission := domain.AdmitAbsence(c, domain.AbsenceBuildGraph{
+		Paths: set, EvidenceID: evID, Admitted: true,
+	}, proof)
+
 	var present []string
 	for _, s := range subjects {
 		if set[s.Package] {
@@ -68,6 +77,58 @@ func (v Verifier) verifyLocusAbsent(c *domain.AnalysisCase, claim domain.Claim,
 				"код дефекта включён в приложение, условие отсутствия пакетов не выполняется",
 			strings.Join(present, ", "))
 		return setNeg(claim, nv)
+	}
+	// The content route's necessary cover is a disjunction over the record's
+	// declared implementation boundary: a single linked member contradicts the
+	// absence conclusion, and a graph that measured no package shows no member
+	// absent. The saved cover is never read as the premise — the admission
+	// re-derived it from the record's own bytes.
+	if cover := absenceAdmission.Cover(); cover != nil {
+		if len(set) == 0 {
+			return setNeg(claim, &domain.NegativeVerification{
+				Status:      domain.NegativeInsufficientScope,
+				EvidenceIDs: append([]domain.EvidenceID(nil), nv.EvidenceIDs...),
+				Notes:       "the admitted build graph measured no package, so no member of the necessary cover was shown absent",
+			})
+		}
+		for _, pkg := range cover.Packages {
+			if set[pkg] {
+				return setNeg(claim, &domain.NegativeVerification{
+					Status:      domain.NegativeContradicted,
+					EvidenceIDs: append([]domain.EvidenceID(nil), nv.EvidenceIDs...),
+					Notes: fmt.Sprintf(
+						"the necessary cover also names %s, which the admitted product build graph links, so the absence of %s cannot establish the defect's absence",
+						pkg, strings.Join(subjectPackages(subjects), ", ")),
+				})
+			}
+		}
+	}
+	// Identity before absence. A package's absence from the build graph is
+	// evidence only when the subject is a subject of the selected version at
+	// all: a fix-derived candidate whose coordinate does not resolve in that
+	// version's own source names nothing there, so its missing package proves
+	// nothing. The negative stays unverified — never VERIFIED on a vacuous
+	// absence.
+	for _, s := range subjects {
+		if admission := absenceAdmission.Admits(s); !admission.Admitted {
+			return setNeg(claim, &domain.NegativeVerification{
+				Status:      domain.NegativeInsufficientScope,
+				EvidenceIDs: append([]domain.EvidenceID(nil), nv.EvidenceIDs...),
+				Notes:       "absence is not evidence: " + admission.Reason,
+			})
+		}
+	}
+	// The verification records the cover it relied on. A claim that does not
+	// range over the admitted cover cannot be stamped, and an unstamped claim
+	// must not become a VERIFIED absence: replay would refuse it anyway, and an
+	// invalid negative must not sit beside an inconclusive verdict as if it
+	// had been measured.
+	if err := absenceAdmission.Stamp(cond, nv); err != nil {
+		return setNeg(claim, &domain.NegativeVerification{
+			Status:      domain.NegativeInsufficientScope,
+			EvidenceIDs: append([]domain.EvidenceID(nil), nv.EvidenceIDs...),
+			Notes:       "the claim does not range over the admitted necessary cover: " + err.Error(),
+		})
 	}
 	nv.Notes = fmt.Sprintf(
 		"все пакеты с уязвимым кодом (%d) отсутствуют в графе сборки go list -deps", len(subjects))
@@ -173,21 +234,22 @@ func excludedBuildImports(c *domain.AnalysisCase, subjects []domain.SymbolRef) s
 }
 
 // packageImportSet decodes the persisted `go list -deps -json` evidence into
-// the set of import paths the snapshot links.
+// the set of import paths the snapshot links. Only a completed, complete
+// inventory whose recorded build context matches the case's effective
+// context may prove absence; an undecodable, partial or untyped record is a
+// measurement gap, never absence.
 func packageImportSet(c *domain.AnalysisCase) (map[string]bool, domain.EvidenceID, error) {
-	for _, e := range c.EvidenceGraph.EvidenceList() {
-		if e.Kind != domain.EvidencePackageList {
-			continue
-		}
-		set, err := affected.PackageImportPaths([]byte(e.Content))
-		if err != nil {
-			return nil, "", fmt.Errorf(
-				"не удалось прочитать список пакетов %s: %w; отсутствие в графе сборки не проверено", e.ID, err)
-		}
-		return set, e.ID, nil
+	e, err := domain.SelectCompletePackageList(c.Product, c.EvidenceGraph.EvidenceList())
+	if err != nil {
+		return nil, "", fmt.Errorf(
+			"нет допущенного списка пакетов (go list -deps) для текущего контекста сборки: %w; отсутствие в графе сборки не проверено", err)
 	}
-	return nil, "", fmt.Errorf(
-		"нет данных о составе сборки (go list -deps); отсутствие в графе сборки не проверено")
+	set, derr := affected.PackageImportPaths([]byte(e.Content))
+	if derr != nil {
+		return nil, "", fmt.Errorf(
+			"не удалось прочитать список пакетов %s: %w; отсутствие в графе сборки не проверено", e.ID, derr)
+	}
+	return set, e.ID, nil
 }
 
 // verifyLocusFunctionUnreached verifies the locus-function-unreached falsifier:
@@ -203,23 +265,9 @@ func packageImportSet(c *domain.AnalysisCase) (map[string]bool, domain.EvidenceI
 func (v Verifier) verifyLocusFunctionUnreached(ctx context.Context, c *domain.AnalysisCase, claim domain.Claim,
 	cond domain.Condition) domain.Claim {
 
-	subjects := append([]domain.SymbolRef{}, cond.Subjects...)
-	if cond.Subject != nil {
-		subjects = append(subjects, *cond.Subject)
-	}
-	if len(subjects) == 0 && c.Exploit != nil {
-		subjects = append(subjects, c.Exploit.RootCauses...)
-	}
-	if len(subjects) == 0 && c.RootCause != nil {
-		for _, rc := range c.RootCause.RootCauses {
-			subjects = append(subjects, domain.SymbolRef{Package: rc.Package, Symbol: rc.Symbol})
-		}
-	}
-	if len(subjects) == 0 {
-		return setNeg(claim, &domain.NegativeVerification{
-			Status: domain.NegativeInsufficientScope,
-			Notes:  "в условии не указаны уязвимые функции",
-		})
+	subjects, err := exactLocusConditionSubjects(cond)
+	if err != nil {
+		return setNeg(claim, &domain.NegativeVerification{Status: domain.NegativeInsufficientScope, Notes: err.Error()})
 	}
 
 	nv := &domain.NegativeVerification{
@@ -261,8 +309,11 @@ func (v Verifier) verifyLocusFunctionUnreached(ctx context.Context, c *domain.An
 			}
 		}
 	}
+	if _, err := domain.ValidateDeadnessPremise(c.Exploit, subjects, c.EvidenceGraph.EvidenceList()); err != nil {
+		return setNeg(claim, &domain.NegativeVerification{Status: domain.NegativeInsufficientScope, Notes: "deadness premise unavailable: " + err.Error()})
+	}
 
-	// 2. Direct import check for internal/ packages in product code.
+	// Source availability is independent of package-inventory completeness.
 	repoDir := ""
 	if v.Source != nil && v.Source.Dir != "" {
 		repoDir = v.Source.Dir
@@ -271,132 +322,55 @@ func (v Verifier) verifyLocusFunctionUnreached(ctx context.Context, c *domain.An
 	}
 
 	hasSource := repoDir != "" && dirHasGoFiles(repoDir)
-	productImports := map[string][]string{}
-	var linknamePragmas []string
-	if hasSource {
-		productImports, linknamePragmas = scanProductSource(repoDir)
-	}
 
-	if v.Source != nil {
-		if note := v.checkDepInvocation(ctx, c, subjects); note != "" {
+	// 3. Source index checks: the bounded symbol-unreachability primitive
+	// re-runs reference/caller scans, dynamic markers, interface dispatch,
+	// build-gated references, dep-internal callers and module-internal
+	// reachability as one recorded, fail-closed pass.
+	var captured UnreachabilityResult
+	if v.Source != nil && hasSource {
+		mods := caseModules(c)
+		module := ""
+		if len(mods) > 0 {
+			module = mods[0]
+		}
+		res, uerr := v.Source.VerifyUnreachable(ctx, module, subjects)
+		if uerr != nil {
 			nv.Status = domain.NegativeInsufficientScope
-			nv.Notes = note
+			nv.Notes = "unreachability check failed: " + uerr.Error()
 			return setNeg(claim, nv)
 		}
-	}
-
-	for _, subj := range subjects {
-		isInternal := isInternalPkg(subj.Package)
-
-		if symbolIsMethod(subj) {
-			_, name := splitSymbol(subj.Symbol)
-			if v.Source != nil && v.Source.methodInAnyInterface(name) {
-				nv.Status = domain.NegativeInsufficientScope
-				nv.Notes = fmt.Sprintf("метод %s.%s может вызываться через интерфейс (метод входит в интерфейсы сборки)",
-					subj.Package, subj.Symbol)
-				return setNeg(claim, nv)
-			}
-		}
-
-		// Check if product code directly imports subj.Package.
-		if files, imported := productImports[subj.Package]; imported {
-			if isInternal {
-				nv.Status = domain.NegativeContradicted
-				nv.Notes = fmt.Sprintf("код продукта напрямую импортирует внутренний пакет %s (%s); FALSE опровергнут",
-					subj.Package, strings.Join(files, ", "))
-				return setNeg(claim, nv)
-			}
-		}
-
-		// Check linkname pragmas found in product source.
-		for _, text := range linknamePragmas {
-			if strings.Contains(text, subj.Package) || linknameNames(text, subj) {
-				nv.Status = domain.NegativeContradicted
-				nv.Notes = fmt.Sprintf("символ %s переопределен через go:linkname (%s)",
-					subj.Package+"."+subj.Symbol, text)
-				return setNeg(claim, nv)
-			}
-		}
-
-		// 3. Source index checks if available.
-		if v.Source != nil && hasSource {
-			// Search for product references / call sites.
-			sites, err := v.Source.SearchSymbol(ctx, subj)
-			if err != nil {
-				// If symbol search fails on non-internal symbol, scope is insufficient.
-				if !isInternal {
-					nv.Status = domain.NegativeInsufficientScope
-					nv.Notes = "symbol search failed: " + err.Error()
-					return setNeg(claim, nv)
-				}
-			} else if len(sites) > 0 {
-				nv.Status = domain.NegativeContradicted
-				nv.Notes = fmt.Sprintf("найдено %d вызовов/ссылок на %s.%s в коде продукта; FALSE опровергнут",
-					len(sites), subj.Package, subj.Symbol)
-				return setNeg(claim, nv)
-			}
-
-			// Dynamic markers (func_value, linkname, reflect, plugin).
-			markers, merr := v.Source.ScanDynamic(ctx, subj)
-			if merr != nil {
-				if !isInternal {
-					nv.Status = domain.NegativeInsufficientScope
-					nv.Notes = "dynamic scan failed: " + merr.Error()
-					return setNeg(claim, nv)
-				}
-			} else {
-				for _, m := range markers {
-					switch m.Kind {
-					case "func_value":
-						nv.Status = domain.NegativeContradicted
-						nv.Notes = fmt.Sprintf("символ %s передан как значение функции (%s:%d); возможен косвенный вызов",
-							subj.Package+"."+subj.Symbol, m.File, m.Line)
-						return setNeg(claim, nv)
-					case "linkname":
-						if strings.Contains(m.Detail, subj.Package) || linknameNames(m.Detail, subj) {
-							nv.Status = domain.NegativeContradicted
-							nv.Notes = fmt.Sprintf("символ %s переопределен через go:linkname (%s:%d)",
-								subj.Package+"."+subj.Symbol, m.File, m.Line)
-							return setNeg(claim, nv)
-						}
-					case "reflect_method":
-						if symbolIsMethod(subj) && symbolExported(subj) {
-							if v.Source != nil && !v.Source.IsReceiverTypeInstantiated(subj) {
-								continue
-							}
-							nv.Limitations = append(nv.Limitations,
-								"динамический вызов методов через reflect используется в продукте")
-						}
-					}
-				}
-			}
-
-			// Interface dispatch sites.
-			disp, derr := v.Source.InterfaceDispatchSites(ctx, subj)
-			if derr == nil && len(disp) > 0 {
-				if v.Source == nil || v.Source.IsReceiverTypeInstantiated(subj) {
-					nv.Status = domain.NegativeInsufficientScope
-					nv.Notes = fmt.Sprintf("%d вызов(ов) через интерфейс могут вызывать %s.%s; конкретная реализация не определена",
-						len(disp), subj.Package, subj.Symbol)
-					return setNeg(claim, nv)
-				}
-			}
-
-			// Build-tag excluded files.
-			gated, gerr := v.Source.GatedRefs(ctx, subj)
-			if gerr == nil && len(gated) > 0 {
-				nv.Status = domain.NegativeInsufficientScope
-				nv.Notes = fmt.Sprintf("%d ссылок на %s.%s в файлах, исключенных тегами сборки",
-					len(gated), subj.Package, subj.Symbol)
-				return setNeg(claim, nv)
-			}
-		} else if !isInternal {
-			// Non-internal subject without source index: cannot verify absent product calls.
-			nv.Status = domain.NegativeInsufficientScope
-			nv.Notes = fmt.Sprintf("индекс исходного кода недоступен для проверки не-internal функции %s.%s",
-				subj.Package, subj.Symbol)
+		if len(res.ProductReferences) > 0 {
+			nv.Status = domain.NegativeContradicted
+			site := res.ProductReferences[0]
+			nv.Notes = fmt.Sprintf("найдено %d ссылок на функции локуса в коде продукта (напр. %s:%d); FALSE опровергнут",
+				len(res.ProductReferences), site.File, site.Line)
 			return setNeg(claim, nv)
 		}
+		for _, m := range res.DynamicMarkers {
+			switch m.Kind {
+			case "func_value":
+				nv.Status = domain.NegativeContradicted
+				nv.Notes = fmt.Sprintf("символ передан как значение функции (%s:%d); возможен косвенный вызов",
+					m.File, m.Line)
+				return setNeg(claim, nv)
+			case "linkname":
+				nv.Status = domain.NegativeContradicted
+				nv.Notes = fmt.Sprintf("символ переопределен через go:linkname (%s:%d)",
+					m.File, m.Line)
+				return setNeg(claim, nv)
+			}
+		}
+		if res.ValidateComplete(domain.EffectiveBuildContext(c.Product)) != nil {
+			nv.Status = domain.NegativeInsufficientScope
+			nv.Notes = "проверка недостижимости не закрыта: " + strings.Join(res.Limitations, "; ")
+			return setNeg(claim, nv)
+		}
+		captured = res
+	} else {
+		nv.Status = domain.NegativeInsufficientScope
+		nv.Notes = "bounded unreachability source and inventory unavailable"
+		return setNeg(claim, nv)
 	}
 
 	nv.Notes = fmt.Sprintf("все функции дефектного локуса (%d) проверены: трассы вызовов отсутствуют, прямые ссылки и динамические утечки не обнаружены", len(subjects))
@@ -410,26 +384,21 @@ func (v Verifier) verifyLocusFunctionUnreached(ctx context.Context, c *domain.An
 			strings.Join(names, ", ")))
 	}
 
+	payload, err := json.Marshal(captured)
+	if err != nil {
+		return setNeg(claim, &domain.NegativeVerification{Status: domain.NegativeInsufficientScope, Notes: "cannot capture bounded unreachability: " + err.Error()})
+	}
+	build := domain.EffectiveBuildContext(c.Product)
 	evID := c.EvidenceGraph.AddEvidence(domain.Evidence{
-		Kind:    domain.EvidenceSourceSnippet,
-		Quality: domain.QualityDeterministic,
-		Source:  "go-analysis locus function unreachability check",
-		Tool:    "goanalysis.Verifier",
-		Content: fmt.Sprintf("%d locus function(s) verified unreached", len(subjects)),
+		Kind: domain.EvidenceSourceSnippet, Quality: domain.QualityDeterministic,
+		Source: "go-analysis locus function unreachability check", Tool: "goanalysis.Verifier",
+		Content: string(payload), BuildContext: &build,
 	})
 	nv.EvidenceIDs = append(nv.EvidenceIDs, evID)
 
 	return setNeg(claim, nv)
 }
 
-func isInternalPkg(pkgPath string) bool {
-	for _, seg := range strings.Split(pkgPath, "/") {
-		if seg == "internal" {
-			return true
-		}
-	}
-	return false
-}
 
 func dirHasGoFiles(dir string) bool {
 	if dir == "" {
@@ -456,49 +425,6 @@ func dirHasGoFiles(dir string) bool {
 	return has
 }
 
-func scanProductSource(dir string) (map[string][]string, []string) {
-	imports := map[string][]string{}
-	var linknames []string
-	fset := token.NewFileSet()
-	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			base := d.Name()
-			if p != dir && (base == ".git" || base == "vendor" || base == "testdata" || strings.HasPrefix(base, ".")) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !strings.HasSuffix(d.Name(), ".go") || strings.HasSuffix(d.Name(), "_test.go") {
-			return nil
-		}
-		f, perr := parser.ParseFile(fset, p, nil, parser.ImportsOnly|parser.ParseComments)
-		if perr != nil {
-			return nil
-		}
-		rel, rerr := filepath.Rel(dir, p)
-		if rerr != nil {
-			rel = p
-		}
-		for _, imp := range f.Imports {
-			pkgPath, err := strconv.Unquote(imp.Path.Value)
-			if err == nil {
-				imports[pkgPath] = append(imports[pkgPath], rel)
-			}
-		}
-		for _, cg := range f.Comments {
-			for _, c := range cg.List {
-				if strings.Contains(c.Text, "go:linkname") {
-					linknames = append(linknames, c.Text)
-				}
-			}
-		}
-		return nil
-	})
-	return imports, linknames
-}
 
 func frameMatches(cs domain.CallSite, sym domain.SymbolRef) bool {
 	if cs.Package != sym.Package {
@@ -520,4 +446,26 @@ func normalizeReceiver(r string) string {
 	r = strings.TrimPrefix(r, "(")
 	r = strings.TrimSuffix(r, ")")
 	return strings.TrimPrefix(r, "*")
+}
+
+// subjectPackages renders the distinct packages of a subject set for refusal
+// text.
+func subjectPackages(subjects []domain.SymbolRef) []string {
+	var out []string
+	for _, s := range subjects {
+		if s.Package == "" {
+			continue
+		}
+		seen := false
+		for _, existing := range out {
+			if existing == s.Package {
+				seen = true
+				break
+			}
+		}
+		if !seen {
+			out = append(out, s.Package)
+		}
+	}
+	return out
 }

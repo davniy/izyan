@@ -9,16 +9,37 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/fedorovmv/izyan/internal/domain"
-	"time"
 )
+
+var secretPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)(authorization|bearer)\s*[:=]\s*\S+`),
+	regexp.MustCompile(`\bsk-[A-Za-z0-9]{20,}\b`),
+	regexp.MustCompile(`\bAKIA[0-9A-Z]{16}\b`),
+	regexp.MustCompile(`\bghp_[A-Za-z0-9]{36,}\b`),
+	regexp.MustCompile(`\bgithub_pat_[A-Za-z0-9_]{20,}\b`),
+	regexp.MustCompile(`\bglpat-[A-Za-z0-9_-]{20,}\b`),
+	regexp.MustCompile(`\bxox[baprs]-[A-Za-z0-9-]{10,}\b`),
+	regexp.MustCompile(`(?i)\b(api[_-]?key|secret|token|password|passwd|private[_-]?key)\s*[:=]\s*\S+`),
+	regexp.MustCompile(`\bsk-(proj|ant)-[A-Za-z0-9_-]{20,}\b`),
+}
+
+func RedactSecrets(s string) string {
+	for _, re := range secretPatterns {
+		s = re.ReplaceAllString(s, "[REDACTED]")
+	}
+	return s
+}
 
 // ModelRole selects which configured model to use.
 type ModelRole int
@@ -29,6 +50,30 @@ const (
 	// Build is for structured generation (root cause, exploit model).
 	Build
 )
+
+type TokenUsage struct {
+	PromptTokens     *int64 `json:"prompt_tokens,omitempty"`
+	CompletionTokens *int64 `json:"completion_tokens,omitempty"`
+	TotalTokens      *int64 `json:"total_tokens,omitempty"`
+}
+
+// ChatExchange records the audit trail of one real provider exchange.
+// Secrets and response bodies are excluded by invariant.
+type ChatExchange struct {
+	RequestID           string        `json:"request_id,omitempty"`
+	RequestedModel      string        `json:"requested_model"`
+	ReturnedModel       string        `json:"returned_model,omitempty"`
+	ProviderFingerprint string        `json:"provider_fingerprint,omitempty"`
+	HasUsage            bool          `json:"has_usage"`
+	Usage               *TokenUsage   `json:"usage,omitempty"`
+	Duration            time.Duration `json:"duration_ms"`
+	StatusCode          int           `json:"status_code,omitempty"`
+	FinishReason        string        `json:"finish_reason,omitempty"`
+	Error               string        `json:"error,omitempty"`
+}
+
+// ExchangeSink is invoked for every provider attempt (including retries/errors).
+type ExchangeSink func(ChatExchange)
 
 type Config struct {
 	BaseURL      string
@@ -41,7 +86,11 @@ type Config struct {
 	Enabled      bool
 	// BuildMaxRetries bounds JSON-repair retries for the build model.
 	BuildMaxRetries int
+	ExchangeSink    ExchangeSink
 }
+
+// ClientConfig is an alias for Config.
+type ClientConfig = Config
 
 // ConfigFromEnv reads LLM_* variables. LLM_ENABLED must be truthy.
 func ConfigFromEnv() Config {
@@ -180,11 +229,21 @@ type chatRequest struct {
 	ToolChoice  any              `json:"tool_choice,omitempty"`
 }
 
+type chatUsageResponse struct {
+	PromptTokens     *int64 `json:"prompt_tokens"`
+	CompletionTokens *int64 `json:"completion_tokens"`
+	TotalTokens      *int64 `json:"total_tokens"`
+}
+
 type chatResponse struct {
+	ID                string             `json:"id"`
+	Model             string             `json:"model"`
+	SystemFingerprint string             `json:"system_fingerprint"`
 	Choices []struct {
 		Message      ChatMessage `json:"message"`
 		FinishReason string      `json:"finish_reason"`
 	} `json:"choices"`
+	Usage *chatUsageResponse `json:"usage,omitempty"`
 	Error *struct {
 		Message string `json:"message"`
 	} `json:"error,omitempty"`
@@ -215,8 +274,9 @@ func (c *Client) Chat(ctx context.Context, role ModelRole, system string, messag
 		allMessages = append(allMessages, ChatMessage{Role: "system", Content: system})
 	}
 	allMessages = append(allMessages, messages...)
+	requestedModel := c.modelFor(role)
 	req := chatRequest{
-		Model:       c.modelFor(role),
+		Model:       requestedModel,
 		Messages:    allMessages,
 		Temperature: 0,
 		MaxTokens:   c.cfg.MaxTokens,
@@ -235,28 +295,75 @@ func (c *Client) Chat(ctx context.Context, role ModelRole, system string, messag
 	if c.cfg.APIKey != "" {
 		hreq.Header.Set("Authorization", "Bearer "+c.cfg.APIKey)
 	}
+
+	start := time.Now()
 	resp, err := c.http.Do(hreq)
+	elapsed := time.Since(start)
+
+	ex := ChatExchange{
+		RequestedModel: requestedModel,
+		Duration:       elapsed,
+	}
+
+	emitExchange := func() {
+		if c.cfg.ExchangeSink != nil {
+			c.cfg.ExchangeSink(ex)
+		}
+	}
+
 	if err != nil {
+		ex.Error = RedactSecrets(err.Error())
+		emitExchange()
 		return ChatMessage{}, "", fmt.Errorf("llm request: %w", err)
 	}
 	defer resp.Body.Close()
+	ex.StatusCode = resp.StatusCode
+
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if err != nil {
+		ex.Error = RedactSecrets(err.Error())
+		emitExchange()
 		return ChatMessage{}, "", fmt.Errorf("llm read: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
+		redactedBody := RedactSecrets(string(raw))
+		ex.Error = fmt.Sprintf("llm status %d: %.300s", resp.StatusCode, redactedBody)
+		emitExchange()
 		return ChatMessage{}, "", fmt.Errorf("llm status %d: %.300s", resp.StatusCode, raw)
 	}
 	var out chatResponse
 	if err := json.Unmarshal(raw, &out); err != nil {
+		ex.Error = RedactSecrets(err.Error())
+		emitExchange()
 		return ChatMessage{}, "", fmt.Errorf("llm decode: %w", err)
 	}
+
+	ex.RequestID = out.ID
+	ex.ReturnedModel = out.Model
+	ex.ProviderFingerprint = out.SystemFingerprint
+
+	if out.Usage != nil {
+		ex.HasUsage = true
+		ex.Usage = &TokenUsage{
+			PromptTokens:     out.Usage.PromptTokens,
+			CompletionTokens: out.Usage.CompletionTokens,
+			TotalTokens:      out.Usage.TotalTokens,
+		}
+	}
+
 	if out.Error != nil {
+		ex.Error = RedactSecrets(out.Error.Message)
+		emitExchange()
 		return ChatMessage{}, "", fmt.Errorf("llm error: %s", out.Error.Message)
 	}
 	if len(out.Choices) == 0 {
+		ex.Error = "llm: empty choices"
+		emitExchange()
 		return ChatMessage{}, "", fmt.Errorf("llm: empty choices")
 	}
+
+	ex.FinishReason = out.Choices[0].FinishReason
+	emitExchange()
 	return out.Choices[0].Message, out.Choices[0].FinishReason, nil
 }
 
@@ -364,10 +471,68 @@ func outputSnippet(s string, n int) string {
 	return s
 }
 
+// IsAnalysisTimeout reports whether an error is an ended analysis context.
+// The distinction is structural (errors.Is), never a text match.
+func IsAnalysisTimeout(err error) bool {
+	return errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)
+}
+
+// RecordAnalysisGap appends a typed case-level analysis cause once. A
+// producer that cannot know the assessment id leaves it empty and it is bound
+// here; consumers classify on owner/code and never on message text.
+func RecordAnalysisGap(c *domain.AnalysisCase, gap domain.AnalysisGap) {
+	if c == nil {
+		return
+	}
+	if gap.AssessmentID == "" {
+		gap.AssessmentID = c.ID
+	}
+	if gap.AssessmentID == "" {
+		gap.AssessmentID = domain.CaseID("assessment")
+	}
+	for _, existing := range c.AnalysisGaps {
+		if existing.Owner == gap.Owner && existing.Code == gap.Code &&
+			existing.Obligation == gap.Obligation && existing.ConditionID == gap.ConditionID &&
+			existing.Message == gap.Message {
+			return
+		}
+	}
+	c.AnalysisGaps = append(c.AnalysisGaps, gap)
+}
+
+// RecordAnalysisBudget names an exhausted model or tool budget as an analysis
+// cause rather than an environmental answer.
+func RecordAnalysisBudget(c *domain.AnalysisCase, message string) {
+	RecordAnalysisGap(c, domain.AnalysisGap{
+		Owner:      domain.GapOwnerCode,
+		Code:       domain.GapAnalysisBudgetExhausted,
+		Obligation: domain.ObligationMeasurement,
+		Message:    message,
+	})
+}
+
+// RecordAnalysisTimeout names an ended analysis context as an analysis cause.
+func RecordAnalysisTimeout(c *domain.AnalysisCase, err error) {
+	message := "analysis context ended"
+	if err != nil {
+		message += ": " + err.Error()
+	}
+	RecordAnalysisGap(c, domain.AnalysisGap{
+		Owner:      domain.GapOwnerCode,
+		Code:       domain.GapAnalysisTimeout,
+		Obligation: domain.ObligationMeasurement,
+		Message:    message,
+	})
+}
+
 // llmBudgetExhausted reports whether the LLM call budget is spent.
 // MaxLLMCalls <= 0 means no explicit limit (the default budget lives in
 // the CLI wiring); tests and adapters without limits keep working.
 func llmBudgetExhausted(c *domain.AnalysisCase) bool {
 	max := c.Workflow.Limits.MaxLLMCalls
-	return max > 0 && c.UsageSnapshot().LLMCalls >= max
+	exhausted := max > 0 && c.UsageSnapshot().LLMCalls >= max
+	if exhausted {
+		RecordAnalysisBudget(c, "LLM call budget exhausted")
+	}
+	return exhausted
 }

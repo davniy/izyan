@@ -1,0 +1,16 @@
+{
+  "id": "GO-EVAL-RI-PARSE",
+  "aliases": ["GHSA-test-parse-0001"],
+  "summary": "Out-of-bounds write in dep/vuln.Parse",
+  "details": "The frame parser writes past a fixed buffer.",
+  "affected": [
+    {
+      "package": {"name": "example.com/dep", "ecosystem": "Go"},
+      "ranges": [{"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "1.0.1"}]}],
+      "ecosystem_specific": {
+        "imports": [{"path": "example.com/dep/vuln", "symbols": ["Parse", "(*Reader).Read", "Config", "DefaultLimit", "Parse"]}]
+      }
+    }
+  ],
+  "references": [{"type": "ADVISORY", "url": "https://example.com/adv/GO-EVAL-RI-PARSE"}]
+}

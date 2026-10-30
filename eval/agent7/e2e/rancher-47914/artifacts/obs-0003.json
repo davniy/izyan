@@ -1,0 +1,20 @@
+{
+  "id": "OBS-0003",
+  "tool": "advisory-load",
+  "fact": "frozen advisory CVE-2025-47914 resolved to GO-2025-4135 (1 affected entries, source frozen_file)",
+  "scope": "FileSource(eval/agent7/advisories/rancher-47914.json) with alias enrichment disabled; no network",
+  "completeness": "COMPLETE",
+  "tool_status": "OK",
+  "scope_details": {
+    "snapshot_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+    "snapshot_root": "<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+    "subject": "CVE-2025-47914",
+    "coverage_rule": "single frozen advisory document load"
+  },
+  "data": {
+    "entries": 1,
+    "outcome": "frozen_file",
+    "requested_id": "CVE-2025-47914",
+    "resolved_id": "GO-2025-4135"
+  }
+}

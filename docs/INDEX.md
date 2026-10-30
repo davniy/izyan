@@ -36,15 +36,20 @@
 | Файл | Статус | Назначение |
 |---|---|---|
 | [`dev/specs/governing-spec.md`](dev/specs/governing-spec.md) | актуальный | Главная спецификация системы |
+| [`dev/specs/s01-identity-and-case-bundle.md`](dev/specs/s01-identity-and-case-bundle.md) | draft | S-01 canonical identity и case-bundle; NOT PLAN-READY (U-01–U-04) |
 | [`dev/specs/analyzer-agent-spec.md`](dev/specs/analyzer-agent-spec.md) | актуальный | Контракт поведения Analyzer Agent |
 | [`dev/specs/incremental-analysis-value-spec.md`](dev/specs/incremental-analysis-value-spec.md) | reviewed draft | Контракт дополнительной ценности поверх govulncheck; доказательство mandatory input condition |
 | [`dev/specs/llm-cve-analysis-spec.md`](dev/specs/llm-cve-analysis-spec.md) | актуальный | Автономное LLM-исследование механизма CVE, стратегии, валидация доказательств, контекстная критичность; B31–B33 |
 | [`dev/specs/llm-dismissal-research-spec.md`](dev/specs/llm-dismissal-research-spec.md) | исследовательская | LLM-assisted отклонение, экспертное досье, deployment и контекстная критичность; B27 |
+| [`dev/specs/shadow-analyzer-agent-spec.md`](dev/specs/shadow-analyzer-agent-spec.md) | SUPERSEDED | Историческая спека Shadow Analyzer Agent и VEX-Bench evaluation; superseded by target architecture + D17 — см. `dev/roadmaps/2026-10-20-target-architecture-and-roadmap.md` |
 
 #### Роадмапы развития (`dev/roadmaps/`)
 
 | Файл | Статус | Назначение |
 |---|---|---|
+| [`dev/roadmaps/2026-10-20-target-architecture-and-roadmap.md`](dev/roadmaps/2026-10-20-target-architecture-and-roadmap.md) | design for review | Целевая архитектура консолидации Shadow/V2, gap analysis, roadmap и spec backlog; self-sufficient addendum §13; port revision §14; не является implementation spec |
+| [`dev/roadmaps/2026-10-22-post-benchmark-fix-roadmap.md`](dev/roadmaps/2026-10-22-post-benchmark-fix-roadmap.md) | NO-GO until P0 fixes | Product A applicability/scope fixes and merge gate after benchmark regression |
+| [`dev/roadmaps/agent-first-analysis-roadmap.md`](dev/roadmaps/agent-first-analysis-roadmap.md) | в работе | Agent-first анализ: baseline (Этап 0), Shadow Agent, Evidence Tools, Verification Kernel |
 | [`dev/roadmaps/llm-cve-analysis-roadmap.md`](dev/roadmaps/llm-cve-analysis-roadmap.md) | в работе | Поэтапная поставка research/dossier, validated proof capabilities и критичности (задачи 1–6 выполнены, 7–16 в плане); B31–B33 |
 | [`dev/roadmaps/ingress-closure-roadmap.md`](dev/roadmaps/ingress-closure-roadmap.md) | в работе | Ingress closure: полный inventory входов в reachable dep cone; falsifier `constant-or-generated-input`; B26 |
 | [`dev/roadmaps/corpus-expansion-roadmap.md`](dev/roadmaps/corpus-expansion-roadmap.md) | бэклог | Расширение доказательной базы: generated-manifest продукты, baseline vs govulncheck; B13 |
@@ -58,6 +63,9 @@
 | [`dev/gap-analysis.md`](dev/gap-analysis.md) | актуальный | Gap analysis спека↔код + канонический бэклог (§2) |
 | [`dev/implementation-status.md`](dev/implementation-status.md) | живой | Хроника реализации срезов и выполненных задач |
 | [`dev/analysis-internals.md`](dev/analysis-internals.md) | актуальный | Механика реализации: evaluators, NV, pattern library, toolchain, audit |
+| [`dev/spec-workflow.md`](dev/spec-workflow.md) | draft | Процесс: тезис roadmap → spec → review → goal/architecture check → plan → implementation → evidence |
+| [`dev/ownership-and-ci.md`](dev/ownership-and-ci.md) | актуальный | S-15 owner matrix, named CI gates, artifact retention policy, release/escalation rules |
+| [`dev/retention-manifest.template.json`](dev/retention-manifest.template.json) | актуальный | Шаблон retention manifest с хэшами для baseline/sidecar/admission артефактов |
 | [`dev/plans/`](dev/plans/) | рабочая | Каталог для временных пошаговых планов реализации (чек-листы сессий) |
 
 #### Архитектурные решения (`dev/decisions/`)

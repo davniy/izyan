@@ -10,9 +10,10 @@ import (
 
 // ClaimEvaluator resolves UNKNOWN conditions through a bounded tool loop:
 // the analyze model requests deterministic tools, their outputs land in the
-// evidence graph, and a claim proposal is accepted only if every cited
-// evidence id exists in the graph. FALSE proposals still pass through the
-// negative verifier downstream — the model cannot assert safety by prose.
+// evidence graph, and the model's conclusion is recorded on Claim.Proposal.
+// A proposal never establishes Claim.Result — TRUE becomes authoritative only
+// through deterministic re-evaluation of the newly collected evidence, and
+// FALSE only through the independent negative verifier.
 type ClaimEvaluator struct {
 	Client   *Client
 	Tools    Tools
@@ -44,10 +45,6 @@ func (a ClaimEvaluator) Evaluate(cond domain.Condition, c *domain.AnalysisCase) 
 		ID:          domain.ClaimID("CL-" + string(cond.ID)),
 		ConditionID: cond.ID,
 		Result:      domain.ClaimUnknown,
-		// The label keeps LLM-asserted results out of deterministic
-		// evidence counts: a cited tool artifact is the agent's reading
-		// of it, not an evaluator-verified fact.
-		Producer: "llm.ClaimEvaluator",
 	}
 	if a.Client == nil || a.Tools.Source == nil || llmBudgetExhausted(c) {
 		claim.Limitations = append(claim.Limitations, "agent evaluator unavailable or budget exhausted")
@@ -118,9 +115,11 @@ func (a ClaimEvaluator) Evaluate(cond domain.Condition, c *domain.AnalysisCase) 
 	return claim
 }
 
-// acceptClaim validates the proposal: TRUE requires at least one graph
-// evidence id; FALSE/UNKNOWN are recorded but only evidence-backed claims
-// keep their evidence links.
+// acceptClaim records the model's answer as a proposal. Citing an evidence id
+// that already exists in the graph does not establish TRUE: the result stays
+// UNKNOWN until a deterministic evaluator re-derives it from evidence
+// collected (or already present) under its own contract. A proposed FALSE is
+// kept as a candidate and must pass independent negative verification.
 func (a ClaimEvaluator) acceptClaim(claim domain.Claim, p struct {
 	Result      string   `json:"result"`
 	EvidenceIDs []string `json:"evidence_ids"`
@@ -139,14 +138,18 @@ func (a ClaimEvaluator) acceptClaim(claim domain.Claim, p struct {
 	claim.Explanation = p.Explanation
 	switch domain.ClaimResult(p.Result) {
 	case domain.ClaimTrue:
+		claim.Proposal = domain.ClaimTrue
+		claim.Result = domain.ClaimUnknown
+		claim.EvidenceIDs = ids
 		if len(ids) == 0 {
 			claim.Limitations = append(claim.Limitations,
-				"llm proposed TRUE without citing collected evidence; kept UNKNOWN")
+				"llm proposed TRUE without citing collected evidence; recorded as a proposal, kept UNKNOWN")
 			return claim
 		}
-		claim.Result = domain.ClaimTrue
-		claim.EvidenceIDs = ids
+		claim.Limitations = append(claim.Limitations,
+			"llm proposed TRUE; recorded as a non-authoritative proposal pending deterministic re-evaluation")
 	case domain.ClaimFalse:
+		claim.Proposal = domain.ClaimFalse
 		claim.Result = domain.ClaimFalse
 		claim.EvidenceIDs = ids
 		claim.Limitations = append(claim.Limitations,
@@ -164,8 +167,10 @@ Goal: resolve ONE condition to TRUE, FALSE or UNKNOWN using evidence.
 Rules:
 - Every response is a single JSON object. No prose.
 - To gather facts: {"tool_calls":[{"name":"<tool>","args":{...},"purpose":"..."}]}
-- To conclude: {"claim":{"result":"TRUE|FALSE|UNKNOWN","evidence_ids":["EV-..."],"explanation":"..."}}
-- TRUE requires evidence_ids collected via tools in this loop.
+- To propose a conclusion: {"claim":{"result":"TRUE|FALSE|UNKNOWN","evidence_ids":["EV-..."],"explanation":"..."}}
+- Your conclusion is a proposal, not a verdict: TRUE is re-derived only by the
+  deterministic evaluator from the evidence collected in this loop.
+- TRUE should cite evidence_ids collected via tools in this loop.
 - FALSE is strong: only propose it when tool coverage is complete (all call
   sites inspected, no dynamic dispatch). It will be independently falsified.
 - Prefer UNKNOWN over guessing. Never invent evidence ids.

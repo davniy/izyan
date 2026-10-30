@@ -6,37 +6,47 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Ticket is the generic tracker-intake format: a structured record or parsed ticket
 // containing vulnerability and product snapshot metadata.
 type Ticket struct {
-	ID            string          `json:"id,omitempty"`
-	Vulnerability string          `json:"vulnerability,omitempty"`
-	Aliases       []string        `json:"aliases,omitempty"`
-	Repo          string          `json:"repo,omitempty"`
-	Module        string          `json:"module,omitempty"`
-	Package       string          `json:"package,omitempty"`
-	Imports       []string        `json:"imports,omitempty"`
-	Symbols       []string        `json:"symbols,omitempty"`
-	Version       string          `json:"version,omitempty"`
-	FixedVersions []string        `json:"fixed_versions,omitempty"`
-	Component     string          `json:"component,omitempty"`
-	Product       string          `json:"product,omitempty"`
-	Release       string          `json:"release,omitempty"`
-	GoVersion     string          `json:"go_version,omitempty"`
-	Toolchain     string          `json:"toolchain,omitempty"`
-	Severity      string          `json:"severity,omitempty"`
-	CVSS          string          `json:"cvss,omitempty"`
-	Summary       string          `json:"summary,omitempty"`
-	Description   string          `json:"description,omitempty"`
-	Rationale     string          `json:"rationale,omitempty"`
-	OSV           json.RawMessage `json:"osv,omitempty"`
+	ID            string   `json:"id,omitempty"`
+	Vulnerability string   `json:"vulnerability,omitempty"`
+	Aliases       []string `json:"aliases,omitempty"`
+	Repo          string   `json:"repo,omitempty"`
+	Module        string   `json:"module,omitempty"`
+	Package       string   `json:"package,omitempty"`
+	Imports       []string `json:"imports,omitempty"`
+	Symbols       []string `json:"symbols,omitempty"`
+	Version       string   `json:"version,omitempty"`
+	FixedVersions []string `json:"fixed_versions,omitempty"`
+	Component     string   `json:"component,omitempty"`
+	Product       string   `json:"product,omitempty"`
+	Release       string   `json:"release,omitempty"`
+	// DistributionURL is provenance only: the locator the ticket names
+	// for its distribution (the dedicated "Ссылка на дистрибутив" label
+	// or an explicit JSON field), sanitized so no credential material is
+	// ever recorded. It is never fetched and never read as the release
+	// artifact — supplying that artifact stays the explicit
+	// --artifact/--artifact-url channel's job.
+	DistributionURL string          `json:"distribution_url,omitempty"`
+	GoVersion       string          `json:"go_version,omitempty"`
+	Toolchain       string          `json:"toolchain,omitempty"`
+	Severity        string          `json:"severity,omitempty"`
+	CVSS            string          `json:"cvss,omitempty"`
+	Summary         string          `json:"summary,omitempty"`
+	Description     string          `json:"description,omitempty"`
+	Rationale       string          `json:"rationale,omitempty"`
+	OSV             json.RawMessage `json:"osv,omitempty"`
 }
 
 // LoadTicket parses a ticket from a JSON file, arbitrary text file, or stdin (when path is "-").
@@ -80,20 +90,9 @@ func LoadTicketWithOptions(path, targetID string, completer TextCompleter) (*Tic
 
 	var selected *Ticket
 	if targetID != "" {
-		for _, t := range tickets {
-			if strings.EqualFold(t.ID, targetID) {
-				selected = t
-				break
-			}
-		}
-		if selected == nil {
-			var found []string
-			for _, t := range tickets {
-				if t.ID != "" {
-					found = append(found, t.ID)
-				}
-			}
-			return nil, fmt.Errorf("ticket %q not found in %s (found: %s)", targetID, path, strings.Join(found, ", "))
+		selected, err = SelectTicket(tickets, targetID, path)
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		selected = tickets[0]
@@ -127,6 +126,32 @@ func LoadTicketWithOptions(path, targetID string, completer TextCompleter) (*Tic
 	}
 
 	return selected, nil
+}
+
+// SelectTicket picks one ticket out of an already-parsed batch: the
+// ticket whose ID matches targetID (case-insensitive) when one is
+// requested, else the first parsed ticket. source names the input in
+// the not-found error only. An empty batch with a requested id is a
+// selection failure, not a panic.
+func SelectTicket(tickets []*Ticket, targetID, source string) (*Ticket, error) {
+	if targetID == "" {
+		if len(tickets) == 0 {
+			return nil, fmt.Errorf("ticket %s: no tickets found", source)
+		}
+		return tickets[0], nil
+	}
+	for _, t := range tickets {
+		if strings.EqualFold(t.ID, targetID) {
+			return t, nil
+		}
+	}
+	var found []string
+	for _, t := range tickets {
+		if t.ID != "" {
+			found = append(found, t.ID)
+		}
+	}
+	return nil, fmt.Errorf("ticket %q not found in %s (found: %s)", targetID, source, strings.Join(found, ", "))
 }
 
 // ParseTicket parses a single ticket from JSON or raw text.
@@ -194,6 +219,24 @@ var (
 	reComponentLabel = regexp.MustCompile(`(?i)(?:компонент|component)[\s:=]+([^\r\n,;]+)`)
 	reProductLabel   = regexp.MustCompile(`(?i)(?:версия продукта|продукт|product version|product|release|релиз)[\s:=]+([^\r\n,;]+)`)
 	rePackageLabel   = regexp.MustCompile(`(?i)(?:библиотека|пакет|модуль|library|package|module)[\s:=]+([^\s,;]+)`)
+	// rePackagePair additionally captures the token that follows the
+	// package path on the same labelled span — real tracker tickets
+	// declare the vulnerable version inline ("Библиотека: <module>
+	// <version>"), and that token is the authoritative package version
+	// when no explicit version label matched.
+	rePackagePair = regexp.MustCompile(`(?i)(?:библиотека|пакет|модуль|library|package|module)[\s:=]+([^\s,;]+)(?:[ \t]+([^\s,;]+))?`)
+	// rePURL is the self-contained package+version claim: a purl such
+	// as "pkg:golang/github.com/antchfx/xpath@1.3.2" pins both halves,
+	// so it wins over the label heuristics whenever it is present.
+	rePURL = regexp.MustCompile(`(?i)\bpkg:golang/([^\s@,;]+)@([^\s,;]+)`)
+	// reDistribLabel is the dedicated distribution locator label —
+	// "Ссылка на дистрибутив:" in real tracker texts, "distribution
+	// link/url/artifact" in English forms. Only text under this label is
+	// a distribution pointer; arbitrary URLs elsewhere in the ticket
+	// (project links, wiki references, advisory references) never
+	// qualify. The capture is one token — real tickets run fields
+	// together on one line, so the next label is never inside it.
+	reDistribLabel   = regexp.MustCompile(`(?i)(?:ссылка на дистрибутив|distribution (?:link|url|artifact))[\s:=]+([^\s,]+)`)
 	reVersionLabel   = regexp.MustCompile(`(?i)(?:версия библиотеки|версия пакета|версия|version|ver)[\s:=]+([^\s,;]+)`)
 	reGoVersionLabel = regexp.MustCompile(`(?i)(?:версия go|версия компилятора|go_version|go version|toolchain|compiler)[\s:=]+([^\s,;]+)`)
 	reSeverityLabel  = regexp.MustCompile(`(?i)(?:критичность|приоритет|severity|priority)[\s:=]+([^\s,;]+)`)
@@ -397,6 +440,16 @@ func parseSingleTicketJSON(data []byte) (*Ticket, error) {
 	// First check standard Ticket schema
 	var std Ticket
 	if err := json.Unmarshal(data, &std); err == nil && std.Vulnerability != "" {
+		std.DistributionURL = sanitizeDistributionLocator(std.DistributionURL)
+		if std.DistributionURL == "" {
+			text := std.Description
+			if text == "" {
+				text = std.Summary
+			}
+			if m := reDistribLabel.FindStringSubmatch(text); len(m) > 1 {
+				std.DistributionURL = sanitizeDistributionLocator(m[1])
+			}
+		}
 		if std.Package != "" && std.Module == "" {
 			std.Module = std.Package
 		}
@@ -570,6 +623,15 @@ func parseSingleTicketJSON(data []byte) (*Ticket, error) {
 		t.Repo = findField(m, []string{"repo", "repository"}, "repo")
 	}
 
+	// Distribution locator: dedicated field names only ("дистрибутив"
+	// covers the Russian-labelled key forms) — a generic url/link field
+	// is never read as the distribution pointer.
+	if t.DistributionURL == "" {
+		t.DistributionURL = sanitizeDistributionLocator(findField(m,
+			[]string{"distribution_url", "distribution", "distribution_link", "distribution_artifact", "distrib_url", "distrib"},
+			"дистрибутив"))
+	}
+
 	// Go version & Toolchain
 	if t.GoVersion == "" {
 		t.GoVersion = findField(m, []string{"go_version", "goversion", "release_go_version", "release_go", "compiler_version", "compiler", "go"}, "go_version", "toolchain")
@@ -634,6 +696,15 @@ func parseSingleTicketJSON(data []byte) (*Ticket, error) {
 				}
 			}
 		}
+		// The distribution label can live inside a JSON ticket's
+		// description/summary text (real tracker JSONs embed the labelled
+		// line verbatim); it is scanned here with the same dedicated-label
+		// rule as the plain-text parser.
+		if t.DistributionURL == "" {
+			if m := reDistribLabel.FindStringSubmatch(textToScan); len(m) > 1 {
+				t.DistributionURL = sanitizeDistributionLocator(m[1])
+			}
+		}
 	}
 
 	if t.Module == "" && t.Package != "" {
@@ -672,15 +743,14 @@ func parseTextTicket(text string) (*Ticket, error) {
 	}
 
 	t.ID = extractTicketID(text)
-
 	// Component
 	if m := reComponentLabel.FindStringSubmatch(text); len(m) > 1 {
-		t.Component = strings.TrimSpace(m[1])
+		t.Component = trimLabelValue(m[1], false)
 	}
 
 	// Product / Release
 	if m := reProductLabel.FindStringSubmatch(text); len(m) > 1 {
-		t.Release = strings.TrimSpace(m[1])
+		t.Release = trimLabelValue(m[1], true)
 	}
 
 	// Package
@@ -689,15 +759,28 @@ func parseTextTicket(text string) (*Ticket, error) {
 	} else if m := reGoModule.FindStringSubmatch(text); len(m) > 1 {
 		t.Package = strings.TrimSpace(m[1])
 	}
+	// A PURL is the self-contained package+version claim: when present
+	// it pins the package identity over the label heuristics and
+	// supplies the authoritative package version.
+	purlVersion := ""
+	if m := rePURL.FindStringSubmatch(text); len(m) > 2 {
+		t.Package = purlUnescape(m[1])
+		purlVersion = purlUnescape(m[2])
+	}
 
 	if t.Package != "" {
 		t.Module = t.Package
 		t.Imports = []string{t.Package}
 	}
 
-	// Version
-	if m := reVersionLabel.FindStringSubmatch(text); len(m) > 1 {
-		t.Version = strings.TrimSpace(m[1])
+	// Version: the PURL pins it outright; otherwise the first explicit
+	// version label whose capture is version-shaped, then the token
+	// carried on the package's own label line.
+	switch {
+	case purlVersion != "":
+		t.Version = purlVersion
+	default:
+		t.Version = textTicketVersion(text)
 	}
 
 	// Go Version / Toolchain
@@ -713,8 +796,157 @@ func parseTextTicket(text string) (*Ticket, error) {
 		t.CVSS = strings.TrimSpace(m[1])
 	}
 
+	// Distribution locator: only the dedicated label names the ticket's
+	// distribution — a Project/wiki/advisory URL elsewhere in the text
+	// never does — and the recorded form is sanitized, never fetched.
+	if m := reDistribLabel.FindStringSubmatch(text); len(m) > 1 {
+		t.DistributionURL = sanitizeDistributionLocator(m[1])
+	}
+
 	t.Description = strings.TrimSpace(text)
 	return t, nil
+}
+
+// versionShaped reports whether s can be a version token: it must
+// contain a digit. Words captured after a look-alike label
+// ("Version: Gateway", "Версия продукта:" grabbing "продукта:") fail
+// this check instead of landing in Ticket.Version.
+func versionShaped(s string) bool {
+	return strings.IndexFunc(s, unicode.IsDigit) >= 0
+}
+
+// textTicketVersion resolves the declared package version from a text
+// ticket. reVersionLabel is intentionally loose — its bare
+// "version"/"версия"/"ver" alternatives also match inside
+// "go_version:" and inside "Версия продукта:" — so a candidate match
+// is admitted only when the label is not a suffix of a longer
+// identifier (preceded by a letter, digit or '_') and the captured
+// token is version-shaped. When no explicit label yields a version,
+// the token written next to the package name on its own label line
+// ("Библиотека: <module> <version>") is the fallback claim.
+func textTicketVersion(text string) string {
+	for _, loc := range reVersionLabel.FindAllStringSubmatchIndex(text, -1) {
+		if loc[0] > 0 {
+			if r, _ := utf8.DecodeLastRuneInString(text[:loc[0]]); r == '_' ||
+				unicode.IsLetter(r) || unicode.IsDigit(r) {
+				continue // label embedded in a longer word (go_version, productVersion, server)
+			}
+		}
+		if cand := strings.TrimSpace(text[loc[2]:loc[3]]); versionShaped(cand) {
+			return cand
+		}
+	}
+	for _, m := range rePackagePair.FindAllStringSubmatch(text, -1) {
+		if len(m) > 2 && versionShaped(m[2]) {
+			return strings.TrimSpace(m[2])
+		}
+	}
+	return ""
+}
+
+// purlUnescape decodes a percent-encoded purl component. Versions
+// carry escaped spellings in real tickets ("28.0.1%2Bincompatible" is
+// the Go version "28.0.1+incompatible"); PathUnescape restores the
+// literal form and leaves an already-plain token (or a malformed
+// escape, on error) untouched.
+func purlUnescape(s string) string {
+	if u, err := url.PathUnescape(strings.TrimSpace(s)); err == nil {
+		return u
+	}
+	return strings.TrimSpace(s)
+}
+
+// sanitizeDistributionLocator returns the recordable form of a
+// ticket-declared distribution locator: userinfo, query and fragment
+// are stripped so the recorded provenance can never carry credential
+// material, the way sanitizeURLRef bounds the artifact channel's
+// recorded URL. A value that is not a locator (no '/', '\' or '.', or
+// carrying quotes/angle brackets — markdown breakers in the rendered
+// report) is dropped: the pinned ticket digest already preserves the
+// exact bytes, and a non-locator string must not be reported as the
+// distribution pointer.
+func sanitizeDistributionLocator(raw string) string {
+	s := strings.TrimSpace(strings.Trim(raw, "`"))
+	if s == "" || strings.ContainsAny(s, "\"'<>\n\r\t") {
+		return ""
+	}
+	u, err := url.Parse(s)
+	if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") {
+		return ""
+	}
+	u.User = nil
+	u.RawQuery = ""
+	u.Fragment = ""
+	s = u.String()
+	if !strings.ContainsAny(s, "/.\\") {
+		return ""
+	}
+	return s
+}
+
+// labelEndTok reports whether a whitespace-separated token ends a
+// Word:-style label ("продукта:", "Project:", "PURL:"): a run of
+// letters closed by a colon. URL/scheme tokens never qualify — they
+// do not end with ':'.
+func labelEndTok(tok string) bool {
+	if len(tok) < 2 || !strings.HasSuffix(tok, ":") {
+		return false
+	}
+	for _, r := range tok[:len(tok)-1] {
+		if !unicode.IsLetter(r) {
+			return false
+		}
+	}
+	return true
+}
+
+// labelWordTok reports whether a token can be part of a multi-word
+// label that precedes its colon word ("Ссылка на …", "Алиасы на
+// уязвимость"): letters only, at least one lowercase — all-caps
+// tokens are values (DEMO, HOTFIX, DEMO), never label words.
+func labelWordTok(tok string) bool {
+	lower := false
+	for _, r := range tok {
+		if !unicode.IsLetter(r) {
+			return false
+		}
+		if unicode.IsLower(r) {
+			lower = true
+		}
+	}
+	return lower
+}
+
+// trimLabelValue cuts a multi-token label capture at the boundary of
+// the next Word:-style label. Single-line tracker texts run the
+// fields together ("Версия продукта: <v> Тип версии продукта: HOTFIX
+// Ссылка на …: <url> Компонент: <c>"), so a [^\r\n,;]+ capture
+// otherwise swallows every following label. The label boundary is
+// generic: a letters-only token closed by ':' plus the word run that
+// opens it. For the product axis the value additionally stops at its
+// own version token — the release claim is the product name plus its
+// version, never the trailing field text.
+func trimLabelValue(value string, productAxis bool) string {
+	fields := strings.Fields(strings.TrimSpace(value))
+	for i := 1; i < len(fields); i++ {
+		if labelEndTok(fields[i]) {
+			start := i
+			for start > 0 && labelWordTok(fields[start-1]) {
+				start--
+			}
+			fields = fields[:start]
+			break
+		}
+	}
+	if productAxis {
+		for i, f := range fields {
+			if versionShaped(f) {
+				fields = fields[:i+1]
+				break
+			}
+		}
+	}
+	return strings.Join(fields, " ")
 }
 
 // AdvisoryFile materializes the ticket's advisory data as an OSV JSON

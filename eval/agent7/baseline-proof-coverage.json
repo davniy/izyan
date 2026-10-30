@@ -1,0 +1,1590 @@
+{
+  "schema": "agent7-baseline-proof-coverage/1",
+  "kind": "b0-deterministic-fact-coverage",
+  "run_dir": "eval/agent7/results/b0-baseline",
+  "segments": [
+    {
+      "run_dir": "eval/agent7/results/b0-baseline",
+      "cases_present": 30,
+      "infra_errors": 11,
+      "provenance": {
+        "schema_version": "2",
+        "adapter_version": "2",
+        "generated_at": "2026-10-11T00:41:52Z",
+        "argv": [
+          "izyan",
+          "eval",
+          "vex-bench",
+          "--tasks",
+          "${VEXBENCH_HARNESS_DIR}/benchmark/tasks/vex_bench.jsonl",
+          "--repos-dir",
+          "${VEXBENCH_REPOS_DIR}",
+          "-j",
+          "3",
+          "--out",
+          "eval/agent7/results/b0-baseline",
+          "--mem-limit",
+          "24GiB"
+        ],
+        "cli_j": 3,
+        "tasks_path": "${VEXBENCH_HARNESS_DIR}/benchmark/tasks/vex_bench.jsonl",
+        "tasks_sha256": "60b55373031dca97009d2e89ef8dfdf0ba083f9ce1035470fdf46f0da15384b3",
+        "selected_task_ids": [
+          "caddyserver-caddy-8dc7667-CVE-2025-29785",
+          "aquasecurity-trivy-37da98d-CVE-2024-32473",
+          "kubernetes-minikube-e7bf515-CVE-2019-5736",
+          "juanfont-headscale-e172c29-CVE-2024-45338",
+          "zeromicro-go-zero-bae061a-CVE-2022-32149",
+          "cilium-cilium-43bff35-CVE-2026-35469",
+          "containers-podman-6541fc4-CVE-2025-58181",
+          "rancher-rancher-4dc4f53-CVE-2025-47914",
+          "rancher-rancher-4dc4f53-CVE-2025-58181",
+          "cilium-cilium-3977f6a-CVE-2026-33186",
+          "moby-moby-3ede246-CVE-2026-39984",
+          "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+          "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+          "stretchr-testify-285adcc-CVE-2022-28948",
+          "labstack-echo-fdacff0-CVE-2020-26160",
+          "aquasecurity-trivy-98e136e-CVE-2024-24791",
+          "containers-podman-38ccfa2-CVE-2024-37298",
+          "containers-podman-6a65597-CVE-2023-48795",
+          "cilium-cilium-1228cbc-CVE-2026-35469",
+          "helm-helm-b76a950-CVE-2024-25621",
+          "rancher-rancher-8761419-CVE-2026-24051",
+          "rancher-rancher-8761419-CVE-2026-39883",
+          "istio-istio-042afc3-CVE-2023-48795",
+          "istio-istio-8903f65-CVE-2024-45338",
+          "helm-helm-fbb24fe-CVE-2021-21334",
+          "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+          "containers-podman-5ae6347-CVE-2025-47914",
+          "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+          "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+          "moby-moby-caea5f7-CVE-2026-39883"
+        ],
+        "total_tasks": 30,
+        "unique_cves": 24,
+        "unique_repos": 15,
+        "unique_snapshots": 28,
+        "izyan_dirty": null,
+        "izyan_binary_sha256": "b829552f31b71db505fd9c0c267af251436ef8f662d49cfcf461191c0379f553",
+        "izyan_build_info": {
+          "go_version": "go1.26.1",
+          "settings": {
+            "-buildmode": "exe",
+            "-compiler": "gc",
+            "CGO_CFLAGS": "",
+            "CGO_CPPFLAGS": "",
+            "CGO_CXXFLAGS": "",
+            "CGO_ENABLED": "1",
+            "CGO_LDFLAGS": "",
+            "DefaultGODEBUG": "cryptocustomrand=1,tlssecpmlkem=0,urlstrictcolons=0",
+            "GOARCH": "arm64",
+            "GOARM64": "v8.0",
+            "GOOS": "darwin"
+          }
+        },
+        "vexbench_commit_sha": "80cddeac3132826bfd47227ad59b2e6618a681bd",
+        "analysis_go": "1.26.1",
+        "analysis_mode": "local",
+        "go_binary_sha256": "e22f7267b6aa79b1d460e509eff04806401b84e11c2cd772d967c93fc7bb556f",
+        "go_build_info": "/usr/local/go/bin/go: go1.26.1\n\tpath\tcmd/go\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-gcflags=cmd/...=-dwarf=false\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0",
+        "govulncheck_version": "v1.8.0",
+        "govulncheck_binary_sha256": "486632323aa71ed1466dac07d34c4b7862cc6939d9c38a16a2416925b89c7380",
+        "govulncheck_build_info": "<local-path>: go1.26.1\n\tpath\tgolang.org/x/vuln/cmd/govulncheck\n\tmod\tgolang.org/x/vuln\tv1.8.0\th1:clG4qBU6zH5VKjti8n5j8BBuYzoSha392xXMkXS351U=\n\tdep\tgolang.org/x/mod\tv0.41.0\th1:qJmnOUb4YB+FsEuM3HcWucdZASCPGhsX6uljO6pog0c=\n\tdep\tgolang.org/x/sync\tv0.23.0\th1:KameEIfc1IkluZyXWLn39Wd4tURc6GbCiISGiZm2bQk=\n\tdep\tgolang.org/x/telemetry\tv0.0.0-20260908163034-4bcc4b2ee518\th1:F5BWKvW126NXR74uxkxuc1jQHhm/rwm/J3rSiFyuRs4=\n\tdep\tgolang.org/x/tools\tv0.50.0\th1:c2ifzfcuY7L90lZ2aKd8S4K2NpASF08SZx9ZuJkHmSU=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0",
+        "govulncheck_version_output": "Go: go1.26.1\nScanner: govulncheck@v1.8.0\nDB: https://vuln.go.dev\nDB updated: 2026-10-08 22:31:09 +0000 UTC",
+        "govulncheck_db_url": "https://vuln.go.dev",
+        "govulncheck_db_mode": "live_observed",
+        "host_os": "darwin",
+        "host_arch": "arm64",
+        "target_goos": "darwin",
+        "target_goarch": "arm64",
+        "cgo_enabled": false,
+        "build_tags": [],
+        "env": {},
+        "knowledge_digest": "a236b2f9b12e6eb672aaff17a01b78648dd50298e3f263873e91fe75f528f165",
+        "osv_fetches": 64,
+        "osv_fetch_log": "provenance/osv-fetches.jsonl",
+        "llm_calls": 0,
+        "tool_calls": 6,
+        "tokens": 0,
+        "llm_cost": 0,
+        "model": null,
+        "model_endpoint_revision": null,
+        "prompt_version": null,
+        "missing": {
+          "izyan_commit_sha": "no vcs.revision in build info",
+          "izyan_dirty": "no vcs.modified in build info",
+          "llm_cost": "no LLM usage in the deterministic profile",
+          "model": "not_applicable: deterministic profile, no LLM configured",
+          "model_endpoint_revision": "not_applicable: deterministic profile",
+          "orchestrator_version": "recorded by eval/vexbench_baseline.py in run-manifest.json",
+          "prompt_version": "not_applicable: deterministic profile",
+          "tokens": "no token accounting in the deterministic profile"
+        }
+      }
+    },
+    {
+      "run_dir": "eval/agent7/results/b0-baseline-retry",
+      "cases_present": 11,
+      "infra_errors": 3,
+      "provenance": {
+        "schema_version": "2",
+        "adapter_version": "2",
+        "generated_at": "2026-10-11T03:00:03Z",
+        "argv": [
+          "izyan",
+          "eval",
+          "vex-bench",
+          "--tasks",
+          "${VEXBENCH_HARNESS_DIR}/benchmark/tasks/vex_bench.jsonl",
+          "--repos-dir",
+          "${VEXBENCH_REPOS_DIR}",
+          "--case",
+          "containers-podman-5ae6347-CVE-2025-47914,gitleaks-gitleaks-f487f85-CVE-2025-22871,helm-helm-b76a950-CVE-2024-25621,helm-helm-fbb24fe-CVE-2021-21334,istio-istio-042afc3-CVE-2023-48795,istio-istio-8903f65-CVE-2024-45338,kubernetes-kubernetes-6d4b94f-CVE-2022-41717,kubernetes-kubernetes-ec78c0f-CVE-2021-3121,moby-moby-caea5f7-CVE-2026-39883,rancher-rancher-8761419-CVE-2026-24051,rancher-rancher-8761419-CVE-2026-39883",
+          "-j",
+          "3",
+          "--out",
+          "eval/agent7/results/b0-baseline-retry",
+          "--mem-limit",
+          "24GiB"
+        ],
+        "cli_j": 3,
+        "tasks_path": "${VEXBENCH_HARNESS_DIR}/benchmark/tasks/vex_bench.jsonl",
+        "tasks_sha256": "60b55373031dca97009d2e89ef8dfdf0ba083f9ce1035470fdf46f0da15384b3",
+        "selected_task_ids": [
+          "containers-podman-5ae6347-CVE-2025-47914",
+          "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+          "helm-helm-b76a950-CVE-2024-25621",
+          "helm-helm-fbb24fe-CVE-2021-21334",
+          "istio-istio-042afc3-CVE-2023-48795",
+          "istio-istio-8903f65-CVE-2024-45338",
+          "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+          "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+          "moby-moby-caea5f7-CVE-2026-39883",
+          "rancher-rancher-8761419-CVE-2026-24051",
+          "rancher-rancher-8761419-CVE-2026-39883"
+        ],
+        "total_tasks": 11,
+        "unique_cves": 10,
+        "unique_repos": 7,
+        "unique_snapshots": 10,
+        "izyan_dirty": null,
+        "izyan_binary_sha256": "b829552f31b71db505fd9c0c267af251436ef8f662d49cfcf461191c0379f553",
+        "izyan_build_info": {
+          "go_version": "go1.26.1",
+          "settings": {
+            "-buildmode": "exe",
+            "-compiler": "gc",
+            "CGO_CFLAGS": "",
+            "CGO_CPPFLAGS": "",
+            "CGO_CXXFLAGS": "",
+            "CGO_ENABLED": "1",
+            "CGO_LDFLAGS": "",
+            "DefaultGODEBUG": "cryptocustomrand=1,tlssecpmlkem=0,urlstrictcolons=0",
+            "GOARCH": "arm64",
+            "GOARM64": "v8.0",
+            "GOOS": "darwin"
+          }
+        },
+        "vexbench_commit_sha": "80cddeac3132826bfd47227ad59b2e6618a681bd",
+        "analysis_go": "1.26.1",
+        "analysis_mode": "local",
+        "go_binary_sha256": "e22f7267b6aa79b1d460e509eff04806401b84e11c2cd772d967c93fc7bb556f",
+        "go_build_info": "/usr/local/go/bin/go: go1.26.1\n\tpath\tcmd/go\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-gcflags=cmd/...=-dwarf=false\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0",
+        "govulncheck_version": "v1.8.0",
+        "govulncheck_binary_sha256": "486632323aa71ed1466dac07d34c4b7862cc6939d9c38a16a2416925b89c7380",
+        "govulncheck_build_info": "<local-path>: go1.26.1\n\tpath\tgolang.org/x/vuln/cmd/govulncheck\n\tmod\tgolang.org/x/vuln\tv1.8.0\th1:clG4qBU6zH5VKjti8n5j8BBuYzoSha392xXMkXS351U=\n\tdep\tgolang.org/x/mod\tv0.41.0\th1:qJmnOUb4YB+FsEuM3HcWucdZASCPGhsX6uljO6pog0c=\n\tdep\tgolang.org/x/sync\tv0.23.0\th1:KameEIfc1IkluZyXWLn39Wd4tURc6GbCiISGiZm2bQk=\n\tdep\tgolang.org/x/telemetry\tv0.0.0-20260908163034-4bcc4b2ee518\th1:F5BWKvW126NXR74uxkxuc1jQHhm/rwm/J3rSiFyuRs4=\n\tdep\tgolang.org/x/tools\tv0.50.0\th1:c2ifzfcuY7L90lZ2aKd8S4K2NpASF08SZx9ZuJkHmSU=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0",
+        "govulncheck_version_output": "Go: go1.26.1\nScanner: govulncheck@v1.8.0\nDB: https://vuln.go.dev\nDB updated: 2026-10-08 22:31:09 +0000 UTC",
+        "govulncheck_db_url": "https://vuln.go.dev",
+        "govulncheck_db_mode": "live_observed",
+        "host_os": "darwin",
+        "host_arch": "arm64",
+        "target_goos": "darwin",
+        "target_goarch": "arm64",
+        "cgo_enabled": false,
+        "build_tags": [],
+        "env": {},
+        "knowledge_digest": "a236b2f9b12e6eb672aaff17a01b78648dd50298e3f263873e91fe75f528f165",
+        "osv_fetches": 19,
+        "osv_fetch_log": "provenance/osv-fetches.jsonl",
+        "llm_calls": 0,
+        "tool_calls": 0,
+        "tokens": 0,
+        "llm_cost": 0,
+        "model": null,
+        "model_endpoint_revision": null,
+        "prompt_version": null,
+        "missing": {
+          "izyan_commit_sha": "no vcs.revision in build info",
+          "izyan_dirty": "no vcs.modified in build info",
+          "llm_cost": "no LLM usage in the deterministic profile",
+          "model": "not_applicable: deterministic profile, no LLM configured",
+          "model_endpoint_revision": "not_applicable: deterministic profile",
+          "orchestrator_version": "recorded by eval/vexbench_baseline.py in run-manifest.json",
+          "prompt_version": "not_applicable: deterministic profile",
+          "tokens": "no token accounting in the deterministic profile"
+        }
+      }
+    },
+    {
+      "run_dir": "eval/agent7/results/b0-baseline-retry2",
+      "cases_present": 3,
+      "infra_errors": 0,
+      "provenance": {
+        "schema_version": "2",
+        "adapter_version": "2",
+        "generated_at": "2026-10-11T04:43:30Z",
+        "argv": [
+          "izyan",
+          "eval",
+          "vex-bench",
+          "--tasks",
+          "${VEXBENCH_HARNESS_DIR}/benchmark/tasks/vex_bench.jsonl",
+          "--repos-dir",
+          "${VEXBENCH_REPOS_DIR}",
+          "--case",
+          "moby-moby-caea5f7-CVE-2026-39883,rancher-rancher-8761419-CVE-2026-24051,rancher-rancher-8761419-CVE-2026-39883",
+          "-j",
+          "1",
+          "--out",
+          "eval/agent7/results/b0-baseline-retry2",
+          "--mem-limit",
+          "24GiB"
+        ],
+        "cli_j": 1,
+        "tasks_path": "${VEXBENCH_HARNESS_DIR}/benchmark/tasks/vex_bench.jsonl",
+        "tasks_sha256": "60b55373031dca97009d2e89ef8dfdf0ba083f9ce1035470fdf46f0da15384b3",
+        "selected_task_ids": [
+          "moby-moby-caea5f7-CVE-2026-39883",
+          "rancher-rancher-8761419-CVE-2026-24051",
+          "rancher-rancher-8761419-CVE-2026-39883"
+        ],
+        "total_tasks": 3,
+        "unique_cves": 2,
+        "unique_repos": 2,
+        "unique_snapshots": 2,
+        "izyan_dirty": null,
+        "izyan_binary_sha256": "b829552f31b71db505fd9c0c267af251436ef8f662d49cfcf461191c0379f553",
+        "izyan_build_info": {
+          "go_version": "go1.26.1",
+          "settings": {
+            "-buildmode": "exe",
+            "-compiler": "gc",
+            "CGO_CFLAGS": "",
+            "CGO_CPPFLAGS": "",
+            "CGO_CXXFLAGS": "",
+            "CGO_ENABLED": "1",
+            "CGO_LDFLAGS": "",
+            "DefaultGODEBUG": "cryptocustomrand=1,tlssecpmlkem=0,urlstrictcolons=0",
+            "GOARCH": "arm64",
+            "GOARM64": "v8.0",
+            "GOOS": "darwin"
+          }
+        },
+        "vexbench_commit_sha": "80cddeac3132826bfd47227ad59b2e6618a681bd",
+        "analysis_go": "1.26.1",
+        "analysis_mode": "local",
+        "go_binary_sha256": "e22f7267b6aa79b1d460e509eff04806401b84e11c2cd772d967c93fc7bb556f",
+        "go_build_info": "/usr/local/go/bin/go: go1.26.1\n\tpath\tcmd/go\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-gcflags=cmd/...=-dwarf=false\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0",
+        "govulncheck_version": "v1.8.0",
+        "govulncheck_binary_sha256": "486632323aa71ed1466dac07d34c4b7862cc6939d9c38a16a2416925b89c7380",
+        "govulncheck_build_info": "<local-path>: go1.26.1\n\tpath\tgolang.org/x/vuln/cmd/govulncheck\n\tmod\tgolang.org/x/vuln\tv1.8.0\th1:clG4qBU6zH5VKjti8n5j8BBuYzoSha392xXMkXS351U=\n\tdep\tgolang.org/x/mod\tv0.41.0\th1:qJmnOUb4YB+FsEuM3HcWucdZASCPGhsX6uljO6pog0c=\n\tdep\tgolang.org/x/sync\tv0.23.0\th1:KameEIfc1IkluZyXWLn39Wd4tURc6GbCiISGiZm2bQk=\n\tdep\tgolang.org/x/telemetry\tv0.0.0-20260908163034-4bcc4b2ee518\th1:F5BWKvW126NXR74uxkxuc1jQHhm/rwm/J3rSiFyuRs4=\n\tdep\tgolang.org/x/tools\tv0.50.0\th1:c2ifzfcuY7L90lZ2aKd8S4K2NpASF08SZx9ZuJkHmSU=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0",
+        "govulncheck_version_output": "Go: go1.26.1\nScanner: govulncheck@v1.8.0\nDB: https://vuln.go.dev\nDB updated: 2026-10-08 22:31:09 +0000 UTC",
+        "govulncheck_db_url": "https://vuln.go.dev",
+        "govulncheck_db_mode": "live_observed",
+        "host_os": "darwin",
+        "host_arch": "arm64",
+        "target_goos": "darwin",
+        "target_goarch": "arm64",
+        "cgo_enabled": false,
+        "build_tags": [],
+        "env": {},
+        "knowledge_digest": "a236b2f9b12e6eb672aaff17a01b78648dd50298e3f263873e91fe75f528f165",
+        "osv_fetches": 6,
+        "osv_fetch_log": "provenance/osv-fetches.jsonl",
+        "llm_calls": 0,
+        "tool_calls": 0,
+        "tokens": 0,
+        "llm_cost": 0,
+        "model": null,
+        "model_endpoint_revision": null,
+        "prompt_version": null,
+        "missing": {
+          "izyan_commit_sha": "no vcs.revision in build info",
+          "izyan_dirty": "no vcs.modified in build info",
+          "llm_cost": "no LLM usage in the deterministic profile",
+          "model": "not_applicable: deterministic profile, no LLM configured",
+          "model_endpoint_revision": "not_applicable: deterministic profile",
+          "orchestrator_version": "recorded by eval/vexbench_baseline.py in run-manifest.json",
+          "prompt_version": "not_applicable: deterministic profile",
+          "tokens": "no token accounting in the deterministic profile"
+        }
+      }
+    }
+  ],
+  "izyan_head": "ff0fcb8312c52bb8aee4dd8a53024bccbb48c282",
+  "invalidated_attempts": [
+    {
+      "run_dir": "eval/agent7/results/b0-baseline-j2-memcancel",
+      "profile": "-j 2 --mem-limit 8GiB",
+      "affected_cases": 30,
+      "cause": "memguard GC-pressure cancellation degraded evidence collection"
+    }
+  ],
+  "cases": [
+    {
+      "task_id": "caddyserver-caddy-8dc7667-CVE-2025-29785",
+      "verdict": "EXPLOITABLE",
+      "infra_error": false,
+      "compatibility_category": "vulnerable",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "correct_exploitable",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": true,
+          "value": "TRUE:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "go list -m -json all"
+        },
+        "package_presence": {
+          "evaluated": true,
+          "value": "TRUE:github.com/quic-go/quic-go/internal/ackhandler"
+        },
+        "release_toolchain": {
+          "evaluated": false
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE@v0.50.0"
+        }
+      }
+    },
+    {
+      "task_id": "aquasecurity-trivy-37da98d-CVE-2024-32473",
+      "verdict": "NO_EXPLOIT_PATH_FOUND",
+      "infra_error": false,
+      "compatibility_category": "code_not_present",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "correct_safe",
+      "falsifier": "package-absent",
+      "release_go_version": "go1.22.0",
+      "go_version_source": "toolchain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": false,
+          "value": "UNKNOWN:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "go list -m -json all"
+        },
+        "package_presence": {
+          "evaluated": false,
+          "value": "UNKNOWN"
+        },
+        "release_toolchain": {
+          "evaluated": true,
+          "value": "go1.22.0/toolchain"
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE"
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-minikube-e7bf515-CVE-2019-5736",
+      "verdict": "INCONCLUSIVE",
+      "infra_error": false,
+      "compatibility_category": "uncertain",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "abstain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": false
+        },
+        "module_graph_presence": {
+          "evaluated": false
+        },
+        "package_presence": {
+          "evaluated": false
+        },
+        "release_toolchain": {
+          "evaluated": false
+        },
+        "version_affected": {
+          "evaluated": false
+        }
+      }
+    },
+    {
+      "task_id": "juanfont-headscale-e172c29-CVE-2024-45338",
+      "verdict": "INCONCLUSIVE",
+      "infra_error": false,
+      "compatibility_category": "uncertain",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "abstain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": true,
+          "value": "TRUE:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "go list -m -json all"
+        },
+        "package_presence": {
+          "evaluated": true,
+          "value": "TRUE:golang.org/x/net/html"
+        },
+        "release_toolchain": {
+          "evaluated": false
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE@v0.32.0"
+        }
+      }
+    },
+    {
+      "task_id": "zeromicro-go-zero-bae061a-CVE-2022-32149",
+      "verdict": "NOT_AFFECTED",
+      "infra_error": false,
+      "compatibility_category": "code_not_present",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "correct_safe",
+      "release_go_version": "go1.16",
+      "go_version_source": "ci",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": true,
+          "value": "FALSE:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "go list -m -json all"
+        },
+        "package_presence": {
+          "evaluated": true,
+          "value": "FALSE"
+        },
+        "release_toolchain": {
+          "evaluated": true,
+          "value": "go1.16/ci"
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "FALSE@v0.4.0"
+        }
+      }
+    },
+    {
+      "task_id": "cilium-cilium-43bff35-CVE-2026-35469",
+      "verdict": "INCONCLUSIVE",
+      "infra_error": false,
+      "compatibility_category": "uncertain",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "abstain",
+      "release_go_version": "go1.25.9",
+      "go_version_source": "ci",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": false,
+          "value": "UNKNOWN:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "vendor/modules.txt"
+        },
+        "package_presence": {
+          "evaluated": false,
+          "value": "UNKNOWN:github.com/moby/spdystream+github.com/moby/spdystream/spdy"
+        },
+        "release_toolchain": {
+          "evaluated": true,
+          "value": "go1.25.9/ci"
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE"
+        }
+      }
+    },
+    {
+      "task_id": "containers-podman-6541fc4-CVE-2025-58181",
+      "verdict": "INCONCLUSIVE",
+      "infra_error": false,
+      "compatibility_category": "uncertain",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "abstain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": false,
+          "value": "UNKNOWN:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "vendor/modules.txt"
+        },
+        "package_presence": {
+          "evaluated": false,
+          "value": "UNKNOWN:golang.org/x/crypto/ssh"
+        },
+        "release_toolchain": {
+          "evaluated": false
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE"
+        }
+      }
+    },
+    {
+      "task_id": "rancher-rancher-4dc4f53-CVE-2025-47914",
+      "verdict": "EXPLOITABLE",
+      "infra_error": false,
+      "compatibility_category": "vulnerable",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "correct_exploitable",
+      "release_go_version": "go1.24.11",
+      "go_version_source": "toolchain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": true,
+          "value": "TRUE:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "go list -m -json all"
+        },
+        "package_presence": {
+          "evaluated": true,
+          "value": "TRUE:golang.org/x/crypto/ssh/agent"
+        },
+        "release_toolchain": {
+          "evaluated": true,
+          "value": "go1.24.11/toolchain"
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE@v0.43.0"
+        }
+      }
+    },
+    {
+      "task_id": "rancher-rancher-4dc4f53-CVE-2025-58181",
+      "verdict": "NO_EXPLOIT_PATH_FOUND",
+      "infra_error": false,
+      "compatibility_category": "code_not_reachable",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "correct_safe",
+      "falsifier": "govulncheck-silence",
+      "release_go_version": "go1.24.11",
+      "go_version_source": "toolchain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": true,
+          "value": "TRUE:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "go list -m -json all"
+        },
+        "package_presence": {
+          "evaluated": true,
+          "value": "TRUE:golang.org/x/crypto/ssh"
+        },
+        "release_toolchain": {
+          "evaluated": true,
+          "value": "go1.24.11/toolchain"
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE@v0.43.0"
+        }
+      }
+    },
+    {
+      "task_id": "cilium-cilium-3977f6a-CVE-2026-33186",
+      "verdict": "EXPLOITABLE",
+      "infra_error": false,
+      "compatibility_category": "vulnerable",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "wrong",
+      "release_go_version": "go1.25.8",
+      "go_version_source": "ci",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": false,
+          "value": "UNKNOWN:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "vendor/modules.txt"
+        },
+        "package_presence": {
+          "evaluated": false,
+          "value": "UNKNOWN:google.golang.org/grpc"
+        },
+        "release_toolchain": {
+          "evaluated": true,
+          "value": "go1.25.8/ci"
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE"
+        }
+      }
+    },
+    {
+      "task_id": "moby-moby-3ede246-CVE-2026-39984",
+      "verdict": "INCONCLUSIVE",
+      "infra_error": false,
+      "compatibility_category": "uncertain",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "abstain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": false
+        },
+        "module_graph_presence": {
+          "evaluated": false
+        },
+        "package_presence": {
+          "evaluated": false
+        },
+        "release_toolchain": {
+          "evaluated": false
+        },
+        "version_affected": {
+          "evaluated": false
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+      "verdict": "NOT_AFFECTED",
+      "infra_error": false,
+      "compatibility_category": "code_not_present",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "wrong",
+      "release_go_version": "go1.21.3",
+      "go_version_source": "version-file",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": true,
+          "value": "FALSE:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "vendor/modules.txt"
+        },
+        "package_presence": {
+          "evaluated": true,
+          "value": "FALSE"
+        },
+        "release_toolchain": {
+          "evaluated": true,
+          "value": "go1.21.3/version-file"
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "FALSE@v0.17.0"
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+      "verdict": "INCONCLUSIVE",
+      "infra_error": false,
+      "compatibility_category": "uncertain",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "abstain",
+      "release_go_version": "go1.21.7",
+      "go_version_source": "version-file",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": true,
+          "value": "TRUE:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "vendor/modules.txt"
+        },
+        "package_presence": {
+          "evaluated": true,
+          "value": "TRUE:google.golang.org/protobuf/encoding/protojson+google.golang.org/protobuf/internal/encoding/json"
+        },
+        "release_toolchain": {
+          "evaluated": true,
+          "value": "go1.21.7/version-file"
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE@v1.31.0"
+        }
+      }
+    },
+    {
+      "task_id": "stretchr-testify-285adcc-CVE-2022-28948",
+      "verdict": "INCONCLUSIVE",
+      "infra_error": false,
+      "compatibility_category": "uncertain",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "abstain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": true,
+          "value": "TRUE:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "go list -m -json all"
+        },
+        "package_presence": {
+          "evaluated": true,
+          "value": "TRUE:gopkg.in/yaml.v3"
+        },
+        "release_toolchain": {
+          "evaluated": false
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE@v3.0.0-20200313102051-9f266ea9e77c"
+        }
+      }
+    },
+    {
+      "task_id": "labstack-echo-fdacff0-CVE-2020-26160",
+      "verdict": "INCONCLUSIVE",
+      "infra_error": false,
+      "compatibility_category": "uncertain",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "abstain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": true,
+          "value": "TRUE:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "go list -m -json all"
+        },
+        "package_presence": {
+          "evaluated": true,
+          "value": "TRUE:github.com/dgrijalva/jwt-go"
+        },
+        "release_toolchain": {
+          "evaluated": false
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE@v3.2.0+incompatible"
+        }
+      }
+    },
+    {
+      "task_id": "aquasecurity-trivy-98e136e-CVE-2024-24791",
+      "verdict": "INCONCLUSIVE",
+      "infra_error": false,
+      "compatibility_category": "uncertain",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "abstain",
+      "release_go_version": "go1.22.4",
+      "go_version_source": "toolchain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": true,
+          "value": "TRUE:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "go list -m -json all"
+        },
+        "package_presence": {
+          "evaluated": true,
+          "value": "TRUE:net/http"
+        },
+        "release_toolchain": {
+          "evaluated": true,
+          "value": "go1.22.4/toolchain"
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE@go1.22.4"
+        }
+      }
+    },
+    {
+      "task_id": "containers-podman-38ccfa2-CVE-2024-37298",
+      "verdict": "EXPLOITABLE",
+      "infra_error": false,
+      "compatibility_category": "vulnerable",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "wrong",
+      "release_go_version": "go1.18",
+      "go_version_source": "ci",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": false,
+          "value": "UNKNOWN:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "vendor/modules.txt"
+        },
+        "package_presence": {
+          "evaluated": false,
+          "value": "UNKNOWN:github.com/gorilla/schema"
+        },
+        "release_toolchain": {
+          "evaluated": true,
+          "value": "go1.18/ci"
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE"
+        }
+      }
+    },
+    {
+      "task_id": "containers-podman-6a65597-CVE-2023-48795",
+      "verdict": "INCONCLUSIVE",
+      "infra_error": false,
+      "compatibility_category": "uncertain",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "abstain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": false,
+          "value": "UNKNOWN:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "vendor/modules.txt"
+        },
+        "package_presence": {
+          "evaluated": false,
+          "value": "UNKNOWN:golang.org/x/crypto/ssh"
+        },
+        "release_toolchain": {
+          "evaluated": false
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE"
+        }
+      }
+    },
+    {
+      "task_id": "cilium-cilium-1228cbc-CVE-2026-35469",
+      "verdict": "INCONCLUSIVE",
+      "infra_error": false,
+      "compatibility_category": "uncertain",
+      "segment": "eval/agent7/results/b0-baseline",
+      "scoring_outcome": "abstain",
+      "release_go_version": "go1.26.2",
+      "go_version_source": "ci",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": true,
+          "value": "TRUE:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "vendor/modules.txt"
+        },
+        "package_presence": {
+          "evaluated": true,
+          "value": "TRUE:github.com/moby/spdystream+github.com/moby/spdystream/spdy"
+        },
+        "release_toolchain": {
+          "evaluated": true,
+          "value": "go1.26.2/ci"
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE@v0.5.0"
+        }
+      }
+    },
+    {
+      "task_id": "helm-helm-b76a950-CVE-2024-25621",
+      "verdict": "NO_EXPLOIT_PATH_FOUND",
+      "infra_error": false,
+      "compatibility_category": "code_not_present",
+      "segment": "eval/agent7/results/b0-baseline-retry",
+      "scoring_outcome": "correct_safe",
+      "falsifier": "package-absent",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": false,
+          "value": "UNKNOWN:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "go list -m -json all"
+        },
+        "package_presence": {
+          "evaluated": false,
+          "value": "UNKNOWN"
+        },
+        "release_toolchain": {
+          "evaluated": false
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE"
+        }
+      }
+    },
+    {
+      "task_id": "rancher-rancher-8761419-CVE-2026-24051",
+      "verdict": "NO_EXPLOIT_PATH_FOUND",
+      "infra_error": false,
+      "compatibility_category": "code_not_present",
+      "segment": "eval/agent7/results/b0-baseline-retry2",
+      "scoring_outcome": "correct_safe",
+      "falsifier": "package-absent",
+      "release_go_version": "go1.24.12",
+      "go_version_source": "toolchain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": false,
+          "value": "UNKNOWN:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "go list -m -json all"
+        },
+        "package_presence": {
+          "evaluated": false,
+          "value": "UNKNOWN"
+        },
+        "release_toolchain": {
+          "evaluated": true,
+          "value": "go1.24.12/toolchain"
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE"
+        }
+      }
+    },
+    {
+      "task_id": "rancher-rancher-8761419-CVE-2026-39883",
+      "verdict": "NO_EXPLOIT_PATH_FOUND",
+      "infra_error": false,
+      "compatibility_category": "code_not_reachable",
+      "segment": "eval/agent7/results/b0-baseline-retry2",
+      "scoring_outcome": "correct_safe",
+      "falsifier": "govulncheck-silence",
+      "release_go_version": "go1.24.12",
+      "go_version_source": "toolchain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": true,
+          "value": "TRUE:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "go list -m -json all"
+        },
+        "package_presence": {
+          "evaluated": true,
+          "value": "TRUE:go.opentelemetry.io/otel/sdk/resource"
+        },
+        "release_toolchain": {
+          "evaluated": true,
+          "value": "go1.24.12/toolchain"
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE@v1.33.0"
+        }
+      }
+    },
+    {
+      "task_id": "istio-istio-042afc3-CVE-2023-48795",
+      "verdict": "NOT_AFFECTED",
+      "infra_error": false,
+      "compatibility_category": "code_not_reachable",
+      "segment": "eval/agent7/results/b0-baseline-retry",
+      "scoring_outcome": "correct_safe",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": true,
+          "value": "FALSE:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "go list -m -json all"
+        },
+        "package_presence": {
+          "evaluated": true,
+          "value": "FALSE:golang.org/x/crypto/ssh"
+        },
+        "release_toolchain": {
+          "evaluated": false
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE@v0.14.0"
+        }
+      }
+    },
+    {
+      "task_id": "istio-istio-8903f65-CVE-2024-45338",
+      "verdict": "INCONCLUSIVE",
+      "infra_error": false,
+      "compatibility_category": "uncertain",
+      "segment": "eval/agent7/results/b0-baseline-retry",
+      "scoring_outcome": "abstain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": false,
+          "value": "UNKNOWN:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "go list -m -json all"
+        },
+        "package_presence": {
+          "evaluated": false,
+          "value": "UNKNOWN:golang.org/x/net/html"
+        },
+        "release_toolchain": {
+          "evaluated": false
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE"
+        }
+      }
+    },
+    {
+      "task_id": "helm-helm-fbb24fe-CVE-2021-21334",
+      "verdict": "INCONCLUSIVE",
+      "infra_error": false,
+      "compatibility_category": "uncertain",
+      "segment": "eval/agent7/results/b0-baseline-retry",
+      "scoring_outcome": "abstain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": false,
+          "value": "UNKNOWN:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "go list -m -json all"
+        },
+        "package_presence": {
+          "evaluated": false,
+          "value": "UNKNOWN"
+        },
+        "release_toolchain": {
+          "evaluated": false
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE"
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+      "verdict": "INCONCLUSIVE",
+      "infra_error": false,
+      "compatibility_category": "uncertain",
+      "segment": "eval/agent7/results/b0-baseline-retry",
+      "scoring_outcome": "abstain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": false
+        },
+        "module_graph_presence": {
+          "evaluated": false
+        },
+        "package_presence": {
+          "evaluated": false
+        },
+        "release_toolchain": {
+          "evaluated": false
+        },
+        "version_affected": {
+          "evaluated": false
+        }
+      }
+    },
+    {
+      "task_id": "containers-podman-5ae6347-CVE-2025-47914",
+      "verdict": "NOT_AFFECTED",
+      "infra_error": false,
+      "compatibility_category": "code_not_present",
+      "segment": "eval/agent7/results/b0-baseline-retry",
+      "scoring_outcome": "correct_safe",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": true,
+          "value": "FALSE:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "vendor/modules.txt"
+        },
+        "package_presence": {
+          "evaluated": true,
+          "value": "FALSE"
+        },
+        "release_toolchain": {
+          "evaluated": false
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "FALSE@v0.49.0"
+        }
+      }
+    },
+    {
+      "task_id": "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+      "verdict": "NO_EXPLOIT_PATH_FOUND",
+      "infra_error": false,
+      "compatibility_category": "code_not_reachable",
+      "segment": "eval/agent7/results/b0-baseline-retry",
+      "scoring_outcome": "correct_safe",
+      "falsifier": "govulncheck-silence",
+      "release_go_version": "go1.23.4",
+      "go_version_source": "toolchain",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": true,
+          "value": "TRUE:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "go list -m -json all"
+        },
+        "package_presence": {
+          "evaluated": true,
+          "value": "TRUE:net/http/internal"
+        },
+        "release_toolchain": {
+          "evaluated": true,
+          "value": "go1.23.4/toolchain"
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE@go1.23.4"
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+      "verdict": "EXPLOITABLE",
+      "infra_error": false,
+      "compatibility_category": "vulnerable",
+      "segment": "eval/agent7/results/b0-baseline-retry",
+      "scoring_outcome": "wrong",
+      "release_go_version": "go1.19.5",
+      "go_version_source": "version-file",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": true,
+          "value": "TRUE:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "vendor/modules.txt"
+        },
+        "package_presence": {
+          "evaluated": true,
+          "value": "TRUE:golang.org/x/net/http2"
+        },
+        "release_toolchain": {
+          "evaluated": true,
+          "value": "go1.19.5/version-file"
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE@v0.3.1-0.20221206200815-1e63c2f08a10"
+        }
+      }
+    },
+    {
+      "task_id": "moby-moby-caea5f7-CVE-2026-39883",
+      "verdict": "NO_EXPLOIT_PATH_FOUND",
+      "infra_error": false,
+      "compatibility_category": "code_not_reachable",
+      "segment": "eval/agent7/results/b0-baseline-retry2",
+      "scoring_outcome": "correct_safe",
+      "falsifier": "unreached-exported-subject",
+      "fact_classes": {
+        "binary_inventory": {
+          "evaluated": false,
+          "source": "not analyzed: source snapshot only"
+        },
+        "build_variant_facts": {
+          "evaluated": false,
+          "value": "UNKNOWN:darwin/arm64",
+          "source": "product build context"
+        },
+        "module_graph_presence": {
+          "evaluated": true,
+          "value": "TRUE",
+          "source": "vendor/modules.txt"
+        },
+        "package_presence": {
+          "evaluated": false,
+          "value": "UNKNOWN:go.opentelemetry.io/otel/sdk/resource"
+        },
+        "release_toolchain": {
+          "evaluated": false
+        },
+        "version_affected": {
+          "evaluated": true,
+          "value": "TRUE"
+        }
+      }
+    }
+  ],
+  "aggregates": {
+    "verdict_distribution": {
+      "EXPLOITABLE": 5,
+      "INCONCLUSIVE": 14,
+      "NOT_AFFECTED": 4,
+      "NO_EXPLOIT_PATH_FOUND": 7
+    },
+    "scoring_outcome_distribution": {
+      "abstain": 14,
+      "correct_exploitable": 2,
+      "correct_safe": 10,
+      "wrong": 4
+    },
+    "total_cases": 30,
+    "attempted_cases": 30,
+    "completed": 30,
+    "completion_rate": 1,
+    "infra_errors": null,
+    "infra_error_count": 0,
+    "correct_safe": [
+      "aquasecurity-trivy-37da98d-CVE-2024-32473",
+      "containers-podman-5ae6347-CVE-2025-47914",
+      "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+      "helm-helm-b76a950-CVE-2024-25621",
+      "istio-istio-042afc3-CVE-2023-48795",
+      "moby-moby-caea5f7-CVE-2026-39883",
+      "rancher-rancher-4dc4f53-CVE-2025-58181",
+      "rancher-rancher-8761419-CVE-2026-24051",
+      "rancher-rancher-8761419-CVE-2026-39883",
+      "zeromicro-go-zero-bae061a-CVE-2022-32149"
+    ],
+    "safe_clear_count": 10,
+    "safe_clear_rate": 0.4348,
+    "known_false_safe": [
+      "kubernetes-kubernetes-e196d24-CVE-2023-44487"
+    ],
+    "false_safe_count": 1,
+    "metrics": {
+      "total": 30,
+      "false_safe": 1,
+      "safe_clear_rate": 0.43478260869565216,
+      "exploitable_recall": 0.2857142857142857,
+      "inconclusive_rate": 0.4666666666666667,
+      "completion_rate": 1,
+      "status_correct": 12,
+      "reason_correct": 7
+    }
+  },
+  "provenance": {
+    "schema_version": "2",
+    "adapter_version": "2",
+    "generated_at": "2026-10-11T00:41:52Z",
+    "argv": [
+      "izyan",
+      "eval",
+      "vex-bench",
+      "--tasks",
+      "${VEXBENCH_HARNESS_DIR}/benchmark/tasks/vex_bench.jsonl",
+      "--repos-dir",
+      "${VEXBENCH_REPOS_DIR}",
+      "-j",
+      "3",
+      "--out",
+      "eval/agent7/results/b0-baseline",
+      "--mem-limit",
+      "24GiB"
+    ],
+    "cli_j": 3,
+    "tasks_path": "${VEXBENCH_HARNESS_DIR}/benchmark/tasks/vex_bench.jsonl",
+    "tasks_sha256": "60b55373031dca97009d2e89ef8dfdf0ba083f9ce1035470fdf46f0da15384b3",
+    "selected_task_ids": [
+      "caddyserver-caddy-8dc7667-CVE-2025-29785",
+      "aquasecurity-trivy-37da98d-CVE-2024-32473",
+      "kubernetes-minikube-e7bf515-CVE-2019-5736",
+      "juanfont-headscale-e172c29-CVE-2024-45338",
+      "zeromicro-go-zero-bae061a-CVE-2022-32149",
+      "cilium-cilium-43bff35-CVE-2026-35469",
+      "containers-podman-6541fc4-CVE-2025-58181",
+      "rancher-rancher-4dc4f53-CVE-2025-47914",
+      "rancher-rancher-4dc4f53-CVE-2025-58181",
+      "cilium-cilium-3977f6a-CVE-2026-33186",
+      "moby-moby-3ede246-CVE-2026-39984",
+      "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+      "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+      "stretchr-testify-285adcc-CVE-2022-28948",
+      "labstack-echo-fdacff0-CVE-2020-26160",
+      "aquasecurity-trivy-98e136e-CVE-2024-24791",
+      "containers-podman-38ccfa2-CVE-2024-37298",
+      "containers-podman-6a65597-CVE-2023-48795",
+      "cilium-cilium-1228cbc-CVE-2026-35469",
+      "helm-helm-b76a950-CVE-2024-25621",
+      "rancher-rancher-8761419-CVE-2026-24051",
+      "rancher-rancher-8761419-CVE-2026-39883",
+      "istio-istio-042afc3-CVE-2023-48795",
+      "istio-istio-8903f65-CVE-2024-45338",
+      "helm-helm-fbb24fe-CVE-2021-21334",
+      "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+      "containers-podman-5ae6347-CVE-2025-47914",
+      "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+      "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+      "moby-moby-caea5f7-CVE-2026-39883"
+    ],
+    "total_tasks": 30,
+    "unique_cves": 24,
+    "unique_repos": 15,
+    "unique_snapshots": 28,
+    "izyan_dirty": null,
+    "izyan_binary_sha256": "b829552f31b71db505fd9c0c267af251436ef8f662d49cfcf461191c0379f553",
+    "izyan_build_info": {
+      "go_version": "go1.26.1",
+      "settings": {
+        "-buildmode": "exe",
+        "-compiler": "gc",
+        "CGO_CFLAGS": "",
+        "CGO_CPPFLAGS": "",
+        "CGO_CXXFLAGS": "",
+        "CGO_ENABLED": "1",
+        "CGO_LDFLAGS": "",
+        "DefaultGODEBUG": "cryptocustomrand=1,tlssecpmlkem=0,urlstrictcolons=0",
+        "GOARCH": "arm64",
+        "GOARM64": "v8.0",
+        "GOOS": "darwin"
+      }
+    },
+    "vexbench_commit_sha": "80cddeac3132826bfd47227ad59b2e6618a681bd",
+    "analysis_go": "1.26.1",
+    "analysis_mode": "local",
+    "go_binary_sha256": "e22f7267b6aa79b1d460e509eff04806401b84e11c2cd772d967c93fc7bb556f",
+    "go_build_info": "/usr/local/go/bin/go: go1.26.1\n\tpath\tcmd/go\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-gcflags=cmd/...=-dwarf=false\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0",
+    "govulncheck_version": "v1.8.0",
+    "govulncheck_binary_sha256": "486632323aa71ed1466dac07d34c4b7862cc6939d9c38a16a2416925b89c7380",
+    "govulncheck_build_info": "<local-path>: go1.26.1\n\tpath\tgolang.org/x/vuln/cmd/govulncheck\n\tmod\tgolang.org/x/vuln\tv1.8.0\th1:clG4qBU6zH5VKjti8n5j8BBuYzoSha392xXMkXS351U=\n\tdep\tgolang.org/x/mod\tv0.41.0\th1:qJmnOUb4YB+FsEuM3HcWucdZASCPGhsX6uljO6pog0c=\n\tdep\tgolang.org/x/sync\tv0.23.0\th1:KameEIfc1IkluZyXWLn39Wd4tURc6GbCiISGiZm2bQk=\n\tdep\tgolang.org/x/telemetry\tv0.0.0-20260908163034-4bcc4b2ee518\th1:F5BWKvW126NXR74uxkxuc1jQHhm/rwm/J3rSiFyuRs4=\n\tdep\tgolang.org/x/tools\tv0.50.0\th1:c2ifzfcuY7L90lZ2aKd8S4K2NpASF08SZx9ZuJkHmSU=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0",
+    "govulncheck_version_output": "Go: go1.26.1\nScanner: govulncheck@v1.8.0\nDB: https://vuln.go.dev\nDB updated: 2026-10-08 22:31:09 +0000 UTC",
+    "govulncheck_db_url": "https://vuln.go.dev",
+    "govulncheck_db_mode": "live_observed",
+    "host_os": "darwin",
+    "host_arch": "arm64",
+    "target_goos": "darwin",
+    "target_goarch": "arm64",
+    "cgo_enabled": false,
+    "build_tags": [],
+    "env": {},
+    "knowledge_digest": "a236b2f9b12e6eb672aaff17a01b78648dd50298e3f263873e91fe75f528f165",
+    "osv_fetches": 64,
+    "osv_fetch_log": "provenance/osv-fetches.jsonl",
+    "llm_calls": 0,
+    "tool_calls": 6,
+    "tokens": 0,
+    "llm_cost": 0,
+    "model": null,
+    "model_endpoint_revision": null,
+    "prompt_version": null,
+    "missing": {
+      "izyan_commit_sha": "no vcs.revision in build info",
+      "izyan_dirty": "no vcs.modified in build info",
+      "llm_cost": "no LLM usage in the deterministic profile",
+      "model": "not_applicable: deterministic profile, no LLM configured",
+      "model_endpoint_revision": "not_applicable: deterministic profile",
+      "orchestrator_version": "recorded by eval/vexbench_baseline.py in run-manifest.json",
+      "prompt_version": "not_applicable: deterministic profile",
+      "tokens": "no token accounting in the deterministic profile"
+    }
+  },
+  "notes": [
+    "fact classes: whether the B0 analyzer already evaluates this deterministic fact class for the case",
+    "binary_inventory is never evaluated: B0 inspects source snapshots, not delivered binaries",
+    "GT labels are controller-side (frozen gt_policy); this artifact is committed as a controller document",
+    "INFRA_ERROR cases (advisory fetch failures, context cancellation, missing envelopes) are excluded from every aggregate and listed under infra_errors — an infra failure is never a result",
+    "protocol caveat: the memory guard's GC pressure degrades evidence collection — the same case returned INCONCLUSIVE under -j2/8GiB and EXPLOITABLE under -j3/24GiB (cilium-cilium-3977f6a); the frozen protocol must pin a non-tripping ceiling"
+  ]
+}

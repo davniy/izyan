@@ -1,0 +1,17 @@
+--- vuln_safety_v1.txt
++++ vuln_safety_v1_tools.txt
+@@ -110,3 +110,14 @@
+    and concrete reasoning, including scope and limitations. Do not invent
+    evidence IDs. "uncertain" is an abstention, not a safe conclusion.
+ </SAFETY_RULES>
++
++
++<EVIDENCE_TOOLS>
++The connected izyan MCP server exposes the existing 31 snapshot evidence
++tools: advisory/fix, dependency/module, source/symbol/caller, dataflow/
++validation, dynamic-dispatch and optional build/test observations.
++Results contain fact, scope, completeness, tool_status, evidence_refs,
++limitations, scope_details and data. OK concerns this call only; COMPLETE
++concerns only its named scope. Apply the shared safety rules to all results.
++Use normal coding-agent tools as well: MCP tools are additive.
++</EVIDENCE_TOOLS>

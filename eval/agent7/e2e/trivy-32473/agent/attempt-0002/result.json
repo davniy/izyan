@@ -1,0 +1,1238 @@
+{
+  "info": {
+    "id": "ses_ed068def3ffezinH6tUlXNpXLh",
+    "slug": "crisp-falcon",
+    "projectID": "global",
+    "directory": "/work",
+    "path": "work",
+    "title": "CVE-2024-32473 Docker IPv6 analysis",
+    "agent": "build",
+    "model": {
+      "id": "Qwen/Qwen3.6-35B-A3B",
+      "providerID": "custom-openai",
+      "variant": "default"
+    },
+    "version": "1.15.5",
+    "summary": {
+      "additions": 0,
+      "deletions": 0,
+      "files": 0
+    },
+    "cost": 0,
+    "tokens": {
+      "input": 265964,
+      "output": 2530,
+      "reasoning": 1668,
+      "cache": {
+        "read": 0,
+        "write": 0
+      }
+    },
+    "permission": [
+      {
+        "permission": "question",
+        "pattern": "*",
+        "action": "deny"
+      },
+      {
+        "permission": "plan_enter",
+        "pattern": "*",
+        "action": "deny"
+      },
+      {
+        "permission": "plan_exit",
+        "pattern": "*",
+        "action": "deny"
+      }
+    ],
+    "time": {
+      "created": 1791799795980,
+      "updated": 1791799851966
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1791799796023
+        },
+        "agent": "build",
+        "model": {
+          "providerID": "custom-openai",
+          "modelID": "Qwen/Qwen3.6-35B-A3B"
+        },
+        "summary": {
+          "diffs": []
+        },
+        "id": "msg_12f972137001753ownqIN3qQZX",
+        "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh"
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "\"<ROLE>\nYou are a security analyst. Decide whether one CVE affects the mounted source snapshot and classify the result using the fixed category set below.\n</ROLE>\n\n<INPUTS>\ntask_id: research-CVE-2024-32473\ncve_id: CVE-2024-32473\nrepo_url: https://local.invalid/research\ncommit_sha: 37da98df45f6014fcd5f1744e2e26351b61d2a02\n</INPUTS>\n\n<CONTEXT>\nAnalyze the CVE against the source snapshot identified by repo_url and commit_sha. The task_id identifies this analysis. The task metadata supplied to you consists only of the four fields above. Do not infer omitted deployment, build, release, or expected-answer facts.\n\nTreat this as a static source analysis. Use evidence visible in the mounted snapshot. Do not claim runtime behavior, delivery identity, or deployment coverage that the readable files do not establish.\n</CONTEXT>\n\n<CAPABILITIES>\nUse only the permitted read/search operations over the mounted snapshot. Do not attempt to execute commands, run a shell or process, run builds or tests, edit files, access the network, invoke MCP, invoke Izyan tools, or request additional tools. Those capabilities are unavailable for this analysis.\n</CAPABILITIES>\n\n<OBJECTIVE>\nDetermine the most specific supported classification. Do not presume that the CVE is safe, not affected, exploitable, or vulnerable. Uncertainty is a legitimate result: use `uncertain` when the available evidence cannot establish the relevant condition.\n</OBJECTIVE>\n\n<CLASSIFICATION_CATEGORIES>\nEvaluate these categories in the listed precedence order and choose the first one that is supported:\n\n1. `false_positive` - the CVE-to-component mapping is wrong, withdrawn, or malformed, with concrete evidence.\n2. `code_not_present` - no affected version of the vulnerable component is present in the snapshot, including a resolved version already outside the affected range.\n3. `code_not_reachable` - the vulnerable component is present, but source evidence establishes that the vulnerable code has no execution path from the product code or an attack surface in the analyzed scope.\n4. `requires_configuration` - exploitation requires a configuration, feature flag, or setting that the snapshot establishes as disabled or unavailable.\n5. `requires_dependency` - exploitation requires an additional dependency that the snapshot does not declare or include.\n6. `requires_environment` - exploitation requires a runtime environment, platform, architecture, kernel, hardware, or equivalent condition that the snapshot does not establish or rely on.\n7. `compiler_protected` - configured compile-time hardening or instrumentation is established to prevent the exploit primitive.\n8. `runtime_protected` - runtime isolation or protection implemented by the product is established to prevent exploitation.\n9. `perimeter_protected` - authentication, network, or other perimeter controls shipped with the product are established to block the attack surface.\n10. `mitigating_control_protected` - another in-snapshot control, such as input validation or a guard, is established to reduce the exploit risk to negligible.\n11. `uncertain` - the evidence is insufficient to establish presence, reachability, applicability, or protection status.\n12. `vulnerable` - an affected version is present, the vulnerable surface is reachable from an attack surface in the analyzed scope, and no effective protection in categories 4 through 10 applies.\n</CLASSIFICATION_CATEGORIES>\n\n<DECISION_RULES>\n1. Walk the precedence list from top to bottom. Do not skip to a later category when an earlier one is supported.\n2. A vulnerable classification requires evidence for the affected component/version, the vulnerable surface, an attack-reachable path, and the absence of an effective protection.\n3. A safe or non-vulnerable classification must be tied to a concrete falsifying condition in the stated scope. An empty search, missing direct import, failed check, or unknown deployment fact is not that condition by itself.\n4. A direct first-party search does not by itself exclude transitive, generated, dependency-internal, or dynamically dispatched paths. Check relevant alternatives that are visible and state material limits.\n5. Do not turn a tool or search failure into absence. If a material condition remains open, choose `uncertain` rather than forcing a conclusion.\n</DECISION_RULES>\n\n<EVIDENCE_RULES>\nGround reasoning in concrete files, line ranges when available, symbols or functions, manifest entries, resolved versions, and advisory text only when that text is actually available in the permitted inputs. Distinguish observed facts from inferences. Do not invent citations, observations, hashes, runtime facts, or deployment facts. Explain the relevant scope and limitations, especially for a negative conclusion.\n</EVIDENCE_RULES>\n\n<OUTPUT_FORMAT>\nEmit exactly one JSON object and nothing else: no markdown fences, headings, comments, or surrounding prose. It must contain exactly two string members: `category` and `reasoning`.\n\n`category` must be exactly one of the 12 names listed above. `reasoning` must be an evidence-based explanation of why that category was selected, with concrete citations and relevant limitations. If the category is `uncertain`, state the specific missing evidence and a useful next check. The JSON must be syntactically valid; escape line breaks and quotation marks according to JSON.\n</OUTPUT_FORMAT>\n\n<RESEARCH_ASSESSMENT>\nThis is the research treatment added to the plain baseline. All B1 instructions remain in force. Keep the same top-level `category` and `reasoning` members and their meanings. In addition, emit one top-level `assessment` object with the eight required research sections below. The assessment adds research detail; it does not replace, override, or reclassify `category` or `reasoning`.\n\n<RESEARCH_OUTPUT>\nThe whole response must still be exactly one valid JSON object and nothing else. The top-level object has the string members `category` and `reasoning`, plus the `assessment` object. Do not add other top-level members.\n\n`assessment` must contain these exact eight members:\n- `vulnerability_mechanism`: what is broken, the security effect, and why the effect occurs.\n- `root_cause`: the precise source or artifact location and its role; cite the concrete path and symbol or line range actually read.\n- `attack_scenario`: attacker actions, entry point, path to the defect, and necessary predicates or conditions.\n- `product_exposure`: where the product uses the functionality, with verified build, configuration, platform, and deployment scope and explicit unknowns.\n- `alternative_paths`: alternative manifestations or paths checked, counterarguments considered, and every path not fully explored.\n- `evidence_quality`: an object with `references` (an array of concrete paths plus line ranges or symbols actually read) and `summary` (scope, status, coverage, conflicts, and limitations).\n- `residual_questions`: an array of concrete unanswered facts and follow-up actions needed for human completion.\n- `triage_recommendation`: one of fix, verify, low confirmed risk, or needs review, with its reason and bounds.\n\nEvery section is required and must be substantive. `UNKNOWN` is allowed in every section, but never emit a bare `UNKNOWN`: write `UNKNOWN: <missing fact>; follow-up: <concrete read/search or human verification action>`. Use valid JSON strings and arrays. Do not invent observation IDs, hashes, certificates, or evidence references.\n</RESEARCH_OUTPUT>\n\n<RESEARCH_RULES>\n1. Bind factual claims to concrete files and symbols read. In `evidence_quality.references`, use the exact source path and an actual line range or symbol name; do not cite a file or symbol you did not inspect.\n2. State alternative paths not fully explored explicitly in `alternative_paths`. If the search was bounded, name the boundary and the concrete next check. Do not silently treat a bounded search as exhaustive.\n3. A phrase such as `no exploit path found` means only that no path was observed in the checked scope; it is not verified safe and must not be presented as a global negative claim.\n4. Do not issue a safety certificate, authorize auto-close, or escalate severity or priority. This research output supports human triage only and does not prove global safety.\n5. Keep `category` as the single official classification and `reasoning` as its evidence-based explanation. The eight `assessment` sections expand the research record for rubric scoring; they do not change the scoreable category/reasoning contract.\n6. Keep the final response to the one JSON object required above. Do not emit a second object, markdown, or prose outside it.\n</RESEARCH_RULES>\n</RESEARCH_ASSESSMENT>\n\n<ADVISORY_BINDING_RULES>\nBefore any mechanism or root-cause claim:\n1. Enumerate the affected entries of the provided advisory (module, package, symbols, affected versions) as a list.\n2. Every mechanism or root-cause claim MUST name a component that appears in one of those entries, and MUST state which entry it binds to. If the component you want to analyse is not present in any advisory entry, do not analyse it as this CVE: emit \\\"UNKNOWN: component <name> is not named by any advisory affected entry; follow-up: verify whether the advisory is incomplete for this CVE\\\" and stop reasoning about it.\n3. A component that is fixed/absent while another component is the real defect is a valid finding only if you can bind the other component to an advisory entry; otherwise it stays UNKNOWN.\n4. For every section you cannot resolve, write exactly: \\\"UNKNOWN: <what is unknown>; follow-up: <the concrete check that would resolve it>\\\". A bare UNKNOWN is not acceptable.\n5. Emit exactly one JSON object and stop. No trailing prose, no second object, no commentary after the closing brace. Keep the existing `category` and `reasoning` members and the `assessment` object with all eight sections.\n</ADVISORY_BINDING_RULES>\n\n<FROZEN_ADVISORY>\nadvisory_id: GO-2024-2737\nrequested_id: CVE-2024-32473\ncanonical_sha256: 50ee8772e189732d7a9d095b33e47507476d1c819f50c7a292d15a102aa1d04c\nsummary: IPv6 enabled on IPv4-only network interfaces in github.com/docker/docker\ndescription: IPv6 enabled on IPv4-only network interfaces in github.com/docker/docker\naliases: CVE-2024-32473, GHSA-x84c-p2g9-rqv9\naffected_entries:\n  - id: adv-01\n    ecosystem: Go\n    module: github.com/docker/docker\n    range: introduced=26.0.0+incompatible fixed=null last_affected=null\n    range: introduced=null fixed=26.0.2+incompatible last_affected=null\n\n</FROZEN_ADVISORY>\"",
+          "id": "prt_12f97213c001okqPzSUgcChQG7",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f972137001753ownqIN3qQZX"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_12f972137001753ownqIN3qQZX",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/work",
+          "root": "/"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 5946,
+          "input": 5621,
+          "output": 65,
+          "reasoning": 260,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "Qwen/Qwen3.6-35B-A3B",
+        "providerID": "custom-openai",
+        "time": {
+          "created": 1791799796216,
+          "completed": 1791799800148
+        },
+        "finish": "tool-calls",
+        "id": "msg_12f9721f7001X68OnpzfPLHgSV",
+        "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "id": "prt_12f9730ae001dcfhU4stvORXi0",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9721f7001X68OnpzfPLHgSV"
+        },
+        {
+          "type": "reasoning",
+          "text": "Let me analyze this step by step:\n\n1. First, I need to understand the CVE and advisory\n2. Then examine the mounted snapshot at the given repo_url and commit_sha\n3. Classify based on the precedence rules\n\nLet me start by examining what's in the repository snapshot.\n\nThe advisory says:\n- CVE-2024-32473 / GO-2024-2737\n- IPv6 enabled on IPv4-only network interfaces in github.com/docker/docker\n- Module: github.com/docker/docker\n- Affected: introduced in 26.0.0+incompatible, fixed in 26.0.2+incompatible\n\nThe input says:\n- repo_url: https://local.invalid/research\n- commit_sha: 37da98df45f6014fcd5f1744e2e26351b61d2a02\n\nWait - \"local.invalid\" is a reserved domain for testing/documentation purposes. This suggests the repo might not actually exist or might be a local filesystem path. Let me check what's available.\n\nLet me look at the workspace and mounted files to understand what snapshot exists.\n",
+          "time": {
+            "start": 1791799799987,
+            "end": 1791799800002
+          },
+          "id": "prt_12f9730b300130XvW71dSYlqcL",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9721f7001X68OnpzfPLHgSV"
+        },
+        {
+          "type": "tool",
+          "tool": "read",
+          "callID": "chatcmpl-tool-a1a41fd7fd77e894",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/work"
+            },
+            "output": "<path>/work</path>\n<type>directory</type>\n<entries>\n.clang-format\n.dockerignore\n.gitattributes\n.github/\n.gitignore\n.golangci.yaml\naqua.yaml\nbrand/\nci/\ncmd/\ncontrib/\nCONTRIBUTING.md\nDockerfile\nDockerfile.canary\nDockerfile.protoc\ndocs/\nexamples/\ngo.mod\ngo.sum\ngoreleaser-canary.yml\ngoreleaser.yml\nhelm/\nintegration/\ninternal/\nLICENSE\nmagefiles/\nmisc/\nmkdocs.yml\nNOTICE\npkg/\nREADME.md\nrpc/\nSECURITY.md\n\n(33 entries)\n</entries>",
+            "metadata": {
+              "preview": ".clang-format\n.dockerignore\n.gitattributes\n.github/\n.gitignore\n.golangci.yaml\naqua.yaml\nbrand/\nci/\ncmd/\ncontrib/\nCONTRIBUTING.md\nDockerfile\nDockerfile.canary\nDockerfile.protoc\ndocs/\nexamples/\ngo.mod\ngo.sum\ngoreleaser-canary.yml",
+              "truncated": false,
+              "loaded": []
+            },
+            "title": "work",
+            "time": {
+              "start": 1791799800010,
+              "end": 1791799800024
+            }
+          },
+          "id": "prt_12f9730c4001BAWL1ntDBU5YtK",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9721f7001X68OnpzfPLHgSV"
+        },
+        {
+          "type": "tool",
+          "tool": "glob",
+          "callID": "chatcmpl-tool-a78892d85cd5b16c",
+          "state": {
+            "status": "completed",
+            "input": {
+              "pattern": "**/*",
+              "path": "/work"
+            },
+            "output": "/work/.clang-format\n/work/.golangci.yaml\n/work/pkg/k8s/k8s.go\n/work/pkg/result/module.go\n/work/pkg/cache/remote_test.go\n/work/pkg/cache/nop.go\n/work/pkg/cache/remote.go\n/work/pkg/k8s/wire_gen.go\n/work/pkg/k8s/writer_test.go\n/work/contrib/junit.tpl\n/work/contrib/asff.tpl\n/work/contrib/html.tpl\n/work/contrib/gitlab.tpl\n/work/contrib/install.sh\n/work/contrib/gitlab-codequality.tpl\n/work/pkg/result/ignore.go\n/work/pkg/result/filter.go\n/work/pkg/result/filter_test.go\n/work/pkg/digest/digest.go\n/work/pkg/rekor/client_test.go\n/work/pkg/rekor/client.go\n/work/pkg/rekortest/server.go\n/work/pkg/remote/remote_test.go\n/work/pkg/remote/remote.go\n/work/pkg/module/module.go\n/work/pkg/report/json.go\n/work/pkg/fanal/walker/walk.go\n/work/pkg/fanal/walker/tar_test.go\n/work/pkg/fanal/walker/fs.go\n/work/pkg/fanal/walker/vm.go\n/work/pkg/fanal/walker/tar.go\n/work/pkg/fanal/walker/walk_test.go\n/work/pkg/fanal/walker/fs_test.go\n/work/pkg/fanal/walker/cached_file.go\n/work/pkg/extrafs/extrafs.go\n/work/pkg/k8s/scanner/scanner_test.go\n/work/pkg/rekor/testdata/search-invalid-response.json\n/work/pkg/rekor/testdata/search-response.json\n/work/pkg/rekor/testdata/log-entries-no-attestation.json\n/work/pkg/rekor/testdata/log-entries.json\n/work/pkg/sbom/sbom.go\n/work/pkg/k8s/scanner/io_test.go\n/work/pkg/k8s/scanner/io.go\n/work/pkg/k8s/scanner/scanner.go\n/work/contrib/example_policy/advanced.rego\n/work/contrib/example_policy/basic.rego\n/work/contrib/Trivy.gitlab-ci.yml\n/work/pkg/purl/purl_test.go\n/work/pkg/purl/purl.go\n/work/pkg/module/api/api.go\n/work/pkg/module/module_test.go\n/work/pkg/report/table/table.go\n/work/pkg/report/table/vulnerability.go\n/work/pkg/report/table/vulnerability_test.go\n/work/pkg/report/table/secret_test.go\n/work/pkg/report/table/secret.go\n/work/pkg/report/table/licensing.go\n/work/pkg/report/table/misconfig_test.go\n/work/pkg/report/table/misconfig.go\n/work/pkg/report/table/table_test.go\n/work/pkg/report/sarif_test.go\n/work/examples/module/spring4shell/spring4shell.go\n/work/examples/module/spring4shell/README.md\n/work/pkg/sbom/cyclonedx/marshal_test.go\n/work/pkg/sbom/spdx/marshal_test.go\n/work/pkg/sbom/cyclonedx/unmarshal_test.go\n/work/pkg/sbom/cyclonedx/unmarshal.go\n/work/pkg/sbom/cyclonedx/marshal.go\n/work/pkg/sbom/spdx/unmarshal_test.go\n/work/pkg/sbom/spdx/unmarshal.go\n/work/pkg/sbom/spdx/marshal.go\n/work/pkg/plugin/plugin.go\n/work/pkg/plugin/plugin_test.go\n/work/pkg/k8s/commands/cluster.go\n/work/pkg/dbtest/db.go\n/work/pkg/k8s/commands/run.go\n/work/pkg/result/testdata/fixtures/sad.yaml\n/work/pkg/result/testdata/fixtures/vulnerability.yaml\n/work/pkg/result/testdata/ignore-misconf.rego\n/work/pkg/result/testdata/test-ignore-policy-licenses-and-secrets.rego\n/work/pkg/result/testdata/ignore-vuln.rego\n/work/pkg/result/testdata/.trivyignore.yaml\n/work/pkg/result/testdata/openvex.json\n/work/pkg/result/testdata/.trivyignore\n/work/pkg/module/serialize/types.go\n/work/pkg/report/cyclonedx/cyclonedx.go\n/work/pkg/fanal/walker/testdata/fs/bar\n/work/examples/trivy-conf/trivy.yaml\n/work/CONTRIBUTING.md\n/work/.gitignore\n/work/.dockerignore\n/work/Dockerfile.protoc\n/work/pkg/k8s/report/table.go\n/work/pkg/k8s/report/summary_test.go\n/work/pkg/k8s/report/report_test.go\n/work/pkg/k8s/report/json.go\n/work/pkg/k8s/report/report.go\n/work/pkg/k8s/report/summary.go\n/work/pkg/k8s/report/cyclonedx.go\n/work/pkg/k8s/inject.go\n\n(Results are truncated: showing first 100 results. Consider using a more specific path or pattern.)",
+            "metadata": {
+              "count": 100,
+              "truncated": true
+            },
+            "title": "work",
+            "time": {
+              "start": 1791799800016,
+              "end": 1791799800138
+            }
+          },
+          "id": "prt_12f9730cb001aPQZt9ziORr6y1",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9721f7001X68OnpzfPLHgSV"
+        },
+        {
+          "reason": "tool-calls",
+          "type": "step-finish",
+          "tokens": {
+            "total": 5946,
+            "input": 5621,
+            "output": 65,
+            "reasoning": 260,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0,
+          "id": "prt_12f97314e001RIGbCuJAY1A2D0",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9721f7001X68OnpzfPLHgSV"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_12f972137001753ownqIN3qQZX",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/work",
+          "root": "/"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 7218,
+          "input": 7075,
+          "output": 107,
+          "reasoning": 36,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "Qwen/Qwen3.6-35B-A3B",
+        "providerID": "custom-openai",
+        "time": {
+          "created": 1791799800158,
+          "completed": 1791799806191
+        },
+        "finish": "tool-calls",
+        "id": "msg_12f97315e0012nqXyDb8hyDAHm",
+        "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "id": "prt_12f97434e00164FN5Y93dIIZ67",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97315e0012nqXyDb8hyDAHm"
+        },
+        {
+          "type": "reasoning",
+          "text": "This looks like it might be a different repository (not docker/docker). Let me check the go.mod to see what module this is, and look for any docker-related code.\n",
+          "time": {
+            "start": 1791799804757,
+            "end": 1791799804766
+          },
+          "id": "prt_12f974355001rgSa74n0bZDRM2",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97315e0012nqXyDb8hyDAHm"
+        },
+        {
+          "type": "tool",
+          "tool": "read",
+          "callID": "chatcmpl-tool-b29e5228df3725ba",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/work/go.mod"
+            },
+            "output": "<path>/work/go.mod</path>\n<type>file</type>\n<content>\n1: module github.com/aquasecurity/trivy\n2: \n3: go 1.22\n4: \n5: toolchain go1.22.0\n6: \n7: require (\n8: \tgithub.com/Azure/azure-sdk-for-go v68.0.0+incompatible\n9: \tgithub.com/Azure/azure-sdk-for-go/sdk/azcore v1.10.0\n10: \tgithub.com/Azure/azure-sdk-for-go/sdk/azidentity v1.5.1\n11: \tgithub.com/BurntSushi/toml v1.3.2\n12: \tgithub.com/CycloneDX/cyclonedx-go v0.8.0\n13: \tgithub.com/GoogleCloudPlatform/docker-credential-gcr v2.0.5+incompatible\n14: \tgithub.com/Masterminds/sprig/v3 v3.2.3\n15: \tgithub.com/NYTimes/gziphandler v1.1.1\n16: \tgithub.com/alicebob/miniredis/v2 v2.31.1\n17: \tgithub.com/aquasecurity/bolt-fixtures v0.0.0-20200903104109-d34e7f983986\n18: \tgithub.com/aquasecurity/go-gem-version v0.0.0-20201115065557-8eed6fe000ce\n19: \tgithub.com/aquasecurity/go-npm-version v0.0.0-20201110091526-0b796d180798\n20: \tgithub.com/aquasecurity/go-pep440-version v0.0.0-20210121094942-22b2f8951d46\n21: \tgithub.com/aquasecurity/go-version v0.0.0-20210121072130-637058cfe492\n22: \tgithub.com/aquasecurity/loading v0.0.5\n23: \tgithub.com/aquasecurity/table v1.8.0\n24: \tgithub.com/aquasecurity/testdocker v0.0.0-20240419073403-90bd43849334\n25: \tgithub.com/aquasecurity/tml v0.6.1\n26: \tgithub.com/aquasecurity/trivy-aws v0.8.0\n27: \tgithub.com/aquasecurity/trivy-checks v0.10.5-0.20240430045208-6cc735de6b9e\n28: \tgithub.com/aquasecurity/trivy-db v0.0.0-20231005141211-4fc651f7ac8d\n29: \tgithub.com/aquasecurity/trivy-java-db v0.0.0-20240109071736-184bd7481d48\n30: \tgithub.com/aquasecurity/trivy-kubernetes v0.6.7-0.20240425111126-a549f8de71bb\n31: \tgithub.com/aws/aws-sdk-go-v2 v1.26.1\n32: \tgithub.com/aws/aws-sdk-go-v2/config v1.27.11\n33: \tgithub.com/aws/aws-sdk-go-v2/credentials v1.17.11\n34: \tgithub.com/aws/aws-sdk-go-v2/feature/s3/manager v1.16.15\n35: \tgithub.com/aws/aws-sdk-go-v2/service/ec2 v1.155.1\n36: \tgithub.com/aws/aws-sdk-go-v2/service/ecr v1.27.4\n37: \tgithub.com/aws/aws-sdk-go-v2/service/s3 v1.53.1\n38: \tgithub.com/aws/aws-sdk-go-v2/service/sts v1.28.6\n39: \tgithub.com/bitnami/go-version v0.0.0-20231130084017-bb00604d650c\n40: \tgithub.com/bmatcuk/doublestar/v4 v4.6.1\n41: \tgithub.com/cenkalti/backoff v2.2.1+incompatible\n42: \tgithub.com/cheggaaa/pb/v3 v3.1.4\n43: \tgithub.com/containerd/containerd v1.7.16\n44: \tgithub.com/csaf-poc/csaf_distribution/v3 v3.0.0\n45: \tgithub.com/docker/docker v26.0.1+incompatible\n46: \tgithub.com/docker/go-connections v0.5.0\n47: \tgithub.com/fatih/color v1.16.0\n48: \tgithub.com/go-git/go-git/v5 v5.11.0\n49: \tgithub.com/go-openapi/runtime v0.28.0\n50: \tgithub.com/go-openapi/strfmt v0.23.0\n51: \tgithub.com/go-redis/redis/v8 v8.11.5\n52: \tgithub.com/golang-jwt/jwt v3.2.2+incompatible\n53: \tgithub.com/golang/protobuf v1.5.4\n54: \tgithub.com/google/go-containerregistry v0.19.1\n55: \tgithub.com/google/licenseclassifier/v2 v2.0.0\n56: \tgithub.com/google/uuid v1.6.0\n57: \tgithub.com/google/wire v0.6.0\n58: \tgithub.com/hashicorp/go-getter v1.7.4\n59: \tgithub.com/hashicorp/go-multierror v1.1.1\n60: \tgithub.com/hashicorp/go-retryablehttp v0.7.5\n61: \tgithub.com/hashicorp/golang-lru/v2 v2.0.7\n62: \tgithub.com/in-toto/in-toto-golang v0.9.0\n63: \tgithub.com/knqyf263/go-apk-version v0.0.0-20200609155635-041fdbb8563f\n64: \tgithub.com/knqyf263/go-deb-version v0.0.0-20230223133812-3ed183d23422\n65: \tgithub.com/knqyf263/go-rpm-version v0.0.0-20220614171824-631e686d1075\n66: \tgithub.com/knqyf263/go-rpmdb v0.0.0-20231008124120-ac49267ab4e1\n67: \tgithub.com/knqyf263/nested v0.0.1\n68: \tgithub.com/kylelemons/godebug v1.1.0\n69: \tgithub.com/liamg/jfather v0.0.7\n70: \tgithub.com/magefile/mage v1.15.0\n71: \tgithub.com/mailru/easyjson v0.7.7 // indirect\n72: \tgithub.com/masahiro331/go-disk v0.0.0-20220919035250-c8da316f91ac\n73: \tgithub.com/masahiro331/go-ebs-file v0.0.0-20240112135404-d5fbb1d46323\n74: \tgithub.com/masahiro331/go-ext4-filesystem v0.0.0-20231208112839-4339555a0cd4\n75: \tgithub.com/masahiro331/go-mvn-version v0.0.0-20210429150710-d3157d602a08\n76: \tgithub.com/masahiro331/go-vmdk-parser v0.0.0-20221225061455-612096e4bbbd\n77: \tgithub.com/masahiro331/go-xfs-filesystem v0.0.0-20230608043311-a335f4599b70\n78: \tgithub.com/mattn/go-shellwords v1.0.12\n79: \tgithub.com/microsoft/go-rustaudit v0.0.0-20220808201409-204dfee52032\n80: \tgithub.com/mitchellh/hashstructure/v2 v2.0.2\n81: \tgithub.com/mitchellh/mapstructure v1.5.0\n82: \tgithub.com/moby/buildkit v0.12.5\n83: \tgithub.com/open-policy-agent/opa v0.64.1\n84: \tgithub.com/opencontainers/go-digest v1.0.0\n85: \tgithub.com/opencontainers/image-spec v1.1.0\n86: \tgithub.com/openvex/go-vex v0.2.5\n87: \tgithub.com/owenrumney/go-sarif/v2 v2.3.0\n88: \tgithub.com/package-url/packageurl-go v0.1.2\n89: \tgithub.com/quasilyte/go-ruleguard/dsl v0.3.22\n90: \tgithub.com/samber/lo v1.39.0\n91: \tgithub.com/secure-systems-lab/go-securesystemslib v0.8.0\n92: \tgithub.com/sigstore/rekor v1.3.6\n93: \tgithub.com/sirupsen/logrus v1.9.3\n94: \tgithub.com/sosedoff/gitkit v0.4.0\n95: \tgithub.com/spdx/tools-golang v0.5.4-0.20231108154018-0c0f394b5e1a // v0.5.3 with necessary changes. Can be upgraded to version 0.5.4 after release.\n96: \tgithub.com/spf13/cast v1.6.0\n97: \tgithub.com/spf13/cobra v1.8.0\n98: \tgithub.com/spf13/pflag v1.0.5\n99: \tgithub.com/spf13/viper v1.18.2\n100: \tgithub.com/stretchr/testify v1.9.0\n101: \tgithub.com/testcontainers/testcontainers-go v0.30.0\n102: \tgithub.com/testcontainers/testcontainers-go/modules/localstack v0.28.0\n103: \tgithub.com/tetratelabs/wazero v1.7.0\n104: \tgithub.com/twitchtv/twirp v8.1.2+incompatible\n105: \tgithub.com/xeipuuv/gojsonschema v1.2.0\n106: \tgithub.com/xlab/treeprint v1.2.0\n107: \tgo.etcd.io/bbolt v1.3.9\n108: \tgo.uber.org/zap v1.27.0 // indirect\n109: \tgolang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa\n110: \tgolang.org/x/mod v0.16.0\n111: \tgolang.org/x/net v0.24.0\n112: \tgolang.org/x/sync v0.6.0\n113: \tgolang.org/x/term v0.19.0\n114: \tgolang.org/x/text v0.14.0\n115: \tgolang.org/x/xerrors v0.0.0-20231012003039-104605ab7028\n116: \tgoogle.golang.org/protobuf v1.34.0\n117: \tgopkg.in/yaml.v3 v3.0.1\n118: \tk8s.io/api v0.29.3\n119: \tk8s.io/utils v0.0.0-20231127182322-b307cd553661\n120: \tmodernc.org/sqlite v1.29.7\n121: )\n122: \n123: require (\n124: \tgithub.com/alecthomas/chroma v0.10.0\n125: \tgithub.com/antchfx/htmlquery v1.3.0\n126: \tgithub.com/apparentlymart/go-cidr v1.1.0\n127: \tgithub.com/aws/smithy-go v1.20.2\n128: \tgithub.com/hashicorp/go-uuid v1.0.3\n129: \tgithub.com/hashicorp/go-version v1.6.0\n130: \tgithub.com/hashicorp/hc-install v0.6.3\n131: \tgithub.com/hashicorp/hcl/v2 v2.19.1\n132: \tgithub.com/hashicorp/terraform-exec v0.20.0\n133: \tgithub.com/liamg/iamgo v0.0.9\n134: \tgithub.com/liamg/memoryfs v1.6.0\n135: \tgithub.com/mitchellh/go-homedir v1.1.0\n136: \tgithub.com/owenrumney/squealer v1.2.2\n137: \tgithub.com/zclconf/go-cty v1.14.4\n138: \tgithub.com/zclconf/go-cty-yaml v1.0.3\n139: \tgolang.org/x/crypto v0.22.0\n140: \thelm.sh/helm/v3 v3.14.2\n141: \tsigs.k8s.io/yaml v1.4.0\n142: )\n143: \n144: require (\n145: \tcloud.google.com/go v0.112.1 // indirect\n146: \tcloud.google.com/go/compute v1.25.0 // indirect\n147: \tcloud.google.com/go/compute/metadata v0.2.3 // indirect\n148: \tcloud.google.com/go/iam v1.1.6 // indirect\n149: \tcloud.google.com/go/storage v1.39.1 // indirect\n150: \tdario.cat/mergo v1.0.0 // indirect\n151: \tgithub.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect\n152: \tgithub.com/AdamKorcz/go-118-fuzz-build v0.0.0-20230306123547-8075edf89bb0 // indirect\n153: \tgithub.com/Azure/azure-sdk-for-go/sdk/internal v1.5.2 // indirect\n154: \tgithub.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect\n155: \tgithub.com/Azure/go-autorest v14.2.0+incompatible // indirect\n156: \tgithub.com/Azure/go-autorest/autorest v0.11.29 // indirect\n157: \tgithub.com/Azure/go-autorest/autorest/adal v0.9.23 // indirect\n158: \tgithub.com/Azure/go-autorest/autorest/date v0.3.0 // indirect\n159: \tgithub.com/Azure/go-autorest/logger v0.2.1 // indirect\n160: \tgithub.com/Azure/go-autorest/tracing v0.6.0 // indirect\n161: \tgithub.com/AzureAD/microsoft-authentication-library-for-go v1.2.2 // indirect\n162: \tgithub.com/Intevation/gval v1.3.0 // indirect\n163: \tgithub.com/Intevation/jsonpath v0.2.1 // indirect\n164: \tgithub.com/MakeNowJust/heredoc v1.0.0 // indirect\n165: \tgithub.com/Masterminds/goutils v1.1.1 // indirect\n166: \tgithub.com/Masterminds/semver/v3 v3.2.1 // indirect\n167: \tgithub.com/Masterminds/squirrel v1.5.4 // indirect\n168: \tgithub.com/Microsoft/go-winio v0.6.1 // indirect\n169: \tgithub.com/Microsoft/hcsshim v0.11.4 // indirect\n170: \tgithub.com/OneOfOne/xxhash v1.2.8 // indirect\n171: \tgithub.com/ProtonMail/go-crypto v1.1.0-alpha.0 // indirect\n172: \tgithub.com/VividCortex/ewma v1.2.0 // indirect\n173: \tgithub.com/agext/levenshtein v1.2.3 // indirect\n174: \tgithub.com/agnivade/levenshtein v1.1.1 // indirect\n175: \tgithub.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect\n176: \tgithub.com/anchore/go-struct-converter v0.0.0-20221118182256-c68fdcfa2092 // indirect\n177: \tgithub.com/antchfx/xpath v1.2.3 // indirect\n178: \tgithub.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect\n179: \tgithub.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect\n180: \tgithub.com/aws/aws-sdk-go v1.51.16 // indirect\n181: \tgithub.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.2 // indirect\n182: \tgithub.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.1 // indirect\n183: \tgithub.com/aws/aws-sdk-go-v2/internal/configsources v1.3.5 // indirect\n184: \tgithub.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.5 // indirect\n185: \tgithub.com/aws/aws-sdk-go-v2/internal/ini v1.8.0 // indirect\n186: \tgithub.com/aws/aws-sdk-go-v2/internal/v4a v1.3.5 // indirect\n187: \tgithub.com/aws/aws-sdk-go-v2/service/accessanalyzer v1.26.7 // indirect\n188: \tgithub.com/aws/aws-sdk-go-v2/service/apigateway v1.21.6 // indirect\n189: \tgithub.com/aws/aws-sdk-go-v2/service/apigatewayv2 v1.18.6 // indirect\n190: \tgithub.com/aws/aws-sdk-go-v2/service/athena v1.37.3 // indirect\n191: \tgithub.com/aws/aws-sdk-go-v2/service/cloudfront v1.32.5 // indirect\n192: \tgithub.com/aws/aws-sdk-go-v2/service/cloudtrail v1.35.6 // indirect\n193: \tgithub.com/aws/aws-sdk-go-v2/service/cloudwatch v1.32.2 // indirect\n194: \tgithub.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.30.1 // indirect\n195: \tgithub.com/aws/aws-sdk-go-v2/service/codebuild v1.26.5 // indirect\n196: \tgithub.com/aws/aws-sdk-go-v2/service/docdb v1.33.1 // indirect\n197: \tgithub.com/aws/aws-sdk-go-v2/service/dynamodb v1.26.8 // indirect\n198: \tgithub.com/aws/aws-sdk-go-v2/service/ebs v1.21.7 // indirect\n199: \tgithub.com/aws/aws-sdk-go-v2/service/ecs v1.35.6 // indirect\n200: \tgithub.com/aws/aws-sdk-go-v2/service/efs v1.28.1 // indirect\n201: \tgithub.com/aws/aws-sdk-go-v2/service/eks v1.41.0 // indirect\n202: \tgithub.com/aws/aws-sdk-go-v2/service/elasticache v1.34.6 // indirect\n203: \tgithub.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.26.6 // indirect\n204: \tgithub.com/aws/aws-sdk-go-v2/service/elasticsearchservice v1.25.0 // indirect\n205: \tgithub.com/aws/aws-sdk-go-v2/service/emr v1.36.0 // indirect\n206: \tgithub.com/aws/aws-sdk-go-v2/service/iam v1.28.7 // indirect\n207: \tgithub.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.11.2 // indirect\n208: \tgithub.com/aws/aws-sdk-go-v2/service/internal/checksum v1.3.7 // indirect\n209: \tgithub.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.8.11 // indirect\n210: \tgithub.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.11.7 // indirect\n211: \tgithub.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.17.5 // indirect\n212: \tgithub.com/aws/aws-sdk-go-v2/service/kafka v1.28.5 // indirect\n213: \tgithub.com/aws/aws-sdk-go-v2/service/kinesis v1.24.6 // indirect\n214: \tgithub.com/aws/aws-sdk-go-v2/service/kms v1.30.0 // indirect\n215: \tgithub.com/aws/aws-sdk-go-v2/service/lambda v1.49.6 // indirect\n216: \tgithub.com/aws/aws-sdk-go-v2/service/mq v1.20.6 // indirect\n217: \tgithub.com/aws/aws-sdk-go-v2/service/neptune v1.28.1 // indirect\n218: \tgithub.com/aws/aws-sdk-go-v2/service/rds v1.66.1 // indirect\n219: \tgithub.com/aws/aws-sdk-go-v2/service/redshift v1.39.7 // indirect\n220: \tgithub.com/aws/aws-sdk-go-v2/service/secretsmanager v1.26.0 // indirect\n221: \tgithub.com/aws/aws-sdk-go-v2/service/sns v1.26.6 // indirect\n222: \tgithub.com/aws/aws-sdk-go-v2/service/sqs v1.29.6 // indirect\n223: \tgithub.com/aws/aws-sdk-go-v2/service/sso v1.20.5 // indirect\n224: \tgithub.com/aws/aws-sdk-go-v2/service/ssooidc v1.23.4 // indirect\n225: \tgithub.com/aws/aws-sdk-go-v2/service/workspaces v1.38.1 // indirect\n226: \tgithub.com/beorn7/perks v1.0.1 // indirect\n227: \tgithub.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect\n228: \tgithub.com/briandowns/spinner v1.23.0 // indirect\n229: \tgithub.com/cenkalti/backoff/v4 v4.2.1 // indirect\n230: \tgithub.com/cespare/xxhash/v2 v2.2.0 // indirect\n231: \tgithub.com/chai2010/gettext-go v1.0.2 // indirect\n232: \tgithub.com/cloudflare/circl v1.3.7 // indirect\n233: \tgithub.com/containerd/cgroups v1.1.0 // indirect\n234: \tgithub.com/containerd/continuity v0.4.2 // indirect\n235: \tgithub.com/containerd/fifo v1.1.0 // indirect\n236: \tgithub.com/containerd/log v0.1.0 // indirect\n237: \tgithub.com/containerd/stargz-snapshotter/estargz v0.14.3 // indirect\n238: \tgithub.com/containerd/ttrpc v1.2.3 // indirect\n239: \tgithub.com/containerd/typeurl/v2 v2.1.1 // indirect\n240: \tgithub.com/cpuguy83/dockercfg v0.3.1 // indirect\n241: \tgithub.com/cpuguy83/go-md2man/v2 v2.0.3 // indirect\n242: \tgithub.com/cyphar/filepath-securejoin v0.2.4 // indirect\n243: \tgithub.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect\n244: \tgithub.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect\n245: \tgithub.com/distribution/reference v0.6.0 // indirect\n246: \tgithub.com/dlclark/regexp2 v1.4.0 // indirect\n247: \tgithub.com/docker/cli v25.0.1+incompatible // indirect\n248: \tgithub.com/docker/distribution v2.8.3+incompatible // indirect\n249: \tgithub.com/docker/docker-credential-helpers v0.7.0 // indirect\n250: \tgithub.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect\n251: \tgithub.com/docker/go-metrics v0.0.1 // indirect\n252: \tgithub.com/docker/go-units v0.5.0 // indirect\n253: \tgithub.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect\n254: \tgithub.com/dustin/go-humanize v1.0.1 // indirect\n255: \tgithub.com/emicklei/go-restful/v3 v3.11.0 // indirect\n256: \tgithub.com/emirpasic/gods v1.18.1 // indirect\n257: \tgithub.com/evanphx/json-patch v5.7.0+incompatible // indirect\n258: \tgithub.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect\n259: \tgithub.com/felixge/httpsnoop v1.0.4 // indirect\n260: \tgithub.com/fsnotify/fsnotify v1.7.0 // indirect\n261: \tgithub.com/go-errors/errors v1.4.2 // indirect\n262: \tgithub.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect\n263: \tgithub.com/go-git/go-billy/v5 v5.5.0 // indirect\n264: \tgithub.com/go-gorp/gorp/v3 v3.1.0 // indirect\n265: \tgithub.com/go-ini/ini v1.67.0 // indirect\n266: \tgithub.com/go-logr/logr v1.4.1 // indirect\n267: \tgithub.com/go-logr/stdr v1.2.2 // indirect\n268: \tgithub.com/go-ole/go-ole v1.2.6 // indirect\n269: \tgithub.com/go-openapi/analysis v0.23.0 // indirect\n270: \tgithub.com/go-openapi/errors v0.22.0 // indirect\n271: \tgithub.com/go-openapi/jsonpointer v0.21.0 // indirect\n272: \tgithub.com/go-openapi/jsonreference v0.21.0 // indirect\n273: \tgithub.com/go-openapi/loads v0.22.0 // indirect\n274: \tgithub.com/go-openapi/spec v0.21.0 // indirect\n275: \tgithub.com/go-openapi/swag v0.23.0 // indirect\n276: \tgithub.com/go-openapi/validate v0.24.0 // indirect\n277: \tgithub.com/go-test/deep v1.1.0 // indirect\n278: \tgithub.com/gobwas/glob v0.2.3 // indirect\n279: \tgithub.com/goccy/go-yaml v1.9.5 // indirect\n280: \tgithub.com/gofrs/uuid v4.3.1+incompatible // indirect\n281: \tgithub.com/gogo/protobuf v1.3.2 // indirect\n282: \tgithub.com/golang-jwt/jwt/v4 v4.5.0 // indirect\n283: \tgithub.com/golang-jwt/jwt/v5 v5.2.1 // indirect\n284: \tgithub.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect\n285: \tgithub.com/google/btree v1.1.2 // indirect\n286: \tgithub.com/google/gnostic-models v0.6.8 // indirect\n287: \tgithub.com/google/go-cmp v0.6.0 // indirect\n288: \tgithub.com/google/gofuzz v1.2.0 // indirect\n289: \tgithub.com/google/s2a-go v0.1.7 // indirect\n290: \tgithub.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect\n291: \tgithub.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect\n292: \tgithub.com/googleapis/gax-go/v2 v2.12.3 // indirect\n293: \tgithub.com/gorilla/mux v1.8.1 // indirect\n294: \tgithub.com/gorilla/websocket v1.5.0 // indirect\n295: \tgithub.com/gosuri/uitable v0.0.4 // indirect\n296: \tgithub.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect\n297: \tgithub.com/hashicorp/errwrap v1.1.0 // indirect\n298: \tgithub.com/hashicorp/go-cleanhttp v0.5.2 // indirect\n299: \tgithub.com/hashicorp/go-safetemp v1.0.0 // indirect\n300: \tgithub.com/hashicorp/golang-lru v0.6.0 // indirect\n301: \tgithub.com/hashicorp/hcl v1.0.0 // indirect\n302: \tgithub.com/hashicorp/terraform-json v0.19.0 // indirect\n303: \tgithub.com/huandu/xstrings v1.4.0 // indirect\n304: \tgithub.com/imdario/mergo v0.3.15 // indirect\n305: \tgithub.com/inconshreveable/mousetrap v1.1.0 // indirect\n306: \tgithub.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect\n307: \tgithub.com/jmespath/go-jmespath v0.4.0 // indirect\n308: \tgithub.com/jmoiron/sqlx v1.3.5 // indirect\n309: \tgithub.com/josharian/intern v1.0.0 // indirect\n310: \tgithub.com/json-iterator/go v1.1.12 // indirect\n311: \tgithub.com/kevinburke/ssh_config v1.2.0 // indirect\n312: \tgithub.com/klauspost/compress v1.17.4 // indirect\n313: \tgithub.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect\n314: \tgithub.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect\n315: \tgithub.com/lib/pq v1.10.9 // indirect\n316: \tgithub.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect\n317: \tgithub.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect\n318: \tgithub.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40 // indirect\n319: \tgithub.com/magiconair/properties v1.8.7 // indirect\n320: \tgithub.com/mattn/go-colorable v0.1.13 // indirect\n321: \tgithub.com/mattn/go-isatty v0.0.20 // indirect\n322: \tgithub.com/mattn/go-runewidth v0.0.14 // indirect\n323: \tgithub.com/mitchellh/copystructure v1.2.0 // indirect\n324: \tgithub.com/mitchellh/go-testing-interface v1.14.1 // indirect\n325: \tgithub.com/mitchellh/go-wordwrap v1.0.1 // indirect\n326: \tgithub.com/mitchellh/reflectwalk v1.0.2 // indirect\n327: \tgithub.com/moby/docker-image-spec v1.3.1 // indirect\n328: \tgithub.com/moby/locker v1.0.1 // indirect\n329: \tgithub.com/moby/patternmatcher v0.6.0 // indirect\n330: \tgithub.com/moby/spdystream v0.2.0 // indirect\n331: \tgithub.com/moby/sys/mountinfo v0.6.2 // indirect\n332: \tgithub.com/moby/sys/sequential v0.5.0 // indirect\n333: \tgithub.com/moby/sys/signal v0.7.0 // indirect\n334: \tgithub.com/moby/sys/user v0.1.0 // indirect\n335: \tgithub.com/moby/term v0.5.0 // indirect\n336: \tgithub.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect\n337: \tgithub.com/modern-go/reflect2 v1.0.2 // indirect\n338: \tgithub.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect\n339: \tgithub.com/morikuni/aec v1.0.0 // indirect\n340: \tgithub.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect\n341: \tgithub.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect\n342: \tgithub.com/ncruces/go-strftime v0.1.9 // indirect\n343: \tgithub.com/oklog/ulid v1.3.1 // indirect\n344: \tgithub.com/opencontainers/runtime-spec v1.1.0 // indirect\n345: \tgithub.com/opencontainers/selinux v1.11.0 // indirect\n346: \tgithub.com/opentracing/opentracing-go v1.2.0 // indirect\n347: \tgithub.com/pelletier/go-toml/v2 v2.1.0 // indirect\n348: \tgithub.com/peterbourgon/diskv v2.0.1+incompatible // indirect\n349: \tgithub.com/pjbgf/sha1cd v0.3.0 // indirect\n350: \tgithub.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect\n351: \tgithub.com/pkg/errors v0.9.1 // indirect\n352: \tgithub.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect\n353: \tgithub.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect\n354: \tgithub.com/prometheus/client_golang v1.19.0 // indirect\n355: \tgithub.com/prometheus/client_model v0.6.1 // indirect\n356: \tgithub.com/prometheus/common v0.48.0 // indirect\n357: \tgithub.com/prometheus/procfs v0.12.0 // indirect\n358: \tgithub.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect\n359: \tgithub.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect\n360: \tgithub.com/rivo/uniseg v0.2.0 // indirect\n361: \tgithub.com/rubenv/sql-migrate v1.5.2 // indirect\n362: \tgithub.com/russross/blackfriday/v2 v2.1.0 // indirect\n363: \tgithub.com/sagikazarmark/locafero v0.4.0 // indirect\n364: \tgithub.com/sagikazarmark/slog-shim v0.1.0 // indirect\n365: \tgithub.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect\n366: \tgithub.com/sergi/go-diff v1.3.1 // indirect\n367: \tgithub.com/shibumi/go-pathspec v1.3.0 // indirect\n368: \tgithub.com/shirou/gopsutil/v3 v3.23.12 // indirect\n369: \tgithub.com/shoenig/go-m1cpu v0.1.6 // indirect\n370: \tgithub.com/shopspring/decimal v1.3.1 // indirect\n371: \tgithub.com/skeema/knownhosts v1.2.1 // indirect\n372: \tgithub.com/sourcegraph/conc v0.3.0 // indirect\n373: \tgithub.com/spf13/afero v1.11.0 // indirect\n374: \tgithub.com/stretchr/objx v0.5.2 // indirect\n375: \tgithub.com/subosito/gotenv v1.6.0 // indirect\n376: \tgithub.com/tchap/go-patricia/v2 v2.3.1 // indirect\n377: \tgithub.com/tklauser/go-sysconf v0.3.12 // indirect\n378: \tgithub.com/tklauser/numcpus v0.6.1 // indirect\n379: \tgithub.com/ulikunitz/xz v0.5.11 // indirect\n380: \tgithub.com/vbatts/tar-split v0.11.3 // indirect\n381: \tgithub.com/xanzy/ssh-agent v0.3.3 // indirect\n382: \tgithub.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect\n383: \tgithub.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect\n384: \tgithub.com/yashtewari/glob-intersection v0.2.0 // indirect\n385: \tgithub.com/yuin/gopher-lua v1.1.0 // indirect\n386: \tgithub.com/yusufpapurcu/wmi v1.2.3 // indirect\n387: \tgo.mongodb.org/mongo-driver v1.14.0 // indirect\n388: \tgo.opencensus.io v0.24.0 // indirect\n389: \tgo.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.49.0 // indirect\n390: \tgo.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect\n391: \tgo.opentelemetry.io/otel v1.24.0 // indirect\n392: \tgo.opentelemetry.io/otel/metric v1.24.0 // indirect\n393: \tgo.opentelemetry.io/otel/sdk v1.24.0 // indirect\n394: \tgo.opentelemetry.io/otel/trace v1.24.0 // indirect\n395: \tgo.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect\n396: \tgo.uber.org/multierr v1.11.0 // indirect\n397: \tgolang.org/x/oauth2 v0.18.0 // indirect\n398: \tgolang.org/x/sys v0.19.0 // indirect\n399: \tgolang.org/x/time v0.5.0 // indirect\n400: \tgolang.org/x/tools v0.19.0 // indirect\n401: \tgoogle.golang.org/api v0.172.0 // indirect\n402: \tgoogle.golang.org/appengine v1.6.8 // indirect\n403: \tgoogle.golang.org/genproto v0.0.0-20240311173647-c811ad7063a7 // indirect\n404: \tgoogle.golang.org/genproto/googleapis/api v0.0.0-20240311173647-c811ad7063a7 // indirect\n405: \tgoogle.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect\n406: \tgoogle.golang.org/grpc v1.63.2 // indirect\n407: \tgopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect\n408: \tgopkg.in/inf.v0 v0.9.1 // indirect\n409: \tgopkg.in/ini.v1 v1.67.0 // indirect\n410: \tgopkg.in/warnings.v0 v0.1.2 // indirect\n411: \tgopkg.in/yaml.v2 v2.4.0 // indirect\n412: \tk8s.io/apiextensions-apiserver v0.29.0 // indirect\n413: \tk8s.io/apimachinery v0.29.3 // indirect\n414: \tk8s.io/apiserver v0.29.0 // indirect\n415: \tk8s.io/cli-runtime v0.29.3 // indirect\n416: \tk8s.io/client-go v0.29.3 // indirect\n417: \tk8s.io/component-base v0.29.3 // indirect\n418: \tk8s.io/klog/v2 v2.120.0 // indirect\n419: \tk8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect\n420: \tk8s.io/kubectl v0.29.3 // indirect\n421: \tmodernc.org/gc/v3 v3.0.0-20240107210532-573471604cb6 // indirect\n422: \tmodernc.org/libc v1.49.3 // indirect\n423: \tmodernc.org/mathutil v1.6.0 // indirect\n424: \tmodernc.org/memory v1.8.0 // indirect\n425: \tmodernc.org/strutil v1.2.0 // indirect\n426: \tmodernc.org/token v1.1.0 // indirect\n427: \toras.land/oras-go v1.2.5 // indirect\n428: \tsigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect\n429: \tsigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3 // indirect\n430: \tsigs.k8s.io/kustomize/kyaml v0.14.3-0.20230601165947-6ce0bf390ce3 // indirect\n431: \tsigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect\n432: )\n\n(End of file - total 432 lines)\n</content>",
+            "metadata": {
+              "preview": "module github.com/aquasecurity/trivy\n\ngo 1.22\n\ntoolchain go1.22.0\n\nrequire (\n\tgithub.com/Azure/azure-sdk-for-go v68.0.0+incompatible\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azcore v1.10.0\n\tgithub.com/Azure/azure-sdk-for-go/sdk/azidentity v1.5.1\n\tgithub.com/BurntSushi/toml v1.3.2\n\tgithub.com/CycloneDX/cyclonedx-go v0.8.0\n\tgithub.com/GoogleCloudPlatform/docker-credential-gcr v2.0.5+incompatible\n\tgithub.com/Masterminds/sprig/v3 v3.2.3\n\tgithub.com/NYTimes/gziphandler v1.1.1\n\tgithub.com/alicebob/miniredis/v2 v2.31.1\n\tgithub.com/aquasecurity/bolt-fixtures v0.0.0-20200903104109-d34e7f983986\n\tgithub.com/aquasecurity/go-gem-version v0.0.0-20201115065557-8eed6fe000ce\n\tgithub.com/aquasecurity/go-npm-version v0.0.0-20201110091526-0b796d180798\n\tgithub.com/aquasecurity/go-pep440-version v0.0.0-20210121094942-22b2f8951d46",
+              "truncated": false,
+              "loaded": []
+            },
+            "title": "work/go.mod",
+            "time": {
+              "start": 1791799804771,
+              "end": 1791799804798
+            }
+          },
+          "id": "prt_12f97435f001ndfh9ctbVx12aw",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97315e0012nqXyDb8hyDAHm"
+        },
+        {
+          "type": "tool",
+          "tool": "glob",
+          "callID": "chatcmpl-tool-85c0abf2eab80696",
+          "state": {
+            "status": "completed",
+            "input": {
+              "path": "/work",
+              "pattern": "**/docker*"
+            },
+            "output": "/work/integration/docker_engine_test.go\n/work/integration/testdata/dockerfile-custom-policies.json.golden\n/work/integration/testdata/dockerfile_file_pattern.json.golden\n/work/docs/imgs/docker-desktop.png\n/work/docs/docs/coverage/iac/docker.md\n/work/docs/docs/advanced/private-registries/docker-hub.md\n/work/pkg/fanal/image/daemon/docker_test.go\n/work/pkg/fanal/image/daemon/docker.go\n/work/integration/testdata/dockerfile.json.golden\n/work/integration/testdata/dockerfile-rule-exception.json.golden\n/work/integration/testdata/dockerfile-namespace-exception.json.golden\n/work/pkg/fanal/image/docker.go\n/work/pkg/fanal/test/integration/docker/docker.go\n/work/pkg/fanal/analyzer/buildinfo/dockerfile_test.go\n/work/pkg/fanal/analyzer/buildinfo/dockerfile.go\n/work/pkg/fanal/analyzer/imgconf/dockerfile/dockerfile_test.go\n/work/pkg/fanal/analyzer/imgconf/dockerfile/dockerfile.go\n/work/pkg/fanal/analyzer/config/dockerfile/docker_test.go\n/work/pkg/fanal/analyzer/config/dockerfile/docker.go\n/work/pkg/fanal/applier/docker_test.go\n/work/pkg/fanal/applier/docker.go\n/work/pkg/fanal/secret/testdata/docker-secrets.txt\n/work/pkg/iac/rego/schemas/dockerfile.json\n/work/pkg/iac/providers/dockerfile/dockerfile.go",
+            "metadata": {
+              "count": 24,
+              "truncated": false
+            },
+            "title": "work",
+            "time": {
+              "start": 1791799804776,
+              "end": 1791799805833
+            }
+          },
+          "id": "prt_12f9743640010ejOVvRsLV2YPF",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97315e0012nqXyDb8hyDAHm"
+        },
+        {
+          "type": "tool",
+          "tool": "grep",
+          "callID": "chatcmpl-tool-a5187368eaf46c43",
+          "state": {
+            "status": "completed",
+            "input": {
+              "pattern": "docker/docker",
+              "path": "/work"
+            },
+            "output": "Found 41 matches\n/work/go.mod:\n  Line 45: \tgithub.com/docker/docker v26.0.1+incompatible\n\n  Line 249: \tgithub.com/docker/docker-credential-helpers v0.7.0 // indirect\n\n\n/work/go.sum:\n  Line 1154: github.com/docker/docker v20.10.7+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=\n\n  Line 1155: github.com/docker/docker v26.0.1+incompatible h1:t39Hm6lpXuXtgkF0dm1t9a5HkbUfdGy6XbWexmGr+hA=\n\n  Line 1156: github.com/docker/docker v26.0.1+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=\n\n  Line 1157: github.com/docker/docker-credential-helpers v0.6.3/go.mod h1:WRaJzqw3CTB9bk10avuGsjVBZsD05qeibJ1/TYlvc0Y=\n\n  Line 1158: github.com/docker/docker-credential-helpers v0.7.0 h1:xtCHsjxogADNZcdv1pKUHXryefjlVRqWqIhk/uXJp0A=\n\n  Line 1159: github.com/docker/docker-credential-helpers v0.7.0/go.mod h1:rETQfLdHNT3foU5kuNkFR1R1V12OJRRO5lzt2D1b5X0=\n\n\n/work/internal/testutil/localstack.go:\n  Line 8: \tdockercontainer \"github.com/docker/docker/api/types/container\"\n\n\n/work/integration/registry_test.go:\n  Line 21: \tdockercontainer \"github.com/docker/docker/api/types/container\"\n\n\n/work/integration/docker_engine_test.go:\n  Line 14: \tapi \"github.com/docker/docker/api/types\"\n\n  Line 15: \t\"github.com/docker/docker/client\"\n\n\n/work/integration/client_server_test.go:\n  Line 15: \tdockercontainer \"github.com/docker/docker/api/types/container\"\n\n\n/work/integration/testdata/fixtures/repo/gomod/go.sum:\n  Line 258: github.com/docker/docker v20.10.11+incompatible h1:OqzI/g/W54LczvhnccGqniFoQghHx3pklbLuhfXpqGo=\n\n  Line 259: github.com/docker/docker v20.10.11+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=\n\n\n/work/integration/testdata/fixtures/repo/gomod/go.mod:\n  Line 13: \tgithub.com/docker/docker v20.10.11+incompatible // indirect\n\n\n/work/pkg/fanal/image/daemon/image.go:\n  Line 11: \t\"github.com/docker/docker/api/types\"\n\n  Line 12: \t\"github.com/docker/docker/api/types/container\"\n\n  Line 13: \tdimage \"github.com/docker/docker/api/types/image\"\n\n\n/work/pkg/fanal/image/daemon/docker_test.go:\n  Line 6: \t\"github.com/docker/docker/api/types\"\n\n\n/work/pkg/fanal/image/daemon/image_test.go:\n  Line 11: \tdimage \"github.com/docker/docker/api/types/image\"\n\n\n/work/pkg/fanal/image/daemon/podman.go:\n  Line 13: \tapi \"github.com/docker/docker/api/types\"\n\n  Line 14: \tdimage \"github.com/docker/docker/api/types/image\"\n\n\n/work/pkg/fanal/image/daemon/podman_test.go:\n  Line 10: \t\"github.com/docker/docker/api/types\"\n\n\n/work/pkg/fanal/image/daemon/docker.go:\n  Line 7: \t\"github.com/docker/docker/client\"\n\n\n/work/pkg/fanal/image/daemon/containerd.go:\n  Line 19: \tapi \"github.com/docker/docker/api/types\"\n\n  Line 20: \t\"github.com/docker/docker/api/types/container\"\n\n\n/work/pkg/fanal/test/integration/library_test.go:\n  Line 16: \tdtypes \"github.com/docker/docker/api/types\"\n\n  Line 17: \t\"github.com/docker/docker/client\"\n\n\n/work/pkg/fanal/test/integration/registry_test.go:\n  Line 15: \tdockercontainer \"github.com/docker/docker/api/types/container\"\n\n  Line 16: \t\"github.com/docker/docker/client\"\n\n\n/work/pkg/fanal/test/integration/containerd_test.go:\n  Line 23: \tdockercontainer \"github.com/docker/docker/api/types/container\"\n\n\n/work/pkg/fanal/test/integration/docker/docker.go:\n  Line 13: \t\"github.com/docker/docker/api/types\"\n\n  Line 14: \tapiregistry \"github.com/docker/docker/api/types/registry\"\n\n  Line 15: \t\"github.com/docker/docker/client\"\n\n\n/work/pkg/dependency/parser/golang/sum/parse_testcase.go:\n  Line 138: \t\t{Name: \"github.com/docker/docker\", Version: \"1.4.2-0.20190924003213-a8608b5b67c7\"},\n\n  Line 139: \t\t{Name: \"github.com/docker/docker-credential-helpers\", Version: \"0.6.3\"},\n\n\n/work/pkg/dependency/parser/golang/sum/testdata/gomod_trivy.sum:\n  Line 134: github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=\n\n  Line 135: github.com/docker/docker v0.7.3-0.20190506211059-b20a14b54661/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=\n\n  Line 136: github.com/docker/docker v1.4.2-0.20190924003213-a8608b5b67c7/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=\n\n  Line 137: github.com/docker/docker-credential-helpers v0.6.3/go.mod h1:WRaJzqw3CTB9bk10avuGsjVBZsD05qeibJ1/TYlvc0Y=\n",
+            "metadata": {
+              "matches": 41,
+              "truncated": false
+            },
+            "title": "docker/docker",
+            "time": {
+              "start": 1791799804782,
+              "end": 1791799806186
+            }
+          },
+          "id": "prt_12f97436a001w6EWsBl5rJdSty",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97315e0012nqXyDb8hyDAHm"
+        },
+        {
+          "reason": "tool-calls",
+          "type": "step-finish",
+          "tokens": {
+            "total": 7218,
+            "input": 7075,
+            "output": 107,
+            "reasoning": 36,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0,
+          "id": "prt_12f9748ec001h1boByYMQ4kIAw",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97315e0012nqXyDb8hyDAHm"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_12f972137001753ownqIN3qQZX",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/work",
+          "root": "/"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 21076,
+          "input": 20709,
+          "output": 119,
+          "reasoning": 248,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "Qwen/Qwen3.6-35B-A3B",
+        "providerID": "custom-openai",
+        "time": {
+          "created": 1791799806194,
+          "completed": 1791799816676
+        },
+        "finish": "tool-calls",
+        "id": "msg_12f9748f2001Oy6OSBXF3noOCD",
+        "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "id": "prt_12f976c11001PyQ8FJqPyccKvc",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9748f2001Oy6OSBXF3noOCD"
+        },
+        {
+          "type": "reasoning",
+          "text": "Now I see - this is the Trivy repository (github.com/aquasecurity/trivy), which uses `github.com/docker/docker v26.0.1+incompatible` as a dependency. The CVE-2024-32473 is about `github.com/docker/docker` having IPv6 enabled on IPv4-only network interfaces.\n\nLet me check what version of docker/docker is in use. From go.mod line 45: `github.com/docker/docker v26.0.1+incompatible`\n\nThe advisory says:\n- affected: introduced in 26.0.0+incompatible, fixed in 26.0.2+incompatible\n\nSo the snapshot uses v26.0.1 which IS in the affected range (26.0.0 to before 26.0.2).\n\nNow I need to check: Trivy imports docker/dockers as a dependency and uses certain APIs from it. The question is whether the vulnerable code (IPv6 on IPv4-only interfaces) is actually reachable/used in Trivy's scope.\n\nLet me look at the docker-related code to understand how it's used.\n",
+          "time": {
+            "start": 1791799815186,
+            "end": 1791799815195
+          },
+          "id": "prt_12f976c1200105cgdES6h5b6YG",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9748f2001Oy6OSBXF3noOCD"
+        },
+        {
+          "type": "tool",
+          "tool": "read",
+          "callID": "chatcmpl-tool-978ae1b4ffe1a35f",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/work/pkg/fanal/image/daemon/docker.go"
+            },
+            "output": "<path>/work/pkg/fanal/image/daemon/docker.go</path>\n<type>file</type>\n<content>\n1: package daemon\n2: \n3: import (\n4: \t\"context\"\n5: \t\"os\"\n6: \n7: \t\"github.com/docker/docker/client\"\n8: \t\"github.com/google/go-containerregistry/pkg/name\"\n9: \t\"golang.org/x/xerrors\"\n10: )\n11: \n12: // DockerImage implements v1.Image by extending daemon.Image.\n13: // The caller must call cleanup() to remove a temporary file.\n14: func DockerImage(ref name.Reference, host string) (Image, func(), error) {\n15: \tcleanup := func() {}\n16: \n17: \topts := []client.Opt{\n18: \t\tclient.FromEnv,\n19: \t\tclient.WithAPIVersionNegotiation(),\n20: \t}\n21: \tif host != \"\" {\n22: \t\t// adding host parameter to the last assuming it will pick up more preference\n23: \t\topts = append(opts, client.WithHost(host))\n24: \t}\n25: \tc, err := client.NewClientWithOpts(opts...)\n26: \n27: \tif err != nil {\n28: \t\treturn nil, cleanup, xerrors.Errorf(\"failed to initialize a docker client: %w\", err)\n29: \t}\n30: \tdefer func() {\n31: \t\tif err != nil {\n32: \t\t\t_ = c.Close()\n33: \t\t}\n34: \t}()\n35: \n36: \t// <image_name>:<tag> pattern like \"alpine:3.15\"\n37: \t// or\n38: \t// <image_name>@<digest> pattern like \"alpine@sha256:21a3deaa0d32a8057914f36584b5288d2e5ecc984380bc0118285c70fa8c9300\"\n39: \timageID := ref.Name()\n40: \tinspect, _, err := c.ImageInspectWithRaw(context.Background(), imageID)\n41: \tif err != nil {\n42: \t\timageID = ref.String() // <image_id> pattern like `5ac716b05a9c`\n43: \t\tinspect, _, err = c.ImageInspectWithRaw(context.Background(), imageID)\n44: \t\tif err != nil {\n45: \t\t\treturn nil, cleanup, xerrors.Errorf(\"unable to inspect the image (%s): %w\", imageID, err)\n46: \t\t}\n47: \t}\n48: \n49: \thistory, err := c.ImageHistory(context.Background(), imageID)\n50: \tif err != nil {\n51: \t\treturn nil, cleanup, xerrors.Errorf(\"unable to get history (%s): %w\", imageID, err)\n52: \t}\n53: \n54: \tf, err := os.CreateTemp(\"\", \"fanal-*\")\n55: \tif err != nil {\n56: \t\treturn nil, cleanup, xerrors.Errorf(\"failed to create a temporary file: %w\", err)\n57: \t}\n58: \n59: \tcleanup = func() {\n60: \t\t_ = c.Close()\n61: \t\t_ = f.Close()\n62: \t\t_ = os.Remove(f.Name())\n63: \t}\n64: \n65: \treturn &image{\n66: \t\topener:  imageOpener(context.Background(), imageID, f, c.ImageSave),\n67: \t\tinspect: inspect,\n68: \t\thistory: configHistory(history),\n69: \t}, cleanup, nil\n70: }\n\n(End of file - total 70 lines)\n</content>",
+            "metadata": {
+              "preview": "package daemon\n\nimport (\n\t\"context\"\n\t\"os\"\n\n\t\"github.com/docker/docker/client\"\n\t\"github.com/google/go-containerregistry/pkg/name\"\n\t\"golang.org/x/xerrors\"\n)\n\n// DockerImage implements v1.Image by extending daemon.Image.\n// The caller must call cleanup() to remove a temporary file.\nfunc DockerImage(ref name.Reference, host string) (Image, func(), error) {\n\tcleanup := func() {}\n\n\topts := []client.Opt{\n\t\tclient.FromEnv,\n\t\tclient.WithAPIVersionNegotiation(),\n\t}",
+              "truncated": false,
+              "loaded": []
+            },
+            "title": "work/pkg/fanal/image/daemon/docker.go",
+            "time": {
+              "start": 1791799815199,
+              "end": 1791799815293
+            }
+          },
+          "id": "prt_12f976c1c001l0tKwX0KXAhPNL",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9748f2001Oy6OSBXF3noOCD"
+        },
+        {
+          "type": "tool",
+          "tool": "read",
+          "callID": "chatcmpl-tool-96422d20e1ef11ee",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/work/pkg/fanal/image/daemon/image.go"
+            },
+            "output": "<path>/work/pkg/fanal/image/daemon/image.go</path>\n<type>file</type>\n<content>\n1: package daemon\n2: \n3: import (\n4: \t\"context\"\n5: \t\"io\"\n6: \t\"os\"\n7: \t\"strings\"\n8: \t\"sync\"\n9: \t\"time\"\n10: \n11: \t\"github.com/docker/docker/api/types\"\n12: \t\"github.com/docker/docker/api/types/container\"\n13: \tdimage \"github.com/docker/docker/api/types/image\"\n14: \tv1 \"github.com/google/go-containerregistry/pkg/v1\"\n15: \t\"github.com/google/go-containerregistry/pkg/v1/tarball\"\n16: \t\"github.com/samber/lo\"\n17: \t\"golang.org/x/xerrors\"\n18: \n19: \t\"github.com/aquasecurity/trivy/pkg/log\"\n20: )\n21: \n22: type Image interface {\n23: \tv1.Image\n24: \tRepoTags() []string\n25: \tRepoDigests() []string\n26: }\n27: \n28: var mu sync.Mutex\n29: \n30: type opener func() (v1.Image, error)\n31: \n32: type imageSave func(context.Context, []string) (io.ReadCloser, error)\n33: \n34: func imageOpener(ctx context.Context, ref string, f *os.File, imageSave imageSave) opener {\n35: \treturn func() (v1.Image, error) {\n36: \t\t// Store the tarball in local filesystem and return a new reader into the bytes each time we need to access something.\n37: \t\trc, err := imageSave(ctx, []string{ref})\n38: \t\tif err != nil {\n39: \t\t\treturn nil, xerrors.Errorf(\"unable to export the image: %w\", err)\n40: \t\t}\n41: \t\tdefer rc.Close()\n42: \n43: \t\tif _, err = io.Copy(f, rc); err != nil {\n44: \t\t\treturn nil, xerrors.Errorf(\"failed to copy the image: %w\", err)\n45: \t\t}\n46: \t\tdefer f.Close()\n47: \n48: \t\timg, err := tarball.ImageFromPath(f.Name(), nil)\n49: \t\tif err != nil {\n50: \t\t\treturn nil, xerrors.Errorf(\"failed to initialize the struct from the temporary file: %w\", err)\n51: \t\t}\n52: \n53: \t\treturn img, nil\n54: \t}\n55: }\n56: \n57: // image is a wrapper for github.com/google/go-containerregistry/pkg/v1/daemon.Image\n58: // daemon.Image loads the entire image into the memory at first,\n59: // but it doesn't need to load it if the information is already in the cache,\n60: // To avoid entire loading, this wrapper uses ImageInspectWithRaw and checks image ID and layer IDs.\n61: type image struct {\n62: \tv1.Image\n63: \topener  opener\n64: \tinspect types.ImageInspect\n65: \thistory []v1.History\n66: }\n67: \n68: // populateImage initializes an \"image\" struct.\n69: // This method is called by some goroutines at the same time.\n70: // To prevent multiple heavy initializations, the lock is necessary.\n71: func (img *image) populateImage() (err error) {\n72: \tmu.Lock()\n73: \tdefer mu.Unlock()\n74: \n75: \t// img.Image is already initialized, so we don't have to do it again.\n76: \tif img.Image != nil {\n77: \t\treturn nil\n78: \t}\n79: \n80: \timg.Image, err = img.opener()\n81: \tif err != nil {\n82: \t\treturn xerrors.Errorf(\"unable to open: %w\", err)\n83: \t}\n84: \n85: \treturn nil\n86: }\n87: \n88: func (img *image) ConfigName() (v1.Hash, error) {\n89: \treturn v1.NewHash(img.inspect.ID)\n90: }\n91: \n92: func (img *image) ConfigFile() (*v1.ConfigFile, error) {\n93: \tif len(img.inspect.RootFS.Layers) == 0 {\n94: \t\t// Podman doesn't return RootFS...\n95: \t\treturn img.configFile()\n96: \t}\n97: \n98: \tnonEmptyLayerCount := lo.CountBy(img.history, func(history v1.History) bool {\n99: \t\treturn !history.EmptyLayer\n100: \t})\n101: \n102: \tif len(img.inspect.RootFS.Layers) != nonEmptyLayerCount {\n103: \t\t// In cases where empty layers are not correctly determined from the history API.\n104: \t\t// There are some edge cases where we cannot guess empty layers well.\n105: \t\treturn img.configFile()\n106: \t}\n107: \n108: \tdiffIDs, err := img.diffIDs()\n109: \tif err != nil {\n110: \t\treturn nil, xerrors.Errorf(\"unable to get diff IDs: %w\", err)\n111: \t}\n112: \n113: \tcreated, err := time.Parse(time.RFC3339Nano, img.inspect.Created)\n114: \tif err != nil {\n115: \t\treturn nil, xerrors.Errorf(\"failed parsing created %s: %w\", img.inspect.Created, err)\n116: \t}\n117: \n118: \treturn &v1.ConfigFile{\n119: \t\tArchitecture:  img.inspect.Architecture,\n120: \t\tAuthor:        img.inspect.Author,\n121: \t\tContainer:     img.inspect.Container,\n122: \t\tCreated:       v1.Time{Time: created},\n123: \t\tDockerVersion: img.inspect.DockerVersion,\n124: \t\tConfig:        img.imageConfig(img.inspect.Config),\n125: \t\tHistory:       img.history,\n126: \t\tOS:            img.inspect.Os,\n127: \t\tRootFS: v1.RootFS{\n128: \t\t\tType:    img.inspect.RootFS.Type,\n129: \t\t\tDiffIDs: diffIDs,\n130: \t\t},\n131: \t}, nil\n132: }\n133: \n134: func (img *image) configFile() (*v1.ConfigFile, error) {\n135: \tlog.Debug(\"Saving the container image to a local file to obtain the image config...\")\n136: \n137: \t// Need to fall back into expensive operations like \"docker save\"\n138: \t// because the config file cannot be generated properly from container engine API for some reason.\n139: \tif err := img.populateImage(); err != nil {\n140: \t\treturn nil, xerrors.Errorf(\"unable to populate: %w\", err)\n141: \t}\n142: \treturn img.Image.ConfigFile()\n143: }\n144: \n145: func (img *image) LayerByDiffID(h v1.Hash) (v1.Layer, error) {\n146: \tif err := img.populateImage(); err != nil {\n147: \t\treturn nil, xerrors.Errorf(\"unable to populate: %w\", err)\n148: \t}\n149: \treturn img.Image.LayerByDiffID(h)\n150: }\n151: \n152: func (img *image) RawConfigFile() ([]byte, error) {\n153: \tif err := img.populateImage(); err != nil {\n154: \t\treturn nil, xerrors.Errorf(\"unable to populate: %w\", err)\n155: \t}\n156: \treturn img.Image.RawConfigFile()\n157: }\n158: \n159: func (img *image) RepoTags() []string {\n160: \treturn img.inspect.RepoTags\n161: }\n162: \n163: func (img *image) RepoDigests() []string {\n164: \treturn img.inspect.RepoDigests\n165: }\n166: \n167: func (img *image) diffIDs() ([]v1.Hash, error) {\n168: \tvar diffIDs []v1.Hash\n169: \tfor _, l := range img.inspect.RootFS.Layers {\n170: \t\th, err := v1.NewHash(l)\n171: \t\tif err != nil {\n172: \t\t\treturn nil, xerrors.Errorf(\"invalid hash %s: %w\", l, err)\n173: \t\t}\n174: \t\tdiffIDs = append(diffIDs, h)\n175: \t}\n176: \treturn diffIDs, nil\n177: }\n178: \n179: func (img *image) imageConfig(config *container.Config) v1.Config {\n180: \tif config == nil {\n181: \t\treturn v1.Config{}\n182: \t}\n183: \n184: \tc := v1.Config{\n185: \t\tAttachStderr:    config.AttachStderr,\n186: \t\tAttachStdin:     config.AttachStdin,\n187: \t\tAttachStdout:    config.AttachStdout,\n188: \t\tCmd:             config.Cmd,\n189: \t\tDomainname:      config.Domainname,\n190: \t\tEntrypoint:      config.Entrypoint,\n191: \t\tEnv:             config.Env,\n192: \t\tHostname:        config.Hostname,\n193: \t\tImage:           config.Image,\n194: \t\tLabels:          config.Labels,\n195: \t\tOnBuild:         config.OnBuild,\n196: \t\tOpenStdin:       config.OpenStdin,\n197: \t\tStdinOnce:       config.StdinOnce,\n198: \t\tTty:             config.Tty,\n199: \t\tUser:            config.User,\n200: \t\tVolumes:         config.Volumes,\n201: \t\tWorkingDir:      config.WorkingDir,\n202: \t\tArgsEscaped:     config.ArgsEscaped,\n203: \t\tNetworkDisabled: config.NetworkDisabled,\n204: \t\tMacAddress:      config.MacAddress,\n205: \t\tStopSignal:      config.StopSignal,\n206: \t\tShell:           config.Shell,\n207: \t}\n208: \n209: \tif config.Healthcheck != nil {\n210: \t\tc.Healthcheck = &v1.HealthConfig{\n211: \t\t\tTest:        config.Healthcheck.Test,\n212: \t\t\tInterval:    config.Healthcheck.Interval,\n213: \t\t\tTimeout:     config.Healthcheck.Timeout,\n214: \t\t\tStartPeriod: config.Healthcheck.StartPeriod,\n215: \t\t\tRetries:     config.Healthcheck.Retries,\n216: \t\t}\n217: \t}\n218: \n219: \tif len(config.ExposedPorts) > 0 {\n220: \t\tc.ExposedPorts = make(map[string]struct{})\n221: \t\tfor port := range c.ExposedPorts {\n222: \t\t\tc.ExposedPorts[port] = struct{}{}\n223: \t\t}\n224: \t}\n225: \n226: \treturn c\n227: }\n228: \n229: func configHistory(dhistory []dimage.HistoryResponseItem) []v1.History {\n230: \t// Fill only required metadata\n231: \tvar history []v1.History\n232: \n233: \tfor i := len(dhistory) - 1; i >= 0; i-- {\n234: \t\th := dhistory[i]\n235: \t\thistory = append(history, v1.History{\n236: \t\t\tCreated: v1.Time{\n237: \t\t\t\tTime: time.Unix(h.Created, 0).UTC(),\n238: \t\t\t},\n239: \t\t\tCreatedBy:  h.CreatedBy,\n240: \t\t\tComment:    h.Comment,\n241: \t\t\tEmptyLayer: emptyLayer(h),\n242: \t\t})\n243: \t}\n244: \treturn history\n245: }\n246: \n247: // emptyLayer tries to determine if the layer is empty from the history API, but may return a wrong result.\n248: // The non-empty layers will be compared to diffIDs later so that results can be validated.\n249: func emptyLayer(history dimage.HistoryResponseItem) bool {\n250: \tif history.Size != 0 {\n251: \t\treturn false\n252: \t}\n253: \tcreatedBy := strings.TrimSpace(strings.TrimLeft(history.CreatedBy, \"/bin/sh -c #(nop)\"))\n254: \t// This logic is taken from https://github.com/moby/buildkit/blob/2942d13ff489a2a49082c99e6104517e357e53ad/frontend/dockerfile/dockerfile2llb/convert.go\n255: \tif strings.HasPrefix(createdBy, \"ENV\") ||\n256: \t\tstrings.HasPrefix(createdBy, \"MAINTAINER\") ||\n257: \t\tstrings.HasPrefix(createdBy, \"LABEL\") ||\n258: \t\tstrings.HasPrefix(createdBy, \"CMD\") ||\n259: \t\tstrings.HasPrefix(createdBy, \"ENTRYPOINT\") ||\n260: \t\tstrings.HasPrefix(createdBy, \"HEALTHCHECK\") ||\n261: \t\tstrings.HasPrefix(createdBy, \"EXPOSE\") ||\n262: \t\tstrings.HasPrefix(createdBy, \"USER\") ||\n263: \t\tstrings.HasPrefix(createdBy, \"VOLUME\") ||\n264: \t\tstrings.HasPrefix(createdBy, \"STOPSIGNAL\") ||\n265: \t\tstrings.HasPrefix(createdBy, \"SHELL\") ||\n266: \t\tstrings.HasPrefix(createdBy, \"ARG\") {\n267: \t\treturn true\n268: \t}\n269: \t// buildkit layers with \"WORKDIR /\" command are empty,\n270: \tif strings.HasPrefix(history.Comment, \"buildkit.dockerfile\") {\n271: \t\tif createdBy == \"WORKDIR /\" {\n272: \t\t\treturn true\n273: \t\t}\n274: \t} else if strings.HasPrefix(createdBy, \"WORKDIR\") { // layers build with docker and podman, WORKDIR command is always empty layer.\n275: \t\treturn true\n276: \t}\n277: \t// The following instructions could reach here:\n278: \t//     - \"ADD\"\n279: \t//     - \"COPY\"\n280: \t//     - \"RUN\"\n281: \t//         - \"RUN\" may not include even 'RUN' prefix\n282: \t//            e.g. '/bin/sh -c mkdir test '\n283: \t//     - \"WORKDIR\", which doesn't meet the above conditions\n284: \treturn false\n285: }\n\n(End of file - total 285 lines)\n</content>",
+            "metadata": {
+              "preview": "package daemon\n\nimport (\n\t\"context\"\n\t\"io\"\n\t\"os\"\n\t\"strings\"\n\t\"sync\"\n\t\"time\"\n\n\t\"github.com/docker/docker/api/types\"\n\t\"github.com/docker/docker/api/types/container\"\n\tdimage \"github.com/docker/docker/api/types/image\"\n\tv1 \"github.com/google/go-containerregistry/pkg/v1\"\n\t\"github.com/google/go-containerregistry/pkg/v1/tarball\"\n\t\"github.com/samber/lo\"\n\t\"golang.org/x/xerrors\"\n\n\t\"github.com/aquasecurity/trivy/pkg/log\"\n)",
+              "truncated": false,
+              "loaded": []
+            },
+            "title": "work/pkg/fanal/image/daemon/image.go",
+            "time": {
+              "start": 1791799815203,
+              "end": 1791799815296
+            }
+          },
+          "id": "prt_12f976c21001LH2xKIrx5fgiPk",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9748f2001Oy6OSBXF3noOCD"
+        },
+        {
+          "type": "tool",
+          "tool": "grep",
+          "callID": "chatcmpl-tool-9198c74531f70700",
+          "state": {
+            "status": "completed",
+            "input": {
+              "path": "/work",
+              "pattern": "ipv6|IPV6|IPv6|ip6|IP6"
+            },
+            "output": "Found 74 matches\n/work/pkg/fanal/analyzer/pkg/dpkg/testdata/dpkg:\n  Line 1161:  /etc/sysctl.d/10-ipv6-privacy.conf e9473d12b4a7069d6a3ca8b694511ddf\n\n\n/work/pkg/fanal/analyzer/imgconf/apk/testdata/history_v3.9.json:\n  Line 4529:         \"ip6tables\",\n\n  Line 7213:         \"so:libip6tc.so.0=0.1.0\",\n\n  Line 18686:     \"perl-regexp-ipv6\": {\n\n  Line 18690:       \"origin\": \"perl-regexp-ipv6\",\n\n  Line 25912:     \"perl-regexp-ipv6-doc\": {\n\n  Line 25916:       \"origin\": \"perl-regexp-ipv6\"\n\n  Line 26983:         \"so:libebt_ip6.so=0\",\n\n  Line 41528:         \"ip6tables\",\n\n  Line 44558:         \"ip6tables\",\n\n  Line 45908:         \"cmd:s6-dnsip6\",\n\n  Line 45909:         \"cmd:s6-dnsip6-filter\",\n\n  Line 52539:         \"so:libip6tc.so.0\"\n\n  Line 54929:     \"ip6tables\": {\n\n  Line 56070:         \"ip6tables\",\n\n  Line 59229:         \"pc:libip6tc=1.6.2\",\n\n  Line 67484:         \"ip6tables\",\n\n  Line 69470:       \"libip6tc.so.0\": {\n\n  Line 71350:       \"libebt_ip6.so\": {\n\n\n/work/pkg/fanal/analyzer/imgconf/apk/testdata/history_v3.7.json:\n  Line 6907:         \"so:libebt_ip6.so=0\",\n\n  Line 16207:     \"ip6tables\": {\n\n  Line 23627:         \"ip6tables\",\n\n  Line 26392:     \"perl-regexp-ipv6-doc\": {\n\n  Line 26396:       \"origin\": \"perl-regexp-ipv6\"\n\n  Line 33701:         \"so:libip6tc.so.0=0.1.0\",\n\n  Line 34993:         \"so:libip6tc.so.0\"\n\n  Line 44802:         \"ip6tables\",\n\n  Line 44834:         \"pc:libip6tc=1.6.1\",\n\n  Line 57557:         \"cmd:s6-dnsip6\",\n\n  Line 57558:         \"cmd:s6-dnsip6-filter\",\n\n  Line 61245:         \"ip6tables\",\n\n  Line 63544:         \"ip6tables\",\n\n  Line 65823:     \"perl-regexp-ipv6\": {\n\n  Line 65827:       \"origin\": \"perl-regexp-ipv6\",\n\n  Line 71662:       \"libebt_ip6.so\": {\n\n  Line 74394:       \"libip6tc.so.0\": {\n\n\n/work/docs/imgs/logo-white.svg:\n  Line 2248: oKMtjX/0uCFYXYIP63kZJ2t6pbSRSjFGDI5cTcYlBUD4yiILKKvHipFlxRCAOgoRH3+R2QBK3FCU\n\n\n/work/go.sum:\n  Line 956: github.com/chai2010/gettext-go v1.0.2 h1:1Lwwip6Q2QGsAdl/ZKPCwTe9fe0CjlUbqj5bFNSjIRk=\n\n\n/work/brand/Trivy-OSS-Logo-Color-Stacked-RGB.svg:\n  Line 2625: FZQsmLZh5q5v5N5oIP6Vcyw4PAfOIAr+uHlbaLjZBxbP4vS3hUiWgBTerhva2cTVCf1GQEc2qy2w\n\n\n/work/brand/Trivy-OSS-Logo-White-Stacked-RGB.svg:\n  Line 2573: rqVFyn2FpuqRbrrwip6UczF7Isq4nfPo0mJjBD3hzOCCmymov1bI8ZU2bCQOC7raCxEXnBpBl/Hl\n\n  Line 2784: UhafD4EsfR4pS19FqSg2U6Mjk1E6Qip6QQ/yCVDeokNOFQqeKmLf08FIhJr0SVn0R6P0WokQhEWD\n\n\n/work/pkg/iac/adapters/cloudformation/aws/ec2/nacl.go:\n  Line 61: \t\t\tif ipv6Cidr := ruleResource.GetProperty(\"Ipv6CidrBlock\"); ipv6Cidr.IsString() {\n\n  Line 62: \t\t\t\trule.CIDRs = append(rule.CIDRs, ipv6Cidr.AsStringValue())\n\n\n/work/pkg/iac/providers/openstack/networking.go:\n  Line 22: \tEtherType iacTypes.IntValue    // 4 or 6 for ipv4/ipv6\n\n\n/work/pkg/iac/adapters/terraform/aws/ec2/vpc.go:\n  Line 154: \tipv6cidrBlocks := resource.GetAttribute(\"ipv6_cidr_blocks\")\n\n  Line 161: \t\tif ipv6cidrBlocks.IsNotNil() && ipv6cidrBlocks.ReferencesBlock(vb) {\n\n  Line 162: \t\t\tipv6cidrBlocks = vb.GetAttribute(\"default\")\n\n  Line 170: \tif ipv6cidrBlocks.IsNotNil() {\n\n  Line 171: \t\tcidrs = append(cidrs, ipv6cidrBlocks.AsStringValues()...)\n\n  Line 217: \tipv4cidrAttr := resource.GetAttribute(\"ipv6_cidr_block\")\n\n\n/work/pkg/iac/adapters/terraform/openstack/networking.go:\n  Line 43: \t\tcase etherType.Equals(\"IPv6\"):\n\n\n/work/pkg/iac/scanners/terraformplan/tfjson/test/testdata/plan_with_template.json:\n  Line 101:                 \"ipv6_cidr_blocks\": [],\n\n  Line 126:                 \"ipv6_cidr_blocks\": [],\n\n  Line 284:               \"ipv6_cidr_blocks\": [],\n\n  Line 311:               \"ipv6_cidr_blocks\": [],\n\n  Line 330:               \"ipv6_cidr_blocks\": [],\n\n\n/work/pkg/iac/scanners/terraformplan/tfjson/test/testdata/plan.json:\n  Line 1: {\"format_version\":\"0.2\",\"terraform_version\":\"1.0.3\",\"variables\":{\"bucket_name\":{\"value\":\"tfsec-plan-testing\"}},\"planned_values\":{\"root_module\":{\"resources\":[{\"address\":\"aws_s3_bucket.planbucket\",\"mode\":\"managed\",\"type\":\"aws_s3_bucket\",\"name\":\"planbucket\",\"provider_name\":\"registry.terraform.io/hashicorp/aws\",\"schema_version\":0,\"values\":{\"bucket\":\"tfsec-plan-testing\",\"bucket_prefix\":null,\"force_destroy\":false,\"logging\":[{\"target_bucket\":\"arn:aws:s3:::iac-tfsec-dev\",\"target_prefix\":null}],\"tags\":null,\"versioning\":[{\"enabled\":true,\"mfa_delete\":false}]},\"sensitive_values\":{\"cors_rule\":[],\"grant\":[],\"lifecycle_rule\":[],\"logging\":[{}],\"object_lock_configuration\":[],\"replication_configuration\":[],\"server_side_encryption_configuration\":[],\"tags_all\":{},\"versioning\":[{}],\"website\":[]}},{\"address\":\"aws_s3_bucket_server_side_encryption_configuration.example\",\"mode\":\"managed\",\"type\":\"aws_s3_bucket_server_side_encryption_configuration\",\"name\":\"example\",\"provider_name\":\"registry.terraform.io/hashicorp/aws\",\"schema_version\":0,\"values\":{\"expected_bucket_owner\":null,\"rule\":[{\"apply_server_side_encryption_by_default\":[{\"kms_master_key_id\":\"\",\"sse_algorithm\":\"AES256\"}],\"bucket_key_enabled\":true}]},\"sensitive_values\":{\"rule\":[{\"apply_server_side_encryption_by_default\":[{}]}]}},{\"address\":\"aws_security_group.sg\",\"mode\":\"managed\",\"type\":\"aws_security_group\",\"name\":\"sg\",\"provider_name\":\"registry.terraform.io/hashicorp/aws\",\"schema_version\":1,\"values\":{\"description\":\"Managed by Terraform\",\"ingress\":[{\"cidr_blocks\":[\"0.0.0.0/0\"],\"description\":\"\",\"from_port\":80,\"ipv6_cidr_blocks\":[],\"prefix_list_ids\":[],\"protocol\":\"tcp\",\"security_groups\":[],\"self\":false,\"to_port\":80}],\"name\":\"sg\",\"revoke_rules_on_delete\":false,\"tags\":{\"Name\":\"blah\"},\"tags_all\":{\"Name\":\"blah\"},\"timeouts\":null},\"sensitive_values\":{\"egress\":[],\"ingress\":[{\"cidr_blocks\":[false],\"ipv6_cidr_blocks\":[],\"prefix_list_ids\":[],\"security_groups\":[]}],\"tags\":{},\"tags_all\":{}}}]}},\"resource_changes\":[{\"address\":\"aws_s3_bucket.planbucket\",\"...\n\n/work/pkg/iac/scanners/terraform/parser/funcs/ip.go:\n  Line 63: const IPv6len = stdnet.IPv6len\n\n  Line 104: // parseIPv6 parses s as a literal IPv6 address described in RFC 4291\n\n  Line 106: func parseIPv6(s string) (ip IP) {\n\n  Line 107: \tip = make(IP, IPv6len)\n\n  Line 122: \tfor i < IPv6len {\n\n  Line 131: \t\t\tif ellipsis < 0 && i != IPv6len-IPv4len {\n\n  Line 135: \t\t\tif i+IPv4len > IPv6len {\n\n  Line 188: \tif i < IPv6len {\n\n  Line 192: \t\tn := IPv6len - i\n\n  Line 207: // The string s can be in IPv4 dotted decimal (\"192.0.2.1\"), IPv6\n\n  Line 208: // (\"2001:db8::68\"), or IPv4-mapped IPv6 (\"::ffff:192.0.2.1\") form.\n\n  Line 217: \t\t\treturn parseIPv6(s)\n\n  Line 240: \t\tiplen = IPv6len\n\n  Line 241: \t\tip = parseIPv6(addr)\n\n\n/work/pkg/iac/scanners/terraform/parser/funcs/cidr.go:\n  Line 66: \t\t\treturn cty.UnknownVal(cty.String), fmt.Errorf(\"IPv6 addresses cannot have a netmask: %s\", args[0].AsString())\n\n  Line 164: \t\t\t// (Of course, this is significant only for IPv6.)\n\n  Line 175: \t\t\t\t\tprotocol = \"IPv6\"\n",
+            "metadata": {
+              "matches": 74,
+              "truncated": false
+            },
+            "title": "ipv6|IPV6|IPv6|ip6|IP6",
+            "time": {
+              "start": 1791799815208,
+              "end": 1791799816671
+            }
+          },
+          "id": "prt_12f976c24001OWta3buZtLb6ch",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9748f2001Oy6OSBXF3noOCD"
+        },
+        {
+          "reason": "tool-calls",
+          "type": "step-finish",
+          "tokens": {
+            "total": 21076,
+            "input": 20709,
+            "output": 119,
+            "reasoning": 248,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0,
+          "id": "prt_12f9771e10012HAwtuKJ1Vljga",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9748f2001Oy6OSBXF3noOCD"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_12f972137001753ownqIN3qQZX",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/work",
+          "root": "/"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 28650,
+          "input": 28296,
+          "output": 136,
+          "reasoning": 218,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "Qwen/Qwen3.6-35B-A3B",
+        "providerID": "custom-openai",
+        "time": {
+          "created": 1791799816678,
+          "completed": 1791799822145
+        },
+        "finish": "tool-calls",
+        "id": "msg_12f9771e6001HgJkMv6m6rQRVe",
+        "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "id": "prt_12f9783e70011utrjHDC456Hh1",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9771e6001HgJkMv6m6rQRVe"
+        },
+        {
+          "type": "reasoning",
+          "text": "Now I need to understand more about CVE-2024-32473. Let me look at what the actual vulnerability is - \"IPv6 enabled on IPv4-only network interfaces in github.com/docker/docker\". I need to understand what this means and whether it could affect Trivy.\n\nLet me also check if there are any network-related configurations or usages in Trivy that might relate to the vulnerability. Trivy uses docker/docker as a dependency for connecting to Docker Engine to scan images.\n\nThe vulnerability is about Docker itself - specifically, when Docker creates containers/networks on IPv4-only interfaces, it enables IPv6 anyway (or creates IPv6 network interfaces). This is about Docker's network creation behavior.\n\nBut Trivy just uses the Docker client to inspect/save images from a Docker daemon - it doesn't create networks or containers. The vulnerable code path would be in Docker daemon code for creating networks with IPv6 on IPv4-only bridges.\n\nLet me search more to understand how Trivy uses the Docker client and whether it touches network-related code.\n",
+          "time": {
+            "start": 1791799821292,
+            "end": 1791799821303
+          },
+          "id": "prt_12f9783ec001NAc9jI93fvth7z",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9771e6001HgJkMv6m6rQRVe"
+        },
+        {
+          "type": "tool",
+          "tool": "grep",
+          "callID": "chatcmpl-tool-9eafb8d2b4b984c3",
+          "state": {
+            "status": "completed",
+            "input": {
+              "path": "/work",
+              "include": "*.go",
+              "pattern": "Network.*Create|network.*create|NetworkConnect|NetworkDisconnect|bridge|NetworkConfig"
+            },
+            "output": "Found 5 matches\n/work/pkg/iac/scanners/azure/arm/parser/parser_test.go:\n  Line 141: \t\t\t\tnetworkACLListMetadata := createMetadata(targetFS, filename, 34, 41, \"resources[0].properties.networkAcls\", &propertiesMetadata)\n\n  Line 143: \t\t\t\tnetworkACL0Metadata := createMetadata(targetFS, filename, 35, 37, \"resources[0].properties.networkAcls[0]\", &networkACLListMetadata)\n\n  Line 144: \t\t\t\tnetworkACL1Metadata := createMetadata(targetFS, filename, 38, 40, \"resources[0].properties.networkAcls[1]\", &networkACLListMetadata)\n\n\n/work/pkg/iac/providers/aws/iam/actions.go:\n  Line 1558: \t\"discovery:GetNetworkConnectionGraph\": {},\n\n\n/work/pkg/iac/adapters/terraform/google/iam/projects.go:\n  Line 39: \t\tproject.project.AutoCreateNetwork = autoCreateNetworkAttr.AsBoolValueOrDefault(true, projectBlock)\n",
+            "metadata": {
+              "matches": 5,
+              "truncated": false
+            },
+            "title": "Network.*Create|network.*create|NetworkConnect|NetworkDisconnect|bridge|NetworkConfig",
+            "time": {
+              "start": 1791799821308,
+              "end": 1791799822141
+            }
+          },
+          "id": "prt_12f9783f8002KZgh7zAuMr0iGR",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9771e6001HgJkMv6m6rQRVe"
+        },
+        {
+          "type": "tool",
+          "tool": "glob",
+          "callID": "chatcmpl-tool-995fd3c796c4f417",
+          "state": {
+            "status": "completed",
+            "input": {
+              "path": "/work",
+              "pattern": "**/docker*.go"
+            },
+            "output": "/work/integration/docker_engine_test.go\n/work/pkg/fanal/image/daemon/docker_test.go\n/work/pkg/fanal/image/daemon/docker.go\n/work/pkg/fanal/image/docker.go\n/work/pkg/fanal/analyzer/buildinfo/dockerfile_test.go\n/work/pkg/fanal/analyzer/buildinfo/dockerfile.go\n/work/pkg/fanal/test/integration/docker/docker.go\n/work/pkg/fanal/analyzer/config/dockerfile/docker_test.go\n/work/pkg/fanal/analyzer/config/dockerfile/docker.go\n/work/pkg/fanal/analyzer/imgconf/dockerfile/dockerfile_test.go\n/work/pkg/fanal/analyzer/imgconf/dockerfile/dockerfile.go\n/work/pkg/fanal/applier/docker_test.go\n/work/pkg/fanal/applier/docker.go\n/work/pkg/iac/providers/dockerfile/dockerfile.go",
+            "metadata": {
+              "count": 14,
+              "truncated": false
+            },
+            "title": "work",
+            "time": {
+              "start": 1791799821313,
+              "end": 1791799822060
+            }
+          },
+          "id": "prt_12f9783fe001ps1Z6M2jHGOpf0",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9771e6001HgJkMv6m6rQRVe"
+        },
+        {
+          "type": "tool",
+          "tool": "read",
+          "callID": "chatcmpl-tool-9c5d5c51f46bf8b1",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/work/cmd"
+            },
+            "output": "<path>/work/cmd</path>\n<type>directory</type>\n<entries>\ntrivy/\n\n(1 entries)\n</entries>",
+            "metadata": {
+              "preview": "trivy/",
+              "truncated": false,
+              "loaded": []
+            },
+            "title": "work/cmd",
+            "time": {
+              "start": 1791799821318,
+              "end": 1791799821325
+            }
+          },
+          "id": "prt_12f978402001GMgP9In0V0Kk24",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9771e6001HgJkMv6m6rQRVe"
+        },
+        {
+          "reason": "tool-calls",
+          "type": "step-finish",
+          "tokens": {
+            "total": 28650,
+            "input": 28296,
+            "output": 136,
+            "reasoning": 218,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0,
+          "id": "prt_12f97873f001fuJVXzj9rIk2Gw",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f9771e6001HgJkMv6m6rQRVe"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_12f972137001753ownqIN3qQZX",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/work",
+          "root": "/"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 29592,
+          "input": 29096,
+          "output": 162,
+          "reasoning": 334,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "Qwen/Qwen3.6-35B-A3B",
+        "providerID": "custom-openai",
+        "time": {
+          "created": 1791799822148,
+          "completed": 1791799828016
+        },
+        "finish": "tool-calls",
+        "id": "msg_12f978744001Bribp5iFGUBL7K",
+        "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "id": "prt_12f979842001HiZqlxH4ZibLYW",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f978744001Bribp5iFGUBL7K"
+        },
+        {
+          "type": "reasoning",
+          "text": "Let me understand the CVE better. CVE-2024-32473 / GO-2024-2737 is about \"IPv6 enabled on IPv4-only network interfaces in github.com/docker/docker\". The advisory mentions the docker/docker module specifically.\n\nThe vulnerability affects github.com/docker/docker versions >= 26.0.0 and < 26.0.2.\n\nLooking at the Trivy codebase:\n1. Trivy uses `github.com/docker/docker v26.0.1+incompatible` (line 45 of go.mod) - this IS in the affected range\n2. Trivy imports the Docker client primarily through `pkg/fanal/image/daemon/docker.go` to connect to Docker daemon for image scanning\n3. The imports used are `github.com/docker/docker/client` for creating the Docker API client\n4. The operations performed are primarily `ImageInspectWithRaw` and `ImageHistory` and `ImageSave`\n   \nThe vulnerability centers on Docker's network layer when creating networks—specifically, IPv6 gets enabled on interfaces that should be IPv4-only. This isn't something Trivy's code touches since it's focused on image operations like inspecting and saving, not network creation or manipulation.\n\nI need to determine whether this CVE actually applies to Trivy since the affected code lives inside the docker/docker module. While Trivy depends on that module, the vulnerable network code doesn't appear to be invoked through Trivy's actual attack surface. Let me double-check if there are any network-related APIs being used that might trigger this code path.\n",
+          "time": {
+            "start": 1791799826500,
+            "end": 1791799826522
+          },
+          "id": "prt_12f979844001TYB5UK8lZc8p7j",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f978744001Bribp5iFGUBL7K"
+        },
+        {
+          "type": "tool",
+          "tool": "grep",
+          "callID": "chatcmpl-tool-b563f7029176d9f5",
+          "state": {
+            "status": "completed",
+            "input": {
+              "path": "/work",
+              "include": "*.go",
+              "pattern": "\"github.com/docker/docker/client\""
+            },
+            "output": "Found 5 matches\n/work/integration/docker_engine_test.go:\n  Line 15: \t\"github.com/docker/docker/client\"\n\n\n/work/pkg/fanal/test/integration/registry_test.go:\n  Line 16: \t\"github.com/docker/docker/client\"\n\n\n/work/pkg/fanal/test/integration/library_test.go:\n  Line 17: \t\"github.com/docker/docker/client\"\n\n\n/work/pkg/fanal/test/integration/docker/docker.go:\n  Line 15: \t\"github.com/docker/docker/client\"\n\n\n/work/pkg/fanal/image/daemon/docker.go:\n  Line 7: \t\"github.com/docker/docker/client\"\n",
+            "metadata": {
+              "matches": 5,
+              "truncated": false
+            },
+            "title": "\"github.com/docker/docker/client\"",
+            "time": {
+              "start": 1791799826532,
+              "end": 1791799828012
+            }
+          },
+          "id": "prt_12f97985c001hiJT4TyhfAIrQ5",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f978744001Bribp5iFGUBL7K"
+        },
+        {
+          "type": "tool",
+          "tool": "grep",
+          "callID": "chatcmpl-tool-b53936973ec3f0a9",
+          "state": {
+            "status": "completed",
+            "input": {
+              "path": "/work",
+              "include": "*.go",
+              "pattern": "ContainerCreate|NetworkCreate|VolumeCreate|SecretCreate|ConfigCreate"
+            },
+            "output": "No files found",
+            "metadata": {
+              "matches": 0,
+              "truncated": false
+            },
+            "title": "ContainerCreate|NetworkCreate|VolumeCreate|SecretCreate|ConfigCreate",
+            "time": {
+              "start": 1791799826541,
+              "end": 1791799828009
+            }
+          },
+          "id": "prt_12f979866001yHmPs0n5UdhLkt",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f978744001Bribp5iFGUBL7K"
+        },
+        {
+          "type": "tool",
+          "tool": "glob",
+          "callID": "chatcmpl-tool-9997e3e8793769de",
+          "state": {
+            "status": "completed",
+            "input": {
+              "path": "/work/integration",
+              "pattern": "**/*docker*"
+            },
+            "output": "/work/integration/docker_engine_test.go\n/work/integration/testdata/dockerfile-rule-exception.json.golden\n/work/integration/testdata/dockerfile.json.golden\n/work/integration/testdata/dockerfile_file_pattern.json.golden\n/work/integration/testdata/dockerfile-custom-policies.json.golden\n/work/integration/testdata/dockerfile-namespace-exception.json.golden",
+            "metadata": {
+              "count": 6,
+              "truncated": false
+            },
+            "title": "work/integration",
+            "time": {
+              "start": 1791799826547,
+              "end": 1791799826806
+            }
+          },
+          "id": "prt_12f97986f001pMgjshHpByIiXh",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f978744001Bribp5iFGUBL7K"
+        },
+        {
+          "reason": "tool-calls",
+          "type": "step-finish",
+          "tokens": {
+            "total": 29592,
+            "input": 29096,
+            "output": 162,
+            "reasoning": 334,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0,
+          "id": "prt_12f979e2e001FX8VSiCC7gz6LV",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f978744001Bribp5iFGUBL7K"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_12f972137001753ownqIN3qQZX",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/work",
+          "root": "/"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 29944,
+          "input": 29829,
+          "output": 53,
+          "reasoning": 62,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "Qwen/Qwen3.6-35B-A3B",
+        "providerID": "custom-openai",
+        "time": {
+          "created": 1791799828018,
+          "completed": 1791799834483
+        },
+        "finish": "tool-calls",
+        "id": "msg_12f979e32001SL70D2hfDl4RQi",
+        "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "id": "prt_12f97b4af001dx14JWi7HTBcb8",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f979e32001SL70D2hfDl4RQi"
+        },
+        {
+          "type": "reasoning",
+          "text": "Good - Trivy does NOT call ContainerCreate, NetworkCreate, or any of the create APIs. The docker client methods it uses are for image operations. Let me verify by looking at the actual docker client usage more closely.\n\nLet me check the docker client usages to see what methods are called.\n",
+          "time": {
+            "start": 1791799833777,
+            "end": 1791799833782
+          },
+          "id": "prt_12f97b4b10012ovNjd0SIevoOi",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f979e32001SL70D2hfDl4RQi"
+        },
+        {
+          "type": "tool",
+          "tool": "grep",
+          "callID": "chatcmpl-tool-85802ceb17280253",
+          "state": {
+            "status": "completed",
+            "input": {
+              "path": "/work",
+              "include": "*.go",
+              "pattern": "c\\."
+            },
+            "output": "Found 1170 matches (showing first 100)\n/work/pkg/remote/remote.go:\n  Line 223: \timg, err := desc.Image()\n\n  Line 231: \tif !lo.FromPtr(c.Platform()).Satisfies(platform) {\n\n\n/work/pkg/oci/artifact.go:\n  Line 49: \tm          sync.Mutex\n\n  Line 160: \tdefer rc.Close()\n\n\n/work/pkg/version/version.go:\n  Line 56: \tmeta, err := mc.Get()\n\n  Line 89: \t\tpbMetaRaw, err := pc.GetMetadata()\n\n\n/work/pkg/log/handler.go:\n  Line 29: \tmu           *sync.Mutex\n\n  Line 43: \t\tmu:  &sync.Mutex{},\n\n  Line 286: var bufPool = sync.Pool{\n\n\n/work/pkg/flag/remote_flags.go:\n  Line 45: // used for commands requiring reporting logic.\n\n\n/work/pkg/sbom/cyclonedx/marshal_test.go:\n  Line 120: \t\t\t\t\t\t\t\tPrimaryURL:     \"https://avd.aquasec.com/nvd/cve-2018-20623\",\n\n  Line 648: \t\t\t\t\t\t\t\tURL: \"https://avd.aquasec.com/nvd/cve-2018-20623\",\n\n  Line 821: \t\t\t\t\t\t\t\tPrimaryURL:       \"https://avd.aquasec.com/nvd/cve-2022-23633\",\n\n  Line 871: \t\t\t\t\t\t\t\tPrimaryURL:       \"https://avd.aquasec.com/nvd/cve-2022-23633\",\n\n  Line 1192: \t\t\t\t\t\t\t\tURL: \"https://avd.aquasec.com/nvd/cve-2022-23633\",\n\n  Line 1488: \t\t\t\t\t\t\t\tPrimaryURL:       \"https://avd.aquasec.com/nvd/cve-2022-42003\",\n\n  Line 1592: \t\t\t\t\t\t\t\tURL: \"https://avd.aquasec.com/nvd/cve-2022-42003\",\n\n  Line 1682: \t\t\t\t\t\t\t\tPrimaryURL:       \"https://avd.aquasec.com/nvd/cve-2023-34468\",\n\n  Line 1732: \t\t\t\t\t\t\t\tPrimaryURL:       \"https://avd.aquasec.com/nvd/cve-2023-34468\",\n\n  Line 1889: \t\t\t\t\t\t\t\tURL: \"https://avd.aquasec.com/nvd/cve-2023-34468\",\n\n\n/work/pkg/purl/purl_test.go:\n  Line 412: \t\tt.Run(tc.name, func(t *testing.T) {\n\n  Line 413: \t\t\tpackageURL, err := purl.New(tc.typ, tc.metadata, tc.pkg)\n\n  Line 414: \t\t\tif tc.wantErr != \"\" {\n\n  Line 416: \t\t\t\tassert.Contains(t, err.Error(), tc.wantErr)\n\n  Line 420: \t\t\tassert.Equal(t, tc.want, packageURL, tc.name)\n\n  Line 531: \t\tt.Run(tc.name, func(t *testing.T) {\n\n  Line 532: \t\t\tpkg, err := purl.FromString(tc.purl)\n\n  Line 533: \t\t\tif tc.wantErr != \"\" {\n\n  Line 534: \t\t\t\tassert.ErrorContains(t, err, tc.wantErr)\n\n  Line 538: \t\t\tassert.Equal(t, tc.want, *pkg, tc.name)\n\n  Line 833: \t\t\tassert.Equalf(t, tt.want, c.Match(p.Unwrap()), \"Match()\")\n\n\n/work/pkg/sbom/cyclonedx/unmarshal.go:\n  Line 125: \tcomponentType, err := b.unmarshalType(c.Type)\n\n  Line 132: \tif c.PackageURL != \"\" {\n\n  Line 133: \t\tpurl, err = packageurl.FromString(c.PackageURL)\n\n  Line 141: \t\tName:     c.Name,\n\n  Line 142: \t\tGroup:    c.Group,\n\n  Line 143: \t\tVersion:  c.Version,\n\n  Line 144: \t\tLicenses: b.unmarshalLicenses(c.Licenses),\n\n  Line 147: \t\t\t\tDigests: b.unmarshalHashes(c.Hashes),\n\n  Line 152: \t\t\tBOMRef: c.BOMRef,\n\n  Line 154: \t\tSupplier:   b.unmarshalSupplier(c.Supplier),\n\n  Line 155: \t\tProperties: b.unmarshalProperties(c.Properties),\n\n  Line 245: \tif c == nil || c.Metadata == nil || c.Metadata.Tools == nil {\n\n  Line 249: \tfor _, component := range lo.FromPtr(c.Metadata.Tools.Components) {\n\n  Line 257: \tfor _, tool := range lo.FromPtr(c.Metadata.Tools.Tools) {\n\n\n/work/pkg/flag/report_flags.go:\n  Line 112: // used for commands requiring reporting logic.\n\n  Line 143: \tCompliance       spec.ComplianceSpec\n\n  Line 263: func loadComplianceTypes(compliance string) (spec.ComplianceSpec, error) {\n\n  Line 265: \t\treturn spec.ComplianceSpec{}, xerrors.Errorf(\"unknown compliance : %v\", compliance)\n\n  Line 268: \tcs, err := spec.GetComplianceSpec(compliance)\n\n  Line 270: \t\treturn spec.ComplianceSpec{}, xerrors.Errorf(\"spec loading from file system error: %w\", err)\n\n\n/work/pkg/db/db_test.go:\n  Line 25: const mediaType = \"application/vnd.aquasec.trivy.db.layer.v1.tar+gzip\"\n\n  Line 208: \t\t\t\t\t\tMediaType: \"application/vnd.aquasec.trivy.db.layer.v1.tar+gzip\",\n\n\n/work/cmd/trivy/main.go:\n  Line 15: \t_ \"modernc.org/sqlite\" // sqlite driver for RPM DB and Java DB\n\n\n/work/pkg/db/db.go:\n  Line 23: \tdbMediaType   = \"application/vnd.aquasec.trivy.db.layer.v1.tar+gzip\"\n\n  Line 97: \tmeta, err := c.metadata.Get()\n\n  Line 115: \t\tif err = c.validate(meta); err != nil {\n\n  Line 127: \treturn !c.isNewDB(meta), nil\n\n  Line 140: \tif c.clock.Now().Before(meta.NextUpdate) {\n\n  Line 145: \tif c.clock.Now().Before(meta.DownloadedAt.Add(time.Hour)) {\n\n  Line 155: \tif err := c.metadata.Delete(); err != nil {\n\n  Line 159: \tart, err := c.initOCIArtifact(opt)\n\n  Line 168: \tif err = c.updateDownloadedAt(dst); err != nil {\n\n  Line 185: \tmeta.DownloadedAt = c.clock.Now().UTC()\n\n  Line 194: \tif c.artifact != nil {\n\n  Line 195: \t\treturn c.artifact, nil\n\n  Line 198: \tart, err := oci.NewArtifact(c.dbRepository.String(), c.quiet, opt)\n\n  Line 204: \t\t\t\tif diagnostic.Code == transport.DeniedErrorCode || diagnostic.Code == transport.UnauthorizedErrorCode {\n\n\n/work/pkg/iac/ignore/rule_test.go:\n  Line 309: \t\tt.Run(tc.input+\":\"+tc.pattern, func(t *testing.T) {\n\n  Line 310: \t\t\tgot := ignore.MatchPattern(tc.input, tc.pattern)\n\n  Line 311: \t\t\tassert.Equal(t, tc.expected, got)\n\n\n/work/pkg/flag/cache_flags_test.go:\n  Line 157: \t\t\tassert.Equal(t, tt.want, c.CacheBackendMasked())\n\n\n/work/pkg/dbtest/db.go:\n  Line 55: \terr = metac.Update(meta)\n\n\n/work/pkg/iac/detection/detect_test.go:\n  Line 332: \t\t\tr: strings.NewReader(`apiVersion: rbac.authorization.k8s.io/v1\n\n  Line 336:     rbac.authorization.kubernetes.io/autoupdate: \"true\"\n\n  Line 339:     rbac.authorization.k8s.io/aggregate-to-edit: \"true\"\n\n\n/work/pkg/flag/aws_flags.go:\n  Line 17: \t\tUsage:      \"Only scan AWS Service(s) specified with this flag. Can specify multiple services using --service A --service B etc.\",\n\n  Line 22: \t\tUsage:      \"Skip selected AWS Service(s) specified with this flag. Can specify multiple services using --skip-service A --skip-service B etc.\",\n\n\n/work/pkg/flag/cache_flags.go:\n  Line 60: // CacheFlagGroup composes common printer flag structs used for commands requiring cache logic.\n\n\n/work/pkg/iac/scan/highlighting.go:\n  Line 16: \tsync.RWMutex\n\n  Line 21: \tc.RLock()\n\n  Line 22: \tdefer c.RUnlock()\n\n  Line 23: \tdata, ok := c.data[key]\n\n  Line 28: \tc.Lock()\n\n  Line 29: \tdefer c.Unlock()\n\n  Line 30: \tc.data[key] = data\n\n\n/work/pkg/flag/db_flags.go:\n  Line 71: // DBFlagGroup composes common printer flag structs used for commands requiring DB logic.\n\n\n/work/pkg/policy/policy.go:\n  Line 93: \tif c.artifact == nil {\n\n  Line 94: \t\tlog.Debug(\"Loading check bundle\", log.String(\"repository\", c.checkBundleRepo))\n\n  Line 95: \t\tart, err := oci.NewArtifact(c.checkBundleRepo, c.quiet, registryOpts)\n\n  Line 99: \t\tc.artifact = art\n\n  Line 106: \tif err := c.populateOCIArtifact(registryOpts); err != nil {\n\n  Line 110: \tdst := c.contentDir()\n\n  Line 111: \tif err := c.artifact.Download(ctx, dst, oci.DownloadOption{MediaType: policyMediaType}); err != nil {\n\n  Line 115: \tdigest, err := c.artifact.Digest(ctx)\n\n  Line 122: \tif err = c.updateMetadata(digest, c.clock.Now()); err != nil {\n\n  Line 131: \tf, err := os.Open(c.manifestPath())\n\n  Line 133: \t\treturn nil, xerrors.Errorf(\"manifest file open error (%s): %w\", c.manifestPath(), err)\n\n  Line 139: \t\treturn nil, xerrors.Errorf(\"json decode error (%s): %w\", c.manifestPath(), err)\n\n  Line 145: \t\treturn []string{c.contentDir()}, nil\n\n\n(Results truncated: showing 100 of 1170 matches (1070 hidden). Consider using a more specific path or pattern.)",
+            "metadata": {
+              "matches": 1170,
+              "truncated": true
+            },
+            "title": "c\\.",
+            "time": {
+              "start": 1791799833788,
+              "end": 1791799834479
+            }
+          },
+          "id": "prt_12f97b4b7002AgBr26GOZTttGG",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f979e32001SL70D2hfDl4RQi"
+        },
+        {
+          "reason": "tool-calls",
+          "type": "step-finish",
+          "tokens": {
+            "total": 29944,
+            "input": 29829,
+            "output": 53,
+            "reasoning": 62,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0,
+          "id": "prt_12f97b771001W8K5TWiOpGVNF9",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f979e32001SL70D2hfDl4RQi"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_12f972137001753ownqIN3qQZX",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/work",
+          "root": "/"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 32594,
+          "input": 32501,
+          "output": 64,
+          "reasoning": 29,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "Qwen/Qwen3.6-35B-A3B",
+        "providerID": "custom-openai",
+        "time": {
+          "created": 1791799834485,
+          "completed": 1791799839793
+        },
+        "finish": "tool-calls",
+        "id": "msg_12f97b775001EK1662tvF5eE0k",
+        "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "id": "prt_12f97c9dc001uzMGgJa5aaJUFx",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97b775001EK1662tvF5eE0k"
+        },
+        {
+          "type": "reasoning",
+          "text": "Let me check the specific docker client usage in Trivy to confirm that Trivy only uses image-related APIs and not network/container-related ones.\n",
+          "time": {
+            "start": 1791799839199,
+            "end": 1791799839204
+          },
+          "id": "prt_12f97c9df001txKzHrBU68L1CI",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97b775001EK1662tvF5eE0k"
+        },
+        {
+          "type": "tool",
+          "tool": "grep",
+          "callID": "chatcmpl-tool-8b161140483e69d6",
+          "state": {
+            "status": "completed",
+            "input": {
+              "path": "/work",
+              "include": "*.go",
+              "pattern": "ImageInspect|ImageSave|ImageHistory|ImageInspectWithRaw"
+            },
+            "output": "Found 18 matches\n/work/pkg/fanal/image/daemon/image.go:\n  Line 60: // To avoid entire loading, this wrapper uses ImageInspectWithRaw and checks image ID and layer IDs.\n\n  Line 64: \tinspect types.ImageInspect\n\n\n/work/pkg/fanal/image/daemon/docker_test.go:\n  Line 17: \t\tinspect types.ImageInspect\n\n\n/work/pkg/fanal/image/daemon/image_test.go:\n  Line 275: \t\t\tname:      \"ImageSave returns 404\",\n\n\n/work/pkg/fanal/image/daemon/podman.go:\n  Line 55: func (p podmanClient) imageInspect(imageName string) (api.ImageInspect, error) {\n\n  Line 59: \t\treturn api.ImageInspect{}, xerrors.Errorf(\"http error: %w\", err)\n\n  Line 66: \t\t\treturn api.ImageInspect{}, xerrors.Errorf(\"unknown status code from Podman: %d\", resp.StatusCode)\n\n  Line 68: \t\treturn api.ImageInspect{}, xerrors.New(res.Message)\n\n  Line 71: \tvar inspect api.ImageInspect\n\n  Line 73: \t\treturn api.ImageInspect{}, xerrors.Errorf(\"unable to decode JSON: %w\", err)\n\n\n/work/pkg/fanal/image/daemon/podman_test.go:\n  Line 52: \t\tinspect types.ImageInspect\n\n\n/work/pkg/fanal/image/daemon/docker.go:\n  Line 40: \tinspect, _, err := c.ImageInspectWithRaw(context.Background(), imageID)\n\n  Line 43: \t\tinspect, _, err = c.ImageInspectWithRaw(context.Background(), imageID)\n\n  Line 49: \thistory, err := c.ImageHistory(context.Background(), imageID)\n\n  Line 66: \t\topener:  imageOpener(context.Background(), imageID, f, c.ImageSave),\n\n\n/work/pkg/fanal/image/daemon/containerd.go:\n  Line 214: func inspect(ctx context.Context, img containerd.Image, ref refdocker.Reference) (api.ImageInspect, []v1.History, refdocker.Reference, error) {\n\n  Line 231: \t\treturn api.ImageInspect{}, nil, nil, err\n\n  Line 260: \treturn api.ImageInspect{\n",
+            "metadata": {
+              "matches": 18,
+              "truncated": false
+            },
+            "title": "ImageInspect|ImageSave|ImageHistory|ImageInspectWithRaw",
+            "time": {
+              "start": 1791799839212,
+              "end": 1791799839785
+            }
+          },
+          "id": "prt_12f97c9e60012VglpNJKrITUeG",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97b775001EK1662tvF5eE0k"
+        },
+        {
+          "reason": "tool-calls",
+          "type": "step-finish",
+          "tokens": {
+            "total": 32594,
+            "input": 32501,
+            "output": 64,
+            "reasoning": 29,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0,
+          "id": "prt_12f97cc2c0012YOqEj638cWye3",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97b775001EK1662tvF5eE0k"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_12f972137001753ownqIN3qQZX",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/work",
+          "root": "/"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 33331,
+          "input": 33103,
+          "output": 33,
+          "reasoning": 195,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "Qwen/Qwen3.6-35B-A3B",
+        "providerID": "custom-openai",
+        "time": {
+          "created": 1791799839796,
+          "completed": 1791799842837
+        },
+        "finish": "tool-calls",
+        "id": "msg_12f97cc34001gkJqMPYpG2ukNZ",
+        "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "id": "prt_12f97d7e4001xl90ikcWMm22Qw",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97cc34001gkJqMPYpG2ukNZ"
+        },
+        {
+          "type": "reasoning",
+          "text": "I now have a clear picture. Trivy uses `github.com/docker/docker` through the Docker client for:\n1. `ImageInspectWithRaw` - to get image metadata\n2. `ImageHistory` - to get image build history\n3. `ImageSave` - to export an image as a tarball\n\nThese are all read-only image operations. The CVE-2024-32473 is about \"IPv6 enabled on IPv4-only network interfaces\" which would be in Docker's network creation code (like `NetworkCreate` calls).\n\nSince Trivy doesn't create networks, containers, volumes, or any Docker resources that would trigger IPv6-related code in docker/docker, the vulnerable code path is NOT reachable from Trivy's product code.\n\nThis maps to `code_not_reachable` (category 3).\n\nLet me also double-check the integration tests to see if any of them might trigger network creation...\n",
+          "time": {
+            "start": 1791799842789,
+            "end": 1791799842804
+          },
+          "id": "prt_12f97d7e5001r5K1Gx1rwIRr2Q",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97cc34001gkJqMPYpG2ukNZ"
+        },
+        {
+          "type": "tool",
+          "tool": "read",
+          "callID": "chatcmpl-tool-a0f6aff351782876",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/work/integration/docker_engine_test.go"
+            },
+            "output": "<path>/work/integration/docker_engine_test.go</path>\n<type>file</type>\n<content>\n1: //go:build integration\n2: // +build integration\n3: \n4: package integration\n5: \n6: import (\n7: \t\"context\"\n8: \t\"github.com/aquasecurity/trivy/pkg/types\"\n9: \t\"io\"\n10: \t\"os\"\n11: \t\"strings\"\n12: \t\"testing\"\n13: \n14: \tapi \"github.com/docker/docker/api/types\"\n15: \t\"github.com/docker/docker/client\"\n16: \t\"github.com/stretchr/testify/assert\"\n17: \t\"github.com/stretchr/testify/require\"\n18: )\n19: \n20: func TestDockerEngine(t *testing.T) {\n21: \tif *update {\n22: \t\tt.Skipf(\"This test doesn't update golden files\")\n23: \t}\n24: \ttests := []struct {\n25: \t\tname          string\n26: \t\timageTag      string\n27: \t\tinvalidImage  bool\n28: \t\tignoreUnfixed bool\n29: \t\tignoreStatus  []string\n30: \t\tseverity      []string\n31: \t\tignoreIDs     []string\n32: \t\tinput         string\n33: \t\tgolden        string\n34: \t\twantErr       string\n35: \t}{\n36: \t\t{\n37: \t\t\tname:     \"alpine:3.9\",\n38: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:alpine-39\",\n39: \t\t\tinput:    \"testdata/fixtures/images/alpine-39.tar.gz\",\n40: \t\t\tgolden:   \"testdata/alpine-39.json.golden\",\n41: \t\t},\n42: \t\t{\n43: \t\t\tname: \"alpine:3.9, with high and critical severity\",\n44: \t\t\tseverity: []string{\n45: \t\t\t\t\"HIGH\",\n46: \t\t\t\t\"CRITICAL\",\n47: \t\t\t},\n48: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:alpine-39\",\n49: \t\t\tinput:    \"testdata/fixtures/images/alpine-39.tar.gz\",\n50: \t\t\tgolden:   \"testdata/alpine-39-high-critical.json.golden\",\n51: \t\t},\n52: \t\t{\n53: \t\t\tname:     \"alpine:3.9, with .trivyignore\",\n54: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:alpine-39\",\n55: \t\t\tignoreIDs: []string{\n56: \t\t\t\t\"CVE-2019-1549\",\n57: \t\t\t\t\"CVE-2019-14697\",\n58: \t\t\t},\n59: \t\t\tinput:  \"testdata/fixtures/images/alpine-39.tar.gz\",\n60: \t\t\tgolden: \"testdata/alpine-39-ignore-cveids.json.golden\",\n61: \t\t},\n62: \t\t{\n63: \t\t\tname:     \"alpine:3.10\",\n64: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:alpine-310\",\n65: \t\t\tinput:    \"testdata/fixtures/images/alpine-310.tar.gz\",\n66: \t\t\tgolden:   \"testdata/alpine-310.json.golden\",\n67: \t\t},\n68: \t\t{\n69: \t\t\tname:     \"amazonlinux:1\",\n70: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:amazon-1\",\n71: \t\t\tinput:    \"testdata/fixtures/images/amazon-1.tar.gz\",\n72: \t\t\tgolden:   \"testdata/amazon-1.json.golden\",\n73: \t\t},\n74: \t\t{\n75: \t\t\tname:     \"amazonlinux:2\",\n76: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:amazon-2\",\n77: \t\t\tinput:    \"testdata/fixtures/images/amazon-2.tar.gz\",\n78: \t\t\tgolden:   \"testdata/amazon-2.json.golden\",\n79: \t\t},\n80: \t\t{\n81: \t\t\tname:     \"almalinux 8\",\n82: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:almalinux-8\",\n83: \t\t\tinput:    \"testdata/fixtures/images/almalinux-8.tar.gz\",\n84: \t\t\tgolden:   \"testdata/almalinux-8.json.golden\",\n85: \t\t},\n86: \t\t{\n87: \t\t\tname:     \"rocky linux 8\",\n88: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:rockylinux-8\",\n89: \t\t\tinput:    \"testdata/fixtures/images/rockylinux-8.tar.gz\",\n90: \t\t\tgolden:   \"testdata/rockylinux-8.json.golden\",\n91: \t\t},\n92: \t\t{\n93: \t\t\tname:     \"centos 6\",\n94: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:centos-6\",\n95: \t\t\tinput:    \"testdata/fixtures/images/centos-6.tar.gz\",\n96: \t\t\tgolden:   \"testdata/centos-6.json.golden\",\n97: \t\t},\n98: \t\t{\n99: \t\t\tname:     \"centos 7\",\n100: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:centos-7\",\n101: \t\t\tinput:    \"testdata/fixtures/images/centos-7.tar.gz\",\n102: \t\t\tgolden:   \"testdata/centos-7.json.golden\",\n103: \t\t},\n104: \t\t{\n105: \t\t\tname:          \"centos 7, with --ignore-unfixed option\",\n106: \t\t\timageTag:      \"ghcr.io/aquasecurity/trivy-test-images:centos-7\",\n107: \t\t\tignoreUnfixed: true,\n108: \t\t\tinput:         \"testdata/fixtures/images/centos-7.tar.gz\",\n109: \t\t\tgolden:        \"testdata/centos-7-ignore-unfixed.json.golden\",\n110: \t\t},\n111: \t\t{\n112: \t\t\tname:         \"centos 7, with --ignore-status option\",\n113: \t\t\timageTag:     \"ghcr.io/aquasecurity/trivy-test-images:centos-7\",\n114: \t\t\tignoreStatus: []string{\"will_not_fix\"},\n115: \t\t\tinput:        \"testdata/fixtures/images/centos-7.tar.gz\",\n116: \t\t\tgolden:       \"testdata/centos-7-ignore-unfixed.json.golden\",\n117: \t\t},\n118: \t\t{\n119: \t\t\tname:          \"centos 7, with --ignore-unfixed option, with medium severity\",\n120: \t\t\timageTag:      \"ghcr.io/aquasecurity/trivy-test-images:centos-7\",\n121: \t\t\tignoreUnfixed: true,\n122: \t\t\tseverity:      []string{\"MEDIUM\"},\n123: \t\t\tinput:         \"testdata/fixtures/images/centos-7.tar.gz\",\n124: \t\t\tgolden:        \"testdata/centos-7-medium.json.golden\",\n125: \t\t},\n126: \t\t{\n127: \t\t\tname:     \"registry.redhat.io/ubi7\",\n128: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:ubi-7\",\n129: \t\t\tinput:    \"testdata/fixtures/images/ubi-7.tar.gz\",\n130: \t\t\tgolden:   \"testdata/ubi-7.json.golden\",\n131: \t\t},\n132: \t\t{\n133: \t\t\tname:     \"debian buster/10\",\n134: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:debian-buster\",\n135: \t\t\tinput:    \"testdata/fixtures/images/debian-buster.tar.gz\",\n136: \t\t\tgolden:   \"testdata/debian-buster.json.golden\",\n137: \t\t},\n138: \t\t{\n139: \t\t\tname:          \"debian buster/10, with --ignore-unfixed option\",\n140: \t\t\tignoreUnfixed: true,\n141: \t\t\timageTag:      \"ghcr.io/aquasecurity/trivy-test-images:debian-buster\",\n142: \t\t\tinput:         \"testdata/fixtures/images/debian-buster.tar.gz\",\n143: \t\t\tgolden:        \"testdata/debian-buster-ignore-unfixed.json.golden\",\n144: \t\t},\n145: \t\t{\n146: \t\t\tname:         \"debian buster/10, with --ignore-status option\",\n147: \t\t\tignoreStatus: []string{\"affected\"},\n148: \t\t\timageTag:     \"ghcr.io/aquasecurity/trivy-test-images:debian-buster\",\n149: \t\t\tinput:        \"testdata/fixtures/images/debian-buster.tar.gz\",\n150: \t\t\tgolden:       \"testdata/debian-buster-ignore-unfixed.json.golden\",\n151: \t\t},\n152: \t\t{\n153: \t\t\tname:     \"debian stretch/9\",\n154: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:debian-stretch\",\n155: \t\t\tinput:    \"testdata/fixtures/images/debian-stretch.tar.gz\",\n156: \t\t\tgolden:   \"testdata/debian-stretch.json.golden\",\n157: \t\t},\n158: \t\t{\n159: \t\t\tname:     \"distroless base\",\n160: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:distroless-base\",\n161: \t\t\tinput:    \"testdata/fixtures/images/distroless-base.tar.gz\",\n162: \t\t\tgolden:   \"testdata/distroless-base.json.golden\",\n163: \t\t},\n164: \t\t{\n165: \t\t\tname:     \"distroless python2.7\",\n166: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:distroless-python27\",\n167: \t\t\tinput:    \"testdata/fixtures/images/distroless-python27.tar.gz\",\n168: \t\t\tgolden:   \"testdata/distroless-python27.json.golden\",\n169: \t\t},\n170: \t\t{\n171: \t\t\tname:     \"oracle linux 8\",\n172: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:oraclelinux-8\",\n173: \t\t\tinput:    \"testdata/fixtures/images/oraclelinux-8.tar.gz\",\n174: \t\t\tgolden:   \"testdata/oraclelinux-8.json.golden\",\n175: \t\t},\n176: \t\t{\n177: \t\t\tname:     \"ubuntu 18.04\",\n178: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:ubuntu-1804\",\n179: \t\t\tinput:    \"testdata/fixtures/images/ubuntu-1804.tar.gz\",\n180: \t\t\tgolden:   \"testdata/ubuntu-1804.json.golden\",\n181: \t\t},\n182: \t\t{\n183: \t\t\tname:          \"ubuntu 18.04, with --ignore-unfixed option\",\n184: \t\t\timageTag:      \"ghcr.io/aquasecurity/trivy-test-images:ubuntu-1804\",\n185: \t\t\tignoreUnfixed: true,\n186: \t\t\tinput:         \"testdata/fixtures/images/ubuntu-1804.tar.gz\",\n187: \t\t\tgolden:        \"testdata/ubuntu-1804-ignore-unfixed.json.golden\",\n188: \t\t},\n189: \t\t{\n190: \t\t\tname:     \"opensuse leap 15.1\",\n191: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:opensuse-leap-151\",\n192: \t\t\tinput:    \"testdata/fixtures/images/opensuse-leap-151.tar.gz\",\n193: \t\t\tgolden:   \"testdata/opensuse-leap-151.json.golden\",\n194: \t\t},\n195: \t\t{\n196: \t\t\tname:     \"photon 3.0\",\n197: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:photon-30\",\n198: \t\t\tinput:    \"testdata/fixtures/images/photon-30.tar.gz\",\n199: \t\t\tgolden:   \"testdata/photon-30.json.golden\",\n200: \t\t},\n201: \t\t{\n202: \t\t\tname:     \"CBL-Mariner 1.0\",\n203: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:mariner-1.0\",\n204: \t\t\tinput:    \"testdata/fixtures/images/mariner-1.0.tar.gz\",\n205: \t\t\tgolden:   \"testdata/mariner-1.0.json.golden\",\n206: \t\t},\n207: \t\t{\n208: \t\t\tname:     \"busybox with Cargo.lock\",\n209: \t\t\timageTag: \"ghcr.io/aquasecurity/trivy-test-images:busybox-with-lockfile\",\n210: \t\t\tinput:    \"testdata/fixtures/images/busybox-with-lockfile.tar.gz\",\n211: \t\t\tgolden:   \"testdata/busybox-with-lockfile.json.golden\",\n212: \t\t},\n213: \t\t{\n214: \t\t\tname:         \"sad path, invalid image\",\n215: \t\t\tinvalidImage: true,\n216: \t\t\tinput:        \"badimage:latest\",\n217: \t\t\twantErr:      \"unable to inspect the image (badimage:latest)\",\n218: \t\t},\n219: \t}\n220: \n221: \t// Set up testing DB\n222: \tcacheDir := initDB(t)\n223: \n224: \t// Set a temp dir so that modules will not be loaded\n225: \tt.Setenv(\"XDG_DATA_HOME\", cacheDir)\n226: \n227: \tctx := context.Background()\n228: \tdefer ctx.Done()\n229: \n230: \tcli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())\n231: \trequire.NoError(t, err)\n232: \n233: \tfor _, tt := range tests {\n234: \t\tt.Run(tt.name, func(t *testing.T) {\n235: \t\t\tif !tt.invalidImage {\n236: \t\t\t\ttestfile, err := os.Open(tt.input)\n237: \t\t\t\trequire.NoError(t, err, tt.name)\n238: \n239: \t\t\t\t// ensure image doesnt already exists\n240: \t\t\t\t_, _ = cli.ImageRemove(ctx, tt.input, api.ImageRemoveOptions{\n241: \t\t\t\t\tForce:         true,\n242: \t\t\t\t\tPruneChildren: true,\n243: \t\t\t\t})\n244: \n245: \t\t\t\t// load image into docker engine\n246: \t\t\t\tres, err := cli.ImageLoad(ctx, testfile, true)\n247: \t\t\t\trequire.NoError(t, err, tt.name)\n248: \t\t\t\tif _, err := io.Copy(io.Discard, res.Body); err != nil {\n249: \t\t\t\t\trequire.NoError(t, err, tt.name)\n250: \t\t\t\t}\n251: \t\t\t\tdefer res.Body.Close()\n252: \n253: \t\t\t\t// tag our image to something unique\n254: \t\t\t\terr = cli.ImageTag(ctx, tt.imageTag, tt.input)\n255: \t\t\t\trequire.NoError(t, err, tt.name)\n256: \n257: \t\t\t\t// cleanup\n258: \t\t\t\tt.Cleanup(func() {\n259: \t\t\t\t\t_, _ = cli.ImageRemove(ctx, tt.input, api.ImageRemoveOptions{\n260: \t\t\t\t\t\tForce:         true,\n261: \t\t\t\t\t\tPruneChildren: true,\n262: \t\t\t\t\t})\n263: \t\t\t\t\t_, _ = cli.ImageRemove(ctx, tt.imageTag, api.ImageRemoveOptions{\n264: \t\t\t\t\t\tForce:         true,\n265: \t\t\t\t\t\tPruneChildren: true,\n266: \t\t\t\t\t})\n267: \t\t\t\t})\n268: \t\t\t}\n269: \n270: \t\t\tosArgs := []string{\n271: \t\t\t\t\"--cache-dir\",\n272: \t\t\t\tcacheDir,\n273: \t\t\t\t\"image\",\n274: \t\t\t\t\"--skip-update\",\n275: \t\t\t\t\"--format=json\",\n276: \t\t\t}\n277: \n278: \t\t\tif tt.ignoreUnfixed {\n279: \t\t\t\tosArgs = append(osArgs, \"--ignore-unfixed\")\n280: \t\t\t}\n281: \n282: \t\t\tif len(tt.ignoreStatus) != 0 {\n283: \t\t\t\tosArgs = append(osArgs,\n284: \t\t\t\t\t[]string{\n285: \t\t\t\t\t\t\"--ignore-status\",\n286: \t\t\t\t\t\tstrings.Join(tt.ignoreStatus, \",\"),\n287: \t\t\t\t\t}...,\n288: \t\t\t\t)\n289: \t\t\t}\n290: \t\t\tif len(tt.severity) != 0 {\n291: \t\t\t\tosArgs = append(osArgs,\n292: \t\t\t\t\t[]string{\n293: \t\t\t\t\t\t\"--severity\",\n294: \t\t\t\t\t\tstrings.Join(tt.severity, \",\"),\n295: \t\t\t\t\t}...,\n296: \t\t\t\t)\n297: \t\t\t}\n298: \t\t\tif len(tt.ignoreIDs) != 0 {\n299: \t\t\t\ttrivyIgnore := \".trivyignore\"\n300: \t\t\t\terr = os.WriteFile(trivyIgnore, []byte(strings.Join(tt.ignoreIDs, \"\\n\")), 0444)\n301: \t\t\t\tassert.NoError(t, err, \"failed to write .trivyignore\")\n302: \t\t\t\tdefer os.Remove(trivyIgnore)\n303: \t\t\t}\n304: \t\t\tosArgs = append(osArgs, tt.input)\n305: \n306: \t\t\t// Run Trivy\n307: \t\t\trunTest(t, osArgs, tt.golden, \"\", types.FormatJSON, runOptions{wantErr: tt.wantErr})\n308: \t\t})\n309: \t}\n310: }\n\n(End of file - total 310 lines)\n</content>",
+            "metadata": {
+              "preview": "//go:build integration\n// +build integration\n\npackage integration\n\nimport (\n\t\"context\"\n\t\"github.com/aquasecurity/trivy/pkg/types\"\n\t\"io\"\n\t\"os\"\n\t\"strings\"\n\t\"testing\"\n\n\tapi \"github.com/docker/docker/api/types\"\n\t\"github.com/docker/docker/client\"\n\t\"github.com/stretchr/testify/assert\"\n\t\"github.com/stretchr/testify/require\"\n)\n\nfunc TestDockerEngine(t *testing.T) {",
+              "truncated": false,
+              "loaded": []
+            },
+            "title": "work/integration/docker_engine_test.go",
+            "time": {
+              "start": 1791799842817,
+              "end": 1791799842830
+            }
+          },
+          "id": "prt_12f97d7fa001yRf6t0wOYVzWyB",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97cc34001gkJqMPYpG2ukNZ"
+        },
+        {
+          "reason": "tool-calls",
+          "type": "step-finish",
+          "tokens": {
+            "total": 33331,
+            "input": 33103,
+            "output": 33,
+            "reasoning": 195,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0,
+          "id": "prt_12f97d812001IJL8aj84mvFMag",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97cc34001gkJqMPYpG2ukNZ"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_12f972137001753ownqIN3qQZX",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/work",
+          "root": "/"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 38037,
+          "input": 37908,
+          "output": 36,
+          "reasoning": 93,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "Qwen/Qwen3.6-35B-A3B",
+        "providerID": "custom-openai",
+        "time": {
+          "created": 1791799842840,
+          "completed": 1791799851954
+        },
+        "finish": "tool-calls",
+        "id": "msg_12f97d818001mfXEvu7kL6clVg",
+        "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "id": "prt_12f97fb92001v9y1FyRTDwbLnz",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97d818001mfXEvu7kL6clVg"
+        },
+        {
+          "type": "reasoning",
+          "text": "The integration test uses:\n- `cli.ImageRemove` - removing images\n- `cli.ImageLoad` - loading an image\n- `cli.ImageTag` - tagging an image\n\nStill no network manipulation. All image-related operations. The integration test is for testing Trivy's Docker Engine scanning capability, not for testing Docker network features.\n\nLet me also check the containerd and podman implementations to see if they use any network-related code paths.\n",
+          "time": {
+            "start": 1791799851925,
+            "end": 1791799851931
+          },
+          "id": "prt_12f97fb950013tF5E8m7FqfDW2",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97d818001mfXEvu7kL6clVg"
+        },
+        {
+          "type": "tool",
+          "tool": "read",
+          "callID": "chatcmpl-tool-bd101bd6fa706def",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/work/pkg/fanal/image/daemon/containerd.go"
+            },
+            "output": "<path>/work/pkg/fanal/image/daemon/containerd.go</path>\n<type>file</type>\n<content>\n1: package daemon\n2: \n3: import (\n4: \t\"context\"\n5: \t\"encoding/json\"\n6: \t\"errors\"\n7: \t\"fmt\"\n8: \t\"io\"\n9: \t\"os\"\n10: \t\"strings\"\n11: \t\"time\"\n12: \n13: \t\"github.com/containerd/containerd\"\n14: \t\"github.com/containerd/containerd/content\"\n15: \t\"github.com/containerd/containerd/images/archive\"\n16: \t\"github.com/containerd/containerd/namespaces\"\n17: \t\"github.com/containerd/containerd/platforms\"\n18: \trefdocker \"github.com/containerd/containerd/reference/docker\"\n19: \tapi \"github.com/docker/docker/api/types\"\n20: \t\"github.com/docker/docker/api/types/container\"\n21: \t\"github.com/docker/go-connections/nat\"\n22: \tv1 \"github.com/google/go-containerregistry/pkg/v1\"\n23: \t\"github.com/opencontainers/go-digest\"\n24: \tocispec \"github.com/opencontainers/image-spec/specs-go/v1\"\n25: \t\"github.com/samber/lo\"\n26: \t\"golang.org/x/xerrors\"\n27: \n28: \t\"github.com/aquasecurity/trivy/pkg/fanal/types\"\n29: )\n30: \n31: const (\n32: \tdefaultContainerdSocket    = \"/run/containerd/containerd.sock\"\n33: \tdefaultContainerdNamespace = \"default\"\n34: )\n35: \n36: type familiarNamed string\n37: \n38: func (n familiarNamed) Name() string {\n39: \treturn strings.Split(string(n), \":\")[0]\n40: }\n41: \n42: func (n familiarNamed) Tag() string {\n43: \ts := strings.Split(string(n), \":\")\n44: \tif len(s) < 2 {\n45: \t\treturn \"\"\n46: \t}\n47: \n48: \treturn s[1]\n49: }\n50: \n51: func (n familiarNamed) String() string {\n52: \treturn string(n)\n53: }\n54: \n55: func imageWriter(client *containerd.Client, img containerd.Image, platform types.Platform) imageSave {\n56: \treturn func(ctx context.Context, ref []string) (io.ReadCloser, error) {\n57: \t\tif len(ref) < 1 {\n58: \t\t\treturn nil, xerrors.New(\"no image reference\")\n59: \t\t}\n60: \t\timgOpts := archive.WithImage(client.ImageService(), ref[0])\n61: \t\tmanifestOpts := archive.WithManifest(img.Target())\n62: \n63: \t\tvar platformMatchComparer platforms.MatchComparer\n64: \t\tif platform.Platform == nil {\n65: \t\t\tplatformMatchComparer = platforms.DefaultStrict()\n66: \t\t} else {\n67: \t\t\tplatformMatchComparer = img.Platform()\n68: \t\t}\n69: \t\tplatOpts := archive.WithPlatform(platformMatchComparer)\n70: \t\tpr, pw := io.Pipe()\n71: \t\tgo func() {\n72: \t\t\tpw.CloseWithError(archive.Export(ctx, client.ContentStore(), pw, imgOpts, manifestOpts, platOpts))\n73: \t\t}()\n74: \t\treturn pr, nil\n75: \t}\n76: }\n77: \n78: // ContainerdImage implements v1.Image\n79: func ContainerdImage(ctx context.Context, imageName string, opts types.ImageOptions) (Image, func(), error) {\n80: \tcleanup := func() {}\n81: \n82: \taddr := os.Getenv(\"CONTAINERD_ADDRESS\")\n83: \tif addr == \"\" {\n84: \t\t// TODO: support rootless\n85: \t\taddr = defaultContainerdSocket\n86: \t}\n87: \n88: \tif _, err := os.Stat(addr); errors.Is(err, os.ErrNotExist) {\n89: \t\treturn nil, cleanup, xerrors.Errorf(\"containerd socket not found: %s\", addr)\n90: \t}\n91: \n92: \tref, searchFilters, err := parseReference(imageName)\n93: \tif err != nil {\n94: \t\treturn nil, cleanup, err\n95: \t}\n96: \n97: \tvar options []containerd.ClientOpt\n98: \tif opts.RegistryOptions.Platform.Platform != nil {\n99: \t\tociPlatform, err := platforms.Parse(opts.RegistryOptions.Platform.String())\n100: \t\tif err != nil {\n101: \t\t\treturn nil, cleanup, err\n102: \t\t}\n103: \n104: \t\toptions = append(options, containerd.WithDefaultPlatform(platforms.OnlyStrict(ociPlatform)))\n105: \t}\n106: \n107: \tclient, err := containerd.New(addr, options...)\n108: \tif err != nil {\n109: \t\treturn nil, cleanup, xerrors.Errorf(\"failed to initialize a containerd client: %w\", err)\n110: \t}\n111: \n112: \tnamespace := os.Getenv(\"CONTAINERD_NAMESPACE\")\n113: \tif namespace == \"\" {\n114: \t\tnamespace = defaultContainerdNamespace\n115: \t}\n116: \n117: \tctx = namespaces.WithNamespace(ctx, namespace)\n118: \n119: \timgs, err := client.ListImages(ctx, searchFilters...)\n120: \tif err != nil {\n121: \t\treturn nil, cleanup, xerrors.Errorf(\"failed to list images from containerd client: %w\", err)\n122: \t}\n123: \n124: \tif len(imgs) < 1 {\n125: \t\treturn nil, cleanup, xerrors.Errorf(\"image not found in containerd store: %s\", imageName)\n126: \t}\n127: \n128: \timg := imgs[0]\n129: \n130: \tf, err := os.CreateTemp(\"\", \"fanal-containerd-*\")\n131: \tif err != nil {\n132: \t\treturn nil, cleanup, xerrors.Errorf(\"failed to create a temporary file: %w\", err)\n133: \t}\n134: \n135: \tcleanup = func() {\n136: \t\t_ = client.Close()\n137: \t\t_ = f.Close()\n138: \t\t_ = os.Remove(f.Name())\n139: \t}\n140: \n141: \tinsp, history, ref, err := inspect(ctx, img, ref)\n142: \tif err != nil {\n143: \t\treturn nil, cleanup, xerrors.Errorf(\"inspect error: %w\", err)\n144: \t}\n145: \n146: \treturn &image{\n147: \t\topener:  imageOpener(ctx, ref.String(), f, imageWriter(client, img, opts.RegistryOptions.Platform)),\n148: \t\tinspect: insp,\n149: \t\thistory: history,\n150: \t}, cleanup, nil\n151: }\n152: \n153: func parseReference(imageName string) (refdocker.Reference, []string, error) {\n154: \tref, err := refdocker.ParseAnyReference(imageName)\n155: \tif err != nil {\n156: \t\treturn nil, nil, xerrors.Errorf(\"parse error: %w\", err)\n157: \t}\n158: \n159: \td, isDigested := ref.(refdocker.Digested)\n160: \tn, isNamed := ref.(refdocker.Named)\n161: \tnt, isNamedAndTagged := ref.(refdocker.NamedTagged)\n162: \n163: \t// a name plus a digest\n164: \t// example: name@sha256:41adb3ef...\n165: \tif isDigested && isNamed {\n166: \t\tdgst := d.Digest()\n167: \t\t// for the filters, each slice entry is logically or'd. each\n168: \t\t// comma-separated filter is logically anded\n169: \t\treturn ref, []string{\n170: \t\t\tfmt.Sprintf(`name~=\"^%s(:|@).*\",target.digest==%q`, n.Name(), dgst),\n171: \t\t\tfmt.Sprintf(`name~=\"^%s(:|@).*\",target.digest==%q`, refdocker.FamiliarName(n), dgst),\n172: \t\t}, nil\n173: \t}\n174: \n175: \t// digested, but not named. i.e. a plain digest\n176: \t// example: sha256:41adb3ef...\n177: \tif isDigested {\n178: \t\treturn ref, []string{fmt.Sprintf(`target.digest==%q`, d.Digest())}, nil\n179: \t}\n180: \n181: \t// a name plus a tag\n182: \t// example: name:tag\n183: \tif isNamedAndTagged {\n184: \t\ttag := nt.Tag()\n185: \t\treturn familiarNamed(imageName), []string{\n186: \t\t\tfmt.Sprintf(`name==\"%s:%s\"`, nt.Name(), tag),\n187: \t\t\tfmt.Sprintf(`name==\"%s:%s\"`, refdocker.FamiliarName(nt), tag),\n188: \t\t}, nil\n189: \t}\n190: \n191: \treturn nil, nil, xerrors.Errorf(\"failed to parse image reference: %s\", imageName)\n192: }\n193: \n194: // readImageConfig reads the config spec (`application/vnd.oci.image.config.v1+json`) for img.platform from content store.\n195: // ported from https://github.com/containerd/nerdctl/blob/7dfbaa2122628921febeb097e7a8a86074dc931d/pkg/imgutil/imgutil.go#L377-L393\n196: func readImageConfig(ctx context.Context, img containerd.Image) (ocispec.Image, ocispec.Descriptor, error) {\n197: \tvar config ocispec.Image\n198: \n199: \tconfigDesc, err := img.Config(ctx) // aware of img.platform\n200: \tif err != nil {\n201: \t\treturn config, configDesc, err\n202: \t}\n203: \tp, err := content.ReadBlob(ctx, img.ContentStore(), configDesc)\n204: \tif err != nil {\n205: \t\treturn config, configDesc, err\n206: \t}\n207: \tif err = json.Unmarshal(p, &config); err != nil {\n208: \t\treturn config, configDesc, err\n209: \t}\n210: \treturn config, configDesc, nil\n211: }\n212: \n213: // ported from https://github.com/containerd/nerdctl/blob/d110fea18018f13c3f798fa6565e482f3ff03591/pkg/inspecttypes/dockercompat/dockercompat.go#L279-L321\n214: func inspect(ctx context.Context, img containerd.Image, ref refdocker.Reference) (api.ImageInspect, []v1.History, refdocker.Reference, error) {\n215: \tif _, ok := ref.(refdocker.Digested); ok {\n216: \t\tref = familiarNamed(img.Name())\n217: \t}\n218: \n219: \tvar tag string\n220: \tif tagged, ok := ref.(refdocker.Tagged); ok {\n221: \t\ttag = tagged.Tag()\n222: \t}\n223: \n224: \tvar repository string\n225: \tif n, isNamed := ref.(refdocker.Named); isNamed {\n226: \t\trepository = refdocker.FamiliarName(n)\n227: \t}\n228: \n229: \timgConfig, imgConfigDesc, err := readImageConfig(ctx, img)\n230: \tif err != nil {\n231: \t\treturn api.ImageInspect{}, nil, nil, err\n232: \t}\n233: \n234: \tvar lastHistory ocispec.History\n235: \tif len(imgConfig.History) > 0 {\n236: \t\tlastHistory = imgConfig.History[len(imgConfig.History)-1]\n237: \t}\n238: \n239: \tvar history []v1.History\n240: \tfor _, h := range imgConfig.History {\n241: \t\thistory = append(history, v1.History{\n242: \t\t\tAuthor:     h.Author,\n243: \t\t\tCreated:    v1.Time{Time: *h.Created},\n244: \t\t\tCreatedBy:  h.CreatedBy,\n245: \t\t\tComment:    h.Comment,\n246: \t\t\tEmptyLayer: h.EmptyLayer,\n247: \t\t})\n248: \t}\n249: \n250: \tportSet := make(nat.PortSet)\n251: \tfor k := range imgConfig.Config.ExposedPorts {\n252: \t\tportSet[nat.Port(k)] = struct{}{}\n253: \t}\n254: \n255: \tcreated := \"\"\n256: \tif lastHistory.Created != nil {\n257: \t\tcreated = lastHistory.Created.Format(time.RFC3339Nano)\n258: \t}\n259: \n260: \treturn api.ImageInspect{\n261: \t\tID:          imgConfigDesc.Digest.String(),\n262: \t\tRepoTags:    []string{fmt.Sprintf(\"%s:%s\", repository, tag)},\n263: \t\tRepoDigests: []string{fmt.Sprintf(\"%s@%s\", repository, img.Target().Digest)},\n264: \t\tComment:     lastHistory.Comment,\n265: \t\tCreated:     created,\n266: \t\tAuthor:      lastHistory.Author,\n267: \t\tConfig: &container.Config{\n268: \t\t\tUser:         imgConfig.Config.User,\n269: \t\t\tExposedPorts: portSet,\n270: \t\t\tEnv:          imgConfig.Config.Env,\n271: \t\t\tCmd:          imgConfig.Config.Cmd,\n272: \t\t\tVolumes:      imgConfig.Config.Volumes,\n273: \t\t\tWorkingDir:   imgConfig.Config.WorkingDir,\n274: \t\t\tEntrypoint:   imgConfig.Config.Entrypoint,\n275: \t\t\tLabels:       imgConfig.Config.Labels,\n276: \t\t},\n277: \t\tArchitecture: imgConfig.Architecture,\n278: \t\tOs:           imgConfig.OS,\n279: \t\tRootFS: api.RootFS{\n280: \t\t\tType: imgConfig.RootFS.Type,\n281: \t\t\tLayers: lo.Map(imgConfig.RootFS.DiffIDs, func(d digest.Digest, _ int) string {\n282: \t\t\t\treturn d.String()\n283: \t\t\t}),\n284: \t\t},\n285: \t}, history, ref, nil\n286: }\n\n(End of file - total 286 lines)\n</content>",
+            "metadata": {
+              "preview": "package daemon\n\nimport (\n\t\"context\"\n\t\"encoding/json\"\n\t\"errors\"\n\t\"fmt\"\n\t\"io\"\n\t\"os\"\n\t\"strings\"\n\t\"time\"\n\n\t\"github.com/containerd/containerd\"\n\t\"github.com/containerd/containerd/content\"\n\t\"github.com/containerd/containerd/images/archive\"\n\t\"github.com/containerd/containerd/namespaces\"\n\t\"github.com/containerd/containerd/platforms\"\n\trefdocker \"github.com/containerd/containerd/reference/docker\"\n\tapi \"github.com/docker/docker/api/types\"\n\t\"github.com/docker/docker/api/types/container\"",
+              "truncated": false,
+              "loaded": []
+            },
+            "title": "work/pkg/fanal/image/daemon/containerd.go",
+            "time": {
+              "start": 1791799851936,
+              "end": 1791799851950
+            }
+          },
+          "id": "prt_12f97fb9c001vjJ7EgTg2Aa8F3",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97d818001mfXEvu7kL6clVg"
+        },
+        {
+          "reason": "tool-calls",
+          "type": "step-finish",
+          "tokens": {
+            "total": 38037,
+            "input": 37908,
+            "output": 36,
+            "reasoning": 93,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0,
+          "id": "prt_12f97fbaf001anQitbuJvkmT3W",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97d818001mfXEvu7kL6clVg"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_12f972137001753ownqIN3qQZX",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/work",
+          "root": "/"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 43774,
+          "input": 41826,
+          "output": 1755,
+          "reasoning": 193,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "Qwen/Qwen3.6-35B-A3B",
+        "providerID": "custom-openai",
+        "time": {
+          "created": 1791799851958,
+          "completed": 1791799868921
+        },
+        "finish": "stop",
+        "id": "msg_12f97fbb6001bt10YsgozXj4sE",
+        "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "id": "prt_12f983d7f001IEnaOcA2CxQMlq",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97fbb6001bt10YsgozXj4sE"
+        },
+        {
+          "type": "reasoning",
+          "text": "The containerd daemon reader also doesn't use any network-related Docker APIs. It uses:\n- `client.ListImages()` \n- `img.Config()`\n- `client.ContentStore()`\n- `archive.Export()`\n\nAll image-related operations.\n\nNow I'm confident. The classification should be `code_not_reachable`:\n- The affected component `github.com/docker/docker v26.0.1+incompatible` IS present (go.mod line 45)\n- The vulnerable surface (IPv6 on IPv4-only network interfaces) is in Docker's network creation code\n- Trivy only uses docker/docker for image inspection and saving operations\n- There is no execution path from Trivy's attack surface (image/daemon scanning) to the vulnerable network creation code\n- The Docker client methods that trigger network code (NetworkCreate, NetworkConnect, etc.) are not called anywhere in the snapshot\n\nLet me formulate the JSON output.\n",
+          "time": {
+            "start": 1791799868803,
+            "end": 1791799868816
+          },
+          "id": "prt_12f983d83001P5bLRRA8U8YmAR",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97fbb6001bt10YsgozXj4sE"
+        },
+        {
+          "type": "text",
+          "text": "\n\n```json\n{\n  \"category\": \"code_not_reachable\",\n  \"reasoning\": \"The affected component github.com/docker/docker v26.0.1+incompatible is present in the snapshot (go.mod:45, in the range 26.0.0+incompatible to before 26.0.2+incompatible as specified by the advisory GO-2024-2737). However, CVE-2024-32473 affects Docker's network creation code (IPv6 enabled on IPv4-only network interfaces), specifically in the Docker daemon's network layer. Trivy uses the docker/docker client only for read-only image operations: ImageInspectWithRaw (docker.go:40,43), ImageHistory (docker.go:49), ImageSave (docker.go:66 via imageOpener), and ImageLoad/ImageTag/ImageRemove in tests (docker_engine_test.go:240,246,254). A full search for ContainerCreate, NetworkCreate, NetworkConnect, NetworkDisconnect, VolumeCreate, or any network/container/volume creation APIs found no matches in the entire snapshot. The vulnerable code path in docker/docker requires invocation of Docker network management APIs, which Trivy never calls. Therefore, the vulnerable surface has no execution path from any attack surface in Trivy's analyzed scope.\",\n  \"assessment\": {\n    \"vulnerability_mechanism\": \"CVE-2024-32473 allows IPv6 to be enabled on IPv4-only network interfaces in the Docker daemon. This is a network configuration defect where Docker creates network interfaces with IPv6 support even when the underlying host interface is IPv4-only, potentially causing unintended network exposure or misconfiguration. The effect occurs because the affected docker/docker code path handles network creation/management in the Docker daemon, not in the client library.\",\n    \"root_cause\": \"The advisory GO-2024-2737 binds to module github.com/docker/docker, introduced in 26.0.0+incompatible and fixed in 26.0.2+incompatible. The vulnerable code resides in the Docker daemon's network layer within the docker/docker module. In this Trivy snapshot, docker/docker is imported as a dependency at go.mod:45 (v26.0.1+incompatible). The code in Trivy that uses docker/docker (pkg/fanal/image/daemon/docker.go:7-9 imports github.com/docker/docker/client) only calls read-only image APIs (ImageInspectWithRaw, ImageHistory, ImageSave). No network creation or management APIs are invoked.\",\n    \"attack_scenario\": \"An attacker would need to invoke Docker's network creation APIs (e.g., via Docker API with NetworkCreate requests) on a Docker daemon using a version between 26.0.0 and 26.0.2 on a host with IPv4-only network interfaces. Trivy does not expose Docker API network endpoints, does not create Docker networks, and does not call any network-related Docker client APIs. There is no attack-reachable path from Trivy's attack surfaces (image scanning via CLI, OCI artifact processing, registry operations) to the vulnerable code.\",\n    \"product_exposure\": \"Trivy is a container security scanner (github.com/aquasecurity/trivy, per go.mod:1). It uses the Docker client (pkg/fanal/image/daemon/docker.go) to inspect and save container images for scanning when the Docker engine driver is used. Build: Go module, Go 1.22 (go.mod:3-5). Configuration: the daemon image feature is a user-invoked capability via trivy image --platform or similar flags. Platform: Linux (container scanning target). The snapshot does not establish any Docker daemon network configuration or deployment context. Unknown: whether downstream builds of Trivy might link additional docker/docker code paths not present in this snapshot, and whether any future plugin or extension system could introduce network-related code.\",\n    \"alternative_paths\": \"Checked: (1) All docker/docker imports in the snapshot - confirmed only client and types APIs used, no daemon/network code. (2) All docker docker client method calls - only ImageInspectWithRaw, ImageHistory, ImageSave, ImageLoad, ImageTag, ImageRemove. (3) Integration tests (integration/docker_engine_test.go) only test image loading, inspection, and removal. (4) Containerd and podman daemon readers (containerd.go, podman.go) do not use docker network APIs. (5) Searched for any network creation API calls - zero matches. Not fully explored: transitive dependencies within docker/docker that may have different usage patterns not visible from import analysis alone (the docker/docker client package may internally reference network-related types even if only image APIs are called). However, Go packages are typically not linked if their symbols are not referenced, and the CVE affects daemon-side network logic, not client-side code.\",\n    \"evidence_quality\": {\n      \"references\": [\n        \"go.mod:45 - github.com/docker/docker v26.0.1+incompatible dependency declaration\",\n        \"go.mod:1 - module github.com/aquasecurity/trivy\",\n        \"pkg/fanal/image/daemon/docker.go:7 - import of github.com/docker/docker/client\",\n        \"pkg/fanal/image/daemon/docker.go:40,43,49,66 - Docker client method calls (ImageInspectWithRaw, ImageHistory, ImageSave)\",\n        \"pkg/fanal/image/daemon/image.go:11-13 - imports of github.com/docker/docker/api/types\",\n        \"pkg/fanal/image/daemon/containerd.go:19-20 - imports of github.com/docker/docker/api/types\",\n        \"integration/docker_engine_test.go:14-15 - test imports for docker client\",\n        \"integration/docker_engine_test.go:230-267 - test Docker API calls (ImageRemove, ImageLoad, ImageTag)\",\n        \"FROZEN_ADVISORY - advisory GO-2024-2737, affected entries: github.com/docker/docker introduced=26.0.0+incompatible fixed=26.0.2+incompatible\"\n      ],\n      \"summary\": \"Evidence covers the relevant import declarations, method call sites, and the advisory binding. Coverage is strong for Trivy's docker/docker usage pattern (read-only image operations). Limitation: the internal code of the docker/docker v26.0.1+incompatible package itself is not present in this snapshot (it is fetched as a transitive dependency), so a full call-graph analysis within docker/docker is not possible. The classification relies on the absence of network-related method calls in the Trivy codebase and the known scope of the vulnerability (daemon network code).\"\n    },\n    \"residual_questions\": [\n      \"Whether the docker/docker client package v26.0.1 internally includes and links network-related code that could be triggered implicitly (follow-up: build the Go modules and inspect the compiled dependency graph for docker/docker network package symbol references)\",\n      \"Whether any Trivy plugins, extensions, or alternative import paths not present in this commit could invoke network APIs (follow-up: verify this snapshot captures all entry points for the analyzed build configuration)\",\n      \"Whether the CVE affects client-side behavior during image operations in some edge case on hosts with specific network configurations (follow-up: review the full CVE description and Docker documentation for CVE-2024-32473 to determine if the vulnerability scope extends beyond daemon network creation)\"\n    ],\n    \"triage_recommendation\": \"low confirmed risk. The affected docker/docker version is present (v26.0.1+incompatible, in the affected range 26.0.0 to pre-26.0.2), but the vulnerable surface (Docker daemon network creation with IPv6 on IPv4-only interfaces) is not reachable from any Trivy attack surface. All docker/docker usages in the snapshot are read-only image operations (inspect, save, load). Recommendation: document as reachable but not exploitable in the analyzed scope; consider upgrading to v26.0.2+incompatible in go.mod for defense-in-depth but no immediate fix required based on this analysis.\"\n  }\n}\n```",
+          "time": {
+            "start": 1791799868818,
+            "end": 1791799868914
+          },
+          "id": "prt_12f983d92001UcivpvgVnbH1Rb",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97fbb6001bt10YsgozXj4sE"
+        },
+        {
+          "reason": "stop",
+          "type": "step-finish",
+          "tokens": {
+            "total": 43774,
+            "input": 41826,
+            "output": 1755,
+            "reasoning": 193,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0,
+          "id": "prt_12f983df50014EuN0w3iRM2Mke",
+          "sessionID": "ses_ed068def3ffezinH6tUlXNpXLh",
+          "messageID": "msg_12f97fbb6001bt10YsgozXj4sE"
+        }
+      ]
+    }
+  ]
+}

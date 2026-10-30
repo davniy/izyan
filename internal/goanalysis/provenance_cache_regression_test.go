@@ -66,3 +66,23 @@ func TestIsParamHandlesSyntheticDeclWithoutType(t *testing.T) {
 		t.Fatal("synthetic declaration without a type cannot bind parameters")
 	}
 }
+
+func TestTypeMayCarryRecursiveTypes(t *testing.T) {
+	// Construct recursive type: type Node struct { next *Node }
+	pkg := types.NewPackage("example.com/p", "p")
+	obj := types.NewTypeName(0, pkg, "Node", nil)
+	named := types.NewNamed(obj, nil, nil)
+	ptr := types.NewPointer(named)
+	field := types.NewField(0, pkg, "next", ptr, false)
+	st := types.NewStruct([]*types.Var{field}, nil)
+	named.SetUnderlying(st)
+
+	targetObj := types.NewTypeName(0, pkg, "Target", nil)
+	targetNamed := types.NewNamed(targetObj, types.NewStruct(nil, nil), nil)
+
+	// Must not hang or overflow stack, and must return false when Target is not carried.
+	got := typeMayCarry(named, targetNamed, "SomeMethod")
+	if got {
+		t.Fatal("typeMayCarry on recursive struct without target returned true, want false")
+	}
+}

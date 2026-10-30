@@ -174,7 +174,7 @@ UNKNOWN (callback). Сайт с пустым impl-set → мёртвый выз�
 - **fvBuildDepth**: `fvParamCallers` не строит чужие func-value
   индексы, будучи вызванным внутри построения (`fvIndex` pass 2) —
   рекурсия `funcCandidates → fvParamCallers → fvIndex` по графу
-  пакетов иначе не завершается (real-micro-xds: >30 мин, 6.4GiB →
+  пакетов иначе не завершается (real-service-xds: >30 мин, 6.4GiB →
   145с, ≤1.3GiB). Вложенная недогруженность помечает candidate-set
   open → UNKNOWN, без unsafe-выводов.
 

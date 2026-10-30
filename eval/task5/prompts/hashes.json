@@ -1,0 +1,39 @@
+{
+  "schema": "task5-prompts/1",
+  "official_prefix": {
+    "file": "eval/vexbench-prompts/official-vuln-c0a5c8458b77.txt",
+    "sha256_12": "c0a5c8458b77",
+    "sha256": "c0a5c8458b77015d57b82eefca563d01c870ea027562381715c8ab9d70ffabda"
+  },
+  "prompts": {
+    "vuln_safety_v1": {
+      "file": "vuln_safety_v1.txt",
+      "sha256_12": "14c1396c9094",
+      "sha256": "14c1396c9094e11c939e02a09ce8d1d6f5c6ac61daa60fa86b74a9f59208e2da",
+      "bytes": 6839
+    },
+    "vuln_safety_v1_tools": {
+      "file": "vuln_safety_v1_tools.txt",
+      "sha256_12": "5d6c640c6945",
+      "sha256": "5d6c640c6945e8c0f9156ee2592f3228c5a9c66ab7cbf5237486d7b432682893",
+      "bytes": 7373
+    }
+  },
+  "diff_file": "p1-t1.diff",
+  "t1_minus_p1": "two LF bytes + literal <EVIDENCE_TOOLS> block + LF",
+  "assertions": {
+    "p1_prefix_is_official_file_bytes": true,
+    "t1_minus_p1_is_exact_tool_block": true,
+    "prohibited_identifiers": "none"
+  },
+  "harness_registry": {
+    "vuln_safety_v1": {
+      "registered": true,
+      "bytes_equal": true
+    },
+    "vuln_safety_v1_tools": {
+      "registered": true,
+      "bytes_equal": true
+    }
+  }
+}

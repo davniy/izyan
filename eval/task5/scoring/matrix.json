@@ -1,0 +1,4241 @@
+{
+  "schema": "task5-scoring/1",
+  "experiment_id": "task5",
+  "arms_scored": [
+    "p1",
+    "t1"
+  ],
+  "n_rows": 90,
+  "rows": [
+    {
+      "task_id": "aquasecurity-trivy-37da98d-CVE-2024-32473",
+      "run_id": "run_001",
+      "cve_id": "CVE-2024-32473",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "e80cbd316880ed156eee0fd0df0542c4faa22d50e6a07b6746519a9560fa922d",
+          "completed": true,
+          "steps": 21,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_present",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_present",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "7359f7a97cec93aa4092e3ec20693f0306ddddcae9443169177436f3fee7f7b5",
+          "completed": true,
+          "steps": 6,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "aquasecurity-trivy-37da98d-CVE-2024-32473",
+      "run_id": "run_002",
+      "cve_id": "CVE-2024-32473",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "parse_fail",
+            "category": null,
+            "binary": null,
+            "outcome": "failed"
+          },
+          "audit": {
+            "category": null,
+            "outcome": "failed"
+          },
+          "status_overall": "failed",
+          "failure_reason": "invalid_terminal_answer",
+          "result_sha256": "91130b3a8dc9fd03420093fd96bfe6d3e409baf6ebb0666486e5432142f412e7",
+          "completed": false,
+          "steps": null,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "7dd0248e69f9334159940bae6bde946e0ed4ebb489f331b41c1268699024e9d1",
+          "completed": true,
+          "steps": 21,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "aquasecurity-trivy-37da98d-CVE-2024-32473",
+      "run_id": "run_003",
+      "cve_id": "CVE-2024-32473",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "4123dc88bec9367a7cad982cdc7b30e8d357db5a51c076ed8b1a87e3d205b032",
+          "completed": true,
+          "steps": 9,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_present",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_present",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "658a3780bba7a93504aab3aaf63851a94555645ab17bb63e8540368b9a585bce",
+          "completed": true,
+          "steps": 7,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "aquasecurity-trivy-98e136e-CVE-2024-24791",
+      "run_id": "run_001",
+      "cve_id": "CVE-2024-24791",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "a119bbf11a48d030e7f1cfe8361b6b511ee29949991abfbf969f1aed611282fb",
+          "completed": true,
+          "steps": 14,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "ffd1e520e01ca7bff20630a0d8ec13fba5e5d78681a1e86e9235ae3af1dcd22f",
+          "completed": true,
+          "steps": 12,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "aquasecurity-trivy-98e136e-CVE-2024-24791",
+      "run_id": "run_002",
+      "cve_id": "CVE-2024-24791",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "6f0854f1921d7171af486993d56c41eb8e57e59ab9dcaac394c3e84918de9712",
+          "completed": true,
+          "steps": 8,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "false_positive",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "false_positive",
+            "outcome": "safe"
+          },
+          "status_overall": "failed",
+          "failure_reason": "container_nonzero_exit",
+          "result_sha256": "d26f54cc15701b7128cc3b616bf36dd2d34c6ed118907b01d9a48ff474915f7e",
+          "completed": true,
+          "steps": 5,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "aquasecurity-trivy-98e136e-CVE-2024-24791",
+      "run_id": "run_003",
+      "cve_id": "CVE-2024-24791",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "108cb465a62260a0d4363d5d1f0b3859d0bc128a56537cdb77a677103b87c853",
+          "completed": true,
+          "steps": 20,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_present",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_present",
+            "outcome": "safe"
+          },
+          "status_overall": "failed",
+          "failure_reason": "container_nonzero_exit",
+          "result_sha256": "c6596601a5b5c97080bc373c8aa12efe094c450d3bcb17e224468723e92f0fab",
+          "completed": true,
+          "steps": 11,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "caddyserver-caddy-8dc7667-CVE-2025-29785",
+      "run_id": "run_001",
+      "cve_id": "CVE-2025-29785",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "ae608704cdbb85227edfc8addf7807f83246b385ead61078c991f93de34c0ca3",
+          "completed": true,
+          "steps": 6,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "c03bd913e69902b2c5242ad4e4af9a41f5ca979617b84c919619f25184494b28",
+          "completed": true,
+          "steps": 20,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "caddyserver-caddy-8dc7667-CVE-2025-29785",
+      "run_id": "run_002",
+      "cve_id": "CVE-2025-29785",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "c39fde3c90ee52a880147e1c48f617abd9955354055c959d1ebb1e71ad374a04",
+          "completed": true,
+          "steps": 10,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "44ada1151db4707740da16753ef1882200cc22ca2b657ce216061c9c29314888",
+          "completed": true,
+          "steps": 21,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "caddyserver-caddy-8dc7667-CVE-2025-29785",
+      "run_id": "run_003",
+      "cve_id": "CVE-2025-29785",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "30d02905ea4d4f5265154ee544a21ce498ef3471fef8b564d4a660f5dafe5ea9",
+          "completed": true,
+          "steps": 15,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "7cc638f1d0adee9367ae69a9b4e400315f30539122fba2bcad4f544208765f5b",
+          "completed": true,
+          "steps": 11,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "cilium-cilium-1228cbc-CVE-2026-35469",
+      "run_id": "run_001",
+      "cve_id": "CVE-2026-35469",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "5c7918ac1bd28258ceb465c9b614526691e80f9822b663a23435b2fed5f1de43",
+          "completed": true,
+          "steps": 10,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "7d7a09fc2824b9dccf17ed0ed0c10058151e9c831f7b09e53bd88696f5b18c28",
+          "completed": true,
+          "steps": 25,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "cilium-cilium-1228cbc-CVE-2026-35469",
+      "run_id": "run_002",
+      "cve_id": "CVE-2026-35469",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "parse_fail",
+            "category": null,
+            "binary": null,
+            "outcome": "failed"
+          },
+          "audit": {
+            "category": null,
+            "outcome": "failed"
+          },
+          "status_overall": "failed",
+          "failure_reason": "invalid_terminal_answer",
+          "result_sha256": "3185aa323f1c720d6a86144295d4a23372d78d984dcd2d4cecfeebc67953c80c",
+          "completed": false,
+          "steps": null,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "cbd6cf501cfcccfefc19e32864386122e9776731ce507a9648c37b0ce96b97c3",
+          "completed": true,
+          "steps": 24,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "cilium-cilium-1228cbc-CVE-2026-35469",
+      "run_id": "run_003",
+      "cve_id": "CVE-2026-35469",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "67e42b50cafff1397e4eb247e86b5484ef8548d4aa1cec66622fa71d18ed12b2",
+          "completed": true,
+          "steps": 34,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "0cff269f217a84a1f30f0fe483e16798f56612956e6d891230cbff6990cbb3f7",
+          "completed": true,
+          "steps": 9,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "cilium-cilium-3977f6a-CVE-2026-33186",
+      "run_id": "run_001",
+      "cve_id": "CVE-2026-33186",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "c13f4450518c59f7ecb31cb29afb4add8545c63f0c4591f84ee90b16cb6d38ba",
+          "completed": true,
+          "steps": 19,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "requires_dependency",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "requires_dependency",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "23f3531c6c128192d8e84cc1e188984cb4f17d05a409480815a8cb5337bdb533",
+          "completed": true,
+          "steps": 17,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "cilium-cilium-3977f6a-CVE-2026-33186",
+      "run_id": "run_002",
+      "cve_id": "CVE-2026-33186",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "2e85b4430c2ae7cc421f518bb8296716de5142e59fda6a138f6b6554355e1f43",
+          "completed": true,
+          "steps": 31,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "52ab18a7ae22c55c58e364d24b4f897920034d142eed835daebbd6fb53c1e2ff",
+          "completed": true,
+          "steps": 28,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "cilium-cilium-3977f6a-CVE-2026-33186",
+      "run_id": "run_003",
+      "cve_id": "CVE-2026-33186",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "requires_configuration",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "requires_configuration",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "ed28161e4f322cbb71711ffd0d1c67bfe440232c84c07e668017557953632559",
+          "completed": true,
+          "steps": 13,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "7593b667a1e4f2d8746233a700e8aae8da0267303c8603df68b9d60e5b6cf12a",
+          "completed": true,
+          "steps": 24,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "cilium-cilium-43bff35-CVE-2026-35469",
+      "run_id": "run_001",
+      "cve_id": "CVE-2026-35469",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "requires_configuration",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "b00d67a7c5733007ba04d627a92f5210e334074206a112adea743e2fb80dc2dd",
+          "completed": true,
+          "steps": 22,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "requires_configuration",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "requires_configuration",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "413411f761d89dca45e4aaa5a111218cd25228fc3a434d71ba885720bc913d88",
+          "completed": true,
+          "steps": 23,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "cilium-cilium-43bff35-CVE-2026-35469",
+      "run_id": "run_002",
+      "cve_id": "CVE-2026-35469",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "requires_configuration",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "0c28ac691231b00c2c096682168d07e2515f5a50cf1eb5578ddaa3103f02cf36",
+          "completed": true,
+          "steps": 25,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "requires_configuration",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "requires_configuration",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "aa1f678ee7819880e1b3e480aaf89996c0135f286966f06bd498c22d2753907b",
+          "completed": true,
+          "steps": 13,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "cilium-cilium-43bff35-CVE-2026-35469",
+      "run_id": "run_003",
+      "cve_id": "CVE-2026-35469",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "requires_configuration",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "requires_configuration",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "requires_configuration",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "8af6b237e61ba425daaafd765eb1326a1413a2f4bddc1045ba3c45026e967e9f",
+          "completed": true,
+          "steps": 25,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "fe8664edc15727d67d75736064e438f3def15b8916b837092e0585df4bbe74d6",
+          "completed": true,
+          "steps": 13,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "containers-podman-38ccfa2-CVE-2024-37298",
+      "run_id": "run_001",
+      "cve_id": "CVE-2024-37298",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "31fd8c7fb259c48fd371575e5a5f04cefa686222b2a393825d5c2a06d56cdab1",
+          "completed": true,
+          "steps": 22,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "6da47c6dce7fdbac7eae65e45ecf7c713c17624e2410f6332a862456e02b3059",
+          "completed": true,
+          "steps": 60,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "containers-podman-38ccfa2-CVE-2024-37298",
+      "run_id": "run_002",
+      "cve_id": "CVE-2024-37298",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "2f21e1bd36d7137930981deb2ca754dc529940216ade3db00b872fc0aad47de5",
+          "completed": true,
+          "steps": 22,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "fae457b91d1931e96169c582fcff4b7d921d486ffc2797a45cd61c6dc487ed81",
+          "completed": true,
+          "steps": 31,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "containers-podman-38ccfa2-CVE-2024-37298",
+      "run_id": "run_003",
+      "cve_id": "CVE-2024-37298",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "644cf51e3fd6b07117c9c8c14512af119019b6ce534b632f6b9fbf266bfd62ee",
+          "completed": true,
+          "steps": 24,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "b031fe1ec695e05aade5208efeee4f1af680ad053a5d020c9951f9be4af732a1",
+          "completed": true,
+          "steps": 24,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "containers-podman-5ae6347-CVE-2025-47914",
+      "run_id": "run_001",
+      "cve_id": "CVE-2025-47914",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_present",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_present",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_present",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "f1f5cdec4e052fac04ac3091f866359fe786b65822262f7c298889e7be38207b",
+          "completed": true,
+          "steps": 12,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "9c0245e37814a7f04913bfba8117bfe26d3e5ac933b7b57f3422c05b99964a0c",
+          "completed": true,
+          "steps": 30,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "containers-podman-5ae6347-CVE-2025-47914",
+      "run_id": "run_002",
+      "cve_id": "CVE-2025-47914",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_present",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "false_positive",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "false_positive",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "88be0e2bbbf11da79c9557ca2f39339dacb83397bf53c452afb30ee417f59ffd",
+          "completed": true,
+          "steps": 6,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_present",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_present",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "eb70c302781394b7d33f14ebf54d153bfc78942fe37e783bb7ea8e5f73e80c25",
+          "completed": true,
+          "steps": 13,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "containers-podman-5ae6347-CVE-2025-47914",
+      "run_id": "run_003",
+      "cve_id": "CVE-2025-47914",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_present",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "false_positive",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "false_positive",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "61d8b70f0b6eec9ca9b7cadef941d03c3707c37da5a9ff9d67ada8831166c0c8",
+          "completed": true,
+          "steps": 11,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "21cf717ec4b1d9b67648de7d48ee59440bd0827d52720406eedd17e87987c7b7",
+          "completed": true,
+          "steps": 11,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "containers-podman-6541fc4-CVE-2025-58181",
+      "run_id": "run_001",
+      "cve_id": "CVE-2025-58181",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "fb48842ac1c4f7e5fb5f2affe2cfe5242df548c22e593b5e1065e363ed477f6d",
+          "completed": true,
+          "steps": 22,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "639e634cf8cd2416e2717848f373872389e2ae71671f248e3989d7bb31e65d2e",
+          "completed": true,
+          "steps": 11,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "containers-podman-6541fc4-CVE-2025-58181",
+      "run_id": "run_002",
+      "cve_id": "CVE-2025-58181",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "643365d9a4a98e4b6d11de7072c1eda0adecc9452bb00619a54540e8b8224687",
+          "completed": true,
+          "steps": 15,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "ac6b610bb05b33988377cc845ddf986fbf8bd37a84854ae4bb286da8efe82f88",
+          "completed": true,
+          "steps": 8,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "containers-podman-6541fc4-CVE-2025-58181",
+      "run_id": "run_003",
+      "cve_id": "CVE-2025-58181",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "d084725090ded91916e597fd0f146d86621fd17619627671cfe554f755dcb613",
+          "completed": true,
+          "steps": 13,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "1d13733334e9e2820ceb0c70ef1e139bd4fd22da0b57af846aaffa03c32bf140",
+          "completed": true,
+          "steps": 11,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "containers-podman-6a65597-CVE-2023-48795",
+      "run_id": "run_001",
+      "cve_id": "CVE-2023-48795",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "6ec66e449af49f7f0ac6ea71aec6c9efe83a2789ca951b41a51bdac5ef3ddb9a",
+          "completed": true,
+          "steps": 23,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "e87b6150484c0375afe75edf8e5013c47084c530d6a738682717a8dfd0fd6914",
+          "completed": true,
+          "steps": 24,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "containers-podman-6a65597-CVE-2023-48795",
+      "run_id": "run_002",
+      "cve_id": "CVE-2023-48795",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "parse_fail",
+            "category": null,
+            "binary": null,
+            "outcome": "failed"
+          },
+          "audit": {
+            "category": null,
+            "outcome": "failed"
+          },
+          "status_overall": "failed",
+          "failure_reason": "invalid_terminal_answer",
+          "result_sha256": "f8c2358529688aa2fed7e9c3912f25348fd5990ef7cebe523df12f097023275a",
+          "completed": false,
+          "steps": null,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "parse_fail",
+            "category": null,
+            "binary": null,
+            "outcome": "failed"
+          },
+          "audit": {
+            "category": null,
+            "outcome": "failed"
+          },
+          "status_overall": "failed",
+          "failure_reason": "invalid_terminal_answer",
+          "result_sha256": "3ddb610faeeffe131ad26442940f2c123283210db054c0b1106de17d58204f46",
+          "completed": false,
+          "steps": null,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "containers-podman-6a65597-CVE-2023-48795",
+      "run_id": "run_003",
+      "cve_id": "CVE-2023-48795",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "d0c0d48643266dc84679cd14c943f95b43eec1655e9fa79733ad2078a0ae8e2f",
+          "completed": true,
+          "steps": 14,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "parse_fail",
+            "category": null,
+            "binary": null,
+            "outcome": "failed"
+          },
+          "audit": {
+            "category": null,
+            "outcome": "failed"
+          },
+          "status_overall": "failed",
+          "failure_reason": "invalid_terminal_answer",
+          "result_sha256": "02703843f232cbeee33fe0fd5c152cc0a4449028aaa848669ab454d127777d28",
+          "completed": false,
+          "steps": null,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+      "run_id": "run_001",
+      "cve_id": "CVE-2025-22871",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "requires_configuration",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "requires_configuration",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "requires_configuration",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "251109c0c498175188bd6a1becfd2699a0ef069c80091b267cdb744642bcc5b5",
+          "completed": true,
+          "steps": 10,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "requires_configuration",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "requires_configuration",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "2eeb18b4b4d2dc8e79c1343fcc5e96296dff8b8eea4d15595c7e82a699998379",
+          "completed": true,
+          "steps": 14,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+      "run_id": "run_002",
+      "cve_id": "CVE-2025-22871",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "requires_configuration",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "requires_configuration",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "requires_configuration",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "d9f02aadc5ec5d5d53f3eba09f87e52218abe9ba59568b0db2b9197702e0a447",
+          "completed": true,
+          "steps": 18,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "515d0038494b3f3ae9e2fe8644e9616ce72d03a0ab9cf272e53523167a0b37e4",
+          "completed": true,
+          "steps": 13,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "gitleaks-gitleaks-f487f85-CVE-2025-22871",
+      "run_id": "run_003",
+      "cve_id": "CVE-2025-22871",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "requires_configuration",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "false_positive",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "false_positive",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "1c4ef902e8d01e34d5c3695f5f80ab5ba8d6bc124032d73bc87624d303b1f2c0",
+          "completed": true,
+          "steps": 4,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "requires_configuration",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "requires_configuration",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "fe15e9a2498ee7e404447c3abe796c4cccd0a74cc9ead7680c8890279ca1e3ee",
+          "completed": true,
+          "steps": 31,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "helm-helm-b76a950-CVE-2024-25621",
+      "run_id": "run_001",
+      "cve_id": "CVE-2024-25621",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "a65dc224fb1f9c9b457bf15b4b8158f33c541fdce07c13560de5640c86690ae7",
+          "completed": true,
+          "steps": 17,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "59df3553ffd618ddab4f9a773772a746d2f533a9045fea671c702e6e3a7c9b2a",
+          "completed": true,
+          "steps": 16,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "helm-helm-b76a950-CVE-2024-25621",
+      "run_id": "run_002",
+      "cve_id": "CVE-2024-25621",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "4605e16fce9469a9f0019fcb5d4ea0a533cbd4ffdbdc9c3bb8a4a96567fa94ba",
+          "completed": true,
+          "steps": 15,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "f4251d0ea95fe30f62c9f712fd9b1fdba54a968d997c876aa68ede44903e8f9e",
+          "completed": true,
+          "steps": 8,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "helm-helm-b76a950-CVE-2024-25621",
+      "run_id": "run_003",
+      "cve_id": "CVE-2024-25621",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "2e1d5059e0cd4e25f11f77f783cc8c4a93b40c4571f64cf1d2aea9c77ff7a796",
+          "completed": true,
+          "steps": 8,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "18bce558fdd1bd6f4b5dca3bfe9709a759f1b4449b3802e441feb0c7f220e827",
+          "completed": true,
+          "steps": 12,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "helm-helm-fbb24fe-CVE-2021-21334",
+      "run_id": "run_001",
+      "cve_id": "CVE-2021-21334",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "71b86b3c874aae2b496949b8b2f693a064d5d623b56e9433de6a3f650d0c1eea",
+          "completed": true,
+          "steps": 12,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "212d1f7a5b1aaa4b6931e61b0be4bd27e8be8dee0d449bd8605cd88a7d8e1657",
+          "completed": true,
+          "steps": 10,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "helm-helm-fbb24fe-CVE-2021-21334",
+      "run_id": "run_002",
+      "cve_id": "CVE-2021-21334",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "8bffaf75062918d0ad3519697945a3a8369570262b2eb1f057816da88ce399ba",
+          "completed": true,
+          "steps": 11,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "ce8bf9811fc8cf4fbe0b88cdd03c125193f898b1b030bf30aa0b39fdf51f7a51",
+          "completed": true,
+          "steps": 13,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "helm-helm-fbb24fe-CVE-2021-21334",
+      "run_id": "run_003",
+      "cve_id": "CVE-2021-21334",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "26af66d1558e5f16dabd1466ffe5d46f58cadff41ccfb0db1fd733d7c9df2095",
+          "completed": true,
+          "steps": 10,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "7a249fbef81b80893c0025be7f7677f9a7e1754447fa5465316f3f99c7d51f1d",
+          "completed": true,
+          "steps": 10,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "istio-istio-042afc3-CVE-2023-48795",
+      "run_id": "run_001",
+      "cve_id": "CVE-2023-48795",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "c0bab9cdf37ed8395d9327fca3158827db46616cd9bcdb67a6d1e6253a875162",
+          "completed": true,
+          "steps": 15,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "55407321989c6afc6ffc7a5d8de14b6065c37d00fbe3fbf2b04011f0593bdc94",
+          "completed": true,
+          "steps": 14,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "istio-istio-042afc3-CVE-2023-48795",
+      "run_id": "run_002",
+      "cve_id": "CVE-2023-48795",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_present",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_present",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "22e9c3ce4e9455c81b26c170cbf38ab326e400a2de1aa9cdd9fa5f7afc57aafa",
+          "completed": true,
+          "steps": 5,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "4a7c19f8a0634a1954f896e9c671516df38ffce2973734951743207568e7f6df",
+          "completed": true,
+          "steps": 8,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "istio-istio-042afc3-CVE-2023-48795",
+      "run_id": "run_003",
+      "cve_id": "CVE-2023-48795",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "1ca93edb52557ce32cb71d69c57d7f19f7c05ec0ab819e1709403c68180c5b36",
+          "completed": true,
+          "steps": 17,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "48e270772e998a798a1a601a618bc1382dc67939782a007680a59bbfedd8cf81",
+          "completed": true,
+          "steps": 17,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "istio-istio-8903f65-CVE-2024-45338",
+      "run_id": "run_001",
+      "cve_id": "CVE-2024-45338",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "715c67047eb2576209f718e87a23de8c6e3604e95637a4458a197def6e160f1a",
+          "completed": true,
+          "steps": 13,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "903a76d7e3f1eb86ae0742edeecf9e7a5f94c0ba23a50ab1e0719aa53054885e",
+          "completed": true,
+          "steps": 21,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "istio-istio-8903f65-CVE-2024-45338",
+      "run_id": "run_002",
+      "cve_id": "CVE-2024-45338",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "c7fa4f47f6e5100f302f2a0e10a258a0da8a724f405e43ad258bb27950ef1fb3",
+          "completed": true,
+          "steps": 14,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "6af96f12ed5fe15e04da71fe43fc56781b7fa8a0d16eee52c9d7747bf5e75c3e",
+          "completed": true,
+          "steps": 10,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "istio-istio-8903f65-CVE-2024-45338",
+      "run_id": "run_003",
+      "cve_id": "CVE-2024-45338",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "358ebc49bb46e95db3e8d9d27f46b8a7f154b9d2a31c06a136f4af5e3b3b686f",
+          "completed": true,
+          "steps": 16,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "36a3a59e1a773547761999a07bd4b70567fef7a71d4ef1fa82fafdc791004abd",
+          "completed": true,
+          "steps": 13,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "juanfont-headscale-e172c29-CVE-2024-45338",
+      "run_id": "run_001",
+      "cve_id": "CVE-2024-45338",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "e65ff4dee9beff77e031c661bb9a47954ff6f436bf77666978961c2bc489079b",
+          "completed": true,
+          "steps": 14,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "fe3b6f3072778bfc80e3de56afe35cc199ea8f312591b0245462864830c5d8cb",
+          "completed": true,
+          "steps": 14,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "juanfont-headscale-e172c29-CVE-2024-45338",
+      "run_id": "run_002",
+      "cve_id": "CVE-2024-45338",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "3e4bd547da08970320e67fb01a19f60c7c3c50ea589d71cc112fb9003ab3574b",
+          "completed": true,
+          "steps": 23,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "a70d469a197aaadf4df79e030ccacb8c691361f9669f220ce2dd7413390afe9a",
+          "completed": true,
+          "steps": 14,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "juanfont-headscale-e172c29-CVE-2024-45338",
+      "run_id": "run_003",
+      "cve_id": "CVE-2024-45338",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "perimeter_protected",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "perimeter_protected",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "343cf53ae51055e770bc205d1bad6ddfeb343ae8d396e68919cd122f7a59c343",
+          "completed": true,
+          "steps": 22,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "2931a01185641cd7404bb026df5ddba32aa69f313480ff37e83a7d9c5fb84114",
+          "completed": true,
+          "steps": 17,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+      "run_id": "run_001",
+      "cve_id": "CVE-2024-24786",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "6f8a3dd815c447a7179f2c30fa6515b60dc41d646c03354fdf6172cdb172b9c6",
+          "completed": true,
+          "steps": 21,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "54bd7b8b71b1c1b0ab039ce5f4a9b7d61b319d1ee867625707c6a0a81e173b8d",
+          "completed": true,
+          "steps": 40,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+      "run_id": "run_002",
+      "cve_id": "CVE-2024-24786",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "4227eff35531a443f447f14ffdae0f9941f345f8e4c113ca14382b4ddefbb635",
+          "completed": true,
+          "steps": 27,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "a9d68bfe58e55788a7b5110819e8baec24cdf3b4cc3e310b55772d625e9ecde1",
+          "completed": true,
+          "steps": 29,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-kubernetes-1ee2acb-CVE-2024-24786",
+      "run_id": "run_003",
+      "cve_id": "CVE-2024-24786",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "284a619eb8f88d87762ab285101a186386a0f4b1521fa521e3861990f9505c59",
+          "completed": true,
+          "steps": 25,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "cdff5a47e9aff1ccb9503e2630c2e448777b2ec7564a6fd21cf493fb5ac9b9b6",
+          "completed": true,
+          "steps": 28,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+      "run_id": "run_001",
+      "cve_id": "CVE-2022-41717",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_present",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "false_positive",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "false_positive",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "f3e463b3292d999695c6eaa28138a076a78d33c6b53100e0d2fdd2a51baa8302",
+          "completed": true,
+          "steps": 41,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "5869d2c45efeb0606600c0133eda6a9cbb60500b7360318c9c2af56b34720230",
+          "completed": true,
+          "steps": 27,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+      "run_id": "run_002",
+      "cve_id": "CVE-2022-41717",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_present",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "no_result",
+            "category": null,
+            "binary": null,
+            "outcome": "failed"
+          },
+          "audit": {
+            "category": null,
+            "outcome": "failed"
+          },
+          "status_overall": "failed",
+          "failure_reason": "container_nonzero_exit",
+          "result_sha256": null,
+          "completed": false,
+          "steps": null,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_present",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_present",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "0669a490399cc716c1182b27199b3465ba18ddba8bc3624b1d011e6960d89f51",
+          "completed": true,
+          "steps": 18,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-kubernetes-6d4b94f-CVE-2022-41717",
+      "run_id": "run_003",
+      "cve_id": "CVE-2022-41717",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_present",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "a69177453e277eec573c525139cba08f071ed55f5d62cc6523cab250639830ba",
+          "completed": true,
+          "steps": 17,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "3b69b31e312409aca7b9b8b984455a01e89627133f464467374bc9483d0e6fc2",
+          "completed": true,
+          "steps": 24,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+      "run_id": "run_001",
+      "cve_id": "CVE-2023-44487",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "5b4ba19692be98ed9290a128bbec32de9d7d3c8be4bcdabdfa70e9e7616167b1",
+          "completed": true,
+          "steps": 12,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "4a5eb4a665f5a2c873c90f898dfefdbb3e2f6dbf09a5511d4a8e750bdf451cf1",
+          "completed": true,
+          "steps": 54,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+      "run_id": "run_002",
+      "cve_id": "CVE-2023-44487",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_present",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_present",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "75d77898f0b667be6722401c93211602b37f3a010e9cbe6038340cd3412677d5",
+          "completed": true,
+          "steps": 48,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "failed",
+          "failure_reason": "invalid_terminal_answer",
+          "result_sha256": "c5693b7343cee7aa17dac7ccb291a09f2f76718736a6a0b5aab5b7f6d299fed7",
+          "completed": true,
+          "steps": 32,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-kubernetes-e196d24-CVE-2023-44487",
+      "run_id": "run_003",
+      "cve_id": "CVE-2023-44487",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_present",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_present",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "706f0e00d890bfe272855bee20b64fd2daa010c3939aa993e12ffe17c5b2b177",
+          "completed": true,
+          "steps": 49,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "failed",
+          "failure_reason": "invalid_terminal_answer",
+          "result_sha256": "18036550e23f3e4c0d885b47bc8deee7b3aa661d96c090ec9492083122b22b35",
+          "completed": true,
+          "steps": 31,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+      "run_id": "run_001",
+      "cve_id": "CVE-2021-3121",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "dc59496e9d7023fd09d2691e943f668f00ffaa63a15b3cbdfba7d6b715189e79",
+          "completed": true,
+          "steps": 54,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "47d48908bd3838a6f21641dee5cbe5be3fc6f384126fb0d5868d396333727986",
+          "completed": true,
+          "steps": 21,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+      "run_id": "run_002",
+      "cve_id": "CVE-2021-3121",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "a318f1a711fa563991caa97815036f8520ecf096b8c3ed25d838a3bf3940fddf",
+          "completed": true,
+          "steps": 35,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "b5f89ab8bc6a34503fdcb8df7de183f313a1bcff230de33358e522e2e8a526dc",
+          "completed": true,
+          "steps": 32,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-kubernetes-ec78c0f-CVE-2021-3121",
+      "run_id": "run_003",
+      "cve_id": "CVE-2021-3121",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "22ce2b45b896a528af0748091375a59ff5c57a1783361f2d9ee8cd02b1c63d96",
+          "completed": true,
+          "steps": 46,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "parse_fail",
+            "category": null,
+            "binary": null,
+            "outcome": "failed"
+          },
+          "audit": {
+            "category": null,
+            "outcome": "failed"
+          },
+          "status_overall": "failed",
+          "failure_reason": "invalid_terminal_answer",
+          "result_sha256": "7c41d07dea13f4a30cacd84f2ad7febe4166a3ddb6e40c8bd9ea0373b5d6808c",
+          "completed": false,
+          "steps": null,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-minikube-e7bf515-CVE-2019-5736",
+      "run_id": "run_001",
+      "cve_id": "CVE-2019-5736",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_present",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_present",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_present",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "3f7cbb37ed1c29ee3582bab2c9997143d894928e42a52111c926279e986cf0f4",
+          "completed": true,
+          "steps": 8,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_present",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_present",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "c317008de2487e2883517671cfaf8f939873e627f7c47785e489120b63acd9cd",
+          "completed": true,
+          "steps": 10,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-minikube-e7bf515-CVE-2019-5736",
+      "run_id": "run_002",
+      "cve_id": "CVE-2019-5736",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_present",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "cd1e86746f6426bbca6db065a3568b6ab246e1849b1600318e14c78de9352753",
+          "completed": true,
+          "steps": 26,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_present",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_present",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "80bdb954ef2c75bd62125b877e5667cbf7e38793c8f990fe9f10d99995f38eb3",
+          "completed": true,
+          "steps": 6,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "kubernetes-minikube-e7bf515-CVE-2019-5736",
+      "run_id": "run_003",
+      "cve_id": "CVE-2019-5736",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_present",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "false_positive",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "false_positive",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "f68ccd1f4205c3e5feb0f1f4bf45e41f7cb329aa2cac81da6770dd3c125f9d4a",
+          "completed": true,
+          "steps": 19,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "false_positive",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "false_positive",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "1a59132fa786ecc56495260b131175848c9b4262b9cbd386637f75a977e0d271",
+          "completed": true,
+          "steps": 8,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "labstack-echo-fdacff0-CVE-2020-26160",
+      "run_id": "run_001",
+      "cve_id": "CVE-2020-26160",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "ba2d4647306c7f8482d02e03300a1b2a54fb33ab9c2446786bcc8effb5fe3d07",
+          "completed": true,
+          "steps": 8,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "195e21fe6717cd16fa8dab175edb897efd0743b94ed06bf16f9690e7ca956f4c",
+          "completed": true,
+          "steps": 14,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "labstack-echo-fdacff0-CVE-2020-26160",
+      "run_id": "run_002",
+      "cve_id": "CVE-2020-26160",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "5b6c57770ee411358cb0620dcebdcf01fb8e6cd82c24dc310946470f8bf695d3",
+          "completed": true,
+          "steps": 8,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "83b296e147cfdf59a0df1b305bea4bad0d1e9da258952ea5631935976eb6e4fb",
+          "completed": true,
+          "steps": 13,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "labstack-echo-fdacff0-CVE-2020-26160",
+      "run_id": "run_003",
+      "cve_id": "CVE-2020-26160",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "7a9f695dbbc8ac978e0087a4f903eb9f34faea53edc2085dbbe457b81c092f74",
+          "completed": true,
+          "steps": 6,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "443604e1ad78110e8040b51dd2baa7c4e32379b80e6372fe8cfc937b6f83f4ab",
+          "completed": true,
+          "steps": 10,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "moby-moby-3ede246-CVE-2026-39984",
+      "run_id": "run_001",
+      "cve_id": "CVE-2026-39984",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "8ce642c1cc12827aa3a1a732219442ce9ce803e3074a2a5b570165a68880e282",
+          "completed": true,
+          "steps": 18,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "7ed78814aa2fd12f9fc501ecb95e8a1bf5da90ebc0df5e6fc766a86fde3409e5",
+          "completed": true,
+          "steps": 24,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "moby-moby-3ede246-CVE-2026-39984",
+      "run_id": "run_002",
+      "cve_id": "CVE-2026-39984",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "mitigating_control_protected",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "mitigating_control_protected",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "614f4f320fd84082ccaa8963df2afbf9c7071aa9bf47a341816349990ef3273b",
+          "completed": true,
+          "steps": 21,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "36057f168e321df87f0db07fc05eabc91d231049e5f4fe1109029e9785aaf651",
+          "completed": true,
+          "steps": 27,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "moby-moby-3ede246-CVE-2026-39984",
+      "run_id": "run_003",
+      "cve_id": "CVE-2026-39984",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "c65f6ff78949f5c7fca7e34f75fc0e95b2150be2c3fcfdaea1c18ad9cf36fd51",
+          "completed": true,
+          "steps": 24,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "9923a7e3ed6b5ff50a24ec86f1f3d606673e888853239e0808e0913debd8ab9d",
+          "completed": true,
+          "steps": 10,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "moby-moby-caea5f7-CVE-2026-39883",
+      "run_id": "run_001",
+      "cve_id": "CVE-2026-39883",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "12d84a1a3af506075db03b680842bec5895684282813c577d0f8b3b9f6ffdb4d",
+          "completed": true,
+          "steps": 19,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "77f62d295098d5a21c06c1f847f38623afb3df7565669f2a1f41f38f73170bbc",
+          "completed": true,
+          "steps": 14,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "moby-moby-caea5f7-CVE-2026-39883",
+      "run_id": "run_002",
+      "cve_id": "CVE-2026-39883",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "requires_environment",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "requires_environment",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "ffa4f6fe1b9396760312f04f0c8d9d16569246eb57d8eca375175518dddf8730",
+          "completed": true,
+          "steps": 15,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "634616eed13c7c15ee9aa87265b74a8c9731168b63921089c7e6e347bb23be3d",
+          "completed": true,
+          "steps": 27,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "moby-moby-caea5f7-CVE-2026-39883",
+      "run_id": "run_003",
+      "cve_id": "CVE-2026-39883",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "bebb77a6bff8bb89e237a6b0cdb14cb0360a2b9fa19af871cbe6de6eec33b64d",
+          "completed": true,
+          "steps": 19,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "requires_environment",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "requires_environment",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "1c4d5f7ce576f3b05f6cf7a856359a12b30b9d2c24e6c4c7a4c71f07c6fb7632",
+          "completed": true,
+          "steps": 12,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "rancher-rancher-4dc4f53-CVE-2025-47914",
+      "run_id": "run_001",
+      "cve_id": "CVE-2025-47914",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "cbf21ac1fd3e7e8d83880bc1bf39cb0a4ab7dabf2a0c03ac82d232df57638b2a",
+          "completed": true,
+          "steps": 20,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "1a5de5cd4eec64c0a7289d7a1037c49cf6c1586b13f85614ce69f38e087bb2c3",
+          "completed": true,
+          "steps": 18,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "rancher-rancher-4dc4f53-CVE-2025-47914",
+      "run_id": "run_002",
+      "cve_id": "CVE-2025-47914",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "e137ece12fb5c125ac4906c82d8233b8d566f29ffb868e7c78e6491b48ca8fd6",
+          "completed": true,
+          "steps": 21,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "a916de376e72e20f788b386a47677a44fc627f8737fd51f845b08c13c98b2873",
+          "completed": true,
+          "steps": 27,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "rancher-rancher-4dc4f53-CVE-2025-47914",
+      "run_id": "run_003",
+      "cve_id": "CVE-2025-47914",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "parse_fail",
+            "category": null,
+            "binary": null,
+            "outcome": "failed"
+          },
+          "audit": {
+            "category": null,
+            "outcome": "failed"
+          },
+          "status_overall": "failed",
+          "failure_reason": "invalid_terminal_answer",
+          "result_sha256": "bab35ad8e18bebf079c3a52c90659104f1faef24b42c0d46bba47088fb775bc0",
+          "completed": false,
+          "steps": null,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "7009f7a2c867fd85feb4f45af138417acd8a8bb24b47eff7a398d8c9c6f0baa6",
+          "completed": true,
+          "steps": 14,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "rancher-rancher-4dc4f53-CVE-2025-58181",
+      "run_id": "run_001",
+      "cve_id": "CVE-2025-58181",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "cf5212252aa959bf4bc3182242e323096249a09362a9af99784418c2cd1bbebc",
+          "completed": true,
+          "steps": 18,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "9ebe52b98affa13331022249078dc41922f2b70789e7dc096dd81cbe049f7cf7",
+          "completed": true,
+          "steps": 8,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "rancher-rancher-4dc4f53-CVE-2025-58181",
+      "run_id": "run_002",
+      "cve_id": "CVE-2025-58181",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "2cccb868c26434eaecc7e3fd8b4fdb48d6374d65406ba31a8f064160b97b8019",
+          "completed": true,
+          "steps": 6,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "c67f4ffdc6818929d28148dfa73bc7e57da06124382aaffc94f20a0ed486edc6",
+          "completed": true,
+          "steps": 10,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "rancher-rancher-4dc4f53-CVE-2025-58181",
+      "run_id": "run_003",
+      "cve_id": "CVE-2025-58181",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "c82224a94210d16baee8a528d5b95ef0d2b38ed64351eac08708c20659adadb4",
+          "completed": true,
+          "steps": 10,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "failed",
+          "failure_reason": "invalid_terminal_answer",
+          "result_sha256": "d56103c3f08945d65d6762521c58b5da06955057866c9a93e7838e957c5ba21b",
+          "completed": true,
+          "steps": 12,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "rancher-rancher-8761419-CVE-2026-24051",
+      "run_id": "run_001",
+      "cve_id": "CVE-2026-24051",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "4dadb13e9f3d6d3a81f60d149ded1fb183dc04407424c8a3caff592ae8a23b1d",
+          "completed": true,
+          "steps": 20,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "requires_environment",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "requires_environment",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "4b37674126ab7dde3d0c65110f6a3e047d1d474cb24d607ac1f0b87c71c72cf0",
+          "completed": true,
+          "steps": 14,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "rancher-rancher-8761419-CVE-2026-24051",
+      "run_id": "run_002",
+      "cve_id": "CVE-2026-24051",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "uncertain",
+            "binary": "not_exploitable",
+            "outcome": "abstain"
+          },
+          "audit": {
+            "category": "uncertain",
+            "outcome": "abstain"
+          },
+          "status_overall": "inconclusive",
+          "failure_reason": null,
+          "result_sha256": "794331f961f9f9780a4ebe81818f7035a4e02a561d8c0bd43535740ec0eefcfc",
+          "completed": true,
+          "steps": 27,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "b101c12c1e8ef08fc2ed63f32cf80f35e9a57592cb59eb220656c4b92651a96b",
+          "completed": true,
+          "steps": 30,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "rancher-rancher-8761419-CVE-2026-24051",
+      "run_id": "run_003",
+      "cve_id": "CVE-2026-24051",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "cf186c53df65818ebf40e8e753b53b8e7b52982103c6edad6359462fc0762741",
+          "completed": true,
+          "steps": 17,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "requires_environment",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "requires_environment",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "74646daae9a6c704a655fe8f53d28ddc88361a5c480eaec6fabec62becabdee4",
+          "completed": true,
+          "steps": 17,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "rancher-rancher-8761419-CVE-2026-39883",
+      "run_id": "run_001",
+      "cve_id": "CVE-2026-39883",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "requires_environment",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "requires_environment",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "b4d2ddfe0a343544a04aed8b20120106361dba022db4fd0698928eb8606ae8b4",
+          "completed": true,
+          "steps": 15,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "8d1b13014cf81b096ce30fc2b59461b7c3a7fc14c408addfd8d59a70377562da",
+          "completed": true,
+          "steps": 8,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "rancher-rancher-8761419-CVE-2026-39883",
+      "run_id": "run_002",
+      "cve_id": "CVE-2026-39883",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "requires_environment",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "requires_environment",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "eb024c64c503ff23e391d2a1eaad2e70888937dba7261d9065c57b3a30b8b394",
+          "completed": true,
+          "steps": 8,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "a250a243177e0d4cb862df4a59cd14f9116a38be77da684c502e4b542ff65aca",
+          "completed": true,
+          "steps": 24,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "rancher-rancher-8761419-CVE-2026-39883",
+      "run_id": "run_003",
+      "cve_id": "CVE-2026-39883",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "bee2af7a982935e437e4f07517a5fe02892d8a7af41a6e42b4afac2f504f60af",
+          "completed": true,
+          "steps": 17,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "4ab95e5866f250c23c2ebc7b0eb8050a1978be2ea5306ac590cde39a8247b782",
+          "completed": true,
+          "steps": 15,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "stretchr-testify-285adcc-CVE-2022-28948",
+      "run_id": "run_001",
+      "cve_id": "CVE-2022-28948",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "62dd6313e66ea3b367d22df0bac8fa98d1f5fc5eb23b3d85744e5773ce7e0b53",
+          "completed": true,
+          "steps": 23,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "9b00756f5c88380e69cfdf93f34ffd7f19cb619e3d7f521b6d50377b860f50f8",
+          "completed": true,
+          "steps": 8,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "stretchr-testify-285adcc-CVE-2022-28948",
+      "run_id": "run_002",
+      "cve_id": "CVE-2022-28948",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "5cb7d2cb26fd6334e3444b3364f41e58ae915b2da6cf5245447df544148becd7",
+          "completed": true,
+          "steps": 16,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "failed",
+          "failure_reason": "invalid_terminal_answer",
+          "result_sha256": "712a4d732e9b59c27e85e7846b1b00ddc3f2056efffcbde299df193bc43ac003",
+          "completed": true,
+          "steps": 18,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "stretchr-testify-285adcc-CVE-2022-28948",
+      "run_id": "run_003",
+      "cve_id": "CVE-2022-28948",
+      "ground_truth": "exploitable",
+      "ground_truth_category": "vulnerable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "vulnerable",
+            "binary": "exploitable",
+            "outcome": "positive"
+          },
+          "audit": {
+            "category": "vulnerable",
+            "outcome": "positive"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "3550f5d75445a41ff088b79b6167a6feb94b3788cd3446ec3a8b713eb3b8d187",
+          "completed": true,
+          "steps": 31,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "bc223921fd791ed4b4def35c0524e845bc722c7588997e7e4075a3722d99d566",
+          "completed": true,
+          "steps": 20,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "zeromicro-go-zero-bae061a-CVE-2022-32149",
+      "run_id": "run_001",
+      "cve_id": "CVE-2022-32149",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_present",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_present",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "61f26d944539a575778464aea0b5acaa999ee54dfae528303bf21f1d3022afc4",
+          "completed": true,
+          "steps": 8,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "bc15da7a7437ce361666a770e47508be597a850fcbbd295e9dbc822f2bccda0b",
+          "completed": true,
+          "steps": 15,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "zeromicro-go-zero-bae061a-CVE-2022-32149",
+      "run_id": "run_002",
+      "cve_id": "CVE-2022-32149",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "7178f7aef490129f67dbdf095f2ceb984de9d8b280c3667f00adb110af08e88c",
+          "completed": true,
+          "steps": 6,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_present",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_present",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "d636124106ca4bbc5ca752c3c25bb297a4ce63902d00f889af41857826c5a71d",
+          "completed": true,
+          "steps": 7,
+          "cost_usd": null
+        }
+      }
+    },
+    {
+      "task_id": "zeromicro-go-zero-bae061a-CVE-2022-32149",
+      "run_id": "run_003",
+      "cve_id": "CVE-2022-32149",
+      "ground_truth": "not_exploitable",
+      "ground_truth_category": "code_not_reachable",
+      "arms": {
+        "p1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_reachable",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_reachable",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "3e05d8022f9fa9851e550b0a66f132a10b01cdbec54929958dc2ce1ec69eafc5",
+          "completed": true,
+          "steps": 10,
+          "cost_usd": null
+        },
+        "t1": {
+          "present": true,
+          "official": {
+            "status": "ok",
+            "category": "code_not_present",
+            "binary": "not_exploitable",
+            "outcome": "safe"
+          },
+          "audit": {
+            "category": "code_not_present",
+            "outcome": "safe"
+          },
+          "status_overall": "valid",
+          "failure_reason": null,
+          "result_sha256": "5287d5e5acb1b4f98c673cd7693cdcc91039bae384683f1c699b576d928c0faa",
+          "completed": true,
+          "steps": 10,
+          "cost_usd": null
+        }
+      }
+    }
+  ]
+}

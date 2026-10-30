@@ -1,0 +1,1785 @@
+diff --git a/docker/build-c1.sh b/docker/build-c1.sh
+new file mode 100755
+index 0000000..6bd7aff
+--- /dev/null
++++ b/docker/build-c1.sh
+@@ -0,0 +1,55 @@
++#!/usr/bin/env bash
++# Build the Task 4 C1 derived images: the frozen agent images plus the
++# izyan-evidence-tools MCP server binary.
++#
++#   ./build-c1.sh <izyan-checkout> [izyan-ref]
++#
++#   <izyan-checkout>  path to the Izyan repo worktree (must contain
++#                     cmd/izyan-evidence-tools); required.
++#   [izyan-ref]       optional recorded ref label stamped into the image
++#                     tag metadata file next to this script (informational;
++#                     the image tag stays :latest like the other agents).
++#
++# The binary is cross-compiled for the Docker host's architecture
++# (GOOS=linux, GOARCH from `docker info`). Keep the base image untouched:
++# B1 must be able to run the frozen vex-bench-go-codex:latest as before.
++set -euo pipefail
++
++HERE="$(cd "$(dirname "$0")" && pwd)"
++IZYAN="${1:?usage: build-c1.sh <izyan-checkout> [izyan-ref]}"
++REF="${2:-$(git -C "$IZYAN" describe --always --dirty --tags 2>/dev/null || git -C "$IZYAN" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
++
++if [[ ! -d "$IZYAN/cmd/izyan-evidence-tools" ]]; then
++    echo "error: $IZYAN does not look like an izyan checkout" >&2
++    exit 1
++fi
++
++GOARCH="$(docker info --format '{{.Architecture}}')"
++# docker reports "aarch64" where Go wants "arm64"
++GOARCH="${GOARCH/aarch64/arm64}"
++mkdir -p "$HERE/bin"
++
++echo ">>> building izyan-evidence-tools (izyan@$REF, linux/$GOARCH)"
++(cd "$IZYAN" && GOOS=linux GOARCH="$GOARCH" CGO_ENABLED=0 \
++    go build -trimpath -o "$HERE/bin/izyan-evidence-tools" ./cmd/izyan-evidence-tools)
++
++echo ">>> building vex-bench-go-codex-c1"
++docker build -t "vex-bench-go-codex-c1:latest" \
++    -f "$HERE/go.codex-c1.Dockerfile" "$HERE"
++
++# opencode variant: built on the corp image so self-hosted providers
++# (custom-openai) keep working through the corporate CA.
++echo ">>> building vex-bench-go-opencode-c1"
++docker build -t "vex-bench-go-opencode-c1:latest" \
++    -f "$HERE/go.opencode-c1.Dockerfile" "$HERE"
++
++cat > "$HERE/c1-image.stamp" <<EOF
++images=vex-bench-go-codex-c1:latest,vex-bench-go-opencode-c1:latest
++bases=vex-bench-go-codex:latest,vex-bench-go-opencode-gw:latest
++izyan_checkout=$IZYAN
++izyan_ref=$REF
++built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
++binary_sha256=$(shasum -a 256 "$HERE/bin/izyan-evidence-tools" | awk '{print $1}')
++EOF
++
++echo ">>> done; stamp written to $HERE/c1-image.stamp"
+diff --git a/docker/go.codex-c1.Dockerfile b/docker/go.codex-c1.Dockerfile
+new file mode 100644
+index 0000000..8c846ca
+--- /dev/null
++++ b/docker/go.codex-c1.Dockerfile
+@@ -0,0 +1,10 @@
++# Task 4 (C1) image: frozen B1 Codex image + izyan evidence-tools binary.
++#
++# Build context is the directory produced by docker/build-c1.sh, which
++# cross-compiles izyan-evidence-tools from a pinned izyan checkout into
++# this directory (bin/izyan-evidence-tools). Nothing else changes:
++# ENTRYPOINT [codex], base Go toolchain and Codex 0.131.0 are inherited.
++FROM vex-bench-go-codex:latest
++
++COPY bin/izyan-evidence-tools /usr/local/bin/izyan-evidence-tools
++RUN chmod 0755 /usr/local/bin/izyan-evidence-tools
+diff --git a/docker/go.opencode-c1.Dockerfile b/docker/go.opencode-c1.Dockerfile
+new file mode 100644
+index 0000000..be4d0f5
+--- /dev/null
++++ b/docker/go.opencode-c1.Dockerfile
+@@ -0,0 +1,4 @@
++FROM vex-bench-go-opencode-gw:latest
++COPY docker/bin/izyan-evidence-tools /usr/local/bin/izyan-evidence-tools
++RUN chmod +x /usr/local/bin/izyan-evidence-tools
++ENTRYPOINT ["opencode"]
+diff --git a/src/evaluate/__pycache__/prompts.cpython-313.pyc b/src/evaluate/__pycache__/prompts.cpython-313.pyc
+index 15d0813024e1f4294a880f47c4d1d9a559beb21b..258ef5172cb77f84dfa05b1320ad582917c956c0 100644
+GIT binary patch
+delta 767
+zcmZ8d&1=(O7=P2IP1+=F6jQb;Qi@n&=vc*qn`@zTASlk#Ogt<QVw-IpX;R;$V-&Q#
+z=}{@djynn7=3n8_#vaO|7xkienN;t-Z~C#}1Ml<k`#sP5e0<D)zL^<wTofSr_WZ*h
+zl?32B4rW45o$-&?nQ~VS%H;j<Jqpq(pwMZcMDoNWp(@NO&TM|_RugB~%#%Y|1^~#)
+zVTF__g}g<|bQ0{5kW;uckmvs@0XdpMMLsGqvvvq(=P-8;jbU^rF7ofqj?n#y+lhon
+zRy1eVV_VQ_wj5inYmVlTrq<NGFw~tkG;7l}a6Z602hkfZA@v4qAw7{t01sWo+<zhy
+za$tqH2E^b-C)9Sfv$s)KI;Wd8tKKko#DK@CmFmL>l}%Y)FKw2*2-LN@>gWfKNI(kx
+zX5$G`{guRO_kwCzh@4ETZZ`}a#t``wXI)0B2fnb2hwCnz8ZnZ~NXL%{j5J^h1F|qi
+zH0Z?l+lHxXwyoRtl5^mA%sHSl32Hf?p?s#6>%@G=u`J`#q$WBC><uy2|0Uer@~9TN
+zqtSQ*L#T}xQvI{isz0NudKA=c%h*R(ZD~+99f+<4{Mp|D7{@+`>*%$nRc{-55ne?h
+z-rIiLe~~D*#vnih{$2q@`YSKI+U>_je8%N7LtY&5%PzlsTy*(Tk2?($MDehE3XnM}
+y|H0-r4U*D8S{p7FdelqK1&I^k`q8tYkVj#}1s6{i#KDc#;ldphv!8(AkMj?7@3^`E
+
+delta 113
+zcmca@bY55eGcPX}0}#aCJ(~4gl!4(fhyw%6P{wDciR#WQ>CBoen?)F_M4A0G*(P&K
+wxU;Wh_zY4p*-qR_gu^B`KczG$)vkyKD8vZF#SW9#O4xCIVPIlpDgs#o0C#*BS^xk5
+
+diff --git a/src/evaluate/agents/__init__.py b/src/evaluate/agents/__init__.py
+index c45b613..a59c7f8 100644
+--- a/src/evaluate/agents/__init__.py
++++ b/src/evaluate/agents/__init__.py
+@@ -3,13 +3,19 @@ from collections.abc import Callable
+ from evaluate.agents.base import Agent, AgentResult, ParsedResult, RunContext, RunStats
+ from evaluate.agents.claude import ClaudeAgent
+ from evaluate.agents.codex import CodexAgent
++from evaluate.agents.codex_c1 import CodexB1PrimeAgent, CodexC1Agent
+ from evaluate.agents.opencode import OpenCodeAgent
++from evaluate.agents.opencode_c1 import OpenCodeB1PrimeAgent, OpenCodeC1Agent
+ 
+ # Each entry is a factory: ``(model) -> Agent``.
+ AGENTS: dict[str, Callable[..., Agent]] = {
+     "codex": CodexAgent,
++    "codex-b1p": CodexB1PrimeAgent,  # Task 4 B1' control: B1 + assessment prompt + full capture
++    "codex-c1": CodexC1Agent,        # Task 4 C1: B1' + izyan MCP evidence tools
+     "claude": ClaudeAgent,
+     "opencode": OpenCodeAgent,
++    "opencode-b1p": OpenCodeB1PrimeAgent,  # Task 4 B1' control: opencode + assessment prompt, no Izyan tools
++    "opencode-c1": OpenCodeC1Agent,    # Task 4 C1: opencode-b1p + izyan MCP evidence tools
+ }
+ 
+ __all__ = ["AGENTS", "Agent", "AgentResult", "ParsedResult", "RunContext", "RunStats"]
+diff --git a/src/evaluate/agents/__pycache__/__init__.cpython-313.pyc b/src/evaluate/agents/__pycache__/__init__.cpython-313.pyc
+index 4fb0b0bfb020729b9ae5478c0f284ee823070bba..abdf1a92557d37f86685ee74655c93facf85c40a 100644
+GIT binary patch
+delta 486
+zcmY+9%SyvQ6o${FHc3r$X%n^LtrVeFv>MR|@P-iaQX+IS;w6Ss(YB0=r5o`Ll)Q!u
+zAHco7fDi_%3l}cjRDA&_sS!LdXa4^?bAFij_>++TmgQbxb=iD8&i4Sk1tu!-SA5^y
+z=1cpQLX<4nVDsy$r4cRE!g|U|leDE1JquXEGFET`YdDQ{TPzC1z<szMBRhd(^IV+e
+zbvqugd-KfAfGw2}$yAaB`S!kg#nIGq{m5-DncJj#>MmB?+Br>zXxR*10a1CY;no7y
+z1spXZ@NZ3xXtXKNxD$l865%y{Xf|46S2`x;os)xwizAncbrv7sRx(oIQ|Zq+W|8uX
+zYpa_(c7Z3lS3;v`&}*O@HB8%cOd_$*k)-#5MtPY@I^=awMhzxPFj0f1dnz}J#=L!Q
+zawW$AV&`m^wN4Bn^aA7WP=1DT8;Wh1dWDrX%)P=!M+7C~r*ghF>??!5HsTu-zMlJ3
+VMel(d(nQ3486cI>wLr2g>j&$df;s>I
+
+delta 296
+zcmX@X{+w0)GcPX}0}#aCJ(?xK#K7<v#DM`;DC2X>MD;)m1%?>z7|s~pU^YGGBEA^@
+z7=akZVD=bh6DE*42pJ<7%%KkC=`#d#1~L{2rE_U=PrQ*iIfYSBi}@C7a(+r`#Vxkv
+zoW#<U)LR_+1*v%;A-!8{j_$60A;Fq#Mf^bBlO32Onf)|{CyOvm;D;$H;s(kT@lXE8
+zWT0rTUr>};mRORiUy@s(UzS>t1T-i^H!(dmuS7SwBu9U;KC_mQ3{V3j5Epv`i4V+-
+zjEwgfRGu@0Uu6it%b<6cLFX=m(FYC&K8YKAk~aioKeDq-p35vPz{1G%iHCtZoUxI;
+IND8PE07Xhjd;kCd
+
+diff --git a/src/evaluate/agents/__pycache__/base.cpython-313.pyc b/src/evaluate/agents/__pycache__/base.cpython-313.pyc
+index b23f1b18546dbcbbf3e80d96205ce05e2cd80bde..614a198727f870ffb09eaf271d88b6da4b0e82aa 100644
+GIT binary patch
+delta 6075
+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
+E171^URR910
+
+delta 3361
+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
+
+diff --git a/src/evaluate/agents/__pycache__/codex_c1.cpython-313.pyc b/src/evaluate/agents/__pycache__/codex_c1.cpython-313.pyc
+new file mode 100644
+index 0000000000000000000000000000000000000000..2699c0ba9e498ab18710f13092d08c684fe8a8c7
+GIT binary patch
+literal 9397
+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
+BKpFr5
+
+literal 0
+HcmV?d00001
+
+diff --git a/src/evaluate/agents/__pycache__/opencode.cpython-313.pyc b/src/evaluate/agents/__pycache__/opencode.cpython-313.pyc
+index ac48ae085a98f0a0e65deffa3e9323eeeb73d6d8..f451874d5c6708bb073cd69459eec40444ca3852 100644
+GIT binary patch
+delta 5127
+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
+
+delta 4915
+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
+
+diff --git a/src/evaluate/agents/__pycache__/opencode_c1.cpython-313.pyc b/src/evaluate/agents/__pycache__/opencode_c1.cpython-313.pyc
+new file mode 100644
+index 0000000000000000000000000000000000000000..0eb7556afb8be083821fc603738002468da8526f
+GIT binary patch
+literal 10188
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/src/evaluate/agents/base.py b/src/evaluate/agents/base.py
+index 251e056..bec22d4 100644
+--- a/src/evaluate/agents/base.py
++++ b/src/evaluate/agents/base.py
+@@ -1,5 +1,8 @@
++import json
++import logging
+ import shutil
+ import subprocess
++import threading
+ from abc import ABC, abstractmethod
+ from collections.abc import Sequence
+ from dataclasses import dataclass
+@@ -7,6 +10,8 @@ from pathlib import Path
+ 
+ from pydantic import BaseModel
+ 
++logger = logging.getLogger(__name__)
++
+ 
+ @dataclass(frozen=True)
+ class RunContext:
+@@ -35,6 +40,7 @@ def run_in_container(
+     workdir: str = "/work",
+     artifacts_dir: Path | None = None,
+     artifact_paths: Sequence[tuple[str, str]] = (),
++    io_log_dir: Path | None = None,
+ ) -> str:
+     """Run a one-shot agent command in a disposable container; return stdout.
+ 
+@@ -60,6 +66,8 @@ def run_in_container(
+         raise RuntimeError(f"docker create failed: {exc.stderr.strip() or '(no stderr)'}") from exc
+     cid = created.stdout.strip()
+ 
++    stdout_cap: str | bytes | None = None
++    stderr_cap: str | bytes | None = None
+     try:
+         try:
+             subprocess.run(
+@@ -71,31 +79,89 @@ def run_in_container(
+         except subprocess.CalledProcessError as exc:
+             raise RuntimeError(f"docker cp failed: {exc.stderr.strip() or '(no stderr)'}") from exc
+ 
+-        try:
+-            started = subprocess.run(
+-                ["docker", "start", "-a", cid],
+-                capture_output=True,
+-                text=True,
+-                timeout=timeout,
++        # ``subprocess.run(..., timeout=)`` is unusable here: when the
++        # container streams a lot of output, the timeout fires on the ``docker
++        # start -a`` client only, the container keeps running and holding the
++        # stdout pipe open, and ``communicate()`` then blocks forever. Kill the
++        # container itself from a watchdog so the pipe closes and the client
++        # exits; the ``finally`` block still force-removes it afterwards.
++        logger.info(
++            "run_in_container: cid=%s entrypoint=%s timeout=%ss",
++            cid[:12], entrypoint, timeout,
++        )
++        proc = subprocess.Popen(
++            ["docker", "start", "-a", cid],
++            stdout=subprocess.PIPE,
++            stderr=subprocess.PIPE,
++            text=True,
++        )
++        timed_out = threading.Event()
++
++        def _watchdog() -> None:
++            if proc.poll() is not None:
++                return
++            logger.warning(
++                "run_in_container: watchdog firing for cid=%s after %ss",
++                cid[:12], timeout,
+             )
+-        except subprocess.TimeoutExpired as exc:
++            timed_out.set()
++            try:
++                subprocess.run(
++                    ["docker", "kill", cid],
++                    capture_output=True, check=False, timeout=60,
++                )
++            except subprocess.TimeoutExpired:
++                logger.error("run_in_container: docker kill %s itself hung", cid[:12])
++            # The container death closes the stdout pipe and the client exits.
++            # If it somehow lingers, kill the client so we never hang.
++            try:
++                proc.wait(timeout=30)
++            except subprocess.TimeoutExpired:
++                proc.kill()
++
++        watchdog = threading.Timer(timeout, _watchdog)
++        watchdog.start()
++        try:
++            stdout_cap, stderr_cap = proc.communicate()
++        finally:
++            watchdog.cancel()
++
++        if timed_out.is_set():
+             raise RuntimeError(
+-                f"container timed out after {timeout}s{_captured_io(exc.stdout, exc.stderr)}"
+-            ) from exc
++                f"container timed out after {timeout}s"
++                f"{_captured_io(stdout_cap, stderr_cap)}"
++            )
+ 
+-        if started.returncode != 0:
++        if proc.returncode != 0:
+             raise RuntimeError(
+-                f"container exited {started.returncode}: "
+-                f"{started.stderr.strip() or '(no stderr)'}"
+-                f"{_captured_io(started.stdout, started.stderr)}"
++                f"container exited {proc.returncode}: "
++                f"{(stderr_cap or '').strip() or '(no stderr)'}"
++                f"{_captured_io(stdout_cap, stderr_cap)}"
+             )
+-        return started.stdout
++        return stdout_cap
+     finally:
++        # Full stdout/stderr capture happens before the container and its
++        # writable layer disappear (spec §8.2): on success, non-zero exit
++        # and timeout alike. Write failures are visible, never silent.
++        if io_log_dir is not None:
++            _write_io_logs(io_log_dir, stdout_cap, stderr_cap)
+         if artifacts_dir is not None:
+             _copy_container_artifacts(cid, artifacts_dir, artifact_paths)
+         subprocess.run(["docker", "rm", "-f", cid], capture_output=True, check=False)
+ 
+ 
++def _write_io_logs(
++    io_log_dir: Path, stdout: str | bytes | None, stderr: str | bytes | None
++) -> None:
++    io_log_dir.mkdir(parents=True, exist_ok=True)
++    (io_log_dir / "stdout.log").write_bytes(
++        _decode_capture(stdout).encode("utf-8", errors="replace")
++    )
++    (io_log_dir / "stderr.log").write_bytes(
++        _decode_capture(stderr).encode("utf-8", errors="replace")
++    )
++
++
+ def _copy_container_artifacts(
+     cid: str, artifacts_dir: Path, artifact_paths: Sequence[tuple[str, str]]
+ ) -> None:
+@@ -103,6 +169,7 @@ def _copy_container_artifacts(
+         return
+ 
+     artifacts_dir.mkdir(parents=True, exist_ok=True)
++    report: list[dict] = []
+     for container_path, name in artifact_paths:
+         dest = artifacts_dir / name
+         if dest.exists():
+@@ -110,11 +177,27 @@ def _copy_container_artifacts(
+                 shutil.rmtree(dest)
+             else:
+                 dest.unlink()
+-        subprocess.run(
++        cp = subprocess.run(
+             ["docker", "cp", f"{cid}:{container_path}", str(dest)],
+             capture_output=True,
+             check=False,
++            text=True,
++        )
++        # docker cp is best-effort (check=False) but its outcome is recorded:
++        # a failed export must be distinguishable from a tool that simply
++        # never wrote the artifact (plan section 4, spec section 8.2).
++        report.append(
++            {
++                "container_path": container_path,
++                "name": name,
++                "rc": cp.returncode,
++                "stderr": (cp.stderr or "").strip()[-500:],
++                "exported": dest.exists(),
++            }
+         )
++    (artifacts_dir / "export-report.json").write_text(
++        json.dumps(report, indent=2) + "\n", encoding="utf-8"
++    )
+ 
+ 
+ def _captured_io(stdout: str | bytes | None, stderr: str | bytes | None) -> str:
+diff --git a/src/evaluate/agents/codex_c1.py b/src/evaluate/agents/codex_c1.py
+new file mode 100644
+index 0000000..2eac14c
+--- /dev/null
++++ b/src/evaluate/agents/codex_c1.py
+@@ -0,0 +1,184 @@
++"""Task 4 (C1) Codex adapters — additive profiles, B1 semantics preserved.
++
++Two registry entries:
++
++- ``codex-b1p`` (B1' control): identical to B1's ``codex`` — same model,
++  image, args, mounts, native tools — PLUS the shared structured-assessment
++  prompt (``vuln_assess``) and full stdout/stderr + artifact capture.
++  Use this as the primary comparator when the reporting protocol is new
++  (plan §1.5): same output contract, no Izyan tools anywhere.
++
++- ``codex-c1`` (C1 treatment): B1' + the ``izyan`` MCP evidence-tools
++  server. The frozen base image is extended by a derived image
++  ``vex-bench-go-codex-c1:latest`` (docker/go.codex-c1.Dockerfile) that only
++  adds ``/usr/local/bin/izyan-evidence-tools``; the MCP stanza is appended
++  to a per-attempt synthesized config.toml. Native Codex coding tools,
++  model, sandbox mode, env file and image entrypoint are unchanged.
++
++Neither profile touches ``opencode``/``claude``/``codex`` semantics.
++"""
++
++import logging
++import re
++from pathlib import Path
++
++from evaluate.agents.base import AgentResult, RunContext, run_in_container
++from evaluate.agents.codex import CodexAgent, CONTAINER_CONFIG, HOST_CONFIG, HOST_ENV_FILE
++
++logger = logging.getLogger(__name__)
++
++# Where the derived C1 image keeps the tool binary (docker/go.codex-c1.Dockerfile).
++TOOL_BIN_CONTAINER = "/usr/local/bin/izyan-evidence-tools"
++# Container-local, attempt-local audit sink; exported via artifact_paths.
++TOOL_AUDIT_DIR = "/tmp/izyan-audit"
++# Codex session/rollout records land under $CODEX_HOME (HOME=/tmp in image).
++CODEX_STATE_DIR = "/tmp/.codex"
++
++_CVE_TAG_RE = re.compile(r"<CVE>\s*([A-Za-z]+-\d[\w.-]*)\s*</CVE>")
++
++
++def _extract_cve_id(prompt: str) -> str | None:
++    m = _CVE_TAG_RE.search(prompt)
++    return m.group(1) if m else None
++
++
++def _common_codex_args(prompt: str, model: str) -> list[str]:
++    return [
++        "exec",
++        "--sandbox",
++        "danger-full-access",
++        "--json",
++        "--skip-git-repo-check",
++        "--model",
++        model,
++        prompt,
++    ]
++
++
++class CodexB1PrimeAgent(CodexAgent):
++    """B1' — frozen Codex behavior + full capture; no Izyan tools.
++
++    Registered as ``codex-b1p``. Everything the B1 adapter did is intact:
++    same image name pattern, same CLI args, same config mount. The only
++    deltas are protocol-level and shared with C1: the caller selects the
++    ``vuln_assess`` prompt and this class wires the existing
++    artifacts_dir/artifact_paths capture so stdout, stderr and the Codex
++    session records survive success, non-zero exit and timeout alike.
++    """
++
++    IMAGE_SUFFIX = "codex"  # vex-bench-<lang>-codex:latest — the frozen B1 image
++
++    def run(self, prompt: str, ctx: RunContext) -> AgentResult:
++        env_file = HOST_ENV_FILE.resolve()
++        if not env_file.exists():
++            raise RuntimeError(f"Env file not found: {env_file}")
++        config_file = HOST_CONFIG.resolve()
++        if not config_file.exists():
++            raise RuntimeError(f"Config file not found: {config_file}")
++
++        image = f"vex-bench-{ctx.language}-{self.IMAGE_SUFFIX}:latest"
++        logger.debug("running %s image=%s src=%s", type(self).__name__, image, ctx.cwd)
++        stdout = run_in_container(
++            image,
++            _common_codex_args(prompt, self.model),
++            entrypoint="codex",
++            src=ctx.cwd,
++            timeout=ctx.timeout,
++            env_file=env_file,
++            mounts=[(config_file, CONTAINER_CONFIG)],
++            artifacts_dir=ctx.artifacts_dir,
++            artifact_paths=self._artifact_paths(),
++            io_log_dir=(ctx.artifacts_dir / "logs") if ctx.artifacts_dir else None,
++        )
++        return AgentResult(raw_output=stdout)
++
++    def _artifact_paths(self) -> list[tuple[str, str]]:
++        """(container_path, dest_name) pairs exported after every attempt.
++
++        Missing paths are tolerated by the exporter (docker cp is
++        best-effort); absence is itself diagnostic. Only ``sessions``/
++        ``log`` are pulled — the whole $CODEX_HOME would drag in a
++        multi-MB plugin cache unrelated to the attempt.
++        """
++        return [
++            (f"{CODEX_STATE_DIR}/sessions", "codex-sessions"),  # rollouts incl. MCP events
++            (f"{CODEX_STATE_DIR}/log", "codex-log"),
++        ]
++
++
++class CodexC1Agent(CodexB1PrimeAgent):
++    """C1 — B1' plus the izyan MCP evidence-tools server.
++
++    Registered as ``codex-c1``. Requires the derived image
++    ``vex-bench-<lang>-codex-c1:latest`` carrying the tool binary; the MCP
++    session is configured by appending ``[mcp_servers.izyan]`` to the same
++    provider config B1 used, so model/provider settings are identical.
++    """
++
++    IMAGE_SUFFIX = "codex-c1"
++
++    def run(self, prompt: str, ctx: RunContext) -> AgentResult:
++        cve_id = _extract_cve_id(prompt)
++        if not cve_id:
++            raise RuntimeError(
++                "codex-c1: could not extract CVE id from prompt "
++                "(expected <CVE>...</CVE> tag)"
++            )
++        config_file = self._synthesize_config(ctx, cve_id)
++        env_file = HOST_ENV_FILE.resolve()
++        if not env_file.exists():
++            raise RuntimeError(f"Env file not found: {env_file}")
++        image = f"vex-bench-{ctx.language}-{self.IMAGE_SUFFIX}:latest"
++        logger.debug(
++            "running codex-c1 image=%s src=%s cve=%s", image, ctx.cwd, cve_id
++        )
++        stdout = run_in_container(
++            image,
++            _common_codex_args(prompt, self.model),
++            entrypoint="codex",
++            src=ctx.cwd,
++            timeout=ctx.timeout,
++            env_file=env_file,
++            mounts=[(config_file, CONTAINER_CONFIG)],
++            artifacts_dir=ctx.artifacts_dir,
++            artifact_paths=self._artifact_paths(),
++            io_log_dir=(ctx.artifacts_dir / "logs") if ctx.artifacts_dir else None,
++        )
++        return AgentResult(raw_output=stdout)
++
++    def _synthesize_config(self, ctx: RunContext, cve_id: str) -> Path:
++        """Provider config + [mcp_servers.izyan], written under artifacts_dir.
++
++        The MCP args pin the session to this attempt's snapshot (/work —
++        the docker-cp target), the task's CVE and a container-local audit
++        file. --allow-exec matches B1 parity (native sandbox already runs
++        arbitrary commands); advisory network research stays enabled, as it
++        was for B1. External SHA = snapshot dir basename (commit sha).
++        """
++        base_cfg = HOST_CONFIG.resolve().read_text(encoding="utf-8")
++        external_sha = ctx.cwd.name  # .../<owner>/<repo>/<commit_sha>
++        args = [
++            "--snapshot-root", "/work",
++            "--cve", cve_id,
++            "--external-sha", external_sha,
++            "--audit-file", f"{TOOL_AUDIT_DIR}/tool_calls.jsonl",
++            "--allow-exec",
++        ]
++        args_toml = "[" + ", ".join('"' + a + '"' for a in args) + "]"
++        cfg = (
++            base_cfg.rstrip()
++            + "\n\n[mcp_servers.izyan]\n"
++            + f'command = "{TOOL_BIN_CONTAINER}"\n'
++            + f"args = {args_toml}\n"
++        )
++        if ctx.artifacts_dir is None:
++            raise RuntimeError("codex-c1: RunContext.artifacts_dir is required")
++        ctx.artifacts_dir.mkdir(parents=True, exist_ok=True)
++        out = ctx.artifacts_dir / "codex-config.c1.toml"
++        out.write_text(cfg, encoding="utf-8")
++        return out
++
++    def _artifact_paths(self) -> list[tuple[str, str]]:
++        return super()._artifact_paths() + [
++            (TOOL_AUDIT_DIR, "izyan-audit"),  # tool_calls.jsonl observations
++        ]
+diff --git a/src/evaluate/agents/opencode.py b/src/evaluate/agents/opencode.py
+index 2f96cfd..994e9b1 100644
+--- a/src/evaluate/agents/opencode.py
++++ b/src/evaluate/agents/opencode.py
+@@ -4,6 +4,7 @@ import shlex
+ import shutil
+ import subprocess
+ import tempfile
++from collections.abc import Sequence
+ from pathlib import Path
+ 
+ from evaluate.agents.base import Agent, AgentResult, ParsedResult, RunContext, RunStats
+@@ -138,6 +139,7 @@ def _run_opencode_and_export(
+     env_file: Path,
+     config_file: Path,
+     artifacts_dir: Path | None,
++    extra_artifact_paths: Sequence[tuple[str, str]] = (),
+ ) -> str:
+     """Run opencode in default mode, then export the latest session as JSON."""
+     script = _build_export_script(model=model, timeout=timeout)
+@@ -153,7 +155,7 @@ def _run_opencode_and_export(
+             return _copy_export(cid, tmpdir)
+         finally:
+             if artifacts_dir is not None:
+-                _copy_debug_artifacts(cid, artifacts_dir)
++                _copy_debug_artifacts(cid, artifacts_dir, extra_artifact_paths)
+             _remove_container(cid)
+ 
+ 
+@@ -345,8 +347,13 @@ def _extract_jsonl_stats(events: list[dict]) -> RunStats:
+     )
+ 
+ 
++
+ # Debug artifact and docker helpers.
+-def _copy_debug_artifacts(cid: str, artifacts_dir: Path) -> None:
++def _copy_debug_artifacts(
++    cid: str,
++    artifacts_dir: Path,
++    extra: Sequence[tuple[str, str]] = (),
++) -> None:
+     artifacts = [
+         ("/tmp/opencode-export.json", "opencode-export.json"),
+         ("/tmp/opencode-stdout.txt", "opencode-stdout.txt"),
+@@ -355,6 +362,7 @@ def _copy_debug_artifacts(cid: str, artifacts_dir: Path) -> None:
+         ("/tmp/session-id", "session-id"),
+         ("/tmp/.local/share/opencode/log", "opencode-log"),
+     ]
++    artifacts += list(extra)
+     artifacts_dir.mkdir(parents=True, exist_ok=True)
+     for container_path, name in artifacts:
+         _docker_cp_optional(f"{cid}:{container_path}", artifacts_dir / name)
+diff --git a/src/evaluate/agents/opencode_c1.py b/src/evaluate/agents/opencode_c1.py
+new file mode 100644
+index 0000000..a45d3fe
+--- /dev/null
++++ b/src/evaluate/agents/opencode_c1.py
+@@ -0,0 +1,242 @@
++"""Task 4 OpenCode adapters — ``opencode-b1p`` and ``opencode-c1``.
++
++Mirrors ``codex_c1.py``: two registry entries that share one run path.
++
++- ``opencode-b1p`` (B1' control): the frozen opencode profile — same
++  model wiring, native tools untouched, session export and debug
++  artifacts identical — on the corp image
++  ``vex-bench-<lang>-opencode-gw:latest`` so the corporate CA is
++  present for self-hosted providers (custom-openai). The caller selects the
++  ``vuln_assess`` prompt; there are no Izyan tools anywhere.
++
++- ``opencode-c1`` (C1 treatment): B1' + the izyan MCP evidence-tools
++  server. The derived image
++  ``vex-bench-<lang>-opencode-c1:latest``
++  (docker/go.opencode-c1.Dockerfile) adds the tool binary; per attempt
++  the adapter synthesizes ``opencode.json`` — the base provider file
++  plus the needed provider block when the base file lacks it
++  (antigravity points at the host-side proxy via host.docker.internal)
++  plus ``mcp.izyan`` pinned to this attempt's snapshot (``/work`` — the
++  docker-cp target), the task's CVE and a container-local audit file,
++  exported as ``artifacts/izyan-audit/``.
++
++Both arms mount a synthesized per-attempt config under artifacts_dir;
++the ONLY difference between the two files is the ``mcp`` block, so the
++treatment variable is exactly the evidence tools. Native opencode tools
++are untouched: the base config carries no tool restrictions and the
++synthesized config adds none. Model keys are the full provider-side
++model ids (e.g. ``Qwen/Qwen3.6-35B-A3B``) — opencode sends the config
++key verbatim to the API.
++"""
++
++import json
++import logging
++from pathlib import Path
++from typing import Optional, Sequence
++
++from evaluate.agents.base import AgentResult, RunContext
++from evaluate.agents.codex_c1 import (
++    TOOL_AUDIT_DIR,
++    TOOL_BIN_CONTAINER,
++    _extract_cve_id,
++)
++from evaluate.agents.opencode import (
++    HOST_CONFIG,
++    HOST_ENV_FILE,
++    OpenCodeAgent,
++    _run_opencode_and_export,
++)
++
++logger = logging.getLogger(__name__)
++
++# Provider blocks merged into the synthesized opencode.json when the base
++# file doesn't define them (``setdefault`` — an explicit base config always
++# wins). Keyed by the provider prefix of MODEL2NAME values.
++_PROVIDERS: dict[str, dict] = {
++    # Host-side antigravity proxy (Anthropic-compatible). The proxy ignores
++    # the api key; a literal keeps the SDK's key requirement satisfied
++    # without adding secrets to the env file.
++    "antigravity": {
++        "npm": "@ai-sdk/anthropic",
++        "name": "antigravity",
++        "options": {
++            "baseURL": "http://host.docker.internal:8045/v1",
++            "apiKey": "opencode-c1",
++        },
++        "models": {
++            "gemini-3.8-flash-high": {"name": "Gemini 3.8 Flash High"},
++        },
++    },
++    # OpenAI-compatible gateway. apiKey is interpolated from the
++    # env file at container start — the synthesized config is an attempt
++    # artifact and must not embed the literal secret (same convention as
++    # codex's ``env_key`` indirection).
++    "custom-openai": {
++        "npm": "@ai-sdk/openai-compatible",
++        "name": "OpenAI-compatible gateway",
++        "api_key_env": "OPENAI_API_KEY",
++        "options": {
++            "baseURL": "https://<corporate-provider-host>/openai/v1/",
++        },
++        "models": {
++            "Qwen/Qwen3.6-35B-A3B": {
++                "name": "Qwen3.6-35B-A3B",
++                "limit": {"context": 262144, "output": 16384},
++            },
++            "Qwen/Qwen3.8-27B": {
++                "name": "Qwen3.8-27B",
++                "limit": {"context": 262144, "output": 16384},
++            },
++        },
++    },
++}
++
++
++class OpenCodeB1PrimeAgent(OpenCodeAgent):
++    """B1' — frozen opencode behavior + assessment prompt; no Izyan tools.
++
++    Registered as ``opencode-b1p``. Same run pipeline, session export and
++    debug artifacts as the base ``opencode`` profile; the image is the
++    corp variant so the corporate CA covers self-hosted providers. The
++    mounted config is a per-attempt synthesis under artifacts_dir —
++    provider wiring identical to ``opencode-c1``, ``mcp`` block absent.
++    """
++
++    IMAGE_SUFFIX = "opencode-gw"  # vex-bench-<lang>-opencode-gw:latest
++    CONFIG_TAG = "b1p"              # artifacts/opencode-config.<tag>.json
++
++    def run(self, prompt: str, ctx: RunContext) -> AgentResult:
++        return self._run_attempt(prompt, ctx, cve_id=None)
++
++    def _run_attempt(self, prompt: str, ctx: RunContext,
++                     cve_id: Optional[str]) -> AgentResult:
++        config_file = self._synthesize_config(ctx, cve_id)
++        env_file = HOST_ENV_FILE.resolve()
++        if not env_file.exists():
++            raise RuntimeError(f"Env file not found: {env_file}")
++
++        image = f"vex-bench-{ctx.language}-{self.IMAGE_SUFFIX}:latest"
++        logger.debug(
++            "running %s model=%s image=%s src=%s cve=%s",
++            type(self).__name__, self.model_name, image, ctx.cwd, cve_id,
++        )
++        output = _run_opencode_and_export(
++            image,
++            model=self.model_name,
++            prompt=prompt,
++            src=ctx.cwd,
++            timeout=ctx.timeout,
++            env_file=env_file,
++            config_file=config_file,
++            artifacts_dir=ctx.artifacts_dir,
++            extra_artifact_paths=self._extra_artifact_paths(),
++        )
++        return AgentResult(raw_output=output)
++
++    def _extra_artifact_paths(self) -> Sequence[tuple[str, str]]:
++        """(container_path, dest_name) pairs exported after every attempt.
++
++        Missing paths are tolerated by the exporter; absence is itself
++        diagnostic (B1' proves the negative: no izyan-audit exists).
++        """
++        return [(TOOL_AUDIT_DIR, "izyan-audit")]
++
++    def _extend_config(self, base: dict, ctx: RunContext,
++                       cve_id: Optional[str]) -> None:
++        """B1' adds nothing — ``mcp`` stays absent; the synthesized
++        config differs from C1's by exactly the tools block."""
++
++    def _synthesize_config(self, ctx: RunContext,
++                           cve_id: Optional[str]) -> Path:
++        """Base provider config + provider block (if absent) + arm delta.
++
++        Written under artifacts_dir so the effective config is an attempt
++        artifact — same convention as codex-c1's codex-config.c1.toml.
++        """
++        base = json.loads(HOST_CONFIG.resolve().read_text(encoding="utf-8"))
++        providers = base.setdefault("provider", {})
++
++        provider_name, _, model_key = self.model_name.partition("/")
++        snippet = _PROVIDERS.get(provider_name)
++        if snippet is not None:
++            entry = providers.setdefault(provider_name, {})
++            entry.setdefault("npm", snippet["npm"])
++            entry.setdefault("name", snippet["name"])
++            options = entry.setdefault("options", {})
++            for k, v in snippet["options"].items():
++                options.setdefault(k, v)
++            api_key_env = snippet.get("api_key_env")
++            if api_key_env:
++                # Always rewrite a literal key to env interpolation — the
++                # synthesized file is exported as an attempt artifact.
++                options["apiKey"] = f"{{env:{api_key_env}}}"
++            models = entry.setdefault("models", {})
++            models.setdefault(
++                model_key,
++                snippet["models"].get(model_key, {"name": model_key}),
++            )
++        else:
++            logger.warning(
++                "%s: no built-in provider snippet for %r; "
++                "relying on the base config",
++                self.CONFIG_TAG, provider_name,
++            )
++
++        self._extend_config(base, ctx, cve_id)
++
++        if ctx.artifacts_dir is None:
++            raise RuntimeError(
++                f"{self.CONFIG_TAG}: RunContext.artifacts_dir is required")
++        ctx.artifacts_dir.mkdir(parents=True, exist_ok=True)
++        out = ctx.artifacts_dir / f"opencode-config.{self.CONFIG_TAG}.json"
++        out.write_text(json.dumps(base, indent=2) + "\n", encoding="utf-8")
++        return out
++
++
++class OpenCodeC1Agent(OpenCodeB1PrimeAgent):
++    """C1 — B1' plus the izyan MCP evidence-tools server.
++
++    Registered as ``opencode-c1``. Requires the derived image
++    ``vex-bench-<lang>-opencode-c1:latest`` carrying the tool binary;
++    the synthesized config adds the ``mcp.izyan`` server pinned to this
++    attempt's snapshot and CVE, and the audit dir is exported as
++    ``artifacts/izyan-audit/``.
++    """
++
++    IMAGE_SUFFIX = "opencode-c1"
++    CONFIG_TAG = "c1"
++
++    def run(self, prompt: str, ctx: RunContext) -> AgentResult:
++        cve_id = _extract_cve_id(prompt)
++        if not cve_id:
++            raise RuntimeError(
++                "opencode-c1: could not extract CVE id from prompt "
++                "(expected <CVE>...</CVE> tag)"
++            )
++        return self._run_attempt(prompt, ctx, cve_id)
++
++    def _extend_config(self, base: dict, ctx: RunContext,
++                       cve_id: Optional[str]) -> None:
++        if cve_id is None:
++            raise RuntimeError("opencode-c1: cve_id is required")
++        # The container runs via ``sh -lc``: the login shell resets PATH
++        # through /etc/profile (Debian root → /usr/local/sbin:... only),
++        # which drops /usr/local/go/bin and /go/bin from the MCP server's
++        # environment. The evidence tools exec `go` — pin PATH explicitly
++        # (opencode "environment" merges over the inherited env).
++        base["mcp"] = {
++            "izyan": {
++                "type": "local",
++                "command": [
++                    TOOL_BIN_CONTAINER,
++                    "--snapshot-root", "/work",
++                    "--cve", cve_id,
++                    "--audit-file", f"{TOOL_AUDIT_DIR}/tool_calls.jsonl",
++                ],
++                "environment": {
++                    "PATH": "/go/bin:/usr/local/go/bin:/usr/local/sbin:"
++                            "/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
++                },
++                "enabled": True,
++            }
++        }
+diff --git a/src/evaluate/prompts.py b/src/evaluate/prompts.py
+index 74e0a46..264f9d3 100644
+--- a/src/evaluate/prompts.py
++++ b/src/evaluate/prompts.py
+@@ -94,3 +94,26 @@ Reasoning must be grounded in concrete evidence — cite file paths, manifest en
+ PROMPTS: dict[str, str] = {
+     "vuln": VULNERABILITY_ANALYSIS_PROMPT,
+ }
++
++
++# ---------------------------------------------------------------------------
++# Task 4 (C1) prompt variants — loaded verbatim from data files so the
++# template's literal \n escapes stay byte-exact. Frozen copies: izyan
++# repo eval/vexbench-prompts/{vuln_assess,vuln_c1}-<hash>.txt, generated by
++# `python -m eval.c1.protocol`. Do not edit the data files by hand.
++#
++# vuln_assess = B1' control (official vuln prompt + shared assessment block)
++# vuln_c1     = C1 (vuln_assess + izyan evidence-tools contract block)
++# ---------------------------------------------------------------------------
++from pathlib import Path as _Path
++
++_PROMPTS_DATA = _Path(__file__).resolve().parent / "prompts_data"
++
++
++def _load_prompt_file(name: str) -> str:
++    return (_PROMPTS_DATA / name).read_text(encoding="utf-8")
++
++
++PROMPTS["vuln_assess"] = _load_prompt_file("vuln_assess.txt")
++PROMPTS["vuln_c1"] = _load_prompt_file("vuln_c1.txt")
++PROMPTS["vuln_tools"] = _load_prompt_file("vuln_tools.txt")  # Task4 Qwen arm: official vuln + tools block ONLY (delta vs plain = tools)
+diff --git a/src/evaluate/prompts_data/vuln_assess.txt b/src/evaluate/prompts_data/vuln_assess.txt
+new file mode 100644
+index 0000000..793990a
+--- /dev/null
++++ b/src/evaluate/prompts_data/vuln_assess.txt
+@@ -0,0 +1,141 @@
++<ROLE>
++You are a security analyst. Decide whether the given CVE actually affects current codebase, and classify the result into one of 12 fixed categories.
++</ROLE>
++
++<CONTEXT>
++The working directory is a source tree. There is no running container, no running process, and no deployment context: only files you can read and search, plus any public CVE/advisory information you look up.
++
++Treat this as a static analysis task. Do not assume runtime behavior you cannot back with evidence visible in the source tree.
++</CONTEXT>
++
++<CVE>
++{cve_id}
++</CVE>
++
++<CLASSIFICATION_CATEGORIES>
++The 12 categories are listed below in STRICT LOGICAL PRECEDENCE ORDER. When evaluating, walk through the list from top to bottom and select the FIRST category that applies. Do not skip ahead.
++
++1. "false_positive"
++   - The CVE-to-package mapping is wrong (named package is not what the CVE applies to, or the CVE is withdrawn/malformed). Use only with concrete evidence of mismatch.
++
++2. "code_not_present"
++   - The vulnerable package/module is absent from the repository: not declared in any manifest, not in any lockfile, no vendored copy.
++
++3. "code_not_reachable"
++   - The vulnerable code is present (manifest, lockfile, or vendored copy) in the codebase but is never executed at runtime, e.g., never imported, referenced, or called from first-party source.
++   - Only applicable when code IS present AND call-chain/reachability analysis confirms no execution path leads to it.
++
++4. "requires_configuration"
++   - Exploitation requires a specific configuration option, feature flag, or setting that is currently disabled by default in this repository.
++
++5. "requires_dependency"
++   - Exploitation requires an additional dependency (library, plugin, module) that this repository does not declare.
++
++6. "requires_environment"
++   - Exploitation requires a specific runtime environment (OS, architecture, kernel version, hardware feature) that this repository does not establish or rely on.
++
++7. "compiler_protected"
++   - Compile-time hardening configured in this repository's build (stack canaries, PIE/ASLR-required builds, sanitizer instrumentation, etc.) prevents the exploit primitive.
++
++8. "runtime_protected"
++   - Runtime mechanisms set up by this repository's own code (sandboxing, in-process isolation, seccomp filters) prevent exploitation.
++
++9. "perimeter_protected"
++   - Network, authentication, or perimeter controls shipped in this repository (auth middleware, allowlists, network policies in deployment manifests) block the attack surface.
++
++10. "mitigating_control_protected"
++    - Other in-repo mitigations not covered by 7-9 (input validation, output encoding, custom guards) reduce risk to negligible.
++
++11. "uncertain"
++    - Investigation cannot establish presence, reachability, or mitigation status with the available evidence. Use as a true fallback, not a hedge.
++
++12. "vulnerable"
++   - All of:
++    - an affected version of the vulnerable package is present,
++    - the vulnerable surface is imported and called from first-party (non-test) source,
++    - no mitigation from categories 4-10 applies.
++</CLASSIFICATION_CATEGORIES>
++
++<DECISION_RULES>
++1. A CVE is classified as "vulnerable" if and only if ALL of the following hold:
++   - The vulnerable code is PRESENT in the container/codebase.
++   - The vulnerable code is USED or CALLED by the application.
++   - The vulnerable code is REACHABLE from an attack surface (user input, network input, file processing, IPC, etc.).
++   - No effective mitigations or protections are in place.
++
++2. If ANY of the above conditions fails, select the SINGLE most appropriate non-vulnerable category by walking the precedence list from top (1) to bottom (11) and choosing the first matching category. For example:
++   - If the vulnerable code is not present → "code_not_present" (do NOT also consider "code_not_reachable" or environment factors).
++   - If the code is present but unreachable → "code_not_reachable" (do NOT fall through to "requires_environment").
++   - If a required dependency is missing → "requires_dependency".
++   - If the vulnerable code is prevented by a default or clearly setted configuration" → "requires_configuration".
++
++3. Use "uncertain" only when the investigation genuinely lacks the evidence needed to reach any conclusion.
++</DECISION_RULES>
++
++<OUTPUT_FORMAT>
++Output a single JSON object on stdout — no surrounding prose, no markdown fences, no comments.
++
++Schema:
++{
++  "category": "<one of the 12 category names, exact snake_case>",
++  "reasoning": "<evidence-based explanation; multi-line strings are fine>"
++}
++
++Reasoning must be grounded in concrete evidence — cite file paths, manifest entries, version numbers, function names, or advisory fragments. Be specific; avoid vague claims like "the code looks safe". Newlines inside the reasoning string must be escaped (`\n`) to keep the object valid JSON.
++</OUTPUT_FORMAT>
++
++<EXAMPLE>
++{"category": "code_not_reachable", "reasoning": "GHSA-44wm-f244-xhp3 describes a vulnerability in PIL.ImageMath.eval for Pillow < 10.3.0. pyproject.toml pins Pillow to ^9.5, and poetry.lock records 9.5.0 as the resolved version — within the affected range, so the vulnerable code is in scope.\n\nSearching first-party source (`rg \"ImageMath\" src/`) returns no matches. The repository imports PIL.Image only, and the only call sites are `Image.open()` and `Image.thumbnail()` in src/img/loader.py:14-37. Neither reaches ImageMath.eval, so the vulnerable function is unreachable."}
++</EXAMPLE>
++
++<ASSESSMENT_REPORT>
++In addition to "category" and "reasoning", the same single JSON object MUST
++contain an "assessment" field with your structured analysis:
++
++{
++  "category": "<one of the 12 category names, exact snake_case>",
++  "reasoning": "<evidence-based explanation>",
++  "assessment": {
++    "root_causes": ["<root cause hypothesis you evaluated>"],
++    "mandatory_conditions": ["<condition that MUST hold for exploitation>"],
++    "claims": [
++      {
++        "statement": "<factual claim about presence / reachability / mitigation>",
++        "verdict": "TRUE | FALSE | UNKNOWN",
++        "evidence_refs": ["<evidence reference backing this claim>"]
++      }
++    ],
++    "evidence": ["<all evidence references you rely on>"],
++    "limitations": ["<what your investigation could not cover>"],
++    "unresolved_questions": ["<question that stayed open>"],
++    "counterexample_review": {
++      "checked": ["<concrete alternative interpretation / attack path / caller you actively tried to disprove your verdict with>"],
++      "still_unknown": ["<counterexample you could not rule out>"]
++    },
++    "verdict_estimate": "NOT_AFFECTED | NO_EXPLOIT_PATH_FOUND | EXPLOITABLE | INCONCLUSIVE"
++  }
++}
++
++Rules:
++- "category"/"reasoning" at top level stay EXACTLY as specified in
++  <OUTPUT_FORMAT>: official category name, evidence-grounded reasoning.
++- verdict_estimate must agree with category:
++    "vulnerable"                  -> "EXPLOITABLE"
++    "uncertain"                   -> "INCONCLUSIVE"
++    any other (safe) category     -> "NOT_AFFECTED" or "NO_EXPLOIT_PATH_FOUND"
++- Before choosing a safe category or estimate, perform the counterexample
++  pass: actively look for at least one concrete way your conclusion could
++  be wrong (alternative caller, indirect/dependency-internal path,
++  configuration that enables the surface, build-tag variant). Record what
++  you checked in counterexample_review.checked and what stayed open in
++  counterexample_review.still_unknown. Do not write "done" or leave these
++  lists empty without a concrete reason.
++- Evidence references cite things a reviewer can resolve: file paths with
++  line numbers ("file:pkg/http/server.go:142"), tool evidence ids returned
++  by tools ("ev:..."), or advisory URLs ("url:https://...").
++- Do NOT include task ids, snapshot hashes, model/tool versions, token
++  counts or timing inside "assessment" — those are recorded by the harness.
++- If you genuinely cannot reach a conclusion, keep "category": "uncertain"
++  with "verdict_estimate": "INCONCLUSIVE" and explain why in
++  unresolved_questions. Do not emit a safe category as a hedge.
++</ASSESSMENT_REPORT>
+diff --git a/src/evaluate/prompts_data/vuln_c1.txt b/src/evaluate/prompts_data/vuln_c1.txt
+new file mode 100644
+index 0000000..c586242
+--- /dev/null
++++ b/src/evaluate/prompts_data/vuln_c1.txt
+@@ -0,0 +1,173 @@
++<ROLE>
++You are a security analyst. Decide whether the given CVE actually affects current codebase, and classify the result into one of 12 fixed categories.
++</ROLE>
++
++<CONTEXT>
++The working directory is a source tree. There is no running container, no running process, and no deployment context: only files you can read and search, plus any public CVE/advisory information you look up.
++
++Treat this as a static analysis task. Do not assume runtime behavior you cannot back with evidence visible in the source tree.
++</CONTEXT>
++
++<CVE>
++{cve_id}
++</CVE>
++
++<CLASSIFICATION_CATEGORIES>
++The 12 categories are listed below in STRICT LOGICAL PRECEDENCE ORDER. When evaluating, walk through the list from top to bottom and select the FIRST category that applies. Do not skip ahead.
++
++1. "false_positive"
++   - The CVE-to-package mapping is wrong (named package is not what the CVE applies to, or the CVE is withdrawn/malformed). Use only with concrete evidence of mismatch.
++
++2. "code_not_present"
++   - The vulnerable package/module is absent from the repository: not declared in any manifest, not in any lockfile, no vendored copy.
++
++3. "code_not_reachable"
++   - The vulnerable code is present (manifest, lockfile, or vendored copy) in the codebase but is never executed at runtime, e.g., never imported, referenced, or called from first-party source.
++   - Only applicable when code IS present AND call-chain/reachability analysis confirms no execution path leads to it.
++
++4. "requires_configuration"
++   - Exploitation requires a specific configuration option, feature flag, or setting that is currently disabled by default in this repository.
++
++5. "requires_dependency"
++   - Exploitation requires an additional dependency (library, plugin, module) that this repository does not declare.
++
++6. "requires_environment"
++   - Exploitation requires a specific runtime environment (OS, architecture, kernel version, hardware feature) that this repository does not establish or rely on.
++
++7. "compiler_protected"
++   - Compile-time hardening configured in this repository's build (stack canaries, PIE/ASLR-required builds, sanitizer instrumentation, etc.) prevents the exploit primitive.
++
++8. "runtime_protected"
++   - Runtime mechanisms set up by this repository's own code (sandboxing, in-process isolation, seccomp filters) prevent exploitation.
++
++9. "perimeter_protected"
++   - Network, authentication, or perimeter controls shipped in this repository (auth middleware, allowlists, network policies in deployment manifests) block the attack surface.
++
++10. "mitigating_control_protected"
++    - Other in-repo mitigations not covered by 7-9 (input validation, output encoding, custom guards) reduce risk to negligible.
++
++11. "uncertain"
++    - Investigation cannot establish presence, reachability, or mitigation status with the available evidence. Use as a true fallback, not a hedge.
++
++12. "vulnerable"
++   - All of:
++    - an affected version of the vulnerable package is present,
++    - the vulnerable surface is imported and called from first-party (non-test) source,
++    - no mitigation from categories 4-10 applies.
++</CLASSIFICATION_CATEGORIES>
++
++<DECISION_RULES>
++1. A CVE is classified as "vulnerable" if and only if ALL of the following hold:
++   - The vulnerable code is PRESENT in the container/codebase.
++   - The vulnerable code is USED or CALLED by the application.
++   - The vulnerable code is REACHABLE from an attack surface (user input, network input, file processing, IPC, etc.).
++   - No effective mitigations or protections are in place.
++
++2. If ANY of the above conditions fails, select the SINGLE most appropriate non-vulnerable category by walking the precedence list from top (1) to bottom (11) and choosing the first matching category. For example:
++   - If the vulnerable code is not present → "code_not_present" (do NOT also consider "code_not_reachable" or environment factors).
++   - If the code is present but unreachable → "code_not_reachable" (do NOT fall through to "requires_environment").
++   - If a required dependency is missing → "requires_dependency".
++   - If the vulnerable code is prevented by a default or clearly setted configuration" → "requires_configuration".
++
++3. Use "uncertain" only when the investigation genuinely lacks the evidence needed to reach any conclusion.
++</DECISION_RULES>
++
++<OUTPUT_FORMAT>
++Output a single JSON object on stdout — no surrounding prose, no markdown fences, no comments.
++
++Schema:
++{
++  "category": "<one of the 12 category names, exact snake_case>",
++  "reasoning": "<evidence-based explanation; multi-line strings are fine>"
++}
++
++Reasoning must be grounded in concrete evidence — cite file paths, manifest entries, version numbers, function names, or advisory fragments. Be specific; avoid vague claims like "the code looks safe". Newlines inside the reasoning string must be escaped (`\n`) to keep the object valid JSON.
++</OUTPUT_FORMAT>
++
++<EXAMPLE>
++{"category": "code_not_reachable", "reasoning": "GHSA-44wm-f244-xhp3 describes a vulnerability in PIL.ImageMath.eval for Pillow < 10.3.0. pyproject.toml pins Pillow to ^9.5, and poetry.lock records 9.5.0 as the resolved version — within the affected range, so the vulnerable code is in scope.\n\nSearching first-party source (`rg \"ImageMath\" src/`) returns no matches. The repository imports PIL.Image only, and the only call sites are `Image.open()` and `Image.thumbnail()` in src/img/loader.py:14-37. Neither reaches ImageMath.eval, so the vulnerable function is unreachable."}
++</EXAMPLE>
++
++<ASSESSMENT_REPORT>
++In addition to "category" and "reasoning", the same single JSON object MUST
++contain an "assessment" field with your structured analysis:
++
++{
++  "category": "<one of the 12 category names, exact snake_case>",
++  "reasoning": "<evidence-based explanation>",
++  "assessment": {
++    "root_causes": ["<root cause hypothesis you evaluated>"],
++    "mandatory_conditions": ["<condition that MUST hold for exploitation>"],
++    "claims": [
++      {
++        "statement": "<factual claim about presence / reachability / mitigation>",
++        "verdict": "TRUE | FALSE | UNKNOWN",
++        "evidence_refs": ["<evidence reference backing this claim>"]
++      }
++    ],
++    "evidence": ["<all evidence references you rely on>"],
++    "limitations": ["<what your investigation could not cover>"],
++    "unresolved_questions": ["<question that stayed open>"],
++    "counterexample_review": {
++      "checked": ["<concrete alternative interpretation / attack path / caller you actively tried to disprove your verdict with>"],
++      "still_unknown": ["<counterexample you could not rule out>"]
++    },
++    "verdict_estimate": "NOT_AFFECTED | NO_EXPLOIT_PATH_FOUND | EXPLOITABLE | INCONCLUSIVE"
++  }
++}
++
++Rules:
++- "category"/"reasoning" at top level stay EXACTLY as specified in
++  <OUTPUT_FORMAT>: official category name, evidence-grounded reasoning.
++- verdict_estimate must agree with category:
++    "vulnerable"                  -> "EXPLOITABLE"
++    "uncertain"                   -> "INCONCLUSIVE"
++    any other (safe) category     -> "NOT_AFFECTED" or "NO_EXPLOIT_PATH_FOUND"
++- Before choosing a safe category or estimate, perform the counterexample
++  pass: actively look for at least one concrete way your conclusion could
++  be wrong (alternative caller, indirect/dependency-internal path,
++  configuration that enables the surface, build-tag variant). Record what
++  you checked in counterexample_review.checked and what stayed open in
++  counterexample_review.still_unknown. Do not write "done" or leave these
++  lists empty without a concrete reason.
++- Evidence references cite things a reviewer can resolve: file paths with
++  line numbers ("file:pkg/http/server.go:142"), tool evidence ids returned
++  by tools ("ev:..."), or advisory URLs ("url:https://...").
++- Do NOT include task ids, snapshot hashes, model/tool versions, token
++  counts or timing inside "assessment" — those are recorded by the harness.
++- If you genuinely cannot reach a conclusion, keep "category": "uncertain"
++  with "verdict_estimate": "INCONCLUSIVE" and explain why in
++  unresolved_questions. Do not emit a safe category as a hedge.
++</ASSESSMENT_REPORT>
++
++<EVIDENCE_TOOLS>
++An MCP tool server named "izyan" is connected to this session. It exposes
++deterministic analysis tools over the exact source tree in your working
++directory: advisory/fix research, dependency graph and module versions,
++symbol/reference/caller search, source reading, argument tracing,
++validation discovery, dynamic-dispatch markers, and optional build/test
++execution. Use these tools alongside your normal file/search tools
++whenever a fact is cheaper or more reliable to obtain that way.
++
++Every tool call returns an Observation object:
++  id, tool, fact, scope, completeness, tool_status, evidence_refs,
++  limitations, scope_details, data.
++
++Binding interpretation rules:
++- tool_status "OK" with an EMPTY result is NOT a safety finding.
++    completeness="COMPLETE" means "absent inside the closed scope named in
++      scope/scope_details";
++    completeness="PARTIAL"  means "not found in the checked part only";
++    completeness="UNKNOWN"  means coverage could not be characterized.
++- tool_status "ERROR" means the check failed (no coverage claim);
++  "UNSUPPORTED" means the capability is not available in this session.
++- Never treat a PARTIAL/UNKNOWN negative, or an absent tool result, as
++  evidence that a code path is safe or unreachable.
++- scope_details is authoritative: it lists the build context, packages,
++  skipped packages and limits that bounded the check. Product-scope
++  results say nothing about dependency-internal, dynamically dispatched
++  or other-build-configuration behavior unless the scope says so.
++- When you cite tool output in claims[].evidence_refs or evidence[], use
++  the Observation "evidence_refs" entries verbatim (they resolve to the
++  recorded tool artifact).
++</EVIDENCE_TOOLS>
+diff --git a/src/evaluate/prompts_data/vuln_tools.txt b/src/evaluate/prompts_data/vuln_tools.txt
+new file mode 100644
+index 0000000..c2d576f
+--- /dev/null
++++ b/src/evaluate/prompts_data/vuln_tools.txt
+@@ -0,0 +1,120 @@
++<ROLE>
++You are a security analyst. Decide whether the given CVE actually affects current codebase, and classify the result into one of 12 fixed categories.
++</ROLE>
++
++<CONTEXT>
++The working directory is a source tree. There is no running container, no running process, and no deployment context: only files you can read and search, plus any public CVE/advisory information you look up.
++
++Treat this as a static analysis task. Do not assume runtime behavior you cannot back with evidence visible in the source tree.
++</CONTEXT>
++
++<CVE>
++{cve_id}
++</CVE>
++
++<CLASSIFICATION_CATEGORIES>
++The 12 categories are listed below in STRICT LOGICAL PRECEDENCE ORDER. When evaluating, walk through the list from top to bottom and select the FIRST category that applies. Do not skip ahead.
++
++1. "false_positive"
++   - The CVE-to-package mapping is wrong (named package is not what the CVE applies to, or the CVE is withdrawn/malformed). Use only with concrete evidence of mismatch.
++
++2. "code_not_present"
++   - The vulnerable package/module is absent from the repository: not declared in any manifest, not in any lockfile, no vendored copy.
++
++3. "code_not_reachable"
++   - The vulnerable code is present (manifest, lockfile, or vendored copy) in the codebase but is never executed at runtime, e.g., never imported, referenced, or called from first-party source.
++   - Only applicable when code IS present AND call-chain/reachability analysis confirms no execution path leads to it.
++
++4. "requires_configuration"
++   - Exploitation requires a specific configuration option, feature flag, or setting that is currently disabled by default in this repository.
++
++5. "requires_dependency"
++   - Exploitation requires an additional dependency (library, plugin, module) that this repository does not declare.
++
++6. "requires_environment"
++   - Exploitation requires a specific runtime environment (OS, architecture, kernel version, hardware feature) that this repository does not establish or rely on.
++
++7. "compiler_protected"
++   - Compile-time hardening configured in this repository's build (stack canaries, PIE/ASLR-required builds, sanitizer instrumentation, etc.) prevents the exploit primitive.
++
++8. "runtime_protected"
++   - Runtime mechanisms set up by this repository's own code (sandboxing, in-process isolation, seccomp filters) prevent exploitation.
++
++9. "perimeter_protected"
++   - Network, authentication, or perimeter controls shipped in this repository (auth middleware, allowlists, network policies in deployment manifests) block the attack surface.
++
++10. "mitigating_control_protected"
++    - Other in-repo mitigations not covered by 7-9 (input validation, output encoding, custom guards) reduce risk to negligible.
++
++11. "uncertain"
++    - Investigation cannot establish presence, reachability, or mitigation status with the available evidence. Use as a true fallback, not a hedge.
++
++12. "vulnerable"
++   - All of:
++    - an affected version of the vulnerable package is present,
++    - the vulnerable surface is imported and called from first-party (non-test) source,
++    - no mitigation from categories 4-10 applies.
++</CLASSIFICATION_CATEGORIES>
++
++<DECISION_RULES>
++1. A CVE is classified as "vulnerable" if and only if ALL of the following hold:
++   - The vulnerable code is PRESENT in the container/codebase.
++   - The vulnerable code is USED or CALLED by the application.
++   - The vulnerable code is REACHABLE from an attack surface (user input, network input, file processing, IPC, etc.).
++   - No effective mitigations or protections are in place.
++
++2. If ANY of the above conditions fails, select the SINGLE most appropriate non-vulnerable category by walking the precedence list from top (1) to bottom (11) and choosing the first matching category. For example:
++   - If the vulnerable code is not present → "code_not_present" (do NOT also consider "code_not_reachable" or environment factors).
++   - If the code is present but unreachable → "code_not_reachable" (do NOT fall through to "requires_environment").
++   - If a required dependency is missing → "requires_dependency".
++   - If the vulnerable code is prevented by a default or clearly setted configuration" → "requires_configuration".
++
++3. Use "uncertain" only when the investigation genuinely lacks the evidence needed to reach any conclusion.
++</DECISION_RULES>
++
++<OUTPUT_FORMAT>
++Output a single JSON object on stdout — no surrounding prose, no markdown fences, no comments.
++
++Schema:
++{
++  "category": "<one of the 12 category names, exact snake_case>",
++  "reasoning": "<evidence-based explanation; multi-line strings are fine>"
++}
++
++Reasoning must be grounded in concrete evidence — cite file paths, manifest entries, version numbers, function names, or advisory fragments. Be specific; avoid vague claims like "the code looks safe". Newlines inside the reasoning string must be escaped (`\n`) to keep the object valid JSON.
++</OUTPUT_FORMAT>
++
++<EXAMPLE>
++{"category": "code_not_reachable", "reasoning": "GHSA-44wm-f244-xhp3 describes a vulnerability in PIL.ImageMath.eval for Pillow < 10.3.0. pyproject.toml pins Pillow to ^9.5, and poetry.lock records 9.5.0 as the resolved version — within the affected range, so the vulnerable code is in scope.\n\nSearching first-party source (`rg \"ImageMath\" src/`) returns no matches. The repository imports PIL.Image only, and the only call sites are `Image.open()` and `Image.thumbnail()` in src/img/loader.py:14-37. Neither reaches ImageMath.eval, so the vulnerable function is unreachable."}
++</EXAMPLE>
++<EVIDENCE_TOOLS>
++An MCP tool server named "izyan" is connected to this session. It exposes
++deterministic analysis tools over the exact source tree in your working
++directory: advisory/fix research, dependency graph and module versions,
++symbol/reference/caller search, source reading, argument tracing,
++validation discovery, dynamic-dispatch markers, and optional build/test
++execution. Use these tools alongside your normal file/search tools
++whenever a fact is cheaper or more reliable to obtain that way.
++
++Every tool call returns an Observation object:
++  id, tool, fact, scope, completeness, tool_status, evidence_refs,
++  limitations, scope_details, data.
++
++Binding interpretation rules:
++- tool_status "OK" with an EMPTY result is NOT a safety finding.
++    completeness="COMPLETE" means "absent inside the closed scope named in
++      scope/scope_details";
++    completeness="PARTIAL"  means "not found in the checked part only";
++    completeness="UNKNOWN"  means coverage could not be characterized.
++- tool_status "ERROR" means the check failed (no coverage claim);
++  "UNSUPPORTED" means the capability is not available in this session.
++- Never treat a PARTIAL/UNKNOWN negative, or an absent tool result, as
++  evidence that a code path is safe or unreachable.
++- scope_details is authoritative: it lists the build context, packages,
++  skipped packages and limits that bounded the check. Product-scope
++  results say nothing about dependency-internal, dynamically dispatched
++  or other-build-configuration behavior unless the scope says so.
++- When you cite tool output in claims[].evidence_refs or evidence[], use
++  the Observation "evidence_refs" entries verbatim (they resolve to the
++  recorded tool artifact).
++</EVIDENCE_TOOLS>

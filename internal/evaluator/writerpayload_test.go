@@ -15,7 +15,7 @@ func TestUnboundedWriterOriginRemainsUnknown(t *testing.T) {
 		PayloadUnproven: true,
 		Sink:            domain.CallSite{File: "a.go", Line: 10},
 	}
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.EvidenceGraph.DataFlows = []domain.DataFlow{flow}
 	claim := ArgumentOrigin{}.Evaluate(domain.Condition{
 		ID: "C-INPUT", Kind: domain.ConditionAttackerControl, ArgIndex: -1,
@@ -29,7 +29,7 @@ func TestUnboundedWriterOriginRemainsUnknown(t *testing.T) {
 }
 
 func TestUnprovenPayloadDoesNotTreatUnknownOriginAsEvidence(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.EvidenceGraph.DataFlows = []domain.DataFlow{{
 		ConditionID:     "C-INPUT",
 		Arg:             0,
@@ -46,7 +46,7 @@ func TestUnprovenPayloadDoesNotTreatUnknownOriginAsEvidence(t *testing.T) {
 }
 
 func TestWriterFlagDoesNotHideExternalOriginFromExplicitPayloadIndex(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.EvidenceGraph.DataFlows = []domain.DataFlow{{
 		ConditionID:     "C-INPUT",
 		Arg:             0,
@@ -98,7 +98,7 @@ func TestWriterOriginWithOtherPayloadFlows(t *testing.T) {
 			},
 		} {
 			t.Run(string(kind)+"/"+tc.name, func(t *testing.T) {
-				c := &domain.AnalysisCase{}
+				c := &domain.AnalysisCase{Product: admittedProduct()}
 				for i := range tc.flows {
 					tc.flows[i].ConditionID = "C-INPUT"
 					tc.flows[i].Arg = i
@@ -117,7 +117,7 @@ func TestWriterOriginWithOtherPayloadFlows(t *testing.T) {
 
 func TestUnprovenWriterOriginBlocksGuardBasedFalse(t *testing.T) {
 	sink := domain.CallSite{File: "a.go", Line: 20}
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.EvidenceGraph.DataFlows = []domain.DataFlow{{
 		ConditionID:     "C-INPUT",
 		Arg:             0,
@@ -139,7 +139,7 @@ func TestUnprovenWriterOriginBlocksGuardBasedFalse(t *testing.T) {
 }
 
 func TestUnmarkedExternalPayloadStillProvesAttackerControl(t *testing.T) {
-	c := &domain.AnalysisCase{}
+	c := &domain.AnalysisCase{Product: admittedProduct()}
 	c.EvidenceGraph.DataFlows = []domain.DataFlow{{
 		ConditionID: "C-INPUT",
 		Arg:         0,

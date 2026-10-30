@@ -91,7 +91,7 @@ func TestIngressInventoryBlocksBodylessConeFunction(t *testing.T) {
 
 func assertIngressNotVerified(t *testing.T, ix *Index, subject domain.SymbolRef) {
 	t.Helper()
-	c := &domain.AnalysisCase{Vulnerability: domain.Vulnerability{Module: "example.com/ingressdep"}}
+	c := &domain.AnalysisCase{Product: testProduct(), Vulnerability: domain.Vulnerability{Module: "example.com/ingressdep"}}
 	cond := domain.Condition{ID: "C-INPUT", Kind: domain.ConditionAttackerControl, Subject: &subject, ArgIndex: 0}
 	claim := (Verifier{Source: ix}).VerifyFalse(context.Background(), c,
 		domain.Claim{ConditionID: cond.ID, Result: domain.ClaimFalse}, cond)
@@ -204,4 +204,56 @@ func TestConstantPayloadNotInvalidatedByDecoderReflection(t *testing.T) {
 			t.Errorf("reflect.ValueOf with constant arg added items=%+v blockers=%v", s.items, s.blockers)
 		}
 	})
+}
+
+// TestInspectBodyNilFuncName guards a crash found on real repositories:
+// a FuncDecl without a body (assembly stub, //go:linkname declaration, or
+// the synthetic "package initializer" decl the ingress scan builds) made
+// ast.Inspect panic on a typed-nil node. Every traversal of a declaration
+// body must tolerate a missing body.
+func TestInspectBodyNilFuncName(t *testing.T) {
+	// The synthetic declaration built by scanCone for package-level
+	// function literals has an empty body; a bodied declaration without a
+	// function name must also be tolerated.
+	decls := []*ast.FuncDecl{
+		nil,
+		{Name: ast.NewIdent("stub")}, // bodyless declaration
+		{Name: ast.NewIdent("init"), Body: &ast.BlockStmt{}}, // synthetic initializer
+		{Body: &ast.BlockStmt{}},                             // unnamed, with body
+	}
+	for i, d := range decls {
+		visited := 0
+		inspectBody(d, func(ast.Node) bool { visited++; return true })
+		if d != nil && funcBody(d) == nil && visited != 0 {
+			t.Fatalf("case %d: bodyless declaration visited %d nodes", i, visited)
+		}
+	}
+}
+
+// Configuration origin is not a safe origin for the ingress strategy:
+// the trust boundary is a deployment property, so a complete inventory
+// containing configuration-origin items cannot verify a negative claim.
+func TestIngressConfigOriginIsNotVerified(t *testing.T) {
+	ix := fixture(t, "configoriginprod")
+	subject := domain.SymbolRef{Package: "example.com/postreachdep/transformer", Symbol: "QueryAll"}
+	cl, _, err := ix.IngressInventory(context.Background(), "example.com/postreachdep",
+		[]domain.SymbolRef{subject}, 16)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, it := range cl.Items {
+		if it.Origin == domain.OriginConfiguration {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("fixture ingress has no configuration-origin item: items=%+v blockers=%v", cl.Items, cl.Blockers)
+	}
+	c := &domain.AnalysisCase{Product: testProduct(), Vulnerability: domain.Vulnerability{Module: "example.com/postreachdep"}}
+	nv := &domain.NegativeVerification{Status: domain.NegativeVerified}
+	note := (Verifier{Source: ix}).verifyIngress(context.Background(), c, "C-INPUT", nv, []domain.SymbolRef{subject})
+	if note == "" || nv.Status == domain.NegativeVerified {
+		t.Fatalf("configuration-origin ingress verified a negative: note=%q nv=%+v", note, nv)
+	}
 }

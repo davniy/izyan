@@ -1,0 +1,18 @@
+{
+  "schema": "research-report/1",
+  "mode": "experimental-research-v1",
+  "run": {"run_id":"historical-offline-control","started_at":"2026-01-01T00:00:00Z","finished_at":"2026-01-01T00:01:00Z"},
+  "input": {
+    "snapshot": {"path":"/unavailable/historical-source","commit_sha":"recorded-commit","content_hash":"abababababababababababababababababababababababababababababababab"},
+    "advisory": {"requested_id":"GO-HISTORICAL","resolved_id":"GO-HISTORICAL","source_kind":"frozen_file","source_path":"/unavailable/historical-advisory.json","raw_sha256":"abababababababababababababababababababababababababababababababab","canonical_sha256":"abababababababababababababababababababababababababababababababab"}
+  },
+  "vulnerability_mechanism": {"status":"UNKNOWN","summary":"UNKNOWN: not recorded; follow-up: retain as an evaluation control","claims":[]},
+  "root_cause": {"status":"UNKNOWN","summary":"UNKNOWN: not recorded; follow-up: retain as an evaluation control","claims":[]},
+  "attack_scenario": {"status":"UNKNOWN","summary":"UNKNOWN: not recorded; follow-up: retain as an evaluation control","claims":[]},
+  "product_exposure": {"status":"UNKNOWN","summary":"UNKNOWN: not recorded; follow-up: retain as an evaluation control","claims":[]},
+  "alternative_paths": {"status":"UNKNOWN","summary":"UNKNOWN: not recorded; follow-up: retain as an evaluation control","claims":[]},
+  "evidence_quality": {"status":"UNKNOWN","summary":"UNKNOWN: not recorded; follow-up: retain as an evaluation control","references":[]},
+  "triage_recommendation": {"action":"needs review"},
+  "agent_output": {"status":"NOT_REQUESTED"},
+  "disposition": {"class":"REVIEW_REQUIRED","auto_close":false,"forbidden_classes":["VERIFIED","FALSE","AUTO_CLOSE","NOT_AFFECTED","NO_EXPLOIT_PATH_FOUND"]}
+}

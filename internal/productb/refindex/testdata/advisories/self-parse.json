@@ -1,0 +1,13 @@
+{
+  "id": "GO-EVAL-RI-SELF",
+  "summary": "Product implements the vulnerable parser itself",
+  "affected": [
+    {
+      "package": {"name": "example.com/selfprod", "ecosystem": "Go"},
+      "ranges": [{"type": "SEMVER", "events": [{"introduced": "0"}]}],
+      "ecosystem_specific": {
+        "imports": [{"path": "example.com/selfprod/vuln", "symbols": ["Parse"]}]
+      }
+    }
+  ]
+}

@@ -1,312 +1,48 @@
 package report
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/fedorovmv/izyan/internal/domain"
 )
 
-func symRef(pkg, s string) domain.SymbolRef {
-	return domain.SymbolRef{Package: pkg, Symbol: s}
-}
-
-// h2Headings returns the report's `## ` section titles in order.
-func h2Headings(md string) []string {
-	var out []string
-	for _, line := range strings.Split(md, "\n") {
-		if strings.HasPrefix(line, "## ") {
-			out = append(out, line)
-		}
-	}
-	return out
-}
-
-// minimalCase is a bare case with an EXPLOITABLE verdict and a resolved
-// applicability record — enough to exercise every human section.
-func minimalCase() *domain.AnalysisCase {
-	return &domain.AnalysisCase{
-		ID: "case-min",
-		Vulnerability: domain.Vulnerability{
-			ID:            "GO-2026-0001",
-			Module:        "example.com/mod",
-			Summary:       "parsing defect in ModParse",
-			FixedVersions: []string{"v1.2.0"},
-			AffectedPackages: []domain.AffectedPackage{
-				{Path: "example.com/mod/vulnpkg"},
-			},
-			BaseSeverity:   "HIGH",
-			BaseScore:      7.5,
-			SeveritySource: "OSV",
-			ScoreSource:    "OSV",
-		},
-		Product: domain.ProductSnapshot{
-			Repository: "example.com/product",
-			Commit:     "1234567890ab",
-		},
-		Affected: &domain.AffectedResult{
-			ModulePresent:   domain.ClaimTrue,
-			VersionAffected: domain.ClaimTrue,
-			ResolvedVersion: "v1.1.0",
-			PackagePresent:  domain.ClaimTrue,
-			BuildRelevant:   domain.ClaimTrue,
-		},
-		RootCause: &domain.RootCauseModel{
-			Status: domain.RootCauseResolved,
-			RootCauses: []domain.RootCause{
-				{Package: "example.com/mod/vulnpkg", Symbol: "Parse", Role: domain.RootCauseSink, Mechanism: "out-of-bounds read"},
-			},
-		},
-		Verdict: &domain.VerdictResult{
-			Verdict: domain.VerdictExploitable,
-			Reason:  "all mandatory exploit conditions are satisfied",
+// exactEntryScope is the only scope authority that may close a negative:
+// the requested identity is the loaded advisory entry itself, coverage of
+// its declared entries is complete, and the structural census proves the
+// whole record was represented (a legacy COMPLETE assertion alone cannot).
+func exactEntryScope(id string) *domain.AdvisoryScope {
+	return &domain.AdvisoryScope{
+		RequestedID: id, ResolvedID: id,
+		Kind: domain.ScopeAdvisoryEntries, Coverage: domain.CoverageComplete,
+		RecordExtent: domain.RecordExtentFullRecord,
+		RecordInventory: &domain.RecordInventory{
+			AdvisoryID:         id,
+			DocumentDigest:     "sha256:" + strings.Repeat("a", 64),
+			AffectedEntryCount: 1,
+			Entries:            []domain.RecordEntry{{Index: 0, Ecosystem: "Go", Module: "example.com/dep"}},
+			RepresentedRefs:    []int{0},
 		},
 	}
 }
 
-// sampleAuditCase carries one item of every audit-tracked structure so the
-// technical report exercises all of its sections.
-func sampleAuditCase() *domain.AnalysisCase {
-	c := minimalCase()
-	c.Verdict = &domain.VerdictResult{
-		Verdict:      domain.VerdictNoExploitPathFound,
-		Reason:       "mandatory exploit condition is proven false",
-		ConditionIDs: []domain.ConditionID{"C-LOCUS"},
-		EvidenceIDs:  []domain.EvidenceID{"EV-CLM-1"},
-		Limitations:  []string{"verdict limitation"},
+// partialCVEScope models a CVE/alias request whose loaded record covers
+// only some implementations of the CVE.
+func partialCVEScope(requested, resolved string) *domain.AdvisoryScope {
+	return &domain.AdvisoryScope{
+		RequestedID: requested, ResolvedID: resolved,
+		Kind: domain.ScopeCVE, Coverage: domain.CoverageKnownOnly, Basis: "alias record only",
 	}
-	c.Claims = []domain.Claim{
-		{
-			ID:          "CLM-1",
-			ConditionID: "C-LOCUS",
-			Producer:    "locus-eval",
-			Result:      domain.ClaimFalse,
-			Falsifier:   "locus-package-absent",
-			Explanation: "locus packages absent from build graph",
-			EvidenceIDs: []domain.EvidenceID{"EV-CLM-1"},
-			Limitations: []string{"claim limitation"},
-			NegativeVerification: &domain.NegativeVerification{
-				Status:      domain.NegativeVerified,
-				Notes:       "package graph checked",
-				EvidenceIDs: []domain.EvidenceID{"EV-PKG-1"},
-				Limitations: []string{"nv limitation"},
-			},
-		},
-		{
-			ID:          "CLM-2",
-			ConditionID: "C-PEER-INPUT",
-			Producer:    "ingress-eval",
-			Result:      domain.ClaimUnknown,
-			Explanation: "payload origin unresolved",
-			Limitations: []string{"dup limitation", "claim limitation"},
-		},
-	}
-	c.Exploit = &domain.ExploitModel{
-		Class:  "MEMORY_CORRUPTION",
-		Impact: "process crash",
-		MandatoryConditions: []domain.Condition{
-			{ID: "C-LOCUS", Kind: domain.ConditionSymbolReachable, Mandatory: true, Description: "locus package linked"},
-			{ID: "C-PEER-INPUT", Kind: domain.ConditionAttackerControl, Mandatory: true, Description: "peer input controlled"},
-		},
-		SupportingFactors: []domain.Condition{
-			{ID: "C-EXPOSURE", Kind: domain.ConditionConfiguration, Description: "network reachable"},
-		},
-		LocusSubjects:    []domain.SymbolRef{symRef("example.com/mod/vulnpkg", "Parse")},
-		NonLocusBasis:    []domain.LocusDecision{{Symbol: symRef("example.com/mod/vulnpkg", "Helper"), Authority: "эксперт", Basis: "safe helper"}},
-		ProposedNonLocus: []domain.LocusDecision{{Symbol: symRef("example.com/mod/vulnpkg", "Other"), Authority: "machine-proposal", Basis: "enabler-candidate"}},
-		LocusAnnotations: []domain.LocusDecision{{Symbol: symRef("example.com/mod/vulnpkg", "Parse"), Authority: "machine-annotation", Basis: "faulting site"}},
-		UnresolvedSubjects: []domain.SymbolRef{
-			symRef("example.com/mod/vulnpkg", "Missing"),
-		},
-		AbsentSubjects: []domain.SymbolRef{
-			symRef("example.com/mod/absent", "Gone"),
-		},
-		EvidenceIDs: []domain.EvidenceID{"EV-CLM-1"},
-	}
-	c.NonLocusBasis = []domain.LocusDecision{
-		{Symbol: symRef("example.com/mod/vulnpkg", "CaseHelper"), Authority: "эксперт", Basis: "case-level exclusion"},
-	}
-	c.EvidenceGraph = domain.EvidenceGraph{
-		Evidence: []domain.Evidence{
-			{ID: "EV-PKG-1", Kind: domain.EvidencePackageList, Content: `{"ImportPath":"example.com/mod/vulnpkg"}`},
-			{ID: "EV-CLM-1", Kind: domain.EvidenceGovulncheck, Tool: "govulncheck", ToolVersion: "v1.0.4", Command: "govulncheck ./...", Content: "no call paths", Limitations: []string{"evidence limitation"}},
-			{ID: "EV-RUNTIME-1", Kind: domain.EvidenceRuntime, Source: "runtime-env", Content: "go version go1.26.1"},
-			{ID: "EV-BUILD-1", Kind: domain.EvidenceBuild, Source: "go build", Command: "go build ./...", Content: "build successful"},
-			{ID: "EV-TEST-1", Kind: domain.EvidenceTest, Source: "go test", Command: "go test ./...", Content: "all tests pass"},
-		},
-		Exposures: []domain.ExposureFact{
-			{
-				CallSite:      domain.CallSite{File: "main.go", Line: 42},
-				Direction:     "inbound",
-				Kind:          "listener",
-				Target:        "net/http.ListenAndServe",
-				Address:       ":8080",
-				AddressSource: "literal",
-				Scope:         domain.ScopeAllInterfaces,
-				Owner:         "svc",
-			},
-		},
-		Entrypoints: []domain.Entrypoint{
-			{CallSite: domain.CallSite{File: "main.go", Line: 10, Function: "main"}, Kind: "http", Detail: "serve", Exposed: true},
-		},
-		DataFlows: []domain.DataFlow{
-			{
-				ConditionID:     "C-PEER-INPUT",
-				Source:          domain.CallSite{Function: "ReadAll", File: "io.go", Line: 10},
-				Sink:            domain.CallSite{Function: "Parse", Callee: "vulnpkg.Parse", File: "parser.go", Line: 20},
-				Transformations: []domain.CallSite{{Function: "Trim", File: "t.go", Line: 5}},
-				Arg:             0,
-				Origin:          domain.OriginExternalUntrusted,
-				Summary:         "query param flows to sink",
-				PayloadUnproven: true,
-			},
-		},
-		CallPaths: []domain.CallPath{
-			{
-				ConditionID: "C-LOCUS",
-				EvidenceID:  "EV-CLM-1",
-				Frames: []domain.CallSite{
-					{Package: "main", Function: "main", File: "main.go", Line: 20},
-					{Package: "example.com/mod/vulnpkg", Function: "Parse", File: "parse.go", Line: 90},
-				},
-			},
-		},
-		IngressClosures: []domain.IngressClosure{
-			{
-				ConditionID: "C-PEER-INPUT",
-				Module:      "example.com/mod",
-				Complete:    false,
-				Items: []domain.IngressItem{
-					{
-						CallSite: domain.CallSite{File: "handler.go", Line: 15},
-						Kind:     domain.IngressBoundaryArg,
-						Callee:   "vulnpkg.Parse",
-						Arg:      0,
-						Origin:   domain.OriginUnknown,
-						Detail:   "body argument",
-					},
-				},
-				Blockers: []string{"opaque dispatch"},
-			},
-		},
-		SinkClosures: []domain.SinkClosure{
-			{
-				ConditionID: "C-PEER-INPUT",
-				Module:      "example.com/mod",
-				Basis:       "advisory-declared sink set",
-				Complete:    true,
-				Sites: []domain.SinkSite{
-					{
-						CallSite: domain.CallSite{File: "use.go", Line: 30},
-						Sink:     "example.com/mod/vulnpkg.Parse",
-						Arg:      1,
-						Live:     true,
-						Origin:   domain.OriginConstant,
-						Detail:   "constant input",
-					},
-				},
-			},
-		},
-		ToolExecutions: []domain.ToolExecution{
-			{
-				ID:           "TX-001",
-				Tool:         "govulncheck",
-				Version:      "v1.0.4",
-				Dir:          "/repo",
-				Args:         []string{"-json", "./..."},
-				ExitCode:     0,
-				DurationMs:   150,
-				StdoutSHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				StderrSHA256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-			},
-		},
-		Runtime:         []domain.EvidenceID{"EV-RUNTIME-1"},
-		Limitations:     []string{"graph limitation"},
-		ToolLimitations: []string{"tool limitation"},
-	}
-	c.Hypotheses = []domain.Hypothesis{
-		{ID: "H-1", ConditionID: "C-LOCUS", Status: domain.HypothesisRejected, Statement: "package not linked", Notes: "checked"},
-	}
-	c.Reviews = []domain.Review{
-		{
-			ID:     "REV-1",
-			Result: domain.ReviewAccept,
-			Findings: []domain.ReviewFinding{
-				{Severity: "LOW", TargetType: "claim", TargetID: "C-LOCUS", Problem: "minor verification note"},
-			},
-		},
-	}
-	c.CVEAnalysis = &domain.CVEAnalysisProposal{
-		ID:       "CVE-A-1",
-		Revision: 2,
-		Binding: domain.AnalysisBinding{
-			AdvisoryID:           "GO-2026-0001",
-			AdvisoryHash:         "deadbeef",
-			Module:               "example.com/mod",
-			ResolvedVersion:      "v1.1.0",
-			VulnerableSourceHash: "srchash",
-		},
-		Mechanisms: []domain.DefectMechanism{
-			{ID: "M-1", Summary: "bounds check missing", FaultingSites: []string{"vulnpkg.Parse"}, PatchExplanation: "add bound"},
-		},
-		Preconditions:  []string{"crafted input"},
-		Confidence:     "HIGH",
-		EvidenceIDs:    []domain.EvidenceID{"EV-CLM-1"},
-		ToolIterations: 3,
-	}
-	c.CVEAnalysisBundle = &domain.CVESourceBundle{
-		ManifestStatus: domain.ManifestComplete,
-		Artifacts: []domain.SourceArtifact{
-			{ID: "ART-1", Side: "vulnerable", URI: "file:///src", Hash: "arthash", Status: "FETCHED", EvidenceID: "EV-CLM-1", Limitations: []string{"artifact limitation"}},
-		},
-		Limitations: []string{"bundle limitation"},
-	}
-	c.StrategyPlan = &domain.StrategyPlan{
-		ID:               "SP-1",
-		SelectedStrategy: "direct-verification",
-		Obligations:      []string{"prove reachability"},
-	}
-	c.SemanticReview = &domain.SemanticReview{
-		Passed:   true,
-		Reviewer: "llm-reviewer",
-		Findings: []string{"mechanism consistent"},
-	}
-	c.Justification = &domain.AnalysisJustification{
-		Verdict:            domain.VerdictNoExploitPathFound,
-		ExecutiveSummary:   "packages absent",
-		TechnicalMechanism: "no path",
-		TrackerCommentRu:   "комментарий",
-		VerifiedFacts:      []string{"fact one"},
-		HumanRemainder: []domain.HumanRemainderItem{
-			{Obligation: "check deploy", Question: "is production isolated?", EvidenceRef: "EV-CLM-1"},
-		},
-	}
-	c.Profiles = []domain.ProfileVerdict{
-		{
-			Profile:        domain.ProfileZeroTrust,
-			Verdict:        domain.VerdictExploitable,
-			Reason:         "all mandatory exploit conditions are satisfied",
-			Priority:       domain.PriorityP1,
-			SLA:            "7d",
-			IsTargetActual: true,
-		},
-		{
-			Profile:        domain.ProfileClusterPerimeter,
-			Verdict:        domain.VerdictNoExploitPathFound,
-			Reason:         "trusted-infrastructure",
-			Falsifier:      domain.FalsifierTrustedInfrastructure,
-			Priority:       domain.PriorityDismissed,
-			SLA:            "none",
-			IsTargetActual: false,
-		},
-	}
-	c.DetectedPerimeter = domain.PerimeterPublic
-	c.PerimeterRationale = "public exposure detected: inbound listener :8080"
-	return c
 }
+
+// reportProductOnlyInventory is a complete, edge-closed build stream whose
+// module set contains no advisory package: the report may infer absence from
+// it only after the typed-record selector and strict decoder admit it.
+const reportProductOnlyInventory = `{"ImportPath":"example.com/product","Name":"main","Deps":["example.com/product/lib"]}
+{"ImportPath":"example.com/product/lib","Name":"lib","Deps":[]}`
 
 func TestRemediationPicksMinFixAboveResolved(t *testing.T) {
 	c := &domain.AnalysisCase{
@@ -351,7 +87,14 @@ func TestMachineAssessment(t *testing.T) {
 		return domain.SymbolRef{Package: pkg, Symbol: s}
 	}
 	base := func(content string) *domain.AnalysisCase {
-		return &domain.AnalysisCase{
+		c := &domain.AnalysisCase{
+			Product: domain.ProductSnapshot{
+				Repository: "example.com/prod",
+				Commit:     "abc123",
+				GOOS:       "linux",
+				GOARCH:     "amd64",
+				Target:     admissionTargetNoTags(),
+			},
 			Exploit: &domain.ExploitModel{
 				LocusSubjects: []domain.SymbolRef{
 					sym("x/internal/transport", "A"),
@@ -365,13 +108,11 @@ func TestMachineAssessment(t *testing.T) {
 					{Symbol: sym("x/internal/transport", "B"), Authority: "machine-annotation", Basis: "guarded-site; fix hunk guards the faulting operation"},
 				},
 			},
-			EvidenceGraph: domain.EvidenceGraph{
-				Evidence: []domain.Evidence{{
-					Kind:    domain.EvidencePackageList,
-					Content: content,
-				}},
-			},
 		}
+		c.EvidenceGraph.Evidence = []domain.Evidence{
+			admissionInventoryEvidence(c.Product, "EV-PKG-LIST", content),
+		}
+		return c
 	}
 	t.Run("linked packages split proposals from flagged symbols", func(t *testing.T) {
 		c := base(`{"ImportPath":"x/internal/transport"}` + "\n" + `{"ImportPath":"x"}`)
@@ -416,23 +157,14 @@ func TestMachineAssessment(t *testing.T) {
 			t.Fatalf("unexpected EN assessment for exploitable: %q", nEN)
 		}
 	})
-	t.Run("machine assessment lives in the audit, not the human report", func(t *testing.T) {
-		c := base(`{"ImportPath":"x"}`)
-		c.Verdict = &domain.VerdictResult{Verdict: domain.VerdictNoExploitPathFound}
-		aud := AuditMarkdown(c)
-		if !strings.Contains(aud, "## Внутренние машинные гипотезы") ||
-			!strings.Contains(aud, "не изменяет финальный вердикт") {
-			t.Fatalf("audit missing machine assessment section:\n%s", aud)
-		}
-		human := Markdown(c)
-		if strings.Contains(human, "МОЖНО ОТКЛОНИТЬ") || strings.Contains(human, "Внутренние машинные гипотезы") {
-			t.Fatalf("human report leaked machine assessment:\n%s", human)
-		}
-	})
 }
 
 func TestTrackerRationale(t *testing.T) {
-	t.Run("no exploit path found renders verdict cause and update", func(t *testing.T) {
+	sym := func(pkg, s string) domain.SymbolRef {
+		return domain.SymbolRef{Package: pkg, Symbol: s}
+	}
+
+	t.Run("no exploit path found renders complete tracker justification", func(t *testing.T) {
 		c := &domain.AnalysisCase{
 			ID: "case-001",
 			Vulnerability: domain.Vulnerability{
@@ -448,48 +180,97 @@ func TestTrackerRationale(t *testing.T) {
 			Product: domain.ProductSnapshot{
 				Repository: "example.com/demo-service",
 				Commit:     "74224f4d12345678",
+				GoVersion:  "1.23.0",
+				GOOS:       "linux",
+				GOARCH:     "amd64",
 			},
 			Affected: &domain.AffectedResult{
+				// The fixture models an exact-entry advisory whose record was
+				// fully represented; the vulnerability id is a CVE label.
+				Scope:           exactEntryScope("GO-2026-84445"),
 				VersionAffected: domain.ClaimTrue,
 				ResolvedVersion: "v1.80.0",
 			},
 			Exploit: &domain.ExploitModel{
-				MandatoryConditions: []domain.Condition{
-					{ID: "C-LOCUS", Kind: domain.ConditionSymbolReachable, Mandatory: true, Description: "defect locus linked into build"},
+				LocusSubjects: []domain.SymbolRef{
+					sym("google.golang.org/grpc/internal/xds", "RouteAndProcess"),
+					sym("google.golang.org/grpc/internal/transport", "HandleStreams"),
+				},
+				NonLocusBasis: []domain.LocusDecision{
+					{
+						Symbol:    sym("google.golang.org/grpc/internal/transport", "HandleStreams"),
+						Authority: "эксперт",
+						Basis:     "вспомогательная диспетчеризация, дефектная операция отсутствует",
+					},
 				},
 			},
-			Claims: []domain.Claim{
-				{
-					ConditionID: "C-LOCUS",
-					Result:      domain.ClaimFalse,
-					Falsifier:   domain.FalsifierLocusPackageAbsent,
-					NegativeVerification: &domain.NegativeVerification{
-						Status: domain.NegativeVerified,
+			EvidenceGraph: domain.EvidenceGraph{
+				Evidence: []domain.Evidence{
+					{
+						Kind:    domain.EvidencePackageList,
+						Content: `{"ImportPath":"google.golang.org/grpc/internal/transport"}` + "\n" + `{"ImportPath":"example.com/demo-service"}`,
+					},
+				},
+				Exposures: []domain.ExposureFact{
+					{
+						CallSite:  domain.CallSite{File: "components/service/consumer.go", Line: 53},
+						Direction: "inbound",
+						Kind:      "grpc_listener",
+						Target:    "google.golang.org/grpc.NewServer",
 					},
 				},
 			},
 			Verdict: &domain.VerdictResult{
-				Verdict:      domain.VerdictNoExploitPathFound,
-				Reason:       "mandatory exploit condition is proven false",
-				ConditionIDs: []domain.ConditionID{"C-LOCUS"},
+				Verdict: domain.VerdictNoExploitPathFound,
+				Reason:  "mandatory exploit condition is proven false",
 			},
 		}
+		withReportBuildAdmission(c, `{"ImportPath":"example.com/demo-service","Name":"main","Deps":["google.golang.org/grpc/internal/transport"]}`+"\n"+`{"ImportPath":"google.golang.org/grpc/internal/transport","Name":"transport","DepOnly":true,"Module":{"Path":"google.golang.org/grpc","Version":"v1.80.0"},"Deps":[]}`)
 
 		r := TrackerRationale(c)
-		if !strings.Contains(r, "Not Exploitable") {
+
+		// 1. Headline
+		if !strings.Contains(r, "Not Exploitable (Уязвимость не эксплуатируется)") {
 			t.Fatalf("missing headline: %s", r)
 		}
+		// 2. Library & Scanner
+		if !strings.Contains(r, "google.golang.org/grpc v1.80.0") ||
+			!strings.Contains(r, "False Positive") ||
+			!strings.Contains(r, "demo-service") {
+			t.Fatalf("missing library/scanner context: %s", r)
+		}
+		// 3. Commit & Snapshot
+		if !strings.Contains(r, "74224f4d1234") ||
+			!strings.Contains(r, "Go 1.23.0") ||
+			!strings.Contains(r, "linux/amd64") {
+			t.Fatalf("missing snapshot context: %s", r)
+		}
+		// 4. Vulnerability mechanism
 		if !strings.Contains(r, "CVE-2026-84445") ||
 			!strings.Contains(r, "паника в xDS routing interceptor") {
 			t.Fatalf("missing defect description: %s", r)
 		}
-		if !strings.Contains(r, "defect locus linked into build") &&
-			!strings.Contains(r, "пакеты дефектного кода") {
-			t.Fatalf("missing falsified condition cause: %s", r)
+		// 5. Absent package
+		if !strings.Contains(r, "google.golang.org/grpc/internal/xds") ||
+			!strings.Contains(r, "отсутствуют и в бинарный файл не попадают") {
+			t.Fatalf("missing absent packages info: %s", r)
 		}
-		if !strings.Contains(r, "v1.82.2") {
-			t.Fatalf("missing planned update: %s", r)
+		// 6. Product exposures
+		if !strings.Contains(r, "components/service/consumer.go:53") ||
+			!strings.Contains(r, "google.golang.org/grpc.NewServer") {
+			t.Fatalf("missing exposures info: %s", r)
 		}
+		// 7. Present package symbols
+		if !strings.Contains(r, "HandleStreams") ||
+			!strings.Contains(r, "диспетчеризация") {
+			t.Fatalf("missing present symbols info: %s", r)
+		}
+		// 8. Residual risk
+		if !strings.Contains(r, "Остаточный риск") ||
+			!strings.Contains(r, "v1.82.2") {
+			t.Fatalf("missing residual risk or fixed version: %s", r)
+		}
+		// 9. Tracker closing - ensure boilerplate meta-text is removed
 		if strings.Contains(r, "Текст выше можно использовать в задаче трекера") {
 			t.Fatalf("unexpected boilerplate tracker closing: %s", r)
 		}
@@ -498,7 +279,7 @@ func TestTrackerRationale(t *testing.T) {
 	t.Run("not affected renders outside version range", func(t *testing.T) {
 		c := &domain.AnalysisCase{
 			Vulnerability: domain.Vulnerability{
-				ID:     "CVE-2025-1111",
+				ID:     "GO-2025-1111",
 				Module: "example.com/lib",
 			},
 			Product: domain.ProductSnapshot{
@@ -508,6 +289,7 @@ func TestTrackerRationale(t *testing.T) {
 			Affected: &domain.AffectedResult{
 				VersionAffected: domain.ClaimFalse,
 				ResolvedVersion: "v2.0.0",
+				Scope:           exactEntryScope("GO-2025-1111"),
 			},
 			Verdict: &domain.VerdictResult{
 				Verdict: domain.VerdictNotAffected,
@@ -516,805 +298,935 @@ func TestTrackerRationale(t *testing.T) {
 		}
 
 		r := TrackerRationale(c)
-		if !strings.Contains(r, "Not Affected") ||
-			!strings.Contains(r, "example.com/lib") ||
+		if !strings.Contains(r, "Not Affected (Уязвимость не применима к сервису)") ||
 			!strings.Contains(r, "v2.0.0") ||
-			!strings.Contains(r, "вне уязвимого диапазона") {
+			!strings.Contains(r, "не входит в диапазон уязвимых версий") {
 			t.Fatalf("unexpected rationale: %s", r)
 		}
 	})
 
-	t.Run("exploitable renders update command", func(t *testing.T) {
+	t.Run("exploitable renders remediation required", func(t *testing.T) {
 		c := &domain.AnalysisCase{
 			Vulnerability: domain.Vulnerability{
 				ID:            "CVE-2026-9999",
 				Module:        "example.com/bad",
 				FixedVersions: []string{"v1.1.0"},
 			},
+			Product: domain.ProductSnapshot{
+				Repository: "vuln-service",
+				Commit:     "def5678",
+			},
 			Affected: &domain.AffectedResult{
 				VersionAffected: domain.ClaimTrue,
 				ResolvedVersion: "v1.0.0",
 			},
+			EvidenceGraph: domain.EvidenceGraph{
+				Exposures: []domain.ExposureFact{
+					{CallSite: domain.CallSite{File: "main.go", Line: 20}, Direction: "inbound", Target: "net/http.ListenAndServe"},
+				},
+			},
 			Verdict: &domain.VerdictResult{
 				Verdict: domain.VerdictExploitable,
-				Reason:  "all mandatory exploit conditions are satisfied",
+				Reason:  "all mandatory conditions met",
 			},
 		}
 
 		r := TrackerRationale(c)
-		if !strings.Contains(r, "Exploitable") ||
-			!strings.Contains(r, "go get example.com/bad@v1.1.0") {
+		if !strings.Contains(r, "Exploitable (Уязвимость подтверждена и эксплуатируема)") ||
+			!strings.Contains(r, "Требуется исправление") ||
+			!strings.Contains(r, "v1.1.0") {
 			t.Fatalf("unexpected exploitable rationale: %s", r)
 		}
 	})
 }
 
-var wantRUH2 = []string{
-	"## Результат: NO_EXPLOIT_PATH_FOUND",
-	"## В чём уязвимость",
-	"## Почему она применима / не применима к этому продукту",
-	"## Что подтверждено",
-	"## Что не удалось подтвердить",
-	"## Оценка и приоритет",
-	"## Рекомендация по исправлению",
-	"## Использование AI",
-	"## Ссылка на технический аудит",
-}
-
-var wantENH2 = []string{
-	"## Result: NO_EXPLOIT_PATH_FOUND",
-	"## Vulnerability overview",
-	"## Why it applies / does not apply to this product",
-	"## Confirmed facts",
-	"## What could not be confirmed",
-	"## Assessment and priority",
-	"## Remediation recommendation",
-	"## AI usage",
-	"## Technical audit link",
-}
-
-func TestMarkdownHumanSectionOrder(t *testing.T) {
-	c := sampleAuditCase()
-
-	md := Markdown(c, "ru")
-	if md != Markdown(c) {
-		t.Fatal("Markdown(c) must default to Russian and equal Markdown(c, \"ru\")")
-	}
-	got := h2Headings(md)
-	if len(got) != 9 {
-		t.Fatalf("expected exactly nine H2 sections, got %d:\n%s", len(got), strings.Join(got, "\n"))
-	}
-	for i, want := range wantRUH2 {
-		if got[i] != want {
-			t.Fatalf("H2[%d] = %q, want %q", i, got[i], want)
-		}
-	}
-	if !strings.HasPrefix(md, "# GO-2026-0001 — ") {
-		t.Fatalf("unexpected H1:\n%s", md)
-	}
-	if !strings.Contains(md, "Полный машинный снимок кейса: [report.json](report.json)") {
-		t.Fatalf("missing report.json link:\n%s", md)
-	}
-	if !strings.Contains(md, "[Технический аудит](report.audit.md)") {
-		t.Fatalf("missing audit link:\n%s", md)
-	}
-
-	en := Markdown(c, "en")
-	gotEN := h2Headings(en)
-	if len(gotEN) != 9 {
-		t.Fatalf("expected exactly nine EN H2 sections, got %d:\n%s", len(gotEN), strings.Join(gotEN, "\n"))
-	}
-	for i, want := range wantENH2 {
-		if gotEN[i] != want {
-			t.Fatalf("EN H2[%d] = %q, want %q", i, gotEN[i], want)
-		}
-	}
-	if !strings.Contains(en, "[Technical audit](report.audit.en.md)") {
-		t.Fatalf("EN report must link the EN audit file:\n%s", en)
-	}
-}
-
-func TestAuditMarkdownSections(t *testing.T) {
-	c := sampleAuditCase()
-	aud := AuditMarkdown(c, "ru")
-
-	if !strings.HasPrefix(aud, "# GO-2026-0001 — технический аудит") {
-		t.Fatalf("unexpected audit H1:\n%s", aud)
-	}
-	sections := []string{
-		"## Результат и внутренние параметры triage",
-		"## Источники и методы проверки",
-		"## Применимость",
-		"## Сопоставление с govulncheck",
-		"## Первопричина, модель эксплуатации и локусы",
-		"## Условия эксплуатации и верификация",
-		"## Реестр доказательств",
-		"## Факты сетевой экспозиции",
-		"## Потоки данных",
-		"## Покрытие входов и дефектных операций",
-		"## Журнал инструментов",
-		"## Факты среды",
-		"## Сборка и тесты",
-		"## Рецензирование",
-		"## Рабочие гипотезы",
-		"## Артефакты AI-анализа",
-		"## Внутренние машинные гипотезы",
-		"## Внутренние профили периметра",
-		"## Полный список ограничений",
-	}
-	for _, s := range sections {
-		if !strings.Contains(aud, s) {
-			t.Fatalf("audit missing section %q:\n%s", s, aud)
-		}
-	}
-	// Full fidelity spot checks.
-	for _, want := range []string{
-		"`CLM-1`", "locus-eval", "locus-package-absent", "EV-CLM-1",
-		"ПОДТВЕРЖДЕНО", "package graph checked", "nv limitation",
-		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-		"TX-001", "opaque dispatch", "boundary_arg", "constant input",
-		"advisory-declared sink set", "machine-proposal", "machine-annotation",
-		"enabler-candidate", "faulting site", "srchash", "arthash",
-		"не изменяет финальный вердикт",
-	} {
-		if !strings.Contains(aud, want) {
-			t.Fatalf("audit missing %q:\n%s", want, aud)
-		}
-	}
-	// Limitations are deduplicated: "claim limitation" appears once in the list.
-	if strings.Count(aud, "- claim limitation") != 1 {
-		t.Fatalf("expected deduplicated limitation:\n%s", aud)
-	}
-	// Non-actual profile is explicitly marked hypothetical.
-	if !strings.Contains(aud, "гипотетическая") {
-		t.Fatalf("non-actual profile must be marked hypothetical:\n%s", aud)
-	}
-	en := AuditMarkdown(c, "en")
-	if !strings.HasPrefix(en, "# GO-2026-0001 — technical audit") ||
-		!strings.Contains(en, "hypothetical") {
-		t.Fatalf("unexpected EN audit:\n%s", en)
-	}
-}
-
-func TestReportTriageDecision(t *testing.T) {
-	t.Run("exploitable unchanged keeps baseline without internal labels", func(t *testing.T) {
-		c := minimalCase()
-		md := Markdown(c, "ru")
-		if !strings.Contains(md, "## Оценка и приоритет") {
-			t.Fatalf("missing triage section:\n%s", md)
-		}
-		if !strings.Contains(md, "HIGH") || !strings.Contains(md, "7.5") {
-			t.Fatalf("missing baseline severity:\n%s", md)
-		}
-		if !strings.Contains(md, "**P1**") {
-			t.Fatalf("missing baseline/effective priority:\n%s", md)
-		}
-		if !strings.Contains(md, "без изменения") {
-			t.Fatalf("missing UNCHANGED disposition wording:\n%s", md)
-		}
-		for _, banned := range []string{"ASSESSED", "PROVISIONAL", "NOT_APPLICABLE", "UNASSESSED", "Статус оценки", "SLA", "ContextualScore", "contextual"} {
-			if strings.Contains(md, banned) {
-				t.Fatalf("human report contains internal label %q:\n%s", banned, md)
-			}
-		}
-		if strings.Contains(md, "Почему приоритет снижен") {
-			t.Fatalf("no lowering happened — the lowering block must not appear:\n%s", md)
-		}
-	})
-
-	t.Run("lowered disposition shows proven control", func(t *testing.T) {
-		c := minimalCase()
-		c.Verdict = &domain.VerdictResult{Verdict: domain.VerdictExploitable}
-		c.EvidenceGraph.Exposures = []domain.ExposureFact{
-			{
-				CallSite:  domain.CallSite{File: "main.go", Line: 10},
-				Direction: "inbound",
-				Kind:      "listener",
-				Target:    "net.Listen",
-				Address:   "127.0.0.1:9090",
-				Scope:     domain.ScopeLoopback,
+func TestMarkdownStructureInvertedPyramid(t *testing.T) {
+	c := &domain.AnalysisCase{
+		ID: "case-report-test",
+		Vulnerability: domain.Vulnerability{
+			ID:            "GO-2026-6443",
+			Module:        "example.com/mod",
+			FixedVersions: []string{"v1.2.0"},
+		},
+		Product: domain.ProductSnapshot{
+			Repository: "example.com/product",
+			Commit:     "abc12345",
+			GoVersion:  "go1.26.1",
+			GOOS:       "darwin",
+			GOARCH:     "arm64",
+		},
+		Verdict: &domain.VerdictResult{
+			Verdict: domain.VerdictNoExploitPathFound,
+			Reason:  "mandatory exploit condition is proven false",
+		},
+		Affected: &domain.AffectedResult{
+			Scope:           exactEntryScope("GO-2026-6443"),
+			VersionAffected: domain.ClaimTrue,
+			ResolvedVersion: "v1.0.0",
+		},
+		Exploit: &domain.ExploitModel{
+			Class:  "RESOURCE_EXHAUSTION",
+			Impact: "Server panic (DoS)",
+		},
+		EvidenceGraph: domain.EvidenceGraph{
+			DataFlows: []domain.DataFlow{
+				{Origin: domain.OriginInternalService, Summary: "test dataflow"},
 			},
-		}
-		md := Markdown(c, "ru")
-		if c.ContextualRisk == nil || c.ContextualRisk.TriageDisposition != domain.TriageLowered {
-			t.Fatalf("expected LOWERED disposition, got %+v", c.ContextualRisk)
-		}
-		if !strings.Contains(md, "приоритет снижен") {
-			t.Fatalf("missing lowered wording:\n%s", md)
-		}
-		if !strings.Contains(md, "### Почему приоритет снижен") {
-			t.Fatalf("missing lowering explanation block:\n%s", md)
-		}
-		if !strings.Contains(md, "loopback") {
-			t.Fatalf("lowering must name the proven control:\n%s", md)
-		}
-	})
-
-	t.Run("saturated downgrade is not presented as lowered", func(t *testing.T) {
-		c := minimalCase()
-		c.Verdict = &domain.VerdictResult{Verdict: domain.VerdictExploitable}
-		c.Vulnerability.BaseSeverity = "LOW"
-		c.Vulnerability.BaseScore = 2.0
-		c.EvidenceGraph.Exposures = []domain.ExposureFact{
-			{
-				CallSite:  domain.CallSite{File: "main.go", Line: 10},
-				Direction: "inbound",
-				Kind:      "listener",
-				Target:    "net.Listen",
-				Address:   "127.0.0.1:9090",
-				Scope:     domain.ScopeLoopback,
+			ToolExecutions: []domain.ToolExecution{
+				{Tool: "go", Args: []string{"version"}, ExitCode: 0, DurationMs: 10, StdoutSHA256: "abcdef1234567890"},
 			},
-		}
-		md := Markdown(c, "ru")
-		if c.ContextualRisk == nil || c.ContextualRisk.Priority != domain.PriorityP3 {
-			t.Fatalf("expected priority saturated at P3, got %+v", c.ContextualRisk)
-		}
-		if c.ContextualRisk.TriageDisposition == domain.TriageLowered {
-			t.Fatalf("saturated downgrade must not claim LOWERED disposition")
-		}
-		if strings.Contains(md, "Почему приоритет снижен") {
-			t.Fatalf("saturated downgrade must not show the lowering block:\n%s", md)
-		}
-	})
-
-	t.Run("dismissed finding can be closed", func(t *testing.T) {
-		c := minimalCase()
-		c.Verdict = &domain.VerdictResult{
-			Verdict: domain.VerdictNotAffected,
-			Reason:  "resolved version outside affected range",
-		}
-		c.Affected.VersionAffected = domain.ClaimFalse
-		md := Markdown(c, "ru")
-		if !strings.Contains(md, "finding можно закрыть") {
-			t.Fatalf("missing close wording:\n%s", md)
-		}
-		en := Markdown(c, "en")
-		if !strings.Contains(en, "finding can be closed") {
-			t.Fatalf("missing EN close wording:\n%s", en)
-		}
-	})
-
-	t.Run("inconclusive keeps baseline priority", func(t *testing.T) {
-		c := minimalCase()
-		c.Verdict = &domain.VerdictResult{
-			Verdict: domain.VerdictInconclusive,
-			Reason:  "one or more mandatory exploit conditions remain unresolved: C-REACH",
-		}
-		md := Markdown(c, "ru")
-		if !strings.Contains(md, "требуется дополнительная проверка; исходный приоритет сохранён") {
-			t.Fatalf("missing inconclusive wording:\n%s", md)
-		}
-		if !strings.Contains(md, "**P1**") {
-			t.Fatalf("inconclusive must retain baseline priority:\n%s", md)
-		}
-	})
-}
-
-func TestHumanReportNoContradictions(t *testing.T) {
-	t.Run("exploitable never carries dismissal proposals", func(t *testing.T) {
-		c := minimalCase()
-		md := Markdown(c, "ru")
-		for _, banned := range []string{"МОЖНО ОТКЛОНИТЬ", "DISMISSIBLE", "Предлагаемая оценка"} {
-			if strings.Contains(md, banned) {
-				t.Fatalf("EXPLOITABLE report contains %q:\n%s", banned, md)
-			}
-		}
-	})
-	t.Run("not affected never demands urgent fix", func(t *testing.T) {
-		c := minimalCase()
-		c.Verdict = &domain.VerdictResult{Verdict: domain.VerdictNotAffected}
-		c.Affected.PackagePresent = domain.ClaimFalse
-		md := Markdown(c, "ru")
-		for _, banned := range []string{"требуется первоочередное исправление", "немедленное устранение", "Требуется исправление"} {
-			if strings.Contains(md, banned) {
-				t.Fatalf("NOT_AFFECTED report contains %q:\n%s", banned, md)
-			}
-		}
-		if !strings.Contains(md, "Срочного исправления не требуется") {
-			t.Fatalf("missing no-urgent-fix statement:\n%s", md)
-		}
-	})
-}
-
-func TestHumanReportContainsNoAuditInternals(t *testing.T) {
-	c := sampleAuditCase()
-	md := Markdown(c, "ru")
-	idRe := regexp.MustCompile(`\b(C|EV|TX|REV)-[A-Za-z0-9]+|\bH-\d+`)
-	if m := idRe.FindString(md); m != "" {
-		t.Fatalf("human report leaked internal id %q:\n%s", m, md)
+		},
 	}
-	for _, banned := range []string{
-		"Evidence Register", "Tool Executions", "SinkClosure", "IngressClosure",
-		"NegativeVerification", "PayloadUnproven", "ContextualScore",
-		"ASSESSED", "PROVISIONAL", "SLA", "Producer:", "FalsifierBasis",
-	} {
-		if strings.Contains(md, banned) {
-			t.Fatalf("human report contains audit internal %q:\n%s", banned, md)
-		}
+
+	md := Markdown(c)
+
+	// Ensure sections appear in the exact required order:
+	idxHeader := strings.Index(md, "# Анализ уязвимости: GO-2026-6443")
+	idxVerdict := strings.Index(md, "## Вердикт: `NO_EXPLOIT_PATH_FOUND`")
+	idxVerdictBlockquote := strings.Index(md, "> **Обязательное условие эксплуатации опровергнуто (уязвимый путь исполнения отсутствует)**")
+	idxRationale := strings.Index(md, "## Резюме")
+	idxRemediation := strings.Index(md, "## Рекомендации по устранению")
+	idxEvidence := strings.Index(md, "## Доказательная база")
+	idxAudit := strings.Index(md, "## Технические детали и аудит (Data Flows, Tool Executions, Limitations)")
+	idxDataFlows := strings.Index(md, "### Потоки данных (Data Flows)")
+	idxToolExec := strings.Index(md, "### Журнал инструментов (Tool Executions)")
+
+	if idxHeader == -1 || idxVerdict == -1 || idxVerdictBlockquote == -1 || idxRationale == -1 || idxRemediation == -1 ||
+		idxEvidence == -1 || idxAudit == -1 || idxDataFlows == -1 || idxToolExec == -1 {
+		t.Fatalf("one or more expected sections missing from Markdown output:\n%s", md)
 	}
-	en := Markdown(c, "en")
-	if m := idRe.FindString(en); m != "" {
-		t.Fatalf("EN human report leaked internal id %q:\n%s", m, en)
+
+	if !(idxHeader < idxVerdict &&
+		idxVerdict < idxVerdictBlockquote &&
+		idxVerdictBlockquote < idxRationale &&
+		idxRationale < idxRemediation &&
+		idxRemediation < idxEvidence &&
+		idxEvidence < idxAudit &&
+		idxAudit < idxDataFlows &&
+		idxDataFlows < idxToolExec) {
+		t.Fatalf("sections are not in inverted pyramid order. Indices:\nheader=%d, verdict=%d, quote=%d, rationale=%d, remediation=%d, evidence=%d, audit=%d, dataFlows=%d, toolExec=%d",
+			idxHeader, idxVerdict, idxVerdictBlockquote, idxRationale, idxRemediation, idxEvidence, idxAudit, idxDataFlows, idxToolExec)
+	}
+	if strings.Contains(md, "<details>") || strings.Contains(md, "<summary>") {
+		t.Fatalf("markdown should not contain <details> or <summary> tags")
 	}
 }
 
-func TestAIUsageSection(t *testing.T) {
-	t.Run("not used states it explicitly", func(t *testing.T) {
-		c := minimalCase()
-		md := Markdown(c, "ru")
-		if !strings.Contains(md, "LLM-анализ в данном запуске не выполнялся.") {
-			t.Fatalf("missing not-used statement:\n%s", md)
-		}
-		if !strings.Contains(md, "детерминированных проверках") {
-			t.Fatalf("missing deterministic basis note:\n%s", md)
-		}
-		en := Markdown(c, "en")
-		if !strings.Contains(en, "No LLM analysis was performed in this run.") {
-			t.Fatalf("missing EN not-used statement:\n%s", en)
-		}
-	})
-	t.Run("profile and justification alone do not count as LLM use", func(t *testing.T) {
-		c := minimalCase()
-		c.CVEAnalysisProfile = "llm-assisted"
-		c.Justification = &domain.AnalysisJustification{Verdict: domain.VerdictExploitable}
-		md := Markdown(c, "ru")
-		if !strings.Contains(md, "LLM-анализ в данном запуске не выполнялся.") {
-			t.Fatalf("profile/justification must not flip the used flag:\n%s", md)
-		}
-	})
-	t.Run("counter without artifacts says attribution is unknown", func(t *testing.T) {
-		c := minimalCase()
-		c.Workflow.Usage.LLMCalls = 2
-		md := Markdown(c, "ru")
-		if strings.Contains(md, "не выполнялся") {
-			t.Fatalf("recorded LLM calls must flip the used flag:\n%s", md)
-		}
-		if !strings.Contains(md, "привязанные артефакты анализа в кейсе не сохранены") {
-			t.Fatalf("missing missing-attribution statement:\n%s", md)
-		}
-	})
-	t.Run("used run lists outcomes and the disclaimer", func(t *testing.T) {
-		c := minimalCase()
-		c.CVEAnalysis = &domain.CVEAnalysisProposal{
-			ID:         "A-1",
-			Confidence: "HIGH",
-			Mechanisms: []domain.DefectMechanism{{ID: "M-1", Summary: "bounds check missing"}},
-		}
-		c.SemanticReview = &domain.SemanticReview{Passed: true, Reviewer: "llm"}
-		md := Markdown(c, "ru")
-		for _, want := range []string{
-			"Что делала LLM",
-			"Что предложила LLM",
-			"Что подтвердил или опроверг код по предложениям LLM",
-			"Что из предложенного LLM принято в модель",
-			"Мнение LLM и несостоявшиеся результаты",
-			"bounds check missing",
-			"LLM-выводы — это гипотезы",
-		} {
-			if !strings.Contains(md, want) {
-				t.Fatalf("AI section missing %q:\n%s", want, md)
-			}
-		}
-	})
-}
-
-func TestAIUsageProposalOutcomes(t *testing.T) {
-	c := minimalCase()
-	c.Workflow.Usage.LLMCalls = 4
-	c.CVEAnalysis = &domain.CVEAnalysisProposal{
-		ID:       "PROP-1",
-		Revision: 1,
-		Mechanisms: []domain.DefectMechanism{{
-			ID: "M-1", Summary: "recursive parse without depth limit",
-			FaultingSites:  []string{"example.com/mod/vulnpkg Parse"},
-			AuxiliarySites: []string{"example.com/mod/vulnpkg Helper"},
-		}},
-	}
-	subj := domain.SymbolRef{Package: "example.com/mod/vulnpkg", Symbol: "Parse"}
-	aux := domain.SymbolRef{Package: "example.com/mod/vulnpkg", Symbol: "Helper"}
-	c.ProposalVerifications = []domain.ProposalVerification{
-		{Proposal: domain.ProposalRef{Source: domain.ProposalSourceCVEResearch, ID: "PROP-1", Revision: 1, MechanismID: "M-1"},
-			Subject: &subj, Assertion: domain.AssertionFaultingSite, Check: domain.CheckSymbolExists, Result: domain.ClaimTrue},
-		{Proposal: domain.ProposalRef{Source: domain.ProposalSourceCVEResearch, ID: "PROP-1", Revision: 1, MechanismID: "M-1"},
-			Subject: &aux, Assertion: domain.AssertionAuxiliarySite, Check: domain.CheckSymbolExists, Result: domain.ClaimFalse},
-		{Proposal: domain.ProposalRef{Source: domain.ProposalSourceCVEResearch, ID: "PROP-1", Revision: 1, MechanismID: "M-1"},
-			Subject: &aux, Assertion: domain.AssertionAuxiliarySite, Check: domain.CheckSiteRole, Result: domain.ClaimUnknown,
-			Detail: "semantic role requires manual review"},
-	}
-	// LLM root-cause candidate adopted into the model via typed provenance.
-	c.RootCause = &domain.RootCauseModel{
-		Status: domain.RootCauseResolved,
-		RootCauses: []domain.RootCause{{
-			Package: "example.com/mod/vulnpkg", Symbol: "Parse", Role: domain.RootCauseSink,
-			Mechanism: "llm-proposed: recursive parse",
-			Proposal:  &domain.ProposalRef{Source: domain.ProposalSourceRootCause, ID: "RC-1", Revision: 1},
-		}},
-	}
-	md := Markdown(c, "ru")
-	if !strings.Contains(md, "объявления функций найдены в исходниках зависимости") ||
-		!strings.Contains(md, "`example.com/mod/vulnpkg.Parse`") {
-		t.Fatalf("existence-true assertion not shown:\n%s", md)
-	}
-	if !strings.Contains(md, "объявления не найдены или не разрешены по исходникам") ||
-		!strings.Contains(md, "`example.com/mod/vulnpkg.Helper`") {
-		t.Fatalf("existence-false assertion not shown:\n%s", md)
-	}
-	if !strings.Contains(md, "семантическая роль") || !strings.Contains(md, "не проверена автоматически") {
-		t.Fatalf("unchecked semantic role not shown:\n%s", md)
-	}
-	if !strings.Contains(md, "кандидат `example.com/mod/vulnpkg.Parse` принят в модель") {
-		t.Fatalf("typed adoption not shown:\n%s", md)
-	}
-	// A materialised record must never yield an unconditional "none".
-	if strings.Contains(md, "результаты проверки предложений не сохранены") {
-		t.Fatalf("materialised records misreported as absent:\n%s", md)
-	}
-	// The persisted English Detail must not leak into the Russian report.
-	if strings.Contains(md, "semantic role requires manual review") {
-		t.Fatalf("raw English Detail leaked into RU report:\n%s", md)
-	}
-	en := Markdown(c, "en")
-	if !strings.Contains(en, "function declarations found in the dependency source") ||
-		!strings.Contains(en, "semantic role") {
-		t.Fatalf("EN disposition wording missing:\n%s", en)
-	}
-
-	// Legacy case without attribution records: the section must say so, not
-	// invent outcomes.
-	legacy := minimalCase()
-	legacy.Workflow.Usage.LLMCalls = 2
-	legacy.CVEAnalysis = &domain.CVEAnalysisProposal{ID: "P", Mechanisms: []domain.DefectMechanism{{ID: "M-1", Summary: "x"}}}
-	lm := Markdown(legacy, "ru")
-	if !strings.Contains(lm, "результаты проверки предложений не сохранены") {
-		t.Fatalf("legacy case must state attribution is absent:\n%s", lm)
-	}
-}
-
-func TestHypotheticalDeploymentNotAVerdict(t *testing.T) {
-	c := minimalCase()
-	c.Profiles = []domain.ProfileVerdict{
-		{Profile: domain.ProfileZeroTrust, Verdict: domain.VerdictExploitable, Priority: domain.PriorityP1, IsTargetActual: true},
-		{Profile: domain.ProfileClusterPerimeter, Verdict: domain.VerdictNoExploitPathFound, Priority: domain.PriorityDismissed, IsTargetActual: false},
-	}
-	md := Markdown(c, "ru")
-	if strings.Contains(md, "NO_EXPLOIT_PATH_FOUND") || strings.Contains(md, "DISMISSED") {
-		t.Fatalf("hypothetical environment verdict leaked into human report:\n%s", md)
-	}
-	if strings.Contains(md, "Действий не требуется") {
-		t.Fatalf("human report must not promise no-action for hypothetical envs:\n%s", md)
-	}
-	if !strings.Contains(md, "### Что может изменить оценку") {
-		t.Fatalf("missing scenario table block:\n%s", md)
-	}
-	if !strings.Contains(md, "Внутренний кластер") {
-		t.Fatalf("scenario table must list the internal-cluster row:\n%s", md)
-	}
-	aud := AuditMarkdown(c, "ru")
-	if !strings.Contains(aud, "гипотетическая") || !strings.Contains(aud, "NO_EXPLOIT_PATH_FOUND") {
-		t.Fatalf("audit must carry both profiles with the hypothetical marker:\n%s", aud)
-	}
-}
-
-func TestDeploymentGroundBasis(t *testing.T) {
-	mk := func(basis string) *domain.AnalysisCase {
-		c := minimalCase()
-		c.Verdict = &domain.VerdictResult{
-			Verdict:     domain.VerdictNoExploitPathFound,
-			Reason:      "mandatory exploit condition is proven false",
-			GroundBasis: basis,
-		}
-		return c
-	}
-	t.Run("declared trust is an accepted assumption", func(t *testing.T) {
-		md := Markdown(mk(domain.BasisDeclaredTrust), "ru")
-		if !strings.Contains(md, "заявленная граница доверия") ||
-			!strings.Contains(md, "не проверка кода") {
-			t.Fatalf("declared-trust basis must read as an assumption:\n%s", md)
-		}
-	})
-	t.Run("auto perimeter is bounded by discovered manifests", func(t *testing.T) {
-		md := Markdown(mk(domain.BasisAutoPerimeter), "ru")
-		if !strings.Contains(md, "автоматически определённый кластерный периметр") {
-			t.Fatalf("auto-perimeter basis missing:\n%s", md)
-		}
-	})
-	t.Run("config origin is proven data provenance", func(t *testing.T) {
-		md := Markdown(mk(domain.BasisConfigOrigin), "ru")
-		if !strings.Contains(md, "локальные файлы конфигурации") {
-			t.Fatalf("config-origin basis missing:\n%s", md)
-		}
-	})
-	t.Run("code-level verdict prints no deployment basis", func(t *testing.T) {
-		md := Markdown(mk(""), "ru")
-		if strings.Contains(md, "Основание вердикта:") {
-			t.Fatalf("unexpected basis paragraph for code-level verdict:\n%s", md)
-		}
-	})
-}
-
-func TestVulnerabilityEssenceNoInventedImpact(t *testing.T) {
-	t.Run("recorded mechanism is used, no invented impact", func(t *testing.T) {
-		c := minimalCase()
-		md := Markdown(c, "ru")
-		if !strings.Contains(md, "## В чём уязвимость") {
-			t.Fatalf("missing essence section:\n%s", md)
-		}
-		if !strings.Contains(md, "out-of-bounds read") {
-			t.Fatalf("resolved mechanism missing:\n%s", md)
-		}
-		for _, banned := range []string{"panic", "аварийн", "отказ в обслуживании", "RCE", "Remote Code Execution", "утечк"} {
-			if strings.Contains(md, banned) {
-				t.Fatalf("invented impact %q must not appear:\n%s", banned, md)
-			}
-		}
-	})
-	t.Run("unknown mechanism is explicit, not invented", func(t *testing.T) {
-		c := &domain.AnalysisCase{
-			Vulnerability: domain.Vulnerability{ID: "GO-EMPTY"},
-			Verdict:       &domain.VerdictResult{Verdict: domain.VerdictInconclusive},
-		}
-		md := Markdown(c, "ru")
-		if !strings.Contains(md, "Механизм уязвимости не установлен") {
-			t.Fatalf("missing explicit unknown mechanism:\n%s", md)
-		}
-		if !strings.HasPrefix(md, "# GO-EMPTY — механизм уязвимости не установлен") {
-			t.Fatalf("H1 must say the mechanism is not established:\n%s", md)
-		}
-		en := Markdown(c, "en")
-		if !strings.Contains(en, "Vulnerability mechanism not established") {
-			t.Fatalf("missing EN unknown mechanism:\n%s", en)
-		}
-	})
-	t.Run("advisory prose is marked as a source quote", func(t *testing.T) {
-		c := minimalCase()
-		c.RootCause = nil
-		md := Markdown(c, "ru")
-		if !strings.Contains(md, "По данным advisory: parsing defect in ModParse") {
-			t.Fatalf("advisory-sourced description must be marked:\n%s", md)
-		}
-	})
-	t.Run("entrypoint is never presented as the defect operation", func(t *testing.T) {
-		c := minimalCase()
-		c.RootCause = &domain.RootCauseModel{
+func TestMarkdownStructureInvertedPyramid_FullSections(t *testing.T) {
+	c := &domain.AnalysisCase{
+		ID: "case-report-full",
+		Vulnerability: domain.Vulnerability{
+			ID:            "CVE-2026-12345",
+			Module:        "example.com/mod",
+			FixedVersions: []string{"v1.2.0"},
+			AffectedPackages: []domain.AffectedPackage{
+				{Path: "example.com/mod/vulnpkg"},
+			},
+		},
+		Product: domain.ProductSnapshot{
+			Repository: "example.com/product",
+			Commit:     "1234567890ab",
+			GoVersion:  "go1.26.1",
+			GOOS:       "linux",
+			GOARCH:     "amd64",
+		},
+		Verdict: &domain.VerdictResult{
+			Verdict: domain.VerdictNoExploitPathFound,
+			Reason:  "mandatory exploit condition is proven false",
+		},
+		Affected: &domain.AffectedResult{
+			Scope:           exactEntryScope("GHSA-2026-12345"),
+			VersionAffected: domain.ClaimTrue,
+			ResolvedVersion: "v1.0.0",
+			ModulePresent:   domain.ClaimTrue,
+			PackagePresent:  domain.ClaimFalse,
+			Limitations:     []string{"affected limitation 1"},
+		},
+		Claims: []domain.Claim{
+			{ConditionID: "C-LOCUS", Result: domain.ClaimFalse},
+		},
+		RootCause: &domain.RootCauseModel{
 			Status: domain.RootCauseResolved,
 			RootCauses: []domain.RootCause{
-				{Package: "main", Symbol: "main", Role: domain.RootCauseEntrypoint, Mechanism: "advisory-listed affected symbol"},
+				{Package: "example.com/mod/vulnpkg", Symbol: "VulnFunc", Role: domain.RootCauseSink, Mechanism: "out-of-bounds read"},
 			},
-		}
-		md := Markdown(c, "ru")
-		if strings.Contains(md, "main.main`") {
-			t.Fatalf("entrypoint must not be promoted to defect sink:\n%s", md)
-		}
-	})
-}
-
-func TestProductExploitPathEvidenceBounded(t *testing.T) {
-	t.Run("exploitable without flows never claims a confirmed chain", func(t *testing.T) {
-		c := minimalCase()
-		md := Markdown(c, "ru")
-		if !strings.Contains(md, "Сквозная подтверждённая цепочка от внешнего ввода к дефектной операции не построена") {
-			t.Fatalf("missing honest no-chain statement:\n%s", md)
-		}
-		if strings.Contains(md, "Подтверждённая цепочка") {
-			t.Fatalf("empty evidence must not produce a confirmed chain:\n%s", md)
-		}
-	})
-	t.Run("unproven payload flow is named unproven", func(t *testing.T) {
-		c := minimalCase()
-		c.EvidenceGraph.DataFlows = []domain.DataFlow{
-			{
-				Source:          domain.CallSite{Function: "ReadAll"},
-				Sink:            domain.CallSite{Function: "Parse"},
-				Origin:          domain.OriginUnknown,
-				PayloadUnproven: true,
-			},
-		}
-		md := Markdown(c, "ru")
-		if !strings.Contains(md, "аргументу 0") || !strings.Contains(md, "внешнее происхождение не доказано") {
-			t.Fatalf("unproven flow must be labelled at its recorded scope:\n%s", md)
-		}
-		if strings.Contains(md, "Подтверждённая цепочка") {
-			t.Fatalf("unproven flow must not be counted as confirmed:\n%s", md)
-		}
-	})
-	t.Run("call path proves reachability, not the whole flow", func(t *testing.T) {
-		c := minimalCase()
-		c.EvidenceGraph.CallPaths = []domain.CallPath{
-			{Frames: []domain.CallSite{
-				{Package: "main", Function: "main"},
-				{Package: "example.com/mod/vulnpkg", Function: "Parse"},
-			}},
-		}
-		md := Markdown(c, "ru")
-		if !strings.Contains(md, "достижимость") || !strings.Contains(md, "не всю цепочку передачи внешних данных") {
-			t.Fatalf("call path limits must be stated:\n%s", md)
-		}
-	})
-	t.Run("missing-call defect is a verified omission, not a call path", func(t *testing.T) {
-		c := minimalCase()
-		c.Exploit = &domain.ExploitModel{
+		},
+		Exploit: &domain.ExploitModel{
+			Class:  "MEMORY_CORRUPTION",
+			Impact: "Remote Code Execution",
 			MandatoryConditions: []domain.Condition{
-				{ID: "C-MISSING", Kind: domain.ConditionMissingCall, Mandatory: true, Description: "security check present"},
+				{ID: "C-LOCUS", Kind: "code", Description: "vulnerable function called"},
 			},
-		}
-		c.Claims = []domain.Claim{
-			{ConditionID: "C-MISSING", Result: domain.ClaimTrue},
-		}
-		md := Markdown(c, "ru")
-		if !strings.Contains(md, "пропущенная обязательная проверка") {
-			t.Fatalf("missing-call defect must be explained as an omission:\n%s", md)
-		}
-	})
-}
-
-func TestConfirmedFactsPreserveUnknowns(t *testing.T) {
-	c := minimalCase()
-	c.Verdict = &domain.VerdictResult{Verdict: domain.VerdictInconclusive}
-	c.Exploit = &domain.ExploitModel{
-		MandatoryConditions: []domain.Condition{
-			{ID: "C-REACH", Kind: domain.ConditionSymbolReachable, Mandatory: true, Description: "symbol reachable"},
-			{ID: "C-PEER-INPUT", Kind: domain.ConditionAttackerControl, Mandatory: true, Description: "peer input controlled"},
+			SupportingFactors: []domain.Condition{
+				{ID: "C-INPUT", Kind: "input", Description: "untrusted input provided"},
+			},
+			NonLocusBasis: []domain.LocusDecision{
+				{Symbol: domain.SymbolRef{Package: "example.com/mod/vulnpkg", Symbol: "SafeFunc"}, Authority: "expert", Basis: "safe helper"},
+			},
 		},
-	}
-	c.Claims = []domain.Claim{
-		{ConditionID: "C-REACH", Result: domain.ClaimTrue},
-		{ConditionID: "C-PEER-INPUT", Result: domain.ClaimUnknown},
-	}
-	md := Markdown(c, "ru")
-	confirmed := md[strings.Index(md, "## Что подтверждено"):strings.Index(md, "## Что не удалось подтвердить")]
-	if !strings.Contains(confirmed, "условие подтверждено") ||
-		!strings.Contains(confirmed, "Достижимость символов") {
-		t.Fatalf("confirmed TRUE condition missing:\n%s", confirmed)
-	}
-	if strings.Contains(confirmed, "Контроль ввода") {
-		t.Fatalf("UNKNOWN condition must not appear as a confirmed fact:\n%s", confirmed)
-	}
-	if strings.Contains(confirmed, "все обязательные условия эксплуатации подтверждены") {
-		t.Fatalf("partial confirmation must not read as all-confirmed:\n%s", confirmed)
-	}
-	unknowns := md[strings.Index(md, "## Что не удалось подтвердить"):strings.Index(md, "## Оценка и приоритет")]
-	if !strings.Contains(unknowns, "Контроль ввода") || !strings.Contains(unknowns, "не разрешено") {
-		t.Fatalf("UNKNOWN condition must be listed as unconfirmed:\n%s", unknowns)
-	}
-}
-
-func TestSeverityProvenance(t *testing.T) {
-	c := minimalCase()
-	c.Vulnerability.SeveritySource = "NVD"
-	c.Vulnerability.ScoreSource = "Vulners"
-	md := Markdown(c, "ru")
-	if !strings.Contains(md, "NVD / Vulners") {
-		t.Fatalf("severity/score provenance missing:\n%s", md)
-	}
-	en := Markdown(c, "en")
-	if !strings.Contains(en, "NVD / Vulners") {
-		t.Fatalf("EN provenance missing:\n%s", en)
-	}
-	// A severity/score without an advisory source is not advisory-supplied:
-	// the report must show «не указана» and attribute the synthesized
-	// baseline to the analyzer default, never to the advisory.
-	c2 := minimalCase()
-	c2.Vulnerability.SeveritySource = ""
-	c2.Vulnerability.ScoreSource = ""
-	md2 := Markdown(c2, "ru")
-	if !strings.Contains(md2, "не указана") || !strings.Contains(md2, "умолчание анализатора") {
-		t.Fatalf("missing not-supplied/analyzer-default label:\n%s", md2)
-	}
-	if strings.Contains(md2, "OSV") {
-		t.Fatalf("unsourced baseline must not carry the OSV label:\n%s", md2)
-	}
-	aud := AuditMarkdown(c, "ru")
-	if !strings.Contains(aud, "severity_source") || !strings.Contains(aud, "NVD") {
-		t.Fatalf("audit must carry raw provenance fields:\n%s", aud)
-	}
-}
-
-func TestAuditClaimsKeepDemotionHistory(t *testing.T) {
-	c := minimalCase()
-	c.Claims = []domain.Claim{
-		{
-			ID:          "CLM-9",
-			ConditionID: "C-PEER-INPUT",
-			Result:      domain.ClaimUnknown,
-			Falsifier:   domain.FalsifierGuards,
-			NegativeVerification: &domain.NegativeVerification{
-				Status: domain.NegativeVerified,
-				Notes:  "guards cover the sink",
+		EvidenceGraph: domain.EvidenceGraph{
+			Exposures: []domain.ExposureFact{
+				{CallSite: domain.CallSite{File: "main.go", Line: 42}, Direction: "inbound", Target: "net/http.ListenAndServe"},
+			},
+			DataFlows: []domain.DataFlow{
+				{Origin: domain.OriginExternalUntrusted, Summary: "query param flows to sink"},
+			},
+			ToolExecutions: []domain.ToolExecution{
+				{Tool: "govulncheck", Args: []string{"./..."}, ExitCode: 0, DurationMs: 150, StdoutSHA256: "fedcba0987654321"},
+			},
+			Runtime: []domain.EvidenceID{"EV-RUNTIME-1"},
+			Evidence: []domain.Evidence{
+				{ID: "EV-RUNTIME-1", Kind: domain.EvidenceRuntime, Source: "runtime-env", Content: "go version go1.26.1"},
+				{ID: "EV-BUILD-1", Kind: domain.EvidenceBuild, Source: "go build", Content: "build successful\nall targets ok"},
+			},
+			Limitations: []string{"graph limitation 1"},
+		},
+		Hypotheses: []domain.Hypothesis{
+			{ID: "H-1", ConditionID: "C-LOCUS", Status: domain.HypothesisRejected, Statement: "package not linked"},
+		},
+		Reviews: []domain.Review{
+			{
+				ID:     "REV-1",
+				Result: domain.ReviewAccept,
+				Findings: []domain.ReviewFinding{
+					{Severity: "LOW", TargetType: "claim", TargetID: "C-LOCUS", Problem: "minor verification note"},
+				},
 			},
 		},
 	}
-	aud := AuditMarkdown(c, "ru")
-	if !strings.Contains(aud, "ПОДТВЕРЖДЕНО") || !strings.Contains(aud, "(демотировано)") {
-		t.Fatalf("demoted verification history must be kept:\n%s", aud)
+
+	md := Markdown(c)
+
+	expectedSectionsInOrder := []string{
+		"# Анализ уязвимости: CVE-2026-12345",
+		"## Вердикт: `NO_EXPLOIT_PATH_FOUND`",
+		"> **Обязательное условие эксплуатации опровергнуто (уязвимый путь исполнения отсутствует)**",
+		"## Резюме",
+		"## Рекомендации по устранению",
+		"## Доказательная база",
+		"### Источники и методы проверки (Методология)",
+		"### Применимость (Affected Analysis)",
+		"### Статус условий эксплуатации (Claims)",
+		"### Точки входа (Exposure Facts)",
+		"### Модель эксплуатации и сайты дефекта",
+		"## Технические детали и аудит (Data Flows, Tool Executions, Limitations)",
+		"### Потоки данных (Data Flows)",
+		"### Журнал инструментов (Tool Executions)",
+		"### Ограничения анализа (Limitations)",
+		"### Рецензирование (Review Findings)",
+		"### Факты среды (Runtime Facts)",
+		"### Сборка и тесты (Build & Test)",
+		"### Рабочие гипотезы (Hypotheses)",
 	}
-	if !strings.Contains(aud, "guards cover the sink") {
-		t.Fatalf("NV notes missing:\n%s", aud)
-	}
-	human := Markdown(c, "ru")
-	if strings.Contains(human, "демотировано") {
-		t.Fatalf("demotion internals must not reach the human report:\n%s", human)
+
+	lastIdx := -1
+	for _, sec := range expectedSectionsInOrder {
+		idx := strings.Index(md, sec)
+		if idx == -1 {
+			t.Fatalf("expected section %q not found in Markdown output:\n%s", sec, md)
+		}
+		if idx <= lastIdx {
+			t.Fatalf("section %q at index %d is out of order (previous at %d)", sec, idx, lastIdx)
+		}
+		lastIdx = idx
 	}
 }
 
-func TestAuditClosureInventories(t *testing.T) {
-	c := sampleAuditCase()
-	aud := AuditMarkdown(c, "ru")
-	for _, want := range []string{
-		"Покрытие входов и дефектных операций",
-		"C-PEER-INPUT", "opaque dispatch", "boundary_arg",
-		"advisory-declared sink set", "constant input",
-		"example.com/mod/vulnpkg.Parse",
-	} {
-		if !strings.Contains(aud, want) {
-			t.Fatalf("audit closures missing %q:\n%s", want, aud)
+func sampleCaseForLocalization() *domain.AnalysisCase {
+	c := &domain.AnalysisCase{
+		ID: "case-loc-test",
+		Vulnerability: domain.Vulnerability{
+			ID:            "GO-2026-6443",
+			Module:        "example.com/mod",
+			FixedVersions: []string{"v1.2.0"},
+			AffectedPackages: []domain.AffectedPackage{
+				{Path: "example.com/mod/vulnpkg"},
+			},
+		},
+		Product: domain.ProductSnapshot{
+			Repository: "example.com/product",
+			Commit:     "1234567890ab",
+			GoVersion:  "go1.26.1",
+			GOOS:       "linux",
+			GOARCH:     "amd64",
+		},
+		Verdict: &domain.VerdictResult{
+			Verdict: domain.VerdictNoExploitPathFound,
+			Reason:  "mandatory exploit condition is proven false",
+		},
+		Affected: &domain.AffectedResult{
+			Scope:           exactEntryScope("GO-2026-6443"),
+			VersionAffected: domain.ClaimTrue,
+			ResolvedVersion: "v1.0.0",
+			ModulePresent:   domain.ClaimTrue,
+			PackagePresent:  domain.ClaimFalse,
+			BuildRelevant:   domain.ClaimTrue,
+			CheckedModules:  []string{"example.com/mod"},
+			SelectedModules: []string{"example.com/mod"},
+			PendingModules:  []string{"example.com/pending"},
+			CheckedPackages: []string{"example.com/mod/vulnpkg"},
+			EvidenceIDs:     []domain.EvidenceID{"EV-AFF-1"},
+			Limitations:     []string{"affected limitation"},
+		},
+		Claims: []domain.Claim{
+			{
+				ConditionID: "C-LOCUS",
+				Result:      domain.ClaimFalse,
+				Falsifier:   "locus-package-absent",
+				NegativeVerification: &domain.NegativeVerification{
+					Status: domain.NegativeVerified,
+				},
+				EvidenceIDs: []domain.EvidenceID{"EV-CLM-1"},
+			},
+		},
+		RootCause: &domain.RootCauseModel{
+			Status: domain.RootCauseResolved,
+			RootCauses: []domain.RootCause{
+				{Package: "example.com/mod/vulnpkg", Symbol: "VulnFunc", Role: domain.RootCauseSink, Mechanism: "out-of-bounds read"},
+			},
+		},
+		Exploit: &domain.ExploitModel{
+			Class:  "MEMORY_CORRUPTION",
+			Impact: "Remote Code Execution",
+			MandatoryConditions: []domain.Condition{
+				{ID: "C-LOCUS", Kind: "code", Description: "vulnerable function called",
+					Subjects: []domain.SymbolRef{{Package: "example.com/mod/vulnpkg", Symbol: "VulnFunc"}}},
+				{ID: "C-REACH", Kind: "code", Description: "symbol reachable"},
+				{ID: "C-PEER-INPUT", Kind: "input", Description: "peer input controlled"},
+				{ID: "C-CONSTRAINT", Kind: "constraint", Description: "constraint violation"},
+			},
+			SupportingFactors: []domain.Condition{
+				{ID: "C-EXPOSURE", Kind: "network", Description: "network reachable"},
+				{ID: "C-TLS-VERIFY", Kind: "tls", Description: "tls verify disabled"},
+			},
+			NonLocusBasis: []domain.LocusDecision{
+				{Symbol: domain.SymbolRef{Package: "example.com/mod/vulnpkg", Symbol: "SafeFunc"}, Authority: "эксперт", Basis: "safe helper"},
+			},
+		},
+		EvidenceGraph: domain.EvidenceGraph{
+			Exposures: []domain.ExposureFact{
+				{CallSite: domain.CallSite{File: "main.go", Line: 42}, Direction: "inbound", Target: "net/http.ListenAndServe"},
+			},
+			DataFlows: []domain.DataFlow{
+				{Origin: domain.OriginExternalUntrusted, Summary: "query param flows to sink"},
+			},
+			ToolExecutions: []domain.ToolExecution{
+				{Tool: "govulncheck", Args: []string{"./..."}, ExitCode: 0, DurationMs: 150, StdoutSHA256: "fedcba0987654321"},
+			},
+			Runtime: []domain.EvidenceID{"EV-RUNTIME-1"},
+			Evidence: []domain.Evidence{
+				{ID: "EV-RUNTIME-1", Kind: domain.EvidenceRuntime, Source: "runtime-env", Content: "go version go1.26.1"},
+				{ID: "EV-BUILD-1", Kind: domain.EvidenceBuild, Source: "go build", Content: "build successful\nall targets ok"},
+			},
+			Limitations: []string{"graph limitation 1"},
+		},
+		Hypotheses: []domain.Hypothesis{
+			{ID: "H-1", ConditionID: "C-LOCUS", Status: domain.HypothesisRejected, Statement: "package not linked"},
+		},
+		Reviews: []domain.Review{
+			{
+				ID:     "REV-1",
+				Result: domain.ReviewAccept,
+				Findings: []domain.ReviewFinding{
+					{Severity: "LOW", TargetType: "claim", TargetID: "C-LOCUS", Problem: "minor verification note"},
+				},
+			},
+		},
+	}
+	withReportBuildAdmission(c, reportProductOnlyInventory)
+	return c
+}
+
+func TestMarkdownLocalizationRU(t *testing.T) {
+	c := sampleCaseForLocalization()
+
+	for _, md := range []string{Markdown(c, "ru"), Markdown(c)} { // both explicit "ru" and default
+		expectedPhrases := []string{
+			"# Анализ уязвимости: GO-2026-6443",
+			"- Кейс: `case-loc-test`",
+			"- Репозиторий: `example.com/product`",
+			"- Коммит: `1234567890ab`",
+			"- Окружение Go: `go1.26.1` (linux/amd64)",
+			"## Вердикт: `NO_EXPLOIT_PATH_FOUND`",
+			"> **Обязательное условие эксплуатации опровергнуто (уязвимый путь исполнения отсутствует)**",
+			"## Резюме",
+			"## Рекомендации по устранению",
+			"Обновите зависимость `example.com/mod` с `v1.0.0` до `v1.2.0` (совместимо по SemVer: minor/patch, без изменения импортов):",
+			"## Доказательная база",
+			"### Применимость (Affected Analysis)",
+			"| Проверка | Результат |",
+			"| Наличие модуля в зависимостях |",
+			"| Разрешённая версия в go.mod |",
+			"| Версия входит в диапазон уязвимых |",
+			"| Уязвимый пакет входит в сборку |",
+			"| Код компилируется для целевой платформы |",
+			"| Проверенные модули |",
+			"| Скомпилированные модули |",
+			"| Модули с неопределённой версией |",
+			"| Проверенные пакеты |",
+			"| Идентификаторы доказательств (Evidence IDs) |",
+			"### Статус условий эксплуатации (Claims)",
+			"| Условие | Результат | Обоснование | Верификация | Доказательства |",
+			"Пакет отсутствует в сборке / ПОДТВЕРЖДЕНО",
+			"### Точки входа (Exposure Facts)",
+			"Входящий слушатель через `net/http.ListenAndServe`",
+			"### Модель эксплуатации и сайты дефекта",
+			"#### Первопричина дефекта (Root cause): Определена",
+			"VulnFunc` (Точка сбоя / Sink)",
+			"Класс дефекта: `MEMORY_CORRUPTION`",
+			"Последствия: Remote Code Execution",
+			"#### Обязательные условия (Mandatory conditions)",
+			"Выполнение уязвимого кода: пакеты дефектного кода входят в граф сборки приложения",
+			"Достижимость символов: хотя бы одна из уязвимых функций вызывается в коде продукта",
+			"Контроль ввода: параметры уязвимой функции контролируются удалённым клиентом",
+			"Нарушение ограничений: удалённый клиент может передать входные данные, вызывающие сбой",
+			"#### Сопутствующие факторы (Supporting factors)",
+			"Сетевая доступность: наличие открытых сетевых портов или исходящих подключений",
+			"Проверка TLS: отключение проверки сертификатов позволяет передавать трафик без доверенного канала",
+			"### Источники и методы проверки (Методология)",
+			"| Статический анализ вызовов (govulncheck) |",
+			"#### Функции без дефекта (исключены из анализа уязвимости)",
+			"## Технические детали и аудит (Data Flows, Tool Executions, Limitations)",
+			"### Потоки данных (Data Flows)",
+			"### Журнал инструментов (Tool Executions)",
+			"| Инструмент | Аргументы | Код возврата | Длительность (мс) | SHA-256 вывода |",
+			"### Ограничения анализа (Limitations)",
+			"### Рецензирование (Review Findings)",
+			"### Факты среды (Runtime Facts)",
+			"### Сборка и тесты (Build & Test)",
+			"### Рабочие гипотезы (Hypotheses)",
+		}
+
+		for _, phrase := range expectedPhrases {
+			if !strings.Contains(md, phrase) {
+				t.Errorf("RU markdown missing expected phrase: %q", phrase)
+			}
+		}
+
+		if strings.Contains(md, "<details>") || strings.Contains(md, "<summary>") {
+			t.Errorf("RU markdown should not contain <details> or <summary> tags")
+		}
+		if strings.Contains(md, "# Vulnerability analysis:") {
+			t.Errorf("RU markdown should not contain English header '# Vulnerability analysis:'")
+		}
+		if strings.Contains(md, "## Резюме для трекера (Tracker-ready rationale)") {
+			t.Errorf("RU markdown should use strictly '## Резюме', not old verbose header")
 		}
 	}
 }
 
-func TestReportLegacyRiskNormalization(t *testing.T) {
-	t.Run("stale risk record is re-assessed", func(t *testing.T) {
-		c := minimalCase()
-		c.Verdict = &domain.VerdictResult{Verdict: domain.VerdictInconclusive}
-		c.ContextualRisk = &domain.ContextualRisk{
-			Status:          domain.RiskStatusAssessed,
-			ContextualLevel: domain.RiskLevelCritical,
-			Priority:        domain.PriorityP0,
-			Factors:         domain.RiskFactors{Verdict: "EXPLOITABLE"},
+func TestMarkdownLocalizationEN(t *testing.T) {
+	c := sampleCaseForLocalization()
+	md := Markdown(c, "en")
+
+	expectedPhrases := []string{
+		"# Vulnerability analysis: GO-2026-6443",
+		"- Case: `case-loc-test`",
+		"- Repository: `example.com/product`",
+		"- Commit: `1234567890ab`",
+		"- Go: `go1.26.1` (linux/amd64)",
+		"## Verdict: `NO_EXPLOIT_PATH_FOUND`",
+		"> **mandatory exploit condition is proven false**",
+		"## Executive Summary",
+		"## Remediation",
+		"Update `example.com/mod` from `v1.0.0` to `v1.2.0` (SemVer drop-in: minor/patch, no import path changes):",
+		"## Evidence Dossier",
+		"### Verification Sources & Methods (Methodology)",
+		"### Affected Analysis",
+		"| check | result |",
+		"| module present |",
+		"| package present |",
+		"| static call analysis (govulncheck) |",
+		"### Claims Status",
+		"| condition | result | explanation | verification | evidence |",
+		"locus-package-absent / VERIFIED",
+		"### Exposure Facts",
+		"`inbound`",
+		"### Exploit Model & Defect Locus",
+		"#### Root cause: `RESOLVED`",
+		"Class: `MEMORY_CORRUPTION`",
+		"Impact: Remote Code Execution",
+		"#### Mandatory conditions",
+		"#### Supporting factors",
+		"## Technical Details & Audit (Data Flows, Tool Executions, Limitations)",
+		"### Data Flows",
+		"### Tool Executions",
+		"| tool | args | exit | ms | stdout sha256 |",
+		"### Limitations",
+		"### Review Findings",
+		"### Runtime Facts",
+		"### Build & Test",
+		"### Hypotheses",
+	}
+
+	for _, phrase := range expectedPhrases {
+		if !strings.Contains(md, phrase) {
+			t.Errorf("EN markdown missing expected phrase: %q", phrase)
 		}
-		md := Markdown(c, "ru")
-		if c.ContextualRisk.TriageDisposition != domain.TriageInconclusive {
-			t.Fatalf("expected INCONCLUSIVE disposition, got %+v", c.ContextualRisk)
-		}
-		if c.ContextualRisk.BasePriority != domain.PriorityP1 || c.ContextualRisk.Priority != domain.PriorityP1 {
-			t.Fatalf("inconclusive must keep baseline P1, got %+v", c.ContextualRisk)
-		}
-		if !strings.Contains(md, "исходный приоритет сохранён") {
-			t.Fatalf("normalized disposition missing from output:\n%s", md)
-		}
-	})
-	t.Run("fresh record is not recomputed", func(t *testing.T) {
-		c := minimalCase()
-		md := Markdown(c, "ru")
-		_ = md
-		if c.ContextualRisk == nil || c.ContextualRisk.Factors.Verdict != string(domain.VerdictExploitable) {
-			t.Fatalf("expected assessment persisted, got %+v", c.ContextualRisk)
-		}
-		prio := c.ContextualRisk.Priority
-		Markdown(c, "ru")
-		if c.ContextualRisk.Priority != prio {
-			t.Fatal("ensureTriageAssessment must be idempotent for fresh records")
-		}
-	})
-	t.Run("nil verdict never invents one", func(t *testing.T) {
-		c := &domain.AnalysisCase{Vulnerability: domain.Vulnerability{ID: "GO-NIL"}}
-		md := Markdown(c, "ru")
-		if c.ContextualRisk != nil {
-			t.Fatal("no verdict — no triage assessment may be invented")
-		}
-		if !strings.Contains(md, "вердикт не вынесен") {
-			t.Fatalf("missing not-available statement:\n%s", md)
-		}
-	})
+	}
+
+	if strings.Contains(md, "<details>") || strings.Contains(md, "<summary>") {
+		t.Errorf("EN markdown should not contain <details> or <summary> tags")
+	}
+	if strings.Contains(md, "# Анализ уязвимости:") {
+		t.Errorf("EN markdown should not contain Russian header '# Анализ уязвимости:'")
+	}
+	if strings.Contains(md, "## Резюме") {
+		t.Errorf("EN markdown should not contain '## Резюме'")
+	}
 }
 
-func TestReportMarkdownDeterministic(t *testing.T) {
-	mk := func() *domain.AnalysisCase { return sampleAuditCase() }
-	c := mk()
-	first := Markdown(c, "ru")
-	if first != Markdown(c, "ru") {
-		t.Fatal("Markdown must be deterministic across calls")
+func TestReportWriteGeneratesBothRUandEN(t *testing.T) {
+	c := sampleCaseForLocalization()
+	dir := t.TempDir()
+
+	if err := Write(dir, c); err != nil {
+		t.Fatalf("Write failed: %v", err)
 	}
-	if first != Markdown(mk(), "ru") {
-		t.Fatal("Markdown must be deterministic across identical cases")
+
+	ruBytes, err := os.ReadFile(filepath.Join(dir, "report.md"))
+	if err != nil {
+		t.Fatalf("reading report.md: %v", err)
 	}
-	en := Markdown(c, "en")
-	if en != Markdown(c, "en") {
-		t.Fatal("EN Markdown must be deterministic")
+	ruContent := string(ruBytes)
+	if !strings.Contains(ruContent, "# Анализ уязвимости: GO-2026-6443") || !strings.Contains(ruContent, "## Резюме") {
+		t.Fatalf("report.md does not contain expected RU content:\n%s", ruContent)
 	}
-	aud := AuditMarkdown(c, "ru")
-	if aud != AuditMarkdown(mk(), "ru") {
-		t.Fatal("AuditMarkdown must be deterministic")
+
+	enBytes, err := os.ReadFile(filepath.Join(dir, "report.en.md"))
+	if err != nil {
+		t.Fatalf("reading report.en.md: %v", err)
+	}
+	enContent := string(enBytes)
+	if !strings.Contains(enContent, "# Vulnerability analysis: GO-2026-6443") || !strings.Contains(enContent, "## Executive Summary") {
+		t.Fatalf("report.en.md does not contain expected EN content:\n%s", enContent)
+	}
+
+	for _, name := range []string{"report.json", "openvex.json", "cyclonedx.json"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Fatalf("expected file %s to exist: %v", name, err)
+		}
+	}
+}
+
+func TestReportNoDetailsTags(t *testing.T) {
+	c := sampleCaseForLocalization()
+	for _, lang := range []string{"ru", "en"} {
+		md := Markdown(c, lang)
+		if strings.Contains(md, "<details>") {
+			t.Errorf("[%s] output should not contain <details>", lang)
+		}
+		if strings.Contains(md, "</details>") {
+			t.Errorf("[%s] output should not contain </details>", lang)
+		}
+		if strings.Contains(md, "<summary>") || strings.Contains(md, "</summary>") {
+			t.Errorf("[%s] output should not contain <summary> tags", lang)
+		}
+	}
+
+	mdRU := Markdown(c, "ru")
+	if !strings.Contains(mdRU, "## Технические детали и аудит (Data Flows, Tool Executions, Limitations)") {
+		t.Errorf("RU output missing expected audit header")
+	}
+
+	mdEN := Markdown(c, "en")
+	if !strings.Contains(mdEN, "## Technical Details & Audit (Data Flows, Tool Executions, Limitations)") {
+		t.Errorf("EN output missing expected audit header")
+	}
+}
+
+func TestReportClarityAndProvenance(t *testing.T) {
+	c := &domain.AnalysisCase{
+		ID: "case-clarity-test",
+		Vulnerability: domain.Vulnerability{
+			ID:     "CVE-2026-6443",
+			Module: "example.com/mod",
+			AffectedPackages: []domain.AffectedPackage{
+				{Path: "example.com/mod/vulnpkg"},
+			},
+		},
+		Product: domain.ProductSnapshot{
+			Repository: "example.com/product",
+			Commit:     "1234567890ab",
+			GoVersion:  "1.24.0",
+			GOOS:       "linux",
+			GOARCH:     "amd64",
+		},
+		Verdict: &domain.VerdictResult{
+			Verdict: domain.VerdictNoExploitPathFound,
+			Reason:  "mandatory exploit condition is proven false",
+		},
+		Affected: &domain.AffectedResult{
+			ModulePresent:   domain.ClaimTrue,
+			ResolvedVersion: "v1.0.0",
+			VersionAffected: domain.ClaimTrue,
+			PackagePresent:  domain.ClaimFalse,
+			BuildRelevant:   domain.ClaimTrue,
+		},
+		Claims: []domain.Claim{
+			{ConditionID: "C-LOCUS", Result: domain.ClaimFalse},
+			{ConditionID: "C-REACH", Result: domain.ClaimTrue},
+			{ConditionID: "C-PEER-INPUT", Result: domain.ClaimUnknown},
+		},
+		RootCause: &domain.RootCauseModel{
+			Status: domain.RootCauseResolved,
+			RootCauses: []domain.RootCause{
+				{
+					Package:   "example.com/mod/vulnpkg",
+					Symbol:    "FaultyFunc",
+					Role:      domain.RootCauseSink,
+					Mechanism: "advisory-listed affected symbol",
+				},
+			},
+		},
+		Exploit: &domain.ExploitModel{
+			Class:  "DENIAL_OF_SERVICE",
+			Impact: "Server crash",
+			MandatoryConditions: []domain.Condition{
+				{ID: "C-LOCUS", Kind: "code", Description: "vulnerable function called"},
+			},
+			NonLocusBasis: []domain.LocusDecision{
+				{
+					Symbol:    domain.SymbolRef{Package: "example.com/mod/vulnpkg", Symbol: "SafeDispatcher"},
+					Authority: "accepted-machine-proposal",
+					Basis:     "helper dispatcher (accepted-machine-proposal)",
+				},
+			},
+			LocusSubjects: []domain.SymbolRef{
+				{Package: "example.com/mod/vulnpkg", Symbol: "FaultyFunc"},
+			},
+		},
+		EvidenceGraph: domain.EvidenceGraph{
+			ToolExecutions: []domain.ToolExecution{
+				{Tool: "govulncheck", Args: []string{"./..."}, ExitCode: 0, DurationMs: 120, StdoutSHA256: "abcdef123456"},
+			},
+			Evidence: []domain.Evidence{
+				{Kind: domain.EvidencePackageList, Content: "example.com/mod/vulnpkg\n"},
+			},
+		},
+	}
+	withReportBuildAdmission(c, reportProductOnlyInventory)
+
+	md := Markdown(c, "ru")
+
+	// 1. Humanize Affected Analysis booleans in Russian: TRUE -> Да, FALSE -> Нет, UNKNOWN -> Не определено
+	if !strings.Contains(md, "| Наличие модуля в зависимостях | Да |") {
+		t.Errorf("expected '| Наличие модуля в зависимостях | Да |', got:\n%s", md)
+	}
+	if !strings.Contains(md, "| Версия входит в диапазон уязвимых | Да |") {
+		t.Errorf("expected '| Версия входит в диапазон уязвимых | Да |'")
+	}
+	if !strings.Contains(md, "| Уязвимый пакет входит в сборку | Нет |") {
+		t.Errorf("expected '| Уязвимый пакет входит в сборку | Нет |'")
+	}
+	if !strings.Contains(md, "| Код компилируется для целевой платформы | Да |") {
+		t.Errorf("expected '| Код компилируется для целевой платформы | Да |'")
+	}
+	if strings.Contains(md, "| Наличие модуля в зависимостях | TRUE |") || strings.Contains(md, "| Уязвимый пакет входит в сборку | FALSE |") {
+		t.Errorf("Affected table should not contain raw TRUE/FALSE booleans")
+	}
+
+	// 2. Humanize Claims table in Russian:
+	// TRUE -> Подтверждено (TRUE), FALSE -> Опровергнуто (FALSE), UNKNOWN -> Не определено (UNKNOWN)
+	if !strings.Contains(md, "| `C-LOCUS` | Опровергнуто (FALSE) |") {
+		t.Errorf("expected C-LOCUS to show 'Опровергнуто (FALSE)'")
+	}
+	if !strings.Contains(md, "| `C-REACH` | Подтверждено (TRUE) |") {
+		t.Errorf("expected C-REACH to show 'Подтверждено (TRUE)'")
+	}
+	if !strings.Contains(md, "| `C-PEER-INPUT` | Не определено (UNKNOWN) |") {
+		t.Errorf("expected C-PEER-INPUT to show 'Не определено (UNKNOWN)'")
+	}
+
+	// 3. Root Causes: advisory-listed affected symbol -> заявлена как уязвимая в базе (advisory)
+	if !strings.Contains(md, "заявлена как уязвимая в базе (advisory)") {
+		t.Errorf("expected 'заявлена как уязвимая в базе (advisory)' in root causes")
+	}
+	if strings.Contains(md, "advisory-listed affected symbol") {
+		t.Errorf("should not contain 'advisory-listed affected symbol'")
+	}
+
+	// 4. Locus Exclusions:
+	// Header: #### Функции без дефекта (исключены из анализа уязвимости)
+	// Text: Функции из базы уязвимости (advisory), которые признаны безопасными (являются вспомогательными диспетчерами или проверками входных данных) и не содержат дефектной операции:
+	// Notes: replace accepted-machine-proposal with принятая рекомендация анализатора
+	if !strings.Contains(md, "#### Функции без дефекта (исключены из анализа уязвимости)") {
+		t.Errorf("missing Locus Exclusions header: '#### Функции без дефекта (исключены из анализа уязвимости)'")
+	}
+	if strings.Contains(md, "#### Экспертные решения non_locus") {
+		t.Errorf("should not contain old header '#### Экспертные решения non_locus'")
+	}
+	if !strings.Contains(md, "Функции из базы уязвимости (advisory), которые признаны безопасными (являются вспомогательными диспетчерами или проверками входных данных) и не содержат дефектной операции:") {
+		t.Errorf("missing humanized Locus Exclusions description")
+	}
+	if !strings.Contains(md, "принятая рекомендация анализатора") {
+		t.Errorf("expected 'принятая рекомендация анализатора' in place of 'accepted-machine-proposal'")
+	}
+	if strings.Contains(md, "accepted-machine-proposal") {
+		t.Errorf("should not contain 'accepted-machine-proposal'")
+	}
+
+	// 5. Govulncheck status in Affected Analysis table: a tool execution
+	// without a typed run record is unmeasured, never "clean".
+	if !strings.Contains(md, "| Статический анализ вызовов (govulncheck) | Нет допущенной записи прогона — достижимость не измерена |") {
+		t.Errorf("missing honest govulncheck status row in Affected Analysis table")
+	}
+
+	// 6. Provenance Breakdown under ## Доказательная база: ### Источники и методы проверки (Методология)
+	expectedProvenancePhrases := []string{
+		"### Источники и методы проверки (Методология)",
+		"⚙️ **Детерминированные проверки компилятора Go:**",
+		"Зависимости (`go.mod` / `go list -m`): фиксация версий библиотек в сборке.",
+		"Граф пакетов сборки (`go list -deps`): проверка фактического включения скомпилированных пакетов в бинарный файл.",
+		"Анализ графа вызовов (`govulncheck`): поиск статических путей вызова от приложения к функциям из advisory (проверка достижимости символов).",
+		"Анализ точек входа (AST): инспекция конструкторов и инициализации сервисов в коде проекта.",
+		"Анализ сетевого периметра и манифестов: инспекция сетевых слушателей и манифестов развёртывания (K8s/Helm).",
+	}
+	for _, phrase := range expectedProvenancePhrases {
+		if !strings.Contains(md, phrase) {
+			t.Errorf("provenance breakdown missing expected phrase: %q", phrase)
+		}
+	}
+
+	if strings.Contains(md, "🤖 **Семантический анализ LLM (AI-исследование):**") {
+		t.Errorf("Russian report should not contain generic AI marketing boilerplate, got:\n%s", md)
+	}
+
+	if strings.Contains(md, "non_locus") {
+		t.Errorf("Russian report should not contain raw 'non_locus' jargon, got:\n%s", md)
+	}
+}
+
+func TestGovulncheckComparisonAndDivergence(t *testing.T) {
+	c := &domain.AnalysisCase{
+		ID: "GO-2026-6443-test",
+		Vulnerability: domain.Vulnerability{
+			ID:     "GO-2026-6443",
+			Module: "google.golang.org/grpc",
+		},
+		Product: domain.ProductSnapshot{
+			Repository: "my-service",
+			Commit:     "b740a8b0cf1e",
+			GoVersion:  "go1.26.1",
+			GOOS:       "darwin",
+			GOARCH:     "arm64",
+		},
+		Verdict: &domain.VerdictResult{
+			Verdict: domain.VerdictNoExploitPathFound,
+			Reason:  "mandatory exploit condition is proven false",
+		},
+		Affected: &domain.AffectedResult{
+			Scope:           exactEntryScope("GO-2026-6443"),
+			VersionAffected: domain.ClaimTrue,
+			ResolvedVersion: "v1.83.0",
+			ModulePresent:   domain.ClaimTrue,
+			PackagePresent:  domain.ClaimTrue,
+			BuildRelevant:   domain.ClaimTrue,
+		},
+		Exploit: &domain.ExploitModel{
+			Class:  "RESOURCE_EXHAUSTION",
+			Impact: "Server panic",
+			NonLocusBasis: []domain.LocusDecision{
+				{
+					Symbol:    domain.SymbolRef{Package: "google.golang.org/grpc/internal/transport", Symbol: "HandleStreams"},
+					Authority: "accepted-machine-proposal",
+					Basis:     "helper dispatcher (accepted-machine-proposal)",
+				},
+			},
+			LocusSubjects: []domain.SymbolRef{
+				{Package: "google.golang.org/grpc/internal/transport", Symbol: "HandleStreams"},
+				{Package: "google.golang.org/grpc/internal/xds/server", Symbol: "RouteAndProcess"},
+			},
+		},
+		EvidenceGraph: domain.EvidenceGraph{
+			CallPaths: []domain.CallPath{
+				{
+					Frames: []domain.CallSite{
+						{Package: "google.golang.org/grpc/internal/transport", Function: "HandleStreams", File: "internal/transport/http2_server.go", Line: 639},
+						{Package: "main", Function: "main", File: "main.go", Line: 27},
+					},
+				},
+			},
+			Evidence: []domain.Evidence{
+				{Kind: domain.EvidencePackageList, Content: "google.golang.org/grpc/internal/transport\n"},
+			},
+			ToolExecutions: []domain.ToolExecution{
+				{Tool: "govulncheck", Args: []string{"./..."}, ExitCode: 0, DurationMs: 150},
+			},
+		},
+	}
+
+	// 1. Russian report
+	mdRU := Markdown(c, "ru")
+	if !strings.Contains(mdRU, "### Сопоставление с govulncheck (Анализ расхождения)") {
+		t.Errorf("missing Russian divergence header")
+	}
+	if !strings.Contains(mdRU, "🔍 **Вердикт govulncheck:** **Уязвимый код вызывается (Reachable)**") {
+		t.Errorf("missing govulncheck reachable verdict in Russian")
+	}
+	if !strings.Contains(mdRU, "google.golang.org/grpc/internal/transport.HandleStreams") {
+		t.Errorf("missing called symbol in govulncheck section")
+	}
+	if !strings.Contains(mdRU, "🛡️ **Вердикт анализатора:** **`NO_EXPLOIT_PATH_FOUND` (Уязвимый путь исполнения отсутствует)**") {
+		t.Errorf("missing analyzer verdict in divergence section")
+	}
+	if !strings.Contains(mdRU, "Обоснование опровержения (почему срабатывание govulncheck является ложной тревогой):") {
+		t.Errorf("missing refutation rationale header in Russian")
+	}
+	if !strings.Contains(mdRU, "reachability false positive") {
+		t.Errorf("missing reachability false positive conclusion")
+	}
+
+	// In Tracker Rationale (## Резюме):
+	if !strings.Contains(mdRU, "Сопоставление со сканером: `govulncheck` отмечает уязвимость как вызываемую (Reachable)") {
+		t.Errorf("missing govulncheck refutation in tracker rationale")
+	}
+
+	// 2. English report
+	mdEN := Markdown(c, "en")
+	if !strings.Contains(mdEN, "### Govulncheck Comparison & Divergence Analysis") {
+		t.Errorf("missing English divergence header")
+	}
+	if !strings.Contains(mdEN, "Govulncheck Finding:** **Reachable (Vulnerable code is called)**") {
+		t.Errorf("missing govulncheck reachable verdict in English")
+	}
+	if !strings.Contains(mdEN, "Divergence Rationale (Why govulncheck's warning is refuted):") {
+		t.Errorf("missing refutation rationale header in English")
+	}
+	if !strings.Contains(mdEN, "reachability false positive") {
+		t.Errorf("missing reachability false positive conclusion in English")
+	}
+}
+
+func TestReportGovulncheckCompletedEmptyComparison(t *testing.T) {
+	product := admissionScopedProduct()
+	coverage := domain.GovulncheckCoverage{
+		AdvisoryID:    "GO-TEST-2",
+		Advisory:      domain.GovulncheckCoverageCovered,
+		Subjects:      []domain.SymbolRef{{Package: "example.com/dep/vuln", Symbol: "Sink"}},
+		ScopeComplete: true,
+	}
+	newCase := func(ev domain.Evidence) *domain.AnalysisCase {
+		return &domain.AnalysisCase{
+			ID: "CASE-COMPLETED",
+			Vulnerability: domain.Vulnerability{
+				ID:     "GO-TEST-2",
+				Module: "example.com/dep",
+			},
+			Product: product,
+			Verdict: &domain.VerdictResult{
+				Verdict: domain.VerdictNotAffected,
+				Reason:  "package is not linked in build",
+			},
+			Affected: &domain.AffectedResult{
+				Scope:           exactEntryScope("GO-TEST-2"),
+				VersionAffected: domain.ClaimTrue,
+				ResolvedVersion: "v1.0.0",
+				ModulePresent:   domain.ClaimTrue,
+				PackagePresent:  domain.ClaimFalse,
+				BuildRelevant:   domain.ClaimFalse,
+			},
+			EvidenceGraph: domain.EvidenceGraph{
+				Evidence: []domain.Evidence{ev, admissionPackageList(product)},
+			},
+		}
+	}
+
+	qualified := newCase(admissionGovEvidence("EV-GV", domain.GovulncheckCompletedEmpty, admissionContext(product), coverage))
+	mdRU := Markdown(qualified, "ru")
+	if !strings.Contains(mdRU, "Прогон завершён — находок в измеренной области нет") {
+		t.Errorf("missing completed-empty status in Russian:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "advisory покрыт базой сканирования") {
+		t.Errorf("coverage is not stated separately in Russian:\n%s", mdRU)
+	}
+	if strings.Contains(mdRU, "(чисто)") || strings.Contains(mdRU, "Clean") {
+		t.Errorf("completed-empty run rendered as clean in Russian:\n%s", mdRU)
+	}
+	mdEN := Markdown(qualified, "en")
+	if !strings.Contains(mdEN, "Completed — no findings in the measured scope") {
+		t.Errorf("missing completed-empty status in English:\n%s", mdEN)
+	}
+	if strings.Contains(mdEN, "Clean") {
+		t.Errorf("completed-empty run rendered as clean in English:\n%s", mdEN)
+	}
+
+	narrowedCoverage := coverage
+	narrowedCoverage.ScopeComplete = false
+	narrowed := newCase(admissionGovEvidence("EV-GV-NARROW", domain.GovulncheckCompletedEmpty, admissionContext(product), narrowedCoverage))
+	if md := Markdown(narrowed, "en"); !strings.Contains(md, "coverage does not establish absence") {
+		t.Fatalf("narrowed-scope run did not state the coverage limit:\n%s", md)
+	}
+
+	executedOnly := newCase(domain.Evidence{})
+	executedOnly.EvidenceGraph.Evidence = nil
+	executedOnly.EvidenceGraph.ToolExecutions = []domain.ToolExecution{
+		{Tool: "govulncheck", Args: []string{"./..."}, ExitCode: 0, DurationMs: 120},
+	}
+	// The affected chain has no admitted target here, so its states are
+	// projected to UNKNOWN; the govulncheck section must still be honest.
+	executedOnly.Product = admissionHostDefaultProduct()
+	md := Markdown(executedOnly, "en")
+	if strings.Contains(md, "Clean") {
+		t.Fatalf("tool execution without a typed run record rendered as clean:\n%s", md)
+	}
+	if !strings.Contains(md, "Reachability not measured") {
+		t.Fatalf("missing unmeasured govulncheck status:\n%s", md)
+	}
+}
+
+func TestReportGovulncheckCleanMissingCallDivergence(t *testing.T) {
+	c := &domain.AnalysisCase{
+		ID: "CASE-MISSING-CALL",
+		Vulnerability: domain.Vulnerability{
+			ID:     "GO-2020-0017",
+			Module: "github.com/dgrijalva/jwt-go",
+		},
+		Verdict: &domain.VerdictResult{
+			Verdict: domain.VerdictExploitable,
+			Reason:  "all mandatory exploit conditions are satisfied",
+		},
+		Affected: &domain.AffectedResult{
+			VersionAffected: domain.ClaimTrue,
+			ResolvedVersion: "v3.2.0+incompatible",
+			ModulePresent:   domain.ClaimTrue,
+			PackagePresent:  domain.ClaimTrue,
+			BuildRelevant:   domain.ClaimTrue,
+		},
+		EvidenceGraph: domain.EvidenceGraph{
+			CallPaths: nil,
+			ToolExecutions: []domain.ToolExecution{
+				{Tool: "govulncheck", Args: []string{"./..."}, ExitCode: 0, DurationMs: 120},
+			},
+			Evidence: []domain.Evidence{
+				{
+					ID:      "EV-MISSING-CALL",
+					Tool:    "goanalysis.Index.CheckMissingCall",
+					Content: "security check MapClaims.VerifyAudience is omitted on active pipeline MapClaims.Valid",
+					MissingCall: &domain.MissingCallWitness{
+						Check:    domain.SymbolRef{Package: "github.com/dgrijalva/jwt-go", Symbol: "MapClaims.VerifyAudience"},
+						Pipeline: domain.SymbolRef{Package: "github.com/dgrijalva/jwt-go", Symbol: "MapClaims.Valid"},
+						Status:   domain.MissingCallOmitted,
+					},
+				},
+			},
+		},
+	}
+
+	mdRU := Markdown(c, "ru")
+	if !strings.Contains(mdRU, "Сопоставление (Расхождение с govulncheck)") {
+		t.Errorf("missing divergence header in Russian")
+	}
+	if !strings.Contains(mdRU, "missing-call") {
+		t.Errorf("missing missing-call explanation in Russian")
+	}
+
+	mdEN := Markdown(c, "en")
+	if !strings.Contains(mdEN, "Divergence Rationale:") {
+		t.Errorf("missing divergence rationale in English")
+	}
+	if !strings.Contains(mdEN, "missing-call") {
+		t.Errorf("missing missing-call explanation in English")
 	}
 }
 
@@ -1363,272 +1275,245 @@ func TestReportTicketMetadata(t *testing.T) {
 	}
 }
 
-func TestWriteGeneratesSevenFiles(t *testing.T) {
-	c := sampleAuditCase()
+func TestReportTriageAssessmentTable(t *testing.T) {
+	c := &domain.AnalysisCase{
+		ID: "case-triage-test",
+		Vulnerability: domain.Vulnerability{
+			ID:           "CVE-2026-9999",
+			BaseSeverity: "CRITICAL",
+			BaseScore:    10.0,
+		},
+		Product: domain.ProductSnapshot{
+			Repository: "example.com/repo",
+			Commit:     "commit123456",
+			GoVersion:  "go1.26.1",
+		},
+		Verdict: &domain.VerdictResult{
+			Verdict: domain.VerdictExploitable,
+			Reason:  "all mandatory conditions met",
+		},
+		ContextualRisk: &domain.ContextualRisk{
+			Status:           domain.RiskStatusAssessed,
+			BaseSeverity:     "CRITICAL",
+			BaseScore:        10.0,
+			ContextualLevel:  domain.RiskLevelMedium,
+			ContextualScore:  4.5,
+			Priority:         domain.PriorityP2,
+			SLA:              "Sprint (30 days)",
+			AdjustmentReason: "Сетевой доступ из внешней сети отсутствует (слушатель привязан к локальному интерфейсу 127.0.0.1).",
+		},
+	}
+
+	// 1. Check Russian markdown
+	mdRU := Markdown(c, "ru")
+	if !strings.Contains(mdRU, "## Контекстная критичность и триаж (Triage Assessment)") {
+		t.Fatalf("RU markdown missing triage heading:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "🔴 **CRITICAL** (CVSS 10.0)") {
+		t.Errorf("RU markdown missing nominal severity:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "🟡 **MEDIUM** (Score 4.5)") {
+		t.Errorf("RU markdown missing contextual severity:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "**P0 (Blocker)**") {
+		t.Errorf("RU markdown missing nominal priority:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "**P2 (Плановый спринт)**") {
+		t.Errorf("RU markdown missing contextual priority:\n%s", mdRU)
+	}
+	if strings.Contains(mdRU, "Статус оценки") {
+		t.Errorf("RU markdown should not contain internal Статус оценки row:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "**Сетевая доступность**") {
+		t.Errorf("RU markdown missing Сетевая доступность row:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "**Компенсирующие меры**") {
+		t.Errorf("RU markdown missing Компенсирующие меры row:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "> ℹ️ **Обоснование переоценки (понижение):**") {
+		t.Errorf("RU markdown missing adjustment reason header:\n%s", mdRU)
+	}
+
+	// 2. Check English markdown
+	mdEN := Markdown(c, "en")
+	if !strings.Contains(mdEN, "## Contextual Severity & Triage Assessment") {
+		t.Fatalf("EN markdown missing triage heading:\n%s", mdEN)
+	}
+	if !strings.Contains(mdEN, "**P2 (Scheduled Sprint)**") {
+		t.Errorf("EN markdown missing contextual priority:\n%s", mdEN)
+	}
+	if strings.Contains(mdEN, "Assessment Status") {
+		t.Errorf("EN markdown should not contain internal Assessment Status row:\n%s", mdEN)
+	}
+	if !strings.Contains(mdEN, "**Network Exposure**") {
+		t.Errorf("EN markdown missing Network Exposure row:\n%s", mdEN)
+	}
+	if !strings.Contains(mdEN, "**Compensating Controls**") {
+		t.Errorf("EN markdown missing Compensating Controls row:\n%s", mdEN)
+	}
+	if !strings.Contains(mdEN, "> ℹ️ **Score Downgrade Rationale:**") {
+		t.Errorf("EN markdown missing triage rationale header:\n%s", mdEN)
+	}
+
+	// 3. Test report.Write serialization
 	tmpDir := t.TempDir()
 	if err := Write(tmpDir, c); err != nil {
 		t.Fatalf("Write failed: %v", err)
 	}
-	want := []string{
-		"report.json", "openvex.json", "cyclonedx.json",
-		"report.md", "report.en.md",
-		"report.audit.md", "report.audit.en.md",
-	}
-	for _, name := range want {
-		fi, err := os.Stat(filepath.Join(tmpDir, name))
-		if err != nil {
-			t.Fatalf("missing %s: %v", name, err)
-		}
-		if fi.Size() == 0 {
-			t.Fatalf("%s is empty", name)
-		}
-	}
-	ru, err := os.ReadFile(filepath.Join(tmpDir, "report.md"))
+	repJSON, err := os.ReadFile(filepath.Join(tmpDir, "report.json"))
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("reading report.json: %v", err)
 	}
-	if !strings.Contains(string(ru), "## Результат:") {
-		t.Fatalf("report.md is not the human RU report:\n%s", ru)
+	if !strings.Contains(string(repJSON), `"contextual_risk"`) {
+		t.Fatalf("report.json missing contextual_risk: %s", string(repJSON))
 	}
-	aud, err := os.ReadFile(filepath.Join(tmpDir, "report.audit.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(aud), "технический аудит") {
-		t.Fatalf("report.audit.md is not the audit document:\n%s", aud)
+	if !strings.Contains(string(repJSON), `"priority": "P2"`) {
+		t.Fatalf("report.json missing priority P2: %s", string(repJSON))
 	}
 }
 
-func TestMarkdownLocalizationRU(t *testing.T) {
-	c := sampleAuditCase()
-
-	md := Markdown(c, "ru")
-	expectedPhrases := []string{
-		"- Кейс: `case-min`",
-		"## Результат: NO_EXPLOIT_PATH_FOUND",
-		"Уязвимый путь исполнения отсутствует",
-		"## В чём уязвимость",
-		"## Что подтверждено",
-		"## Что не удалось подтвердить",
-		"## Оценка и приоритет",
-		"## Рекомендация по исправлению",
-		"## Использование AI",
-		"## Ссылка на технический аудит",
-		"Обновите зависимость `example.com/mod` с `v1.1.0` до `v1.2.0`",
-	}
-	for _, phrase := range expectedPhrases {
-		if !strings.Contains(md, phrase) {
-			t.Errorf("RU markdown missing %q:\n%s", phrase, md)
-		}
-	}
-}
-
-func TestMarkdownLocalizationEN(t *testing.T) {
-	c := sampleAuditCase()
-
-	md := Markdown(c, "en")
-	expectedPhrases := []string{
-		"- Case: `case-min`",
-		"## Result: NO_EXPLOIT_PATH_FOUND",
-		"No exploit path exists",
-		"## Vulnerability overview",
-		"## Confirmed facts",
-		"## What could not be confirmed",
-		"## Assessment and priority",
-		"## Remediation recommendation",
-		"## AI usage",
-		"## Technical audit link",
-		"Update `example.com/mod` from `v1.1.0` to `v1.2.0`",
-	}
-	for _, phrase := range expectedPhrases {
-		if !strings.Contains(md, phrase) {
-			t.Errorf("EN markdown missing %q:\n%s", phrase, md)
-		}
-	}
-}
-
-func TestReportRussianLocalizationNoEnglishLeaks(t *testing.T) {
+func TestReportMarkdown_DualTrackPerimeterMatrix_RU(t *testing.T) {
 	c := &domain.AnalysisCase{
-		ID: "case-russian-localization",
 		Vulnerability: domain.Vulnerability{
-			ID:            "GO-2022-0603",
-			Module:        "gopkg.in/yaml.v3",
-			FixedVersions: []string{"v3.0.0-20220521103104-8f96da9f5d5e"},
+			ID: "GO-2026-TEST",
 		},
-		Product: domain.ProductSnapshot{
-			Repository: "my-service",
-			Commit:     "1070baac73db",
+		Affected: &domain.AffectedResult{
+			Scope: exactEntryScope("GO-2026-TEST"),
 		},
 		Verdict: &domain.VerdictResult{
-			Verdict: domain.VerdictExploitable,
-			Reason:  "all mandatory exploit conditions are satisfied",
+			Verdict: domain.VerdictNoExploitPathFound,
+			Reason:  "mandatory exploit condition is proven false",
 		},
-		DetectedPerimeter:  domain.PerimeterPublic,
-		PerimeterRationale: "public exposure detected: inbound listener :8080",
+		DetectedPerimeter:  domain.PerimeterClusterInternal,
+		PerimeterRationale: "ClusterIP service found",
 		Profiles: []domain.ProfileVerdict{
 			{
 				Profile:        domain.ProfileZeroTrust,
-				Verdict:        domain.VerdictExploitable,
-				Priority:       domain.PriorityP0,
-				IsTargetActual: true,
+				Title:          "Внешний периметр (Zero Trust / Недоверенный пир)",
+				Verdict:        domain.VerdictInconclusive,
+				Priority:       domain.PriorityP1,
+				SLA:            "7 days",
+				IsTargetActual: false,
 			},
 			{
 				Profile:        domain.ProfileClusterPerimeter,
+				Title:          "Внутренний кластер (K8s ClusterIP / Service Mesh)",
 				Verdict:        domain.VerdictNoExploitPathFound,
 				Priority:       domain.PriorityDismissed,
-				IsTargetActual: false,
-			},
-		},
-		EvidenceGraph: domain.EvidenceGraph{
-			Exposures: []domain.ExposureFact{
-				{
-					Direction:     "inbound",
-					Kind:          "listener",
-					Target:        "net/http.ListenAndServe",
-					Address:       ":8080",
-					AddressSource: "literal",
-					Scope:         "all-interfaces",
-					CallSite:      domain.CallSite{File: "main.go", Line: 40},
-				},
+				SLA:            "No action",
+				IsTargetActual: true,
 			},
 		},
 	}
 
 	md := Markdown(c, "ru")
-	if strings.Contains(md, "all mandatory exploit conditions are satisfied") {
-		t.Errorf("found raw English verdict reason in Russian report:\n%s", md)
+	if !strings.Contains(md, "### Матрица сетевых периметров угроз") {
+		t.Fatalf("expected matrix heading in RU report:\n%s", md)
 	}
-	if !strings.Contains(md, "Все обязательные условия эксплуатации выполнены (уязвимость подтверждена)") {
-		t.Errorf("missing localized Russian verdict reason in report:\n%s", md)
+	if !strings.Contains(md, "- **Обнаруженный периметр развёртывания:** `Внутрикластерный (cluster-internal)`") {
+		t.Errorf("expected detected perimeter in RU report:\n%s", md)
 	}
-	if strings.Contains(md, "Рекомендуемый SLA") || strings.Contains(md, "Recommended SLA") ||
-		strings.Contains(md, "24h") || strings.Contains(md, "Sprint") {
-		t.Errorf("found SLA internals in Russian report:\n%s", md)
+	if !strings.Contains(md, "- **Обоснование периметра:** Обнаружен сервис ClusterIP") {
+		t.Errorf("expected perimeter rationale in RU report:\n%s", md)
+	}
+	if !strings.Contains(md, "*(Фактический)*") {
+		t.Errorf("expected *(Фактический)* in RU report:\n%s", md)
+	}
+	if !strings.Contains(md, "**DISMISSED**") {
+		t.Errorf("expected DISMISSED in RU report:\n%s", md)
+	}
+	if !strings.Contains(md, "Действий не требуется: уязвимость закрыта сетевым периметром.") {
+		t.Errorf("expected dismissed action recommendation in RU report:\n%s", md)
+	}
+	if !strings.Contains(md, "Высокий приоритет: требуется плановое устранение или аудит компенсирующих мер защиты.") {
+		t.Errorf("expected P1 action recommendation in RU report:\n%s", md)
 	}
 
-	aud := AuditMarkdown(c, "ru")
-	if !strings.Contains(aud, "`Публичный (public)`") {
-		t.Errorf("audit missing localized perimeter:\n%s", aud)
+	lines := strings.Split(md, "\n")
+	foundClusterActual := false
+	for _, l := range lines {
+		if strings.Contains(l, "Cluster") || strings.Contains(l, "Кластер") || strings.Contains(l, "кластер") {
+			if strings.Contains(l, "*(Фактический)*") {
+				foundClusterActual = true
+				break
+			}
+		}
 	}
-	if !strings.Contains(aud, "Обнаружен публичный доступ: входящий слушатель :8080") {
-		t.Errorf("audit missing localized perimeter rationale:\n%s", aud)
-	}
-	if !strings.Contains(aud, "все интерфейсы (0.0.0.0)") {
-		t.Errorf("audit missing localized exposure scope:\n%s", aud)
+	if !foundClusterActual {
+		t.Errorf("expected *(Фактический)* to be on the cluster row:\n%s", md)
 	}
 }
 
-func TestAuditEvidenceRegister(t *testing.T) {
+func TestReportMarkdown_DualTrackPerimeterMatrix_EN(t *testing.T) {
 	c := &domain.AnalysisCase{
-		ID: "case-evidence",
 		Vulnerability: domain.Vulnerability{
-			ID:     "GO-2022-0603",
-			Module: "gopkg.in/yaml.v3",
+			ID: "GO-2026-TEST",
+		},
+		Affected: &domain.AffectedResult{
+			Scope: exactEntryScope("GO-2026-TEST"),
 		},
 		Verdict: &domain.VerdictResult{
-			Verdict: domain.VerdictExploitable,
-			Reason:  "all mandatory exploit conditions are satisfied",
+			Verdict: domain.VerdictNoExploitPathFound,
+			Reason:  "mandatory exploit condition is proven false",
 		},
-		Claims: []domain.Claim{
+		DetectedPerimeter:  domain.PerimeterClusterInternal,
+		PerimeterRationale: "ClusterIP service found",
+		Profiles: []domain.ProfileVerdict{
 			{
-				ConditionID: "C-REACH",
-				Result:      domain.ClaimTrue,
-				EvidenceIDs: []domain.EvidenceID{"EV-006"},
-				Explanation: "govulncheck produced call path(s) to the affected symbol(s)",
+				Profile:        domain.ProfileZeroTrust,
+				Title:          "Public Internet (Zero Trust)",
+				Verdict:        domain.VerdictInconclusive,
+				Priority:       domain.PriorityP1,
+				SLA:            "7 days",
+				IsTargetActual: false,
 			},
-		},
-		EvidenceGraph: domain.EvidenceGraph{
-			Evidence: []domain.Evidence{
-				{
-					ID:      "EV-006",
-					Kind:    domain.EvidenceGovulncheck,
-					Tool:    "govulncheck",
-					Command: "govulncheck -json -mode source ./...",
-					Content: "call path json",
-				},
-				{
-					ID:        "EV-008",
-					Kind:      domain.EvidenceSourceSnippet,
-					File:      "main.go",
-					StartLine: 42,
-					Content:   "yaml.Unmarshal(body, &p)",
-				},
-			},
-			CallPaths: []domain.CallPath{
-				{
-					EvidenceID: "EV-006",
-					Frames: []domain.CallSite{
-						{Function: "main.main", File: "main.go", Line: 20},
-						{Function: "gopkg.in/yaml.v3.Unmarshal", File: "yaml.go", Line: 90},
-					},
-				},
+			{
+				Profile:        domain.ProfileClusterPerimeter,
+				Title:          "Internal Cluster (ClusterIP)",
+				Verdict:        domain.VerdictNoExploitPathFound,
+				Priority:       domain.PriorityDismissed,
+				SLA:            "No action",
+				IsTargetActual: true,
 			},
 		},
 	}
 
-	aud := AuditMarkdown(c, "ru")
-	if !strings.Contains(aud, "## Реестр доказательств") {
-		t.Fatalf("expected evidence register in audit:\n%s", aud)
+	md := Markdown(c, "en")
+	if !strings.Contains(md, "### Security Perimeter Matrix") {
+		t.Fatalf("expected matrix heading in EN report:\n%s", md)
 	}
-	if !strings.Contains(aud, "| `EV-006` | Анализ вызовов (govulncheck) |") {
-		t.Errorf("expected EV-006 in audit register:\n%s", aud)
+	if !strings.Contains(md, "- **Detected Deployment Perimeter:** `cluster-internal`") {
+		t.Errorf("expected detected perimeter in EN report:\n%s", md)
 	}
-	if !strings.Contains(aud, "Трасса вызова (2 кадров): `main.main` → ... → `gopkg.in/yaml.v3.Unmarshal`") {
-		t.Errorf("expected call path details for EV-006:\n%s", aud)
+	if !strings.Contains(md, "- **Perimeter Rationale:** ClusterIP service found") {
+		t.Errorf("expected perimeter rationale in EN report:\n%s", md)
 	}
-	if !strings.Contains(aud, "yaml.Unmarshal(body, &p)") {
-		t.Errorf("expected EV-008 snippet:\n%s", aud)
+	if !strings.Contains(md, "*(Actual)*") {
+		t.Errorf("expected *(Actual)* in EN report:\n%s", md)
 	}
-	if !strings.Contains(aud, "Трасса вызовов govulncheck достигает уязвимых символов библиотеки") {
-		t.Errorf("expected localized claim explanation in audit claims:\n%s", aud)
+	if !strings.Contains(md, "**DISMISSED**") {
+		t.Errorf("expected DISMISSED in EN report:\n%s", md)
+	}
+	if !strings.Contains(md, "No remediation required: vulnerability neutralized by network perimeter.") {
+		t.Errorf("expected dismissed action recommendation in EN report:\n%s", md)
+	}
+	if !strings.Contains(md, "High priority: planned remediation or compensating controls audit required.") {
+		t.Errorf("expected P1 action recommendation in EN report:\n%s", md)
 	}
 
-	human := Markdown(c, "ru")
-	if strings.Contains(human, "EV-006") || strings.Contains(human, "Реестр доказательств") {
-		t.Errorf("human report must not carry the evidence register:\n%s", human)
+	lines := strings.Split(md, "\n")
+	foundClusterActual := false
+	for _, l := range lines {
+		if strings.Contains(l, "Cluster") {
+			if strings.Contains(l, "*(Actual)*") {
+				foundClusterActual = true
+				break
+			}
+		}
 	}
-}
-
-func TestGovulncheckComparisonAndDivergence(t *testing.T) {
-	t.Run("audit explains divergence when scanner sees calls but verdict is NEPF", func(t *testing.T) {
-		c := sampleAuditCase()
-		aud := AuditMarkdown(c, "ru")
-		if !strings.Contains(aud, "## Сопоставление с govulncheck") {
-			t.Fatalf("missing govulncheck comparison:\n%s", aud)
-		}
-		if !strings.Contains(aud, "Уязвимый код вызывается") {
-			t.Fatalf("expected reachable finding:\n%s", aud)
-		}
-		if !strings.Contains(aud, "NO_EXPLOIT_PATH_FOUND") {
-			t.Fatalf("expected analyzer verdict in comparison:\n%s", aud)
-		}
-		if !strings.Contains(aud, "ложной тревогой") && !strings.Contains(aud, "false positive") {
-			t.Fatalf("expected divergence rationale:\n%s", aud)
-		}
-	})
-	t.Run("comparison absent without tool run or call paths", func(t *testing.T) {
-		c := minimalCase()
-		aud := AuditMarkdown(c, "ru")
-		if strings.Contains(aud, "Сопоставление с govulncheck") {
-			t.Fatalf("comparison must be skipped without govulncheck data:\n%s", aud)
-		}
-	})
-	t.Run("clean scanner with exploitable verdict explains the divergence", func(t *testing.T) {
-		c := minimalCase()
-		c.EvidenceGraph.ToolExecutions = []domain.ToolExecution{
-			{ID: "TX-1", Tool: "govulncheck", ExitCode: 0},
-		}
-		c.EvidenceGraph.Evidence = []domain.Evidence{
-			{ID: "EV-MISSING-CALL", Kind: domain.EvidenceSourceSnippet, Content: "missing verify call"},
-		}
-		aud := AuditMarkdown(c, "ru")
-		if !strings.Contains(aud, "Трасса вызовов не обнаружена") {
-			t.Fatalf("expected clean scanner finding:\n%s", aud)
-		}
-		if !strings.Contains(aud, "пропуске обязательной проверки") {
-			t.Fatalf("expected missing-call divergence rationale:\n%s", aud)
-		}
-	})
+	if !foundClusterActual {
+		t.Errorf("expected *(Actual)* to be on the cluster row:\n%s", md)
+	}
 }
 
 func TestFixCompatibility(t *testing.T) {
@@ -1894,121 +1779,1105 @@ func TestLocalizeVerdictReason(t *testing.T) {
 	}
 }
 
-// absPathCase mirrors the review demo: an absolute checkout, one dependency
-// in the module cache and a call/data-flow site recorded with host paths —
-// the human/audit reports must render only attributed locations.
-func absPathCase() *domain.AnalysisCase {
-	c := minimalCase()
-	c.Product.Repository = "/Users/dev/ws/demo"
-	c.Vulnerability.Module = "gopkg.in/yaml.v2"
-	c.EvidenceGraph = domain.EvidenceGraph{
-		Evidence: []domain.Evidence{
-			{ID: "EV-MOD-1", Kind: domain.EvidenceModuleGraph, Content: `{"Path":"example.com/demo","Main":true,"Dir":"/Users/dev/ws/demo"}
-{"Path":"gopkg.in/yaml.v2","Version":"v2.2.2","Dir":"/Users/dev/go/pkg/mod/gopkg.in/yaml.v2@v2.2.2"}
-`},
-			{ID: "EV-FLOW-1", Kind: domain.EvidenceDataFlow, Source: "provenance", File: "/Users/dev/ws/demo/main.go", StartLine: 39, Content: "flow"},
+func TestReportRussianLocalizationNoEnglishLeaks(t *testing.T) {
+	c := &domain.AnalysisCase{
+		ID: "case-russian-localization",
+		Vulnerability: domain.Vulnerability{
+			ID:            "GO-2022-0603",
+			Module:        "gopkg.in/yaml.v3",
+			FixedVersions: []string{"v3.0.0-20220521103104-8f96da9f5d5e"},
 		},
-		ModuleUsages: []domain.CallSite{
-			{File: "/Users/dev/ws/demo/main.go", Line: 39, Function: "main.load", Callee: "yaml.Unmarshal", ModuleOwner: "gopkg.in/yaml.v2"},
+		Product: domain.ProductSnapshot{
+			Repository: "my-service",
+			Commit:     "1070baac73db",
 		},
-		DataFlows: []domain.DataFlow{
+		Verdict: &domain.VerdictResult{
+			Verdict: domain.VerdictExploitable,
+			Reason:  "all mandatory exploit conditions are satisfied",
+		},
+		DetectedPerimeter:  domain.PerimeterPublic,
+		PerimeterRationale: "public exposure detected: inbound listener :8080",
+		Profiles: []domain.ProfileVerdict{
 			{
-				ConditionID: "C-INPUT",
-				Source:      domain.CallSite{File: "/Users/dev/ws/demo/main.go", Line: 30, Function: "main.load"},
-				Sink:        domain.CallSite{File: "/Users/dev/ws/demo/main.go", Line: 39, Function: "main.load", Callee: "yaml.Unmarshal"},
-				Arg:         0,
-				Origin:      domain.OriginExternalUntrusted,
+				Profile:        domain.ProfileZeroTrust,
+				Verdict:        domain.VerdictExploitable,
+				Priority:       domain.PriorityP0,
+				IsTargetActual: true,
+			},
+			{
+				Profile:        domain.ProfileClusterPerimeter,
+				Verdict:        domain.VerdictNoExploitPathFound,
+				Priority:       domain.PriorityDismissed,
+				IsTargetActual: false,
 			},
 		},
-		CallPaths: []domain.CallPath{{
-			ConditionID: "C-REACH",
-			Frames: []domain.CallSite{
-				{File: "/Users/dev/ws/demo/main.go", Line: 10, Function: "main", Package: "example.com/demo"},
-				{File: "/Users/dev/go/pkg/mod/gopkg.in/yaml.v2@v2.2.2/decode.go", Line: 268, Function: "unmarshal", Package: "gopkg.in/yaml.v2"},
+		EvidenceGraph: domain.EvidenceGraph{
+			Exposures: []domain.ExposureFact{
+				{
+					Direction:     "inbound",
+					Kind:          "listener",
+					Target:        "net/http.ListenAndServe",
+					Address:       ":8080",
+					AddressSource: "literal",
+					Scope:         "all-interfaces",
+					CallSite:      domain.CallSite{File: "main.go", Line: 40},
+				},
 			},
-		}},
+		},
+		ContextualRisk: &domain.ContextualRisk{
+			BaseSeverity:    "MEDIUM",
+			BaseScore:       5.0,
+			ContextualLevel: domain.RiskLevelCritical,
+			ContextualScore: 10.0,
+			Priority:        domain.PriorityP0,
+			Status:          domain.RiskStatusAssessed,
+			SLA:             "24h (Immediate remediation required)",
+		},
 	}
-	c.Claims = []domain.Claim{{ID: "CL-1", ConditionID: "C-INPUT", Result: domain.ClaimTrue}}
-	c.Exploit = &domain.ExploitModel{
-		Class:               "RESOURCE_EXHAUSTION",
-		Impact:              "denial of service",
-		RootCauses:          []domain.SymbolRef{{Package: "gopkg.in/yaml.v2", Symbol: "decoder.unmarshal"}},
-		MandatoryConditions: []domain.Condition{{ID: "C-INPUT", Kind: domain.ConditionAttackerControl, Mandatory: true}},
+
+	md := Markdown(c, "ru")
+
+	if strings.Contains(md, "> **all mandatory exploit conditions are satisfied**") {
+		t.Errorf("found raw English verdict reason in Russian report:\n%s", md)
 	}
-	return c
+	if !strings.Contains(md, "> **Все обязательные условия эксплуатации выполнены (уязвимость подтверждена)**") {
+		t.Errorf("missing localized Russian verdict reason in report:\n%s", md)
+	}
+
+	if strings.Contains(md, "- **Обнаруженный периметр развёртывания:** `public`") {
+		t.Errorf("found unlocalized perimeter 'public' in Russian report:\n%s", md)
+	}
+	if !strings.Contains(md, "- **Обнаруженный периметр развёртывания:** `Публичный (public)`") {
+		t.Errorf("missing localized perimeter 'Публичный (public)' in Russian report:\n%s", md)
+	}
+
+	if strings.Contains(md, "- **Обоснование периметра:** public exposure detected: inbound listener :8080") {
+		t.Errorf("found unlocalized perimeter rationale in Russian report:\n%s", md)
+	}
+	if !strings.Contains(md, "- **Обоснование периметра:** Обнаружен публичный доступ: входящий слушатель :8080") {
+		t.Errorf("missing localized perimeter rationale in Russian report:\n%s", md)
+	}
+
+	if strings.Contains(md, "источник: literal") || strings.Contains(md, "область: all-interfaces") {
+		t.Errorf("found unlocalized exposure metadata (literal/all-interfaces) in Russian report:\n%s", md)
+	}
+	if !strings.Contains(md, "источник: литерал, область: все интерфейсы (0.0.0.0)") {
+		t.Errorf("missing localized exposure metadata (литерал, все интерфейсы) in Russian report:\n%s", md)
+	}
+
+	if strings.Contains(md, "24h (Immediate remediation required)") || strings.Contains(md, "24 часа (требуется немедленное устранение)") {
+		t.Errorf("found SLA string in Russian report:\n%s", md)
+	}
+	if strings.Contains(md, "Рекомендуемый SLA") || strings.Contains(md, "Recommended SLA") {
+		t.Errorf("found SLA row in Triage table:\n%s", md)
+	}
 }
 
-func TestMarkdownNoHostPaths(t *testing.T) {
-	c := absPathCase()
-	for _, doc := range []string{Markdown(c, "ru"), Markdown(c, "en"), AuditMarkdown(c, "ru"), AuditMarkdown(c, "en")} {
-		if strings.Contains(doc, "/Users/dev") {
-			t.Fatalf("host checkout prefix leaked into report:\n%s", doc)
-		}
-		if strings.Contains(doc, "pkg/mod/gopkg.in") {
-			t.Fatalf("module-cache path leaked into report:\n%s", doc)
+func TestReportMarkdown_EvidenceRegisterAndNoSLA(t *testing.T) {
+	c := &domain.AnalysisCase{
+		ID: "GO-2022-0603-evidence-test",
+		Vulnerability: domain.Vulnerability{
+			ID:           "GO-2022-0603",
+			Module:       "gopkg.in/yaml.v3",
+			BaseSeverity: "MEDIUM",
+			BaseScore:    5.0,
+		},
+		Product: domain.ProductSnapshot{
+			Repository: "example.com/myapp",
+			Commit:     "1234567890ab",
+			GoVersion:  "go1.26.1",
+			GOOS:       "linux",
+			GOARCH:     "amd64",
+		},
+		Verdict: &domain.VerdictResult{
+			Verdict: domain.VerdictExploitable,
+			Reason:  "all mandatory exploit conditions are satisfied",
+		},
+		Claims: []domain.Claim{
+			{
+				ConditionID: "C-REACH",
+				Result:      domain.ClaimTrue,
+				EvidenceIDs: []domain.EvidenceID{"EV-006"},
+				Explanation: "govulncheck produced call path(s) to the affected symbol(s)",
+			},
+			{
+				ConditionID: "C-PEER-INPUT",
+				Result:      domain.ClaimTrue,
+				EvidenceIDs: []domain.EvidenceID{"EV-008"},
+				Explanation: "1 call site(s) receive externally controlled input",
+			},
+		},
+		EvidenceGraph: domain.EvidenceGraph{
+			Evidence: []domain.Evidence{
+				{
+					ID:      "EV-006",
+					Kind:    domain.EvidenceGovulncheck,
+					Tool:    "govulncheck",
+					Command: "govulncheck -json -mode source ./...",
+					Content: "call path json",
+				},
+				{
+					ID:        "EV-008",
+					Kind:      domain.EvidenceSourceSnippet,
+					File:      "main.go",
+					StartLine: 42,
+					Content:   "yaml.Unmarshal(body, &p)",
+				},
+			},
+			CallPaths: []domain.CallPath{
+				{
+					EvidenceID: "EV-006",
+					Frames: []domain.CallSite{
+						{Function: "main.main", File: "main.go", Line: 20},
+						{Function: "gopkg.in/yaml.v3.Unmarshal", File: "yaml.go", Line: 90},
+					},
+				},
+			},
+		},
+		ContextualRisk: &domain.ContextualRisk{
+			BaseSeverity:    "MEDIUM",
+			BaseScore:       5.0,
+			ContextualLevel: domain.RiskLevelMedium,
+			ContextualScore: 5.0,
+			Priority:        domain.PriorityP0,
+			Status:          domain.RiskStatusAssessed,
+			SLA:             "Immediate (Blocker)",
+		},
+	}
+
+	mdRU := Markdown(c, "ru")
+
+	// 1. Evidence Register is rendered with details
+	if !strings.Contains(mdRU, "### Реестр доказательств (Evidence Register)") {
+		t.Fatalf("expected Evidence Register heading in RU markdown:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "| `EV-006` | Анализ вызовов (govulncheck) |") {
+		t.Errorf("expected EV-006 in Evidence Register:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "Трасса вызова (2 кадров): `main.main` → ... → `gopkg.in/yaml.v3.Unmarshal`") {
+		t.Errorf("expected call path details for EV-006 in Evidence Register:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "| `EV-008` | Исходный код (AST) | `main.go:42` | Фрагмент кода: `yaml.Unmarshal(body, &p)` |") {
+		t.Errorf("expected EV-008 source snippet in Evidence Register:\n%s", mdRU)
+	}
+
+	// 2. Claims table includes explanation column and localized text
+	if !strings.Contains(mdRU, "Трасса вызовов govulncheck достигает уязвимых символов библиотеки") {
+		t.Errorf("expected localized C-REACH explanation in Claims table:\n%s", mdRU)
+	}
+	if !strings.Contains(mdRU, "принимает входные данные извне") && !strings.Contains(mdRU, "точек вызова принимают входные данные извне") {
+		t.Errorf("expected localized C-PEER-INPUT explanation in Claims table:\n%s", mdRU)
+	}
+
+	// 3. No SLA rows or company SLA timing strings anywhere
+	if strings.Contains(mdRU, "Рекомендуемый SLA") || strings.Contains(mdRU, "Recommended SLA") {
+		t.Errorf("found SLA row in report:\n%s", mdRU)
+	}
+	if strings.Contains(mdRU, "24h") || strings.Contains(mdRU, "7 days") || strings.Contains(mdRU, "30 days") {
+		t.Errorf("found SLA duration strings in report:\n%s", mdRU)
+	}
+
+	// 4. In English report
+	mdEN := Markdown(c, "en")
+	if !strings.Contains(mdEN, "### Evidence Register") {
+		t.Fatalf("expected Evidence Register heading in EN markdown:\n%s", mdEN)
+	}
+	if !strings.Contains(mdEN, "| `EV-006` | Call Graph (govulncheck) |") {
+		t.Errorf("expected EV-006 in EN Evidence Register:\n%s", mdEN)
+	}
+	if strings.Contains(mdEN, "Recommended SLA") {
+		t.Errorf("found Recommended SLA row in EN report:\n%s", mdEN)
+	}
+}
+
+// reportScopeRepairCase is the reporting projection of the P0 repairs: a
+// CVE request whose loaded record only fixes one component, plus a legacy
+// TLS blocker the reviewer demoted. The verified platform claim survives
+// byte-for-byte — only its necessity changed.
+func reportScopeRepairCase() *domain.AnalysisCase {
+	partial := partialCVEScope("CVE-2023-44487", "GO-2024-2687")
+	return &domain.AnalysisCase{
+		ID: "case-p0-report",
+		Vulnerability: domain.Vulnerability{
+			ID:            "CVE-2023-44487",
+			Module:        "golang.org/x/net",
+			FixedVersions: []string{"v0.33.0"},
+		},
+		Product: domain.ProductSnapshot{
+			Repository: "example.com/kubernetes", Commit: "abcdef123456",
+			GoVersion: "go1.22.0",
+		},
+		Affected: &domain.AffectedResult{
+			Scope:           partial,
+			ModulePresent:   domain.ClaimTrue,
+			ResolvedVersion: "v0.17.0",
+			VersionAffected: domain.ClaimFalse,
+			CheckedModules:  []string{"golang.org/x/net"},
+			EvidenceIDs:     []domain.EvidenceID{"EV-XNET-VERSION"},
+		},
+		Exploit: &domain.ExploitModel{
+			Class: "CRYPTO_DOWNGRADE",
+			MandatoryConditions: []domain.Condition{{
+				ID: "C-REACH", Kind: domain.ConditionSymbolReachable, Mandatory: true,
+				Subjects: []domain.SymbolRef{{Package: "golang.org/x/net/http2", Symbol: "Server"}},
+			}},
+			SupportingFactors: []domain.Condition{{
+				ID: "C-PLATFORM", Kind: domain.ConditionPlatform, Mandatory: false,
+				Description: "legacy TLS floor",
+				Params:      map[string]string{"go_version": "<1.18"},
+			}},
+		},
+		Claims: []domain.Claim{
+			{ID: "CL-C-REACH", ConditionID: "C-REACH", Result: domain.ClaimUnknown},
+			{
+				ID: "CL-C-PLATFORM", ConditionID: "C-PLATFORM", Result: domain.ClaimFalse,
+				Falsifier:   domain.FalsifierSnapshotFactMismatch,
+				EvidenceIDs: []domain.EvidenceID{"EV-PLATFORM-RELEASE"},
+				NegativeVerification: &domain.NegativeVerification{
+					Status:      domain.NegativeVerified,
+					EvidenceIDs: []domain.EvidenceID{"EV-PLATFORM-RELEASE-NV"},
+					Notes:       "release toolchain 1.20 is above the legacy floor",
+				},
+			},
+		},
+		Reviews: []domain.Review{{
+			ID: domain.ReviewID("REV-1"), Result: domain.ReviewRevise,
+			Findings: []domain.ReviewFinding{{
+				TargetType: "condition", TargetID: "C-PLATFORM",
+				Action:   domain.ReviewActionDemote,
+				Severity: "high",
+				Problem:  "legacy TLS floor does not gate an SSH key-exchange downgrade",
+			}},
+		}},
+		Verdict: &domain.VerdictResult{
+			Verdict: domain.VerdictInconclusive,
+			Reason: "partial or unknown advisory scope: negative facts for checked module(s) golang.org/x/net " +
+				"do not establish complete coverage of CVE-2023-44487; the remaining requested scope is unresolved",
+		},
+	}
+}
+
+func TestReportScopeAndConditionRepair(t *testing.T) {
+	c := reportScopeRepairCase()
+	dir := t.TempDir()
+	if err := Write(dir, c); err != nil {
+		t.Fatal(err)
+	}
+
+	raw, err := os.ReadFile(filepath.Join(dir, "report.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Affected struct {
+			Scope struct {
+				RequestedID string `json:"requested_id"`
+				ResolvedID  string `json:"resolved_id"`
+				Kind        string `json:"kind"`
+				Coverage    string `json:"coverage"`
+			} `json:"scope"`
+			VersionAffected string `json:"version_affected"`
+			ResolvedVersion string `json:"resolved_version"`
+		} `json:"affected"`
+		Exploit struct {
+			Mandatory []struct {
+				ID string `json:"id"`
+			} `json:"mandatory_conditions"`
+			Supporting []struct {
+				ID        string `json:"id"`
+				Mandatory bool   `json:"mandatory"`
+			} `json:"supporting_factors"`
+		} `json:"exploit_model"`
+		Claims []struct {
+			ConditionID string `json:"condition_id"`
+			Result      string `json:"result"`
+			Falsifier   string `json:"falsifier"`
+			NV          *struct {
+				Status string `json:"status"`
+				Notes  string `json:"notes"`
+			} `json:"negative_verification"`
+		} `json:"claims"`
+		Reviews []struct {
+			Findings []struct {
+				TargetID string `json:"target_id"`
+				Action   string `json:"action"`
+			} `json:"findings"`
+		} `json:"reviews"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("report.json: %v", err)
+	}
+	if doc.Affected.Scope.RequestedID != "CVE-2023-44487" ||
+		doc.Affected.Scope.ResolvedID != "GO-2024-2687" ||
+		doc.Affected.Scope.Kind != "CVE" || doc.Affected.Scope.Coverage != "KNOWN_ONLY" {
+		t.Fatalf("requested/resolved scope not preserved: %+v", doc.Affected.Scope)
+	}
+	if doc.Affected.VersionAffected != "FALSE" || doc.Affected.ResolvedVersion != "v0.17.0" {
+		t.Fatalf("component version fact not preserved: %+v", doc.Affected)
+	}
+	if len(doc.Exploit.Mandatory) != 1 || doc.Exploit.Mandatory[0].ID != "C-REACH" {
+		t.Fatalf("mandatory membership changed: %+v", doc.Exploit.Mandatory)
+	}
+	if len(doc.Exploit.Supporting) != 1 || doc.Exploit.Supporting[0].ID != "C-PLATFORM" || doc.Exploit.Supporting[0].Mandatory {
+		t.Fatalf("supporting membership not preserved: %+v", doc.Exploit.Supporting)
+	}
+	if len(doc.Reviews) != 1 || len(doc.Reviews[0].Findings) != 1 ||
+		doc.Reviews[0].Findings[0].Action != "demote" || doc.Reviews[0].Findings[0].TargetID != "C-PLATFORM" {
+		t.Fatalf("review action not preserved: %+v", doc.Reviews)
+	}
+	var platform *struct {
+		ConditionID string `json:"condition_id"`
+		Result      string `json:"result"`
+		Falsifier   string `json:"falsifier"`
+		NV          *struct {
+			Status string `json:"status"`
+			Notes  string `json:"notes"`
+		} `json:"negative_verification"`
+	}
+	for i := range doc.Claims {
+		if doc.Claims[i].ConditionID == "C-PLATFORM" {
+			platform = &doc.Claims[i]
 		}
 	}
+	if platform == nil || platform.Result != "FALSE" || platform.Falsifier != "snapshot-fact-mismatch" ||
+		platform.NV == nil || platform.NV.Status != "VERIFIED" || platform.NV.Notes == "" {
+		t.Fatalf("negative-verification history not preserved: %+v", platform)
+	}
+
 	ru := Markdown(c, "ru")
+	en := Markdown(c, "en")
 	for _, want := range []string{
-		"Репозиторий: `demo`",
-		"`yaml.Unmarshal` (`main.go:39`)",
-		"истощение ресурсов",
+		"| Запрошенная область advisory | `CVE-2023-44487` → `GO-2024-2687` (`CVE`, `KNOWN_ONLY`)",
+		"| Полнота записи advisory (extent) | `UNKNOWN`",
+		"legacy coverage не является доказательством",
+		"| Перепись affected[] (census) | `unknown`",
+		"структурная перепись отсутствует",
+		"запрещено: область неполная или неизвестная",
+		"Вне диапазона (частный компонент)",
+		"компонентный факт",
+		"(action: demote)",
+		"сопутствующее (supporting)",
+		"Опровергнуто (FALSE)",
 	} {
 		if !strings.Contains(ru, want) {
-			t.Fatalf("RU report missing %q:\n%s", want, ru)
+			t.Errorf("RU report lacks %q", want)
 		}
 	}
-	en := Markdown(c, "en")
-	if !strings.Contains(en, "resource exhaustion") {
-		t.Fatalf("EN report missing localized class label:\n%s", en)
-	}
-	aud := AuditMarkdown(c, "ru")
-	for _, want := range []string{"main.go:39", "gopkg.in/yaml.v2@v2.2.2/decode.go:268", "EV-FLOW-1", "EV-MOD-1"} {
-		if !strings.Contains(aud, want) {
-			t.Fatalf("audit missing %q:\n%s", want, aud)
+	for _, want := range []string{
+		"| requested advisory scope | `CVE-2023-44487` → `GO-2024-2687` (`CVE`, `KNOWN_ONLY`)",
+		"| advisory record extent | `UNKNOWN`",
+		"legacy coverage is not proof",
+		"| advisory record census | `unknown`",
+		"no structural census recorded",
+		"blocked: partial or unknown scope",
+		"Outside range (component only)",
+		"component-level facts for the checked scope",
+		"(action: demote)",
+		"supporting",
+	} {
+		if !strings.Contains(en, want) {
+			t.Errorf("EN report lacks %q", want)
 		}
+	}
+	for _, lang := range []string{ru, en} {
+		if strings.Contains(lang, "Not Affected (Уязвимость не применима к сервису)") {
+			t.Fatal("partial scope report advertises the whole advisory as Not Affected")
+		}
+	}
+	if strings.Contains(ru, "🟢 Безопасна") {
+		t.Fatal("partial scope RU report marks the component globally safe")
+	}
+	if strings.Contains(en, "🟢 Safe") {
+		t.Fatal("partial scope EN report marks the component globally safe")
+	}
+
+	// Exact-entry negative control: the corrected trajectory still renders
+	// the closure and the strict exported negative.
+	control := reportScopeRepairCase()
+	control.Vulnerability.ID = "GO-2024-2687"
+	control.Affected.Scope = exactEntryScope("GO-2024-2687")
+	control.Verdict = &domain.VerdictResult{
+		Verdict: domain.VerdictNotAffected,
+		Reason:  "resolved dependency version is outside affected range",
+	}
+	ctrlRU := Markdown(control, "ru")
+	if !strings.Contains(ctrlRU, "Not Affected (Уязвимость не применима к сервису)") {
+		t.Fatal("exact-entry negative control lost its Not Affected rationale")
+	}
+	if !strings.Contains(ctrlRU, "🟢 Безопасна") {
+		t.Fatal("exact-entry negative control lost its safe component fact")
+	}
+	if !strings.Contains(ctrlRU, "разрешено: точная запись advisory") {
+		t.Fatal("exact-entry negative control does not record closure authority")
 	}
 }
 
-func TestSeverityNotSuppliedLabelsAnalyzerDefault(t *testing.T) {
-	c := minimalCase()
-	c.Vulnerability.BaseSeverity = "MEDIUM"
-	c.Vulnerability.BaseScore = 5.0
-	c.Vulnerability.SeveritySource = ""
-	c.Vulnerability.ScoreSource = ""
+// An unresolved C-INPUT must never be rendered as proven untrusted input:
+// the analyzer did not establish who supplies the argument, and the
+// verification table is what a reader trusts over the verdict line.
+func TestKeyVerificationFactsInputControlFollowsClaim(t *testing.T) {
+	base := func() *domain.AnalysisCase {
+		return &domain.AnalysisCase{
+			Vulnerability: domain.Vulnerability{ID: "GO-TEST-1", Module: "example.com/dep"},
+			Affected: &domain.AffectedResult{
+				ModulePresent: domain.ClaimTrue, VersionAffected: domain.ClaimTrue,
+				PackagePresent: domain.ClaimTrue, BuildRelevant: domain.ClaimTrue,
+				ResolvedVersion: "v1.0.0",
+			},
+		}
+	}
 
-	ru := Markdown(c, "ru")
-	if strings.Contains(ru, "OSV") && strings.Contains(ru, "Источник оценки:** OSV") {
-		t.Fatalf("analyzer-synthesized baseline presented as OSV:\n%s", ru)
+	unknown := base()
+	unknown.Claims = []domain.Claim{{
+		ID: "CL-C-INPUT", ConditionID: "C-INPUT", Result: domain.ClaimUnknown,
+		Limitations: []string{"2 call site(s) have unresolvable argument origin"},
+	}}
+	var b strings.Builder
+	renderKeyVerificationFacts(&b, unknown, false)
+	out := b.String()
+	if strings.Contains(out, "🔴 Untrusted input") {
+		t.Fatalf("unresolved C-INPUT rendered as proven untrusted input:\n%s", out)
 	}
-	if !strings.Contains(ru, "не указана") {
-		t.Fatalf("RU report missing «не указана» severity:\n%s", ru)
+	if !strings.Contains(out, "Input control unresolved") {
+		t.Fatalf("resolved-input case must say control is unresolved:\n%s", out)
 	}
-	if !strings.Contains(ru, "умолчание анализатора") {
-		t.Fatalf("RU report missing analyzer-default source label:\n%s", ru)
-	}
-	en := Markdown(c, "en")
-	if !strings.Contains(en, "not supplied") || !strings.Contains(en, "analyzer default") {
-		t.Fatalf("EN report missing not-supplied/analyzer-default labels:\n%s", en)
+
+	proven := base()
+	proven.Claims = []domain.Claim{{
+		ID: "CL-C-INPUT", ConditionID: "C-INPUT", Result: domain.ClaimTrue,
+	}}
+	b.Reset()
+	renderKeyVerificationFacts(&b, proven, false)
+	if !strings.Contains(b.String(), "🔴 Untrusted input") {
+		t.Fatalf("TRUE C-INPUT must render as untrusted input:\n%s", b.String())
 	}
 }
 
-func TestConfirmedFactsPresenceGated(t *testing.T) {
-	c := minimalCase()
-	// No persisted presence check: advisory-listed functions only.
-	ru := Markdown(c, "ru")
-	if strings.Contains(ru, "точка дефекта локализована") {
-		t.Fatalf("defect-site claim without persisted presence check:\n%s", ru)
+// A symbol the case proved reachable must not be offered for exclusion in
+// the executive summary: "not touched by the fix" is not a dismissal basis
+// when C-REACH/C-LOCUS are TRUE for it.
+func TestSummaryDoesNotOfferReachableSymbolForExclusion(t *testing.T) {
+	sym := domain.SymbolRef{Package: "gopkg.in/yaml.v3", Symbol: "Unmarshal"}
+	c := &domain.AnalysisCase{
+		Vulnerability: domain.Vulnerability{
+			ID: "GHSA-test", Module: "gopkg.in/yaml.v3",
+			AffectedPackages: []domain.AffectedPackage{{Path: "gopkg.in/yaml.v3"}},
+		},
+		Affected: &domain.AffectedResult{
+			ModulePresent: domain.ClaimTrue, VersionAffected: domain.ClaimTrue,
+			PackagePresent: domain.ClaimTrue, BuildRelevant: domain.ClaimTrue,
+			ResolvedVersion: "v3.0.0",
+		},
+		Verdict: &domain.VerdictResult{Verdict: domain.VerdictInconclusive, Reason: "one or more mandatory exploit conditions remain unresolved: C-INPUT"},
+		Claims: []domain.Claim{
+			{ID: "CL-C-REACH", ConditionID: "C-REACH", Result: domain.ClaimTrue},
+			{ID: "CL-C-INPUT", ConditionID: "C-INPUT", Result: domain.ClaimUnknown},
+			{ID: "CL-C-LOCUS", ConditionID: "C-LOCUS", Result: domain.ClaimTrue},
+		},
+		Exploit: &domain.ExploitModel{
+			MandatoryConditions: []domain.Condition{
+				{ID: "C-REACH", Kind: domain.ConditionSymbolReachable, Subjects: []domain.SymbolRef{sym}},
+				{ID: "C-LOCUS", Kind: domain.ConditionSymbolReachable, Subjects: []domain.SymbolRef{sym}},
+			},
+			ProposedNonLocus: []domain.LocusDecision{{
+				Symbol: sym, Basis: "не затронуто исправлением; функция отсутствует в патче",
+			}},
+		},
 	}
-	if !strings.Contains(ru, "указанные в advisory уязвимые функции") {
-		t.Fatalf("missing advisory-declared fallback:\n%s", ru)
+	out := rationaleInconclusive(c)
+	if strings.Contains(out, "--accept-locus-proposals") {
+		t.Fatalf("executive summary offered exclusion for a proven-reachable symbol:\n%s", out)
 	}
-	// With a persisted symbol decl the localized-site wording is allowed.
-	c.EvidenceGraph.SymbolDecls = map[string]*domain.CallSite{
-		"example.com/mod/vulnpkg.Parse": {File: "parse.go", Line: 12},
+}
+
+// ---------- structural extent gate: stale negative projection ----------
+
+// extentGateInventory returns a two-entry census with the first Go entry
+// represented and the second (non-Go) entry omitted: structurally valid, but
+// only a projection of the loaded record.
+func extentGateInventory(id string) *domain.RecordInventory {
+	return &domain.RecordInventory{
+		AdvisoryID:         id,
+		DocumentDigest:     "sha256:" + strings.Repeat("b", 64),
+		AffectedEntryCount: 2,
+		Entries: []domain.RecordEntry{
+			{Index: 0, Ecosystem: "Go", Module: "golang.org/x/net"},
+			{Index: 1, Ecosystem: "Maven", Module: "io.netty:netty-codec-http2"},
+		},
+		RepresentedRefs: []int{0},
+		OmittedRefs:     []int{1},
 	}
-	ru = Markdown(c, "ru")
-	if !strings.Contains(ru, "точка дефекта локализована") {
-		t.Fatalf("presence check not honored:\n%s", ru)
+}
+
+// extentGateScope builds the four structural states a persisted case can
+// carry: an honest projection, a legacy scope with no census, a full-record
+// claim contradicted by its own census, and a malformed census.
+func extentGateScope(state, id string) *domain.AdvisoryScope {
+	base := &domain.AdvisoryScope{
+		RequestedID: id, ResolvedID: id,
+		Kind: domain.ScopeAdvisoryEntries, Coverage: domain.CoverageComplete,
+	}
+	switch state {
+	case "projection":
+		base.Coverage = domain.CoverageKnownOnly
+		base.RecordExtent = domain.RecordExtentGoProjection
+		base.RecordInventory = extentGateInventory(id)
+	case "no scope":
+		return nil
+	case "missing census":
+		// Legacy scope: COMPLETE with neither extent nor inventory.
+	case "inconsistent census":
+		base.RecordExtent = domain.RecordExtentFullRecord
+		base.RecordInventory = extentGateInventory(id)
+	case "malformed census":
+		base.RecordExtent = domain.RecordExtentFullRecord
+		base.RecordInventory = &domain.RecordInventory{
+			AdvisoryID:         id,
+			DocumentDigest:     "sha256:" + strings.Repeat("c", 64),
+			AffectedEntryCount: 2,
+			Entries:            []domain.RecordEntry{{Index: 0, Ecosystem: "Go", Module: "golang.org/x/net"}},
+			RepresentedRefs:    []int{0},
+		}
+	}
+	return base
+}
+
+type extentGateReport struct {
+	Verdict *struct {
+		Verdict     string   `json:"verdict"`
+		Reason      string   `json:"reason"`
+		Limitations []string `json:"limitations"`
+	} `json:"verdict"`
+	Affected *struct {
+		VersionAffected string `json:"version_affected"`
+		PackagePresent  string `json:"package_present"`
+		BuildRelevant   string `json:"build_relevant"`
+		ModulePresent   string `json:"module_present"`
+		ResolvedVersion string `json:"resolved_version"`
+	} `json:"affected"`
+	Profiles []struct {
+		Profile  string `json:"profile"`
+		Verdict  string `json:"verdict"`
+		Priority string `json:"priority"`
+		Falsifer string `json:"falsifier"`
+		Scope    string `json:"exploitability_scope"`
+		Reason   string `json:"reason"`
+	} `json:"profiles"`
+	Claims []struct {
+		ConditionID string `json:"condition_id"`
+		Result      string `json:"result"`
+		Falsifier   string `json:"falsifier"`
+		NV          *struct {
+			Status string `json:"status"`
+		} `json:"negative_verification"`
+	} `json:"claims"`
+	ContextualRisk *struct {
+		Status            string `json:"status"`
+		Priority          string `json:"priority"`
+		AdjustmentReason  string `json:"adjustment_reason"`
+		TriageDisposition string `json:"triage_disposition"`
+	} `json:"contextual_risk"`
+}
+
+func writeExtentGateCase(t *testing.T, c *domain.AnalysisCase) (string, extentGateReport) {
+	t.Helper()
+	dir := t.TempDir()
+	if err := Write(dir, c); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "report.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc extentGateReport
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("report.json decode: %v", err)
+	}
+	return dir, doc
+}
+
+func TestReportExtentGateStaleNegativeMatrix(t *testing.T) {
+	const advisory = "GO-2024-2687"
+	for _, state := range []string{"no scope", "projection", "missing census", "inconsistent census", "malformed census"} {
+		for _, verdict := range []domain.Verdict{domain.VerdictNotAffected, domain.VerdictNoExploitPathFound} {
+			t.Run(state+"/"+string(verdict), func(t *testing.T) {
+				c := &domain.AnalysisCase{
+					ID: "case-extent-matrix",
+					Vulnerability: domain.Vulnerability{
+						ID: advisory, Module: "golang.org/x/net",
+						FixedVersions: []string{"v0.33.0"},
+					},
+					Product: domain.ProductSnapshot{
+						Repository: t.TempDir(), Commit: "abcdef123456",
+					},
+					Affected: &domain.AffectedResult{
+						Scope:           extentGateScope(state, advisory),
+						ModulePresent:   domain.ClaimTrue,
+						ResolvedVersion: "v0.17.0",
+						VersionAffected: domain.ClaimFalse,
+						CheckedModules:  []string{"golang.org/x/net"},
+					},
+					Verdict: &domain.VerdictResult{
+						Verdict: verdict,
+						Reason:  "resolved dependency version is outside affected range",
+					},
+				}
+
+				_, doc := writeExtentGateCase(t, c)
+				if doc.Verdict == nil || doc.Verdict.Verdict != string(domain.VerdictInconclusive) {
+					t.Fatalf("persisted verdict = %+v, want INCONCLUSIVE", doc.Verdict)
+				}
+				if !strings.Contains(doc.Verdict.Reason, "component fact established") ||
+					!strings.Contains(doc.Verdict.Reason, "requested scope `"+advisory+"` not closed") {
+					t.Fatalf("persisted verdict reason lacks the scope refusal: %q", doc.Verdict.Reason)
+				}
+				if doc.Affected == nil || doc.Affected.VersionAffected != string(domain.ClaimFalse) ||
+					doc.Affected.ModulePresent != string(domain.ClaimTrue) ||
+					doc.Affected.ResolvedVersion != "v0.17.0" {
+					t.Fatalf("component facts were not preserved: %+v", doc.Affected)
+				}
+				if c.Verdict == nil || c.Verdict.Verdict != verdict {
+					t.Fatalf("Write mutated the caller's stale verdict: %+v", c.Verdict)
+				}
+
+				md := Markdown(c, "en")
+				for _, want := range []string{
+					"negative conclusion refused",
+					"component fact established",
+					"requested scope `" + advisory + "` not closed",
+					"partial advisory scope",
+					"Outside range (component only)",
+				} {
+					if !strings.Contains(md, want) {
+						t.Errorf("EN report lacks %q:\n%s", want, md)
+					}
+				}
+				if state == "no scope" {
+					if !strings.Contains(md, "negative closure is not established") {
+						t.Errorf("absent scope must not read as an established closure:\n%s", md)
+					}
+				} else if !strings.Contains(md, "blocked: partial or unknown scope") {
+					t.Errorf("refused scope is not rendered as blocked:\n%s", md)
+				}
+				for _, forbidden := range []string{
+					"🟢 Safe", "🟢 Безопасна",
+					"Not Affected (Уязвимость не применима к сервису)",
+				} {
+					if strings.Contains(md, forbidden) {
+						t.Fatalf("stale negative still renders as safe (%q):\n%s", forbidden, md)
+					}
+				}
+				switch state {
+				case "no scope":
+					if !strings.Contains(md, "| advisory record extent | `UNKNOWN`") ||
+						!strings.Contains(md, "| advisory record census | `unknown`") {
+						t.Errorf("absent scope must display unknown extent and census:\n%s", md)
+					}
+				case "missing census":
+					if !strings.Contains(md, "| advisory record extent | `UNKNOWN`") ||
+						!strings.Contains(md, "legacy coverage is not proof") ||
+						!strings.Contains(md, "no structural census recorded") {
+						t.Errorf("legacy scope must display as unknown:\n%s", md)
+					}
+				case "projection":
+					if !strings.Contains(md, "| advisory record extent | `GO_PROJECTION`") ||
+						!strings.Contains(md, "2 entries: 1 represented, 1 omitted") {
+						t.Errorf("projection scope must display its extent and census:\n%s", md)
+					}
+				case "inconsistent census":
+					if !strings.Contains(md, "inconsistent with the census") {
+						t.Errorf("full-record claim contradicted by omissions is not flagged:\n%s", md)
+					}
+				case "malformed census":
+					if !strings.Contains(md, "census fails structural validation") {
+						t.Errorf("malformed census displayed as evidence:\n%s", md)
+					}
+				}
+
+				if st := decodeVex(t, c).Statements[0]; st.Status != "under_investigation" || st.Justification != "" {
+					t.Fatalf("OpenVEX projected a stale negative: %+v", st)
+				}
+				if an := cdxAnalysisOf(t, c); an.State != "in_triage" || an.Justification != "" {
+					t.Fatalf("CycloneDX projected a stale negative: %+v", an)
+				}
+				tr := TrackerRationale(c)
+				if !strings.Contains(tr, "Требуется ручной анализ (Inconclusive).") ||
+					!strings.Contains(tr, "компонентный факт") {
+					t.Fatalf("tracker rationale does not project the demoted conclusion:\n%s", tr)
+				}
+				if strings.Contains(tr, "Not Affected (Уязвимость не применима к сервису)") {
+					t.Fatalf("tracker rationale still advertises the whole finding as not affected:\n%s", tr)
+				}
+			})
+		}
+	}
+
+	t.Run("missing affected metadata", func(t *testing.T) {
+		// A persisted negative with no affected result at all carries no
+		// scope evidence either: it is a finding-level conclusion and must
+		// fail closed on every surface.
+		c := &domain.AnalysisCase{
+			ID: "case-extent-no-affected",
+			Vulnerability: domain.Vulnerability{
+				ID: advisory, Module: "golang.org/x/net",
+			},
+			Product: domain.ProductSnapshot{Repository: t.TempDir(), Commit: "abcdef123456"},
+			Verdict: &domain.VerdictResult{
+				Verdict: domain.VerdictNoExploitPathFound,
+				Reason:  "trusted deployment perimeter",
+			},
+		}
+		_, doc := writeExtentGateCase(t, c)
+		if doc.Verdict == nil || doc.Verdict.Verdict != string(domain.VerdictInconclusive) {
+			t.Fatalf("persisted verdict = %+v, want INCONCLUSIVE", doc.Verdict)
+		}
+		if !strings.Contains(doc.Verdict.Reason, "finding-level negative conclusion refused") ||
+			!strings.Contains(doc.Verdict.Reason, "requested scope `"+advisory+"` not closed") {
+			t.Fatalf("finding-level refusal not explained: %q", doc.Verdict.Reason)
+		}
+		if st := decodeVex(t, c).Statements[0]; st.Status != "under_investigation" || st.Justification != "" {
+			t.Fatalf("OpenVEX projected a finding-level negative without scope: %+v", st)
+		}
+		if an := cdxAnalysisOf(t, c); an.State != "in_triage" || an.Justification != "" {
+			t.Fatalf("CycloneDX projected a finding-level negative without scope: %+v", an)
+		}
+		if c.Verdict.Verdict != domain.VerdictNoExploitPathFound {
+			t.Fatalf("caller's verdict mutated: %+v", c.Verdict)
+		}
+	})
+}
+
+func TestReportExtentGatePreservesComponentFacts(t *testing.T) {
+	const advisory = "GO-2024-2687"
+	t.Run("outside-range component fact", func(t *testing.T) {
+		c := &domain.AnalysisCase{
+			ID: "case-extent-facts",
+			Vulnerability: domain.Vulnerability{
+				ID: advisory, Module: "golang.org/x/net",
+				FixedVersions: []string{"v0.33.0"},
+			},
+			Product: domain.ProductSnapshot{Repository: t.TempDir(), Commit: "abcdef123456"},
+			Affected: &domain.AffectedResult{
+				Scope:           extentGateScope("projection", advisory),
+				ModulePresent:   domain.ClaimTrue,
+				ResolvedVersion: "v0.17.0",
+				VersionAffected: domain.ClaimFalse,
+				PackagePresent:  domain.ClaimUnknown,
+				BuildRelevant:   domain.ClaimUnknown,
+				EvidenceIDs:     []domain.EvidenceID{"EV-XNET-VERSION"},
+				Limitations:     []string{"version range taken from the advisory record"},
+			},
+			Claims: []domain.Claim{{
+				ID: "CL-C-PLATFORM", ConditionID: "C-PLATFORM", Result: domain.ClaimFalse,
+				Falsifier: domain.FalsifierSnapshotFactMismatch,
+				NegativeVerification: &domain.NegativeVerification{
+					Status: domain.NegativeVerified,
+					Notes:  "release toolchain is above the legacy floor",
+				},
+			}},
+			Verdict: &domain.VerdictResult{
+				Verdict: domain.VerdictNoExploitPathFound,
+				Reason:  "mandatory exploit condition is proven false",
+			},
+		}
+		_, doc := writeExtentGateCase(t, c)
+		if doc.Affected == nil ||
+			doc.Affected.VersionAffected != string(domain.ClaimFalse) ||
+			doc.Affected.ModulePresent != string(domain.ClaimTrue) ||
+			doc.Affected.PackagePresent != string(domain.ClaimUnknown) ||
+			doc.Affected.BuildRelevant != string(domain.ClaimUnknown) {
+			t.Fatalf("component facts changed: %+v", doc.Affected)
+		}
+		md := Markdown(c, "en")
+		if !strings.Contains(md, "Outside range (component only)") {
+			t.Fatalf("outside-range fact lost its component-only label:\n%s", md)
+		}
+		if strings.Contains(md, "🟢 Safe") {
+			t.Fatalf("report advertises a whole-finding safe result:\n%s", md)
+		}
+		if len(doc.Claims) != 1 || doc.Claims[0].Result != string(domain.ClaimFalse) ||
+			doc.Claims[0].NV == nil || doc.Claims[0].NV.Status != string(domain.NegativeVerified) {
+			t.Fatalf("evidence/verification history was not preserved: %+v", doc.Claims)
+		}
+		if !strings.Contains(md, "C-PLATFORM") {
+			t.Fatalf("claim history disappeared from the report:\n%s", md)
+		}
+	})
+
+	t.Run("package-exclusion component fact", func(t *testing.T) {
+		c := &domain.AnalysisCase{
+			ID: "case-extent-package-fact",
+			Vulnerability: domain.Vulnerability{
+				ID: advisory, Module: "golang.org/x/net",
+				AffectedPackages: []domain.AffectedPackage{{Path: "golang.org/x/net/http2"}},
+			},
+			Product: domain.ProductSnapshot{
+				Repository: t.TempDir(), Commit: "abcdef123456",
+				GOOS: "linux", GOARCH: "amd64",
+			},
+			Affected: &domain.AffectedResult{
+				Scope:          extentGateScope("projection", advisory),
+				ModulePresent:  domain.ClaimTrue,
+				PackagePresent: domain.ClaimFalse,
+			},
+			Verdict: &domain.VerdictResult{
+				Verdict: domain.VerdictNoExploitPathFound,
+				Reason:  "affected package absent from the build",
+			},
+		}
+		withReportBuildAdmission(c, reportProductOnlyInventory)
+		_, doc := writeExtentGateCase(t, c)
+		if doc.Affected == nil || doc.Affected.PackagePresent != string(domain.ClaimFalse) {
+			t.Fatalf("package-exclusion fact changed: %+v", doc.Affected)
+		}
+		md := Markdown(c, "en")
+		if !strings.Contains(md, "Excluded (component only)") ||
+			!strings.Contains(md, "component-level fact") {
+			t.Fatalf("package exclusion is not qualified as component-only:\n%s", md)
+		}
+		if strings.Contains(md, "🟢 Excluded") {
+			t.Fatalf("package exclusion still advertises a whole-finding safe badge:\n%s", md)
+		}
+	})
+}
+
+func TestReportExtentGateProjectsProfilesAndRisk(t *testing.T) {
+	const advisory = "GO-2024-2687"
+	staleRisk := &domain.ContextualRisk{
+		Status:            domain.RiskStatusNotApplicable,
+		BaseSeverity:      "CRITICAL",
+		BaseScore:         9.8,
+		ContextualLevel:   domain.RiskLevelNone,
+		Priority:          domain.PriorityDismissed,
+		SLA:               "None",
+		AdjustmentReason:  "closed by the declared cluster perimeter",
+		TriageDisposition: domain.TriageDismissed,
+		BasePriority:      domain.PriorityP0,
+	}
+	c := &domain.AnalysisCase{
+		ID: "case-extent-profiles",
+		Vulnerability: domain.Vulnerability{
+			ID: advisory, Module: "golang.org/x/net",
+			BaseSeverity: "CRITICAL", BaseScore: 9.8,
+		},
+		Product: domain.ProductSnapshot{Repository: t.TempDir(), Commit: "abcdef123456"},
+		Affected: &domain.AffectedResult{
+			Scope:           extentGateScope("projection", advisory),
+			ModulePresent:   domain.ClaimTrue,
+			ResolvedVersion: "v0.17.0",
+			VersionAffected: domain.ClaimFalse,
+		},
+		Verdict: &domain.VerdictResult{
+			Verdict: domain.VerdictNoExploitPathFound,
+			Reason:  "trusted cluster perimeter",
+		},
+		Profiles: []domain.ProfileVerdict{
+			{
+				Profile: domain.ProfileZeroTrust, Title: "Public Internet",
+				Verdict: domain.VerdictNoExploitPathFound, Reason: "trusted cluster perimeter",
+				Falsifier: domain.FalsifierTrustedInfrastructure,
+				Priority:  domain.PriorityDismissed, SLA: "None", IsTargetActual: false,
+			},
+			{
+				Profile: domain.ProfileClusterPerimeter, Title: "Internal Cluster",
+				Verdict: domain.VerdictNoExploitPathFound, Reason: "trusted cluster perimeter",
+				Falsifier: domain.FalsifierTrustedInfrastructure,
+				Priority:  domain.PriorityDismissed, SLA: "None", IsTargetActual: true,
+				ExploitabilityScope: domain.ScopeLibraryAPI,
+			},
+			{
+				Profile: domain.ThreatProfile("preserved-positive"), Title: "Positive Control",
+				Verdict: domain.VerdictExploitable, Priority: domain.PriorityP0,
+				IsTargetActual: false,
+			},
+		},
+		ContextualRisk: staleRisk,
+	}
+
+	_, doc := writeExtentGateCase(t, c)
+	if doc.Verdict == nil || doc.Verdict.Verdict != string(domain.VerdictInconclusive) {
+		t.Fatalf("verdict = %+v, want INCONCLUSIVE", doc.Verdict)
+	}
+	if len(doc.Profiles) != 3 {
+		t.Fatalf("profiles = %d, want 3", len(doc.Profiles))
+	}
+	for _, p := range doc.Profiles {
+		if p.Profile == "preserved-positive" {
+			if p.Verdict != string(domain.VerdictExploitable) || p.Priority != string(domain.PriorityP0) {
+				t.Fatalf("positive profile changed: %+v", p)
+			}
+			continue
+		}
+		if p.Verdict != string(domain.VerdictInconclusive) {
+			t.Fatalf("stale negative profile still advertises %q: %+v", p.Verdict, p)
+		}
+		if p.Priority == string(domain.PriorityDismissed) {
+			t.Fatalf("demoted profile kept DISMISSED triage: %+v", p)
+		}
+		if p.Falsifer != "" || p.Scope != "" {
+			t.Fatalf("refused profile kept falsifier/scope labels: %+v", p)
+		}
+		if !strings.Contains(p.Reason, "component fact established") {
+			t.Fatalf("demoted profile reason lacks the scope refusal: %+v", p)
+		}
+	}
+
+	if doc.ContextualRisk == nil {
+		t.Fatal("contextual risk disappeared")
+	}
+	if doc.ContextualRisk.Status != string(domain.RiskStatusProvisional) ||
+		doc.ContextualRisk.Priority == string(domain.PriorityDismissed) ||
+		doc.ContextualRisk.TriageDisposition == string(domain.TriageDismissed) ||
+		doc.ContextualRisk.AdjustmentReason == staleRisk.AdjustmentReason {
+		t.Fatalf("stale contextual risk survived demotion: %+v", doc.ContextualRisk)
+	}
+
+	md := Markdown(c, "ru")
+	for _, forbidden := range []string{"**DISMISSED**", "Действий не требуется"} {
+		if strings.Contains(md, forbidden) {
+			t.Fatalf("report still advertises %q:\n%s", forbidden, md)
+		}
+	}
+	if !strings.Contains(md, "INCONCLUSIVE") {
+		t.Fatalf("projected profiles are not inconclusive:\n%s", md)
+	}
+
+	// The caller's historical case stays untouched.
+	if c.Verdict.Verdict != domain.VerdictNoExploitPathFound {
+		t.Fatalf("verdict mutated: %+v", c.Verdict)
+	}
+	if c.Profiles[1].Verdict != domain.VerdictNoExploitPathFound ||
+		c.Profiles[1].Priority != domain.PriorityDismissed ||
+		c.Profiles[1].Falsifier != domain.FalsifierTrustedInfrastructure {
+		t.Fatalf("profile mutated: %+v", c.Profiles[1])
+	}
+	if c.ContextualRisk != staleRisk || c.ContextualRisk.Priority != domain.PriorityDismissed {
+		t.Fatalf("contextual risk mutated: %+v", c.ContextualRisk)
+	}
+}
+
+// An omission conclusion is publishable only under the admitted
+// defect-semantics contract. A legacy model whose saved claims say TRUE and
+// whose verdict says EXPLOITABLE must be demoted on the publication path:
+// the saved result never outlives the semantics that admitted it.
+func TestPublicationRefusesUnadmittedOmissionConclusions(t *testing.T) {
+	check := domain.SymbolRef{Package: "example.com/dep/check", Symbol: "Claims.VerifyAudience"}
+	c := &domain.AnalysisCase{
+		Vulnerability: domain.Vulnerability{ID: "GO-TEST-OMISSION", Summary: "legacy omission model"},
+		Claims: []domain.Claim{
+			{ID: "CL-C-OMISSION", ConditionID: "C-OMISSION", Result: domain.ClaimTrue},
+			{ID: "CL-C-LOCUS", ConditionID: "C-LOCUS", Result: domain.ClaimTrue},
+		},
+		Exploit: &domain.ExploitModel{MandatoryConditions: []domain.Condition{
+			{ID: "C-OMISSION", Kind: domain.ConditionMissingCall, Mandatory: true, Subjects: []domain.SymbolRef{check},
+				Params: map[string]string{domain.ParamCheck: domain.CheckMissingCall, "pipeline": "Claims.Valid"}},
+			{ID: "C-LOCUS", Kind: domain.ConditionSymbolReachable, Mandatory: true, Subjects: []domain.SymbolRef{check},
+				Params: map[string]string{domain.ParamCheck: domain.CheckLocus}},
+		}},
+		Verdict: &domain.VerdictResult{
+			Verdict:      domain.VerdictExploitable,
+			ConditionIDs: []domain.ConditionID{"C-OMISSION"},
+		},
+	}
+	projection := admitNegativeConclusions(c)
+	out := projection.Case
+	if out.Verdict == nil || out.Verdict.Verdict != domain.VerdictInconclusive {
+		t.Fatalf("unadmitted omission verdict must be demoted: %+v", out.Verdict)
+	}
+	for _, cl := range out.Claims {
+		if cl.Result != domain.ClaimUnknown {
+			t.Fatalf("semantic claim %s stayed %s without an admitted contract", cl.ConditionID, cl.Result)
+		}
+	}
+	if len(projection.Refusals) == 0 {
+		t.Fatal("the semantics refusal must be named")
+	}
+}
+
+// Package inclusion is a positive build fact and may be stated only when the
+// affected package axis is TRUE. UNKNOWN (or unrecorded) membership must not
+// render as "Included".
+func TestKeyVerificationFactsPackageInclusionFollowsAffectedAxis(t *testing.T) {
+	base := func(present domain.ClaimResult) *domain.AnalysisCase {
+		return &domain.AnalysisCase{
+			Vulnerability: domain.Vulnerability{ID: "GO-TEST-1", Module: "example.com/dep"},
+			Affected: &domain.AffectedResult{
+				ModulePresent: domain.ClaimTrue, VersionAffected: domain.ClaimTrue,
+				PackagePresent: present, BuildRelevant: domain.ClaimTrue,
+				ResolvedVersion: "v1.0.0",
+			},
+		}
+	}
+	cases := []struct {
+		name    string
+		present domain.ClaimResult
+		want    string
+		notWant string
+	}{
+		{name: "TRUE is inclusion", present: domain.ClaimTrue, want: "🔴 Included"},
+		// A component-level exclusion under an open requested scope is
+		// rendered as exactly that; the test must not demand the
+		// scope-closing wording for a scope it did not establish.
+		{name: "FALSE is exclusion", present: domain.ClaimFalse,
+			want: "🟡 Excluded (component only)", notWant: "🔴 Included"},
+		{name: "UNKNOWN is not inclusion", present: domain.ClaimUnknown,
+			want: "🟡 Presence not measured", notWant: "🔴 Included"},
+		{name: "unrecorded is not inclusion", present: "",
+			want: "🟡 Presence not measured", notWant: "🔴 Included"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var b strings.Builder
+			renderKeyVerificationFacts(&b, base(tc.present), false)
+			out := b.String()
+			if !strings.Contains(out, tc.want) {
+				t.Fatalf("want %q in key facts:\n%s", tc.want, out)
+			}
+			if tc.notWant != "" && strings.Contains(out, tc.notWant) {
+				t.Fatalf("unexpected %q in key facts:\n%s", tc.notWant, out)
+			}
+		})
+	}
+
+	var ru strings.Builder
+	renderKeyVerificationFacts(&ru, base(domain.ClaimUnknown), true)
+	if !strings.Contains(ru.String(), "🟡 Наличие не измерено") {
+		t.Fatalf("RU key facts must not claim inclusion for UNKNOWN membership:\n%s", ru.String())
+	}
+}
+
+// A model nomination is audit material, not a result: the claims table keeps
+// the authoritative UNKNOWN and renders the nomination separately as
+// non-authoritative.
+func TestClaimProposalIsNotReportedAsResult(t *testing.T) {
+	c := &domain.AnalysisCase{
+		Vulnerability: domain.Vulnerability{ID: "GO-X", Module: "example.com/mod"},
+		Affected:      &domain.AffectedResult{VersionAffected: domain.ClaimTrue},
+		Claims: []domain.Claim{{
+			ID: "CL-C-INPUT", ConditionID: "C-INPUT",
+			Result:      domain.ClaimUnknown,
+			Proposal:    domain.ClaimTrue,
+			EvidenceIDs: []domain.EvidenceID{"EV-1"},
+		}},
+	}
+	md := Markdown(c, "en")
+	if !strings.Contains(md, "model proposal: TRUE (non-authoritative)") {
+		t.Fatalf("proposal not rendered as non-authoritative:\n%s", md)
+	}
+	if !strings.Contains(md, "| `C-INPUT` | UNKNOWN |") {
+		t.Fatalf("authoritative claim result lost:\n%s", md)
+	}
+}
+
+func TestForgedCompleteConfigReportPreservesHistory(t *testing.T) {
+	for _,falsifier:=range []string{domain.FalsifierSafeConfigAssignment,domain.FalsifierZeroValueConfig,domain.FalsifierSafeConfigKey} {
+		product:=admissionScopedProduct()
+		build:=domain.EffectiveBuildContext(product)
+		cond:=domain.Condition{ID:"C-CONFIG",Kind:domain.ConditionConfiguration,Mandatory:true}
+		claim:=domain.Claim{ID:"CL-CONFIG",ConditionID:cond.ID,Result:domain.ClaimFalse,Falsifier:falsifier,NegativeVerification:&domain.NegativeVerification{Status:domain.NegativeVerified,BuildContext:&build}}
+		c:=&domain.AnalysisCase{Product:product,Vulnerability:domain.Vulnerability{ID:"GO-CONFIG"},Exploit:&domain.ExploitModel{MandatoryConditions:[]domain.Condition{cond}},Claims:[]domain.Claim{claim},Affected:&domain.AffectedResult{Scope:exactEntryScope("GO-CONFIG"),ModulePresent:domain.ClaimTrue,VersionAffected:domain.ClaimTrue},Verdict:&domain.VerdictResult{Verdict:domain.VerdictNoExploitPathFound}}
+		projected:=admitNegativeConclusions(c).Case
+		if projected.Claims[0].Result!=domain.ClaimUnknown || projected.Claims[0].NegativeVerification.Status!=domain.NegativeVerified {t.Fatalf("%s was admitted or lost history: %+v",falsifier,projected.Claims[0])}
+		if c.Claims[0].Result!=domain.ClaimFalse || c.Claims[0].NegativeVerification.Status!=domain.NegativeVerified {t.Fatal("report admission mutated persisted history")}
 	}
 }

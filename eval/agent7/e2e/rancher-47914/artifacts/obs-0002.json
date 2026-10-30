@@ -1,0 +1,29 @@
+{
+  "id": "OBS-0002",
+  "tool": "repository-snapshot",
+  "fact": "snapshot identity 4dc4f534eed10a4b45b7475ebebaf99ab0056b35: go directive 1.24.0, release toolchain \"go1.24.11\", darwin/arm64",
+  "scope": "repository.Service.Snapshot (git/go probes + static release-evidence scan, no repo code executed)",
+  "completeness": "COMPLETE",
+  "tool_status": "OK",
+  "scope_details": {
+    "snapshot_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932",
+    "snapshot_root": "<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+    "external_sha": "4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+    "coverage_rule": "single product snapshot probe (go version + manifest scan, no git history when external identity supplied)"
+  },
+  "data": {
+    "repository": "<VA_VEXBENCH>/repos/rancher/rancher/4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+    "commit": "4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+    "go_version": "go version go1.26.1 darwin/arm64",
+    "go_mod_directive": "1.24.0",
+    "release_go_version": "go1.24.11",
+    "goos": "darwin",
+    "goarch": "arm64",
+    "cgo_enabled": false,
+    "vendor_mode": false,
+    "minimum_go_version": "1.24.0",
+    "go_version_source": "toolchain",
+    "external_commit_sha": "4dc4f534eed10a4b45b7475ebebaf99ab0056b35",
+    "content_hash": "f0d5c0dd436116a7a38df4aa0f184682af7f67ef4972d8c4ced647c00a333932"
+  }
+}

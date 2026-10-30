@@ -153,7 +153,7 @@ func TestComplexBuiltinMergesArgumentOrigins(t *testing.T) {
 	}
 	subject := domain.SymbolRef{Package: "example.com/provenancedep/vuln", Symbol: "Value"}
 	cond := domain.Condition{ID: "C-INPUT", Kind: domain.ConditionAttackerControl, Subject: &subject, ArgIndex: 0}
-	c := &domain.AnalysisCase{Vulnerability: domain.Vulnerability{Module: "example.com/provenancedep"}}
+	c := &domain.AnalysisCase{Product: testProduct(), Vulnerability: domain.Vulnerability{Module: "example.com/provenancedep"}}
 	claim := Verifier{Source: ix}.VerifyFalse(context.Background(), c,
 		domain.Claim{ConditionID: cond.ID, Result: domain.ClaimFalse}, cond)
 	if claim.NegativeVerification == nil || claim.NegativeVerification.Status != domain.NegativeContradicted {
@@ -176,7 +176,7 @@ func TestRecoverResultIsUnknownAndCannotVerifyFalse(t *testing.T) {
 		t.Fatalf("recover origin=%s, want UNKNOWN (%s)", flow.Origin, flow.Summary)
 	}
 	cond := domain.Condition{ID: "C-INPUT", Kind: domain.ConditionAttackerControl, Subject: &subject, ArgIndex: 0}
-	c := &domain.AnalysisCase{Vulnerability: domain.Vulnerability{Module: "example.com/provenancedep"}}
+	c := &domain.AnalysisCase{Product: testProduct(), Vulnerability: domain.Vulnerability{Module: "example.com/provenancedep"}}
 	claim := Verifier{Source: ix}.VerifyFalse(context.Background(), c,
 		domain.Claim{ConditionID: cond.ID, Result: domain.ClaimFalse}, cond)
 	if claim.NegativeVerification == nil || claim.NegativeVerification.Status != domain.NegativeInsufficientScope {
@@ -187,7 +187,7 @@ func TestRecoverResultIsUnknownAndCannotVerifyFalse(t *testing.T) {
 func assertInputNotVerified(t *testing.T, ix *Index, module string) {
 	t.Helper()
 	subject := domain.SymbolRef{Package: "example.com/provenancedep/vuln", Symbol: "Parse"}
-	c := &domain.AnalysisCase{Vulnerability: domain.Vulnerability{Module: module}}
+	c := &domain.AnalysisCase{Product: testProduct(), Vulnerability: domain.Vulnerability{Module: module}}
 	cond := domain.Condition{ID: "C-INPUT", Kind: domain.ConditionAttackerControl, Subject: &subject, ArgIndex: 0}
 	claim := Verifier{Source: ix}.VerifyFalse(context.Background(), c,
 		domain.Claim{ConditionID: cond.ID, Result: domain.ClaimFalse}, cond)
@@ -245,7 +245,7 @@ func TestSinkClosureAdvisoryMembershipDoesNotAuthorizeFallback(t *testing.T) {
 	ix := fixture(t, "constprod")
 	v := Verifier{Source: ix}
 	subject := vulnSym
-	c := &domain.AnalysisCase{
+	c := &domain.AnalysisCase{Product: testProduct(),
 		Vulnerability: domain.Vulnerability{
 			ID:              "GO-TEST-1",
 			Module:          "example.com/dep",
@@ -254,7 +254,7 @@ func TestSinkClosureAdvisoryMembershipDoesNotAuthorizeFallback(t *testing.T) {
 	}
 	nv := &domain.NegativeVerification{Status: domain.NegativeVerified}
 	note := v.verifySinkClosure(context.Background(), c,
-		domain.Claim{ConditionID: "C-INPUT", Result: domain.ClaimFalse}, nv, []domain.SymbolRef{subject}, 0)
+		domain.Claim{ConditionID: "C-INPUT", Result: domain.ClaimFalse}, nv, []domain.SymbolRef{subject}, 0, nil)
 	if note == "" || nv.Status != domain.NegativeInsufficientScope {
 		t.Fatalf("sink-closure fallback authorized advisory membership: status=%s note=%q", nv.Status, note)
 	}

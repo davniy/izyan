@@ -45,8 +45,11 @@ func TestResolveFixRefs(t *testing.T) {
 	if len(refs) != 1 || refs[0].Kind != "commit" {
 		t.Fatalf("refs=%+v", refs)
 	}
-	if refs[0].Versions[0] != "v0.33.0" {
-		t.Fatalf("versions=%v", refs[0].Versions)
+	// The aggregate fixed-version list is not attached to a reference: it
+	// names no particular reference's release line, so it is not evidence for
+	// any of them.
+	if refs[0].URL != "https://github.com/golang/net/commit/deadbeef" {
+		t.Fatalf("refs=%+v", refs)
 	}
 }
 

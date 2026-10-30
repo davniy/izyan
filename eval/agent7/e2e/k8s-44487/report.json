@@ -1,0 +1,3489 @@
+{
+  "schema": "research-report/1",
+  "mode": "experimental-research-v1",
+  "run": {
+    "run_id": "research-CVE-2023-44487-1791844421",
+    "started_at": "2026-10-12T22:33:41Z",
+    "finished_at": "2026-10-12T22:38:03Z",
+    "deterministic_only": false,
+    "timeouts": {
+      "overall_ms": 1500000,
+      "deterministic_ms": 60000,
+      "agent_ms": 900000
+    },
+    "harness": {
+      "path": null,
+      "commit": null,
+      "patch_sha256": null,
+      "e6_preflight_report": null,
+      "e6_preflight_sha256": null,
+      "image": null,
+      "image_sha256": null,
+      "prompt_path": null,
+      "prompt_sha256": null
+    },
+    "attempts": [
+      {
+        "id": "attempt-0001",
+        "kind": "deterministic",
+        "ordinal": 1,
+        "status": "OK",
+        "started_at": "2026-10-12T22:33:41Z",
+        "finished_at": "2026-10-12T22:38:03Z",
+        "reason_code": "initial",
+        "reason": "initial deterministic lane pass (strict evidencetools session)",
+        "retry_of": null,
+        "original_preserved": true,
+        "result_artifact": {
+          "path": "deterministic-facts.json",
+          "sha256": "0aed196527a9afed48575b98fae93ddff20df3ad0e9148f9e07a4dce4f5e7c3e",
+          "size_bytes": 20089,
+          "selector": "deterministic lane result"
+        },
+        "extraction": {
+          "status": "NOT_APPLICABLE",
+          "invalid_reason": "NONE",
+          "candidate_count": 0,
+          "candidates": [],
+          "selected_index": -1,
+          "answer_artifact": null
+        }
+      },
+      {
+        "id": "attempt-0002",
+        "kind": "agent",
+        "ordinal": 2,
+        "status": "OK",
+        "started_at": "2026-10-12T10:04:38Z",
+        "finished_at": "2026-10-12T10:06:47Z",
+        "reason_code": "manual_recheck",
+        "reason": "replayed from persisted artifacts (<VA_REPO>/eval/agent7/e2e/k8s-44487); no model call",
+        "retry_of": null,
+        "original_preserved": true,
+        "result_artifact": {
+          "path": "agent/attempt-0002/result.json",
+          "sha256": "a9073927ef94049e5b03378902653c660dcd2d2137318ac4b6e8bcdf138402a3",
+          "size_bytes": 157419,
+          "selector": "raw harness result"
+        },
+        "extraction": {
+          "status": "VALID",
+          "invalid_reason": "NONE",
+          "candidate_count": 1,
+          "candidates": [
+            {
+              "index": 0,
+              "status": "VALID",
+              "category": "code_not_present",
+              "raw_sha256": "ef243bfd063661d3a2607fdf3d98f90c1ed14d374c305c933a9661c7fc8a7f62",
+              "canonical_sha256": "1db75f39df42322dd0501c8f0bf0ad0e55531bc8fd0ce03e0a4a47684d265c70",
+              "selector": "bytes 167..6619 of retained answer"
+            }
+          ],
+          "selected_index": 0,
+          "answer_artifact": {
+            "path": "agent/attempt-0002/answer.txt",
+            "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71",
+            "size_bytes": 6623,
+            "selector": "assistant text"
+          }
+        }
+      }
+    ]
+  },
+  "input": {
+    "snapshot": {
+      "path": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+      "commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "go_version": "go version go1.26.1 darwin/arm64",
+      "release_go_version": "go1.21.3",
+      "go_version_source": "version-file",
+      "minimum_go_version": "1.20",
+      "goos": "darwin",
+      "goarch": "arm64",
+      "build_tags": null,
+      "vendor_mode": false,
+      "go_work_file": null
+    },
+    "advisory": {
+      "requested_id": "CVE-2023-44487",
+      "resolved_id": "GHSA-qppj-fm5r-hxr3",
+      "source_kind": "frozen_file",
+      "source_path": "eval/agent7/advisories/k8s-44487.json",
+      "raw_sha256": "077330160d3adbbb93b2294e3db541c70a746677a4128a1bd8843dab688dae39",
+      "canonical_sha256": "83b852adcd9c692f0712f070359449161ac7883ff4b292d6a8d18b3873da1599",
+      "modified": "2026-09-10T03:50:04.757558216Z"
+    }
+  },
+  "vulnerability": {
+    "id": "GHSA-qppj-fm5r-hxr3",
+    "aliases": [
+      "BIT-apisix-2023-44487",
+      "BIT-aspnet-core-2023-44487",
+      "BIT-contour-2023-44487",
+      "BIT-dotnet-2023-44487",
+      "BIT-dotnet-sdk-2023-44487",
+      "BIT-envoy-2023-44487",
+      "BIT-golang-2023-44487",
+      "BIT-jenkins-2023-44487",
+      "BIT-kong-2023-44487",
+      "BIT-nginx-2023-44487",
+      "BIT-nginx-gateway-2023-44487",
+      "BIT-node-2023-44487",
+      "BIT-node-min-2023-44487",
+      "BIT-solr-2023-44487",
+      "BIT-tomcat-2023-44487",
+      "BIT-varnish-2023-44487",
+      "CVE-2023-44487"
+    ],
+    "summary": "HTTP/2 Stream Cancellation Attack",
+    "description": "## HTTP/2 Rapid reset attack\nThe HTTP/2 protocol allows clients to indicate to the server that a previous stream should be canceled by sending a RST_STREAM frame. The protocol does not require the client and server to coordinate the cancellation in any way, the client may do it unilaterally. The client may also assume that the cancellation will take effect immediately when the server receives the RST_STREAM frame, before any other data from that TCP connection is processed.\n\nAbuse of this feature is called a Rapid Reset attack because it relies on the ability for an endpoint to send a RST_STREAM frame immediately after sending a request frame, which makes the other endpoint start working and then rapidly resets the request. The request is canceled, but leaves the HTTP/2 connection open. \n\nThe HTTP/2 Rapid Reset attack built on this capability is simple: The client opens a large number of streams at once as in the standard HTTP/2 attack, but rather than waiting for a response to each request stream from the server or proxy, the client cancels each request immediately.\n\nThe ability to reset streams immediately allows each connection to have an indefinite number of requests in flight. By explicitly canceling the requests, the attacker never exceeds the limit on the number of concurrent open streams. The number of in-flight requests is no longer dependent on the round-trip time (RTT), but only on the available network bandwidth.\n\nIn a typical HTTP/2 server implementation, the server will still have to do significant amounts of work for canceled requests, such as allocating new stream data structures, parsing the query and doing header decompression, and mapping the URL to a resource. For reverse proxy implementations, the request may be proxied to the backend server before the RST_STREAM frame is processed. The client on the other hand paid almost no costs for sending the requests. This creates an exploitable cost asymmetry between the server and the client.\n\nMultiple software artifacts implementing HTTP/2 are affected. This advisory was originally ingested from the `swift-nio-http2` repo advisory and their original conent follows.\n\n## swift-nio-http2 specific advisory\nswift-nio-http2 is vulnerable to a denial-of-service vulnerability in which a malicious client can create and then reset a large number of HTTP/2 streams in a short period of time. This causes swift-nio-http2 to commit to a large amount of expensive work which it then throws away, including creating entirely new `Channel`s to serve the traffic. This can easily overwhelm an `EventLoop` and prevent it from making forward progress.\n\nswift-nio-http2 1.28 contains a remediation for this issue that applies reset counter using a sliding window. This constrains the number of stream resets that may occur in a given window of time. Clients violating this limit will have their connections torn down. This allows clients to continue to cancel streams for legitimate reasons, while constraining malicious actors.",
+    "references": [
+      {
+        "type": "WEB",
+        "url": "https://github.com/apple/swift-nio-http2/security/advisories/GHSA-qppj-fm5r-hxr3"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/h2o/h2o/security/advisories/GHSA-2m7v-gc89-fjqf"
+      },
+      {
+        "type": "ADVISORY",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-44487"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/alibaba/tengine/issues/1872"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/apache/apisix/issues/10320"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/akka/akka-http/issues/4323"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/varnishcache/varnish-cache/issues/3996"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/tempesta-tech/tempesta/issues/1986"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/Azure/AKS/issues/3947"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/opensearch-project/data-prepper/issues/3474"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/caddyserver/caddy/issues/5877"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/openresty/openresty/issues/930"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/dotnet/announcements/issues/277"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/eclipse/jetty.project/issues/10679"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/etcd-io/etcd/issues/16740"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/golang/go/issues/63417"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/ninenines/cowboy/issues/1615"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/haproxy/haproxy/issues/2312"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/hyperium/hyper/issues/3337"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/kazu-yamamoto/http2/issues/93"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/junkurihara/rust-rpxy/issues/97"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/microsoft/CBL-Mariner/pull/6381"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/linkerd/website/pull/1695/commits/4b9c6836471bc8270ab48aae6fd2181bc73fd632"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/line/armeria/pull/5232"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/kubernetes/kubernetes/pull/121120"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/apache/httpd-site/pull/10"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/projectcontour/contour/pull/5826"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/apache/trafficserver/pull/10564"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/nghttp2/nghttp2/pull/1961"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/h2o/h2o/pull/3291"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/grpc/grpc-go/pull/6703"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/nodejs/node/pull/50121"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/envoyproxy/envoy/pull/30055"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/facebook/proxygen/pull/466"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/akka/akka-http/pull/4325"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/akka/akka-http/pull/4324"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/netty/netty/commit/58f75f665aa81a8cbcf6ffa74820042a285c5e61"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/apache/tomcat/commit/944332bb15bd2f3bf76ec2caeb1ff0a58a3bc628"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/kazu-yamamoto/http2/commit/f61d41a502bd0f60eb24e1ce14edc7b6df6722a1"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.w3.org/Archives/Public/ietf-http-wg/2023OctDec/0025.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/FNA62Q767CFAFHBCDKYNPBMZWB7TWYVU"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/E72T67UPDRXHIDLO3OROR25YAMN4GGW5"
+      },
+      {
+        "type": "WEB",
+        "url": "https://martinthomson.github.io/h2-stream-limits/draft-thomson-httpbis-h2-stream-limits.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/CLB4TW7KALB3EEQWNWCN7OUIWWVWWCG2"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/BFQD3KUEMFBHPAPBGLWQC34L4OWL5HAZ"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/3N4NJ7FR4X4FPZUGNTQAPSTVB2HB2Y4A"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/2MBEPPC36UBVOZZNAXFHKLFGSLCMN5LI"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/ZLU6U2R2IC2K64NDPNMV55AUAO65MAF4"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/ZKQSIKIAT5TJ3WSLU3RDBQ35YX4GY4V3"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/ZB43REMKRQR62NJEI7I5NQ4FSXNLBKRT"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/XFOIBB4YFICHDM7IBOP7PWXW3FX4HLL2"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/X6QXN4ORIVF6XBW4WWFE7VNPVC74S45Y"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/WLPRQ5TWUQQXYWBJM7ECYDAIL2YVKIUH"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/WE2I52RHNNU42PX6NZ2RBUHSFFJ2LVZX"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/ZLU6U2R2IC2K64NDPNMV55AUAO65MAF4"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/ZKQSIKIAT5TJ3WSLU3RDBQ35YX4GY4V3"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/ZB43REMKRQR62NJEI7I5NQ4FSXNLBKRT"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/XFOIBB4YFICHDM7IBOP7PWXW3FX4HLL2"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/X6QXN4ORIVF6XBW4WWFE7VNPVC74S45Y"
+      },
+      {
+        "type": "WEB",
+        "url": "https://mailman.nginx.org/pipermail/nginx-devel/2023-October/S36Q5HBXR7CAIMPLLPRSSSYR4PCMWILK.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/WLPRQ5TWUQQXYWBJM7ECYDAIL2YVKIUH"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/WE2I52RHNNU42PX6NZ2RBUHSFFJ2LVZX"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/VSRDIV77HNKUSM7SJC5BKE5JSHLHU2NK"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/VHUHTSXLXGXS7JYKBXTA3VINUPHTNGVU"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/LNMZJCDHGLJJLXO4OXWJMTVQRNWOC7UL"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/LKYHSZQFDNR7RSA7LHVLLIAQMVYCUGBG"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/KSEGD2IWKNUO3DWY4KQGUQM5BISRWHQE"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/JMEXY22BFG5Q64HQCM5CK2Q7KDKVV4TY"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/JIZSEFC3YKCGABA2BZW6ZJRMDZJMB7PJ"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/HT7T2R4MQKLIF4ODV4BDLPARWFPCJ5CZ"
+      },
+      {
+        "type": "WEB",
+        "url": "https://tomcat.apache.org/security-9.html#Fixed_in_Apache_Tomcat_9.0.81"
+      },
+      {
+        "type": "WEB",
+        "url": "https://ubuntu.com/security/CVE-2023-44487"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.bleepingcomputer.com/news/security/new-http-2-rapid-reset-zero-day-attack-breaks-ddos-records"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog?field_cve=CVE-2023-44487"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.cisa.gov/news-events/alerts/2023/10/10/http2-rapid-reset-vulnerability-cve-2023-44487"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.darkreading.com/cloud/internet-wide-zero-day-bug-fuels-largest-ever-ddos-event"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.debian.org/security/2023/dsa-5521"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.debian.org/security/2023/dsa-5522"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.debian.org/security/2023/dsa-5540"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.debian.org/security/2023/dsa-5549"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.debian.org/security/2023/dsa-5558"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.debian.org/security/2023/dsa-5570"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.eclipse.org/lists/jetty-announce/msg00181.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.haproxy.com/blog/haproxy-is-not-affected-by-the-http-2-rapid-reset-attack-cve-2023-44487"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.netlify.com/blog/netlify-successfully-mitigates-cve-2023-44487"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.nginx.com/blog/http-2-rapid-reset-attack-impacting-f5-nginx-products"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.openwall.com/lists/oss-security/2023/10/10/6"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.phoronix.com/news/HTTP2-Rapid-Reset-Attack"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.theregister.com/2023/10/10/http2_rapid_reset_zeroday"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.vicarius.io/vsociety/posts/rapid-reset-cve-2023-44487-dos-in-http2-understanding-the-root-cause"
+      },
+      {
+        "type": "WEB",
+        "url": "https://msrc.microsoft.com/blog/2023/10/microsoft-response-to-distributed-denial-of-service-ddos-attacks-against-http/2"
+      },
+      {
+        "type": "WEB",
+        "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2023-44487"
+      },
+      {
+        "type": "WEB",
+        "url": "https://my.f5.com/manage/s/article/K000137106"
+      },
+      {
+        "type": "WEB",
+        "url": "https://netty.io/news/2023/10/10/4-1-100-Final.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://news.ycombinator.com/item?id=37830987"
+      },
+      {
+        "type": "WEB",
+        "url": "https://news.ycombinator.com/item?id=37830998"
+      },
+      {
+        "type": "WEB",
+        "url": "https://news.ycombinator.com/item?id=37831062"
+      },
+      {
+        "type": "WEB",
+        "url": "https://news.ycombinator.com/item?id=37837043"
+      },
+      {
+        "type": "WEB",
+        "url": "https://openssf.org/blog/2023/10/10/http-2-rapid-reset-vulnerability-highlights-need-for-rapid-response"
+      },
+      {
+        "type": "WEB",
+        "url": "https://seanmonstar.com/post/730794151136935936/hyper-http2-rapid-reset-unaffected"
+      },
+      {
+        "type": "WEB",
+        "url": "https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-http2-reset-d8Kf32vZ"
+      },
+      {
+        "type": "WEB",
+        "url": "https://security.gentoo.org/glsa/202311-09"
+      },
+      {
+        "type": "WEB",
+        "url": "https://security.netapp.com/advisory/ntap-20231016-0001"
+      },
+      {
+        "type": "WEB",
+        "url": "https://security.netapp.com/advisory/ntap-20240426-0007"
+      },
+      {
+        "type": "WEB",
+        "url": "https://security.netapp.com/advisory/ntap-20240621-0006"
+      },
+      {
+        "type": "WEB",
+        "url": "https://security.netapp.com/advisory/ntap-20240621-0007"
+      },
+      {
+        "type": "WEB",
+        "url": "https://security.paloaltonetworks.com/CVE-2023-44487"
+      },
+      {
+        "type": "WEB",
+        "url": "https://tomcat.apache.org/security-10.html#Fixed_in_Apache_Tomcat_10.1.14"
+      },
+      {
+        "type": "WEB",
+        "url": "https://tomcat.apache.org/security-11.html#Fixed_in_Apache_Tomcat_11.0.0-M12"
+      },
+      {
+        "type": "WEB",
+        "url": "https://tomcat.apache.org/security-8.html#Fixed_in_Apache_Tomcat_8.5.94"
+      },
+      {
+        "type": "WEB",
+        "url": "https://chaos.social/@icing/111210915918780532"
+      },
+      {
+        "type": "WEB",
+        "url": "https://cloud.google.com/blog/products/identity-security/google-cloud-mitigated-largest-ddos-attack-peaking-above-398-million-rps"
+      },
+      {
+        "type": "WEB",
+        "url": "https://cloud.google.com/blog/products/identity-security/how-it-works-the-novel-http2-rapid-reset-ddos-attack"
+      },
+      {
+        "type": "WEB",
+        "url": "https://community.traefik.io/t/is-traefik-vulnerable-to-cve-2023-44487/20125"
+      },
+      {
+        "type": "WEB",
+        "url": "https://discuss.hashicorp.com/t/hcsec-2023-32-vault-consul-and-boundary-affected-by-http-2-rapid-reset-denial-of-service-vulnerability-cve-2023-44487/59715"
+      },
+      {
+        "type": "WEB",
+        "url": "https://edg.io/lp/blog/resets-leaks-ddos-and-the-tale-of-a-hidden-cve"
+      },
+      {
+        "type": "WEB",
+        "url": "https://forums.swift.org/t/swift-nio-http2-security-update-cve-2023-44487-http-2-dos/67764"
+      },
+      {
+        "type": "WEB",
+        "url": "https://gist.github.com/adulau/7c2bfb8e9cdbe4b35a5e131c66a0c088"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/Kong/kong/discussions/11741"
+      },
+      {
+        "type": "ADVISORY",
+        "url": "https://github.com/advisories/GHSA-qppj-fm5r-hxr3"
+      },
+      {
+        "type": "ADVISORY",
+        "url": "https://github.com/advisories/GHSA-vx74-f528-fxqg"
+      },
+      {
+        "type": "ADVISORY",
+        "url": "https://github.com/advisories/GHSA-xpw8-rcwv-8f8p"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/apache/httpd/blob/afcdbeebbff4b0c50ea26cdd16e178c0d1f24152/modules/http2/h2_mplx.c#L1101-L1113"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/apache/tomcat/tree/main/java/org/apache/coyote/http2"
+      },
+      {
+        "type": "PACKAGE",
+        "url": "https://github.com/apple/swift-nio-http2"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/arkrwn/PoC/tree/main/CVE-2023-44487"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/bcdannyboy/CVE-2023-44487"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/caddyserver/caddy/releases/tag/v2.7.5"
+      },
+      {
+        "type": "WEB",
+        "url": "https://access.redhat.com/security/cve/cve-2023-44487"
+      },
+      {
+        "type": "WEB",
+        "url": "https://akka.io/security/akka-http-cve-2023-44487.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://arstechnica.com/security/2023/10/how-ddosers-used-the-http-2-protocol-to-deliver-attacks-of-unprecedented-size"
+      },
+      {
+        "type": "WEB",
+        "url": "https://aws.amazon.com/security/security-bulletins/AWS-2023-011"
+      },
+      {
+        "type": "WEB",
+        "url": "https://blog.cloudflare.com/technical-breakdown-http2-rapid-reset-ddos-attack"
+      },
+      {
+        "type": "WEB",
+        "url": "https://blog.cloudflare.com/zero-day-rapid-reset-http2-record-breaking-ddos-attack"
+      },
+      {
+        "type": "WEB",
+        "url": "https://blog.litespeedtech.com/2023/10/11/rapid-reset-http-2-vulnerablilty"
+      },
+      {
+        "type": "WEB",
+        "url": "https://blog.qualys.com/vulnerabilities-threat-research/2023/10/10/cve-2023-44487-http-2-rapid-reset-attack"
+      },
+      {
+        "type": "WEB",
+        "url": "https://blog.vespa.ai/cve-2023-44487"
+      },
+      {
+        "type": "WEB",
+        "url": "https://bugzilla.proxmox.com/show_bug.cgi?id=4988"
+      },
+      {
+        "type": "WEB",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2242803"
+      },
+      {
+        "type": "WEB",
+        "url": "https://bugzilla.suse.com/show_bug.cgi?id=1216123"
+      },
+      {
+        "type": "WEB",
+        "url": "https://cert-portal.siemens.com/productcert/html/ssa-082556.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://cert-portal.siemens.com/productcert/html/ssa-341067.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://cert-portal.siemens.com/productcert/html/ssa-784301.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://cert-portal.siemens.com/productcert/html/ssa-832273.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://cert-portal.siemens.com/productcert/html/ssa-915275.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://cgit.freebsd.org/ports/commit/?id=c64c329c2c1752f46b73e3e6ce9f4329be6629f9"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.debian.org/debian-lts-announce/2023/10/msg00045.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.debian.org/debian-lts-announce/2023/10/msg00047.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.debian.org/debian-lts-announce/2023/11/msg00001.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.debian.org/debian-lts-announce/2023/11/msg00012.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/2MBEPPC36UBVOZZNAXFHKLFGSLCMN5LI"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/3N4NJ7FR4X4FPZUGNTQAPSTVB2HB2Y4A"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/BFQD3KUEMFBHPAPBGLWQC34L4OWL5HAZ"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/CLB4TW7KALB3EEQWNWCN7OUIWWVWWCG2"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/E72T67UPDRXHIDLO3OROR25YAMN4GGW5"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/FNA62Q767CFAFHBCDKYNPBMZWB7TWYVU"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/HT7T2R4MQKLIF4ODV4BDLPARWFPCJ5CZ"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/JIZSEFC3YKCGABA2BZW6ZJRMDZJMB7PJ"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/JMEXY22BFG5Q64HQCM5CK2Q7KDKVV4TY"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/KSEGD2IWKNUO3DWY4KQGUQM5BISRWHQE"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/LKYHSZQFDNR7RSA7LHVLLIAQMVYCUGBG"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/LNMZJCDHGLJJLXO4OXWJMTVQRNWOC7UL"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/VHUHTSXLXGXS7JYKBXTA3VINUPHTNGVU"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/VSRDIV77HNKUSM7SJC5BKE5JSHLHU2NK"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/dotnet/core/blob/e4613450ea0da7fd2fc6b61dfb2c1c1dec1ce9ec/release-notes/6.0/6.0.23/6.0.23.md?plain=1#L73"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/grpc/grpc-go/releases"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/grpc/grpc/releases/tag/v1.59.2"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/icing/mod_h2/blob/0a864782af0a942aa2ad4ed960a6b32cd35bcf0a/mod_http2/README.md?plain=1#L239-L244"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/micrictor/http2-rst-stream"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/nghttp2/nghttp2/releases/tag/v1.57.0"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/oqtane/oqtane.framework/discussions/3367"
+      },
+      {
+        "type": "WEB",
+        "url": "https://go.dev/cl/534215"
+      },
+      {
+        "type": "WEB",
+        "url": "https://go.dev/cl/534235"
+      },
+      {
+        "type": "WEB",
+        "url": "https://go.dev/issue/63417"
+      },
+      {
+        "type": "WEB",
+        "url": "https://groups.google.com/g/golang-announce/c/iNNxDTCjZvo"
+      },
+      {
+        "type": "WEB",
+        "url": "https://groups.google.com/g/golang-announce/c/iNNxDTCjZvo/m/UDd7VKQuAAAJ"
+      },
+      {
+        "type": "WEB",
+        "url": "https://istio.io/latest/news/security/istio-security-2023-004"
+      },
+      {
+        "type": "WEB",
+        "url": "https://linkerd.io/2023/10/12/linkerd-cve-2023-44487"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.apache.org/thread/5py8h42mxfsn8l1wy6o41xwhsjlsd87q"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.debian.org/debian-lts-announce/2023/10/msg00020.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.debian.org/debian-lts-announce/2023/10/msg00023.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.debian.org/debian-lts-announce/2023/10/msg00024.html"
+      },
+      {
+        "type": "WEB",
+        "url": "http://www.openwall.com/lists/oss-security/2023/10/10/6"
+      },
+      {
+        "type": "WEB",
+        "url": "http://www.openwall.com/lists/oss-security/2023/10/10/7"
+      },
+      {
+        "type": "WEB",
+        "url": "http://www.openwall.com/lists/oss-security/2023/10/13/4"
+      },
+      {
+        "type": "WEB",
+        "url": "http://www.openwall.com/lists/oss-security/2023/10/13/9"
+      },
+      {
+        "type": "WEB",
+        "url": "http://www.openwall.com/lists/oss-security/2023/10/18/4"
+      },
+      {
+        "type": "WEB",
+        "url": "http://www.openwall.com/lists/oss-security/2023/10/18/8"
+      },
+      {
+        "type": "WEB",
+        "url": "http://www.openwall.com/lists/oss-security/2023/10/19/6"
+      },
+      {
+        "type": "WEB",
+        "url": "http://www.openwall.com/lists/oss-security/2023/10/20/8"
+      },
+      {
+        "type": "WEB",
+        "url": "http://www.openwall.com/lists/oss-security/2025/08/13/6"
+      }
+    ],
+    "advisory_digest_ref": "fact-obs-0003"
+  },
+  "affected_implementations": [
+    {
+      "id": "adv-01",
+      "ecosystem": "SwiftURL",
+      "module": "github.com/apple/swift-nio-http2",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "1.28.0",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [
+        "1.28.0"
+      ],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-02",
+      "ecosystem": "Go",
+      "module": "golang.org/x/net",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "0.17.0",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [
+        "0.17.0"
+      ],
+      "binding": "alias-resolved",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-03",
+      "ecosystem": "Maven",
+      "module": "org.apache.tomcat:tomcat-coyote",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "11.0.0-M1",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "11.0.0-M12",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-04",
+      "ecosystem": "Maven",
+      "module": "org.apache.tomcat:tomcat-coyote",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "10.0.0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "10.1.14",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-05",
+      "ecosystem": "Maven",
+      "module": "org.apache.tomcat:tomcat-coyote",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "9.0.0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "9.0.81",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-06",
+      "ecosystem": "Maven",
+      "module": "org.apache.tomcat:tomcat-coyote",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "8.5.0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "8.5.94",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-07",
+      "ecosystem": "Maven",
+      "module": "org.apache.tomcat.embed:tomcat-embed-core",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "11.0.0-M1",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "11.0.0-M12",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-08",
+      "ecosystem": "Maven",
+      "module": "org.apache.tomcat.embed:tomcat-embed-core",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "10.0.0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "10.1.14",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-09",
+      "ecosystem": "Maven",
+      "module": "org.apache.tomcat.embed:tomcat-embed-core",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "9.0.0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "9.0.81",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-10",
+      "ecosystem": "Maven",
+      "module": "org.apache.tomcat.embed:tomcat-embed-core",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "8.5.0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "8.5.94",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-11",
+      "ecosystem": "Maven",
+      "module": "org.eclipse.jetty.http2:http2-common",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "9.3.0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "9.4.53",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-12",
+      "ecosystem": "Maven",
+      "module": "org.eclipse.jetty.http2:http2-common",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "10.0.0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "10.0.17",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-13",
+      "ecosystem": "Maven",
+      "module": "org.eclipse.jetty.http2:http2-common",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "11.0.0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "11.0.17",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-14",
+      "ecosystem": "Maven",
+      "module": "org.eclipse.jetty.http2:http2-server",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "9.3.0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "9.4.53",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-15",
+      "ecosystem": "Maven",
+      "module": "org.eclipse.jetty.http2:http2-server",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "10.0.0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "10.0.17",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-16",
+      "ecosystem": "Maven",
+      "module": "org.eclipse.jetty.http2:http2-server",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "11.0.0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "11.0.17",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-17",
+      "ecosystem": "Maven",
+      "module": "org.eclipse.jetty.http2:jetty-http2-common",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "12.0.0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "12.0.2",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-18",
+      "ecosystem": "Maven",
+      "module": "org.eclipse.jetty.http2:jetty-http2-server",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "12.0.0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "12.0.2",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-19",
+      "ecosystem": "Maven",
+      "module": "com.typesafe.akka:akka-http-core",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "10.5.3",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-20",
+      "ecosystem": "Maven",
+      "module": "com.typesafe.akka:akka-http-core_2.13",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "10.5.3",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-21",
+      "ecosystem": "Maven",
+      "module": "com.typesafe.akka:akka-http-core_2.12",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": "10.5.3",
+          "last_affected": null
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    },
+    {
+      "id": "adv-22",
+      "ecosystem": "Maven",
+      "module": "com.typesafe.akka:akka-http-core_2.11",
+      "package": null,
+      "symbols": [],
+      "goos": [],
+      "goarch": [],
+      "affected_versions": [
+        {
+          "introduced": "0",
+          "fixed": null,
+          "last_affected": null
+        },
+        {
+          "introduced": null,
+          "fixed": null,
+          "last_affected": "10.1.15"
+        }
+      ],
+      "fixed_versions": [],
+      "binding": "non-go",
+      "source_ref": "adv:GHSA-qppj-fm5r-hxr3"
+    }
+  ],
+  "product_applicability": {
+    "status": "PARTIAL",
+    "module_present": "TRUE",
+    "resolved_version": "v0.17.0",
+    "version_affected": "FALSE",
+    "package_present": "UNKNOWN",
+    "build_relevant": "UNKNOWN",
+    "selected_module": null,
+    "selected_modules": [],
+    "checked_modules": [
+      "github.com/apple/swift-nio-http2",
+      "golang.org/x/net",
+      "org.apache.tomcat:tomcat-coyote",
+      "org.apache.tomcat.embed:tomcat-embed-core",
+      "org.eclipse.jetty.http2:http2-common",
+      "org.eclipse.jetty.http2:http2-server",
+      "org.eclipse.jetty.http2:jetty-http2-common",
+      "org.eclipse.jetty.http2:jetty-http2-server",
+      "com.typesafe.akka:akka-http-core",
+      "com.typesafe.akka:akka-http-core_2.13",
+      "com.typesafe.akka:akka-http-core_2.12",
+      "com.typesafe.akka:akka-http-core_2.11"
+    ],
+    "checked_packages": [],
+    "pending_modules": [],
+    "limitations": [
+      "package/build reachability was not evaluated: the resolved version is outside the affected ranges of every evaluated advisory entry",
+      "evaluated affected-module entries: golang.org/x/net@v0.17.0"
+    ],
+    "evidence_refs": [
+      "obs:OBS-0008",
+      "fact-obs-0008"
+    ],
+    "conclusion_scope": "AFFECTED_ENTRY_ONLY",
+    "advisory_scope_status": "GAP_DETECTED",
+    "basis": [
+      {
+        "kind": "version_fixed",
+        "status": "ESTABLISHED",
+        "source": "deterministic",
+        "statement": "the advisory-covered golang.org/x/net entry resolves to fixed version v0.17.0 under the recorded context",
+        "evidence_refs": [
+          "fact-obs-0008",
+          "obs:OBS-0008"
+        ],
+        "verified_evidence_refs": [
+          "fact-obs-0008"
+        ],
+        "limitations": [
+          "bounded to the evaluated advisory entry; it does not establish the CVE is absent from every implementation"
+        ],
+        "check_scope": "resolved version v0.17.0 vs the evaluated entry's affected ranges (affected-resolve under the recorded snapshot build context)"
+      }
+    ],
+    "evaluated_entry_ids": [
+      "adv-02"
+    ],
+    "advisory_entry_status": "FIXED",
+    "vulnerable_code_reachability": "NOT_EVALUATED"
+  },
+  "exploitation_conditions": [
+    {
+      "id": "EC-0001",
+      "subject": "affected module presence",
+      "scope": "resolved module graph / snapshot build context",
+      "necessity": "required",
+      "statement": "the affected component (the advisory-affected component) is present in the resolved module graph",
+      "origin": "deterministic",
+      "state": "SUPPORTED",
+      "evidence_refs": [
+        "obs:OBS-0008",
+        "fact-obs-0008"
+      ],
+      "limitations": [],
+      "axis": "code_reachability"
+    },
+    {
+      "id": "EC-0002",
+      "subject": "affected version in use",
+      "scope": "resolved module graph / snapshot build context",
+      "necessity": "required",
+      "statement": "the deployed product uses the advisory-affected component outside the advisory's affected ranges",
+      "origin": "deterministic",
+      "state": "REFUTED",
+      "evidence_refs": [
+        "obs:OBS-0008",
+        "fact-obs-0008"
+      ],
+      "limitations": [
+        "a required predicate fails deterministically on version evidence"
+      ],
+      "axis": "code_reachability"
+    },
+    {
+      "id": "EC-0003",
+      "subject": "affected package reachable",
+      "scope": "resolved module graph / snapshot build context",
+      "necessity": "required",
+      "statement": "whether product code reaches the affected package was not evaluated: the evaluated advisory entry for the advisory-affected component resolves to fixed version v0.17.0, so the package reachability probe did not run",
+      "origin": "deterministic",
+      "state": "UNKNOWN",
+      "evidence_refs": [
+        "obs:OBS-0008",
+        "fact-obs-0008"
+      ],
+      "limitations": [
+        "package reachability not evaluated — the resolved version is outside the affected ranges of every evaluated entry; a fixed version is not evidence of package absence",
+        "follow-up: run module_usage/go list -deps under the recorded build context if package presence must be established independently"
+      ],
+      "axis": "code_reachability"
+    },
+    {
+      "id": "EC-0004",
+      "subject": "affected package build-relevant",
+      "scope": "resolved module graph / snapshot build context",
+      "necessity": "required",
+      "statement": "whether the affected code is build-relevant was not evaluated: the evaluated advisory entry for the advisory-affected component resolves to fixed version v0.17.0, so the build-relevance probe did not run",
+      "origin": "deterministic",
+      "state": "UNKNOWN",
+      "evidence_refs": [
+        "obs:OBS-0008",
+        "fact-obs-0008"
+      ],
+      "limitations": [
+        "build relevance not evaluated — the resolved version is outside the affected ranges of every evaluated entry",
+        "follow-up: run go list -deps -test ./... under the recorded GOOS/GOARCH/tags if build relevance must be established independently"
+      ],
+      "axis": "code_reachability"
+    },
+    {
+      "id": "EC-0005",
+      "subject": "runtime/deployment posture",
+      "scope": "runtime configuration and deployment environment",
+      "necessity": "required",
+      "statement": "a runtime configuration/environment predicate must hold for exploitation (attacker reachability, feature flags, deployment exposure); static source evidence cannot decide it",
+      "origin": "deterministic",
+      "state": "UNKNOWN",
+      "evidence_refs": [
+        "obs:OBS-0010",
+        "obs:OBS-0011",
+        "obs:OBS-0012",
+        "obs:OBS-0014"
+      ],
+      "limitations": [
+        "follow-up: confirm deployment posture (listeners, auth, network exposure, config) against the recorded entry-point facts"
+      ],
+      "axis": "attack_surface_availability"
+    },
+    {
+      "id": "EC-0006",
+      "subject": "",
+      "scope": "agent assessment (snapshot-read scope as stated)",
+      "necessity": "unknown",
+      "statement": "1) Attacker establishes an HTTP/2 TLS connection to the Kubernetes API server (entry point via secure_serving.go:201-206, http2.ConfigureServer). 2) Attacker opens streams and sends HEADERS to trigger server-side processing. 3) Immediately after, attacker sends RST_STREAM to cancel each stream before the server completes processing. 4) The server wastes resources on alloc-parse-cancel cycles for each cancelled stream. Required conditions: HTTP/2 enabled (default in kube-apiserver), network access to the API server HTTPS port.",
+      "origin": "agent",
+      "state": "OPEN",
+      "evidence_refs": [
+        "A-0004"
+      ],
+      "limitations": [],
+      "axis": "other"
+    }
+  ],
+  "vulnerability_mechanism": {
+    "status": "PARTIAL",
+    "summary": "HTTP/2 Rapid Reset (CVE-2023-44487): An attacker sends RST_STREAM frames immediately after HEADERS frames to cancel streams before completion. The server still allocates stream data structures, parses headers, and performs header decompression, creating a cost asymmetry where the server does significant work per reset while the attacker pays minimal bandwidth. This enables denial-of-service against HTTP/2 servers.",
+    "claims": [
+      {
+        "id": "dc-mechanism-01",
+        "statement": "advisory GHSA-qppj-fm5r-hxr3 states: HTTP/2 Stream Cancellation Attack",
+        "subject": "GHSA-qppj-fm5r-hxr3",
+        "scope": "frozen advisory document",
+        "state": "SUPPORTED",
+        "evidence_refs": [
+          "fact-obs-0003"
+        ],
+        "limitations": [
+          "21 non-Go affected entries retained as advisory scope, never as product facts"
+        ],
+        "origin": "deterministic"
+      },
+      {
+        "id": "ac-mechanism-01",
+        "statement": "HTTP/2 Rapid Reset (CVE-2023-44487): An attacker sends RST_STREAM frames immediately after HEADERS frames to cancel streams before completion. The server still allocates stream data structures, parses headers, and performs header decompression, creating a cost asymmetry where the server does significant work per reset while the attacker pays minimal bandwidth. This enables denial-of-service against HTTP/2 servers.",
+        "subject": "",
+        "scope": "agent assessment (snapshot-read scope as stated)",
+        "state": "OPEN",
+        "evidence_refs": [
+          "A-0002"
+        ],
+        "limitations": [],
+        "origin": "agent"
+      }
+    ],
+    "limitations": [
+      "agent-named component(s) outside the advisory scope: google.golang.org/grpc/internal, k8s.io/apimachinery/pkg, k8s.io/apiserver/pkg — conclusions remain bounded to the advisory's affected entries"
+    ]
+  },
+  "root_cause": {
+    "status": "PARTIAL",
+    "summary": "The golang.org/x/net@v0.17.0 HTTP/2 server implementation in vendor/golang.org/x/net/http2/server.go handles RST_STREAM frames via processResetStream (line 1601-1618), which calls sc.closeStream(st, streamError(f.StreamID, f.ErrCode)) without rate limiting. The upstream fix in v0.17.0 (bound to advisory entry adv-02) introduces flow control to limit RST_STREAM processing. Since this snapshot is at exactly v0.17.0, the fix is included.",
+    "claims": [
+      {
+        "id": "ac-rootcause-02",
+        "statement": "The golang.org/x/net@v0.17.0 HTTP/2 server implementation in vendor/golang.org/x/net/http2/server.go handles RST_STREAM frames via processResetStream (line 1601-1618), which calls sc.closeStream(st, streamError(f.StreamID, f.ErrCode)) without rate limiting. The upstream fix in v0.17.0 (bound to advisory entry adv-02) introduces flow control to limit RST_STREAM processing. Since this snapshot is at exactly v0.17.0, the fix is included.",
+        "subject": "",
+        "scope": "agent assessment (snapshot-read scope as stated)",
+        "state": "OPEN",
+        "evidence_refs": [
+          "A-0003"
+        ],
+        "limitations": [],
+        "origin": "agent"
+      }
+    ],
+    "limitations": [
+      "agent-named component(s) outside the advisory scope: google.golang.org/grpc/internal, k8s.io/apimachinery/pkg, k8s.io/apiserver/pkg — conclusions remain bounded to the advisory's affected entries"
+    ]
+  },
+  "attack_scenario": {
+    "status": "UNKNOWN",
+    "summary": "UNKNOWN: the exploit path is not established — the available material does not confirm a required transition chain; follow-up: verify each recorded predicate: re-run the deterministic reachability/surface checks under the full build context and obtain dynamic evidence if exploitability must be established; agent-stated: 1) Attacker establishes an HTTP/2 TLS connection to the Kubernetes API server (entry point via secure_serving.go:201-206, http2.ConfigureServer). 2) Attacker opens streams and sends HEADERS to trigger server-side processing. 3) Immediately after, attacker sends RST_STREAM to cancel each stream before the server completes processing. 4) The server wastes resources on alloc-parse-cancel cycles for e…",
+    "claims": [
+      {
+        "id": "ac-attack-03",
+        "statement": "1) Attacker establishes an HTTP/2 TLS connection to the Kubernetes API server (entry point via secure_serving.go:201-206, http2.ConfigureServer). 2) Attacker opens streams and sends HEADERS to trigger server-side processing. 3) Immediately after, attacker sends RST_STREAM to cancel each stream before the server completes processing. 4) The server wastes resources on alloc-parse-cancel cycles for each cancelled stream. Required conditions: HTTP/2 enabled (default in kube-apiserver), network access to the API server HTTPS port.",
+        "subject": "",
+        "scope": "agent assessment (snapshot-read scope as stated)",
+        "state": "OPEN",
+        "evidence_refs": [
+          "A-0004"
+        ],
+        "limitations": [],
+        "origin": "agent"
+      }
+    ],
+    "limitations": [
+      "agent-described transitions are hypotheses (origin=agent/OPEN): a potential call chain alone does not establish the exploit path"
+    ]
+  },
+  "product_exposure": {
+    "status": "PARTIAL",
+    "summary": "The Kubernetes API server uses golang.org/x/net/http2 via secure_serving.go:180-206 with HTTP/2 enabled by default (DisableHTTP2 defaults false). MaxConcurrentStreams defaults to 100 (line 195) but is configurable via 'http2-max-streams-per-connection' flag (options/serving.go:203). The recommended configuration sets HTTP2MaxStreamsPerConnection to 1000 (options/recommended.go:67), which would increase the attack surface. Build scope: Go module k8s.io/kubernetes, go 1.20. Platform: Linux (vendor/golang.org/x/net/http2/server.go:746 references GOOS windows). Deployment: standard kube-apiserver with HTTPS serving. Unknown: whether DisableHTTP2 is set in the target deployment, actual runtime flag values.",
+    "claims": [
+      {
+        "id": "dc-exposure-02",
+        "statement": "0 product call site(s) into module golang.org/x/net",
+        "subject": "golang.org/x/net",
+        "scope": "product packages of <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3 calling packages of module golang.org/x/net",
+        "state": "SUPPORTED",
+        "evidence_refs": [
+          "fact-obs-0009"
+        ],
+        "limitations": [
+          "module usage enumerates product call sites whose callee package is owned by the module; nested modules and unresolved owners are surfaced via module_owner rather than silently attributed"
+        ],
+        "origin": "deterministic"
+      },
+      {
+        "id": "dc-exposure-03",
+        "statement": "ingress inventory for module golang.org/x/net: 0 inventoried item(s), 0 completeness blocker(s) (complete=true)",
+        "subject": "golang.org/x/net",
+        "scope": "goanalysis.IngressInventory over module golang.org/x/net (product boundary + reachable dep cone, 2 hops)",
+        "state": "SUPPORTED",
+        "evidence_refs": [
+          "fact-obs-0010"
+        ],
+        "limitations": [
+          "ingress inventory is bounded to the loaded module cone; a complete inventory is a scope fact, not a reachability verdict"
+        ],
+        "origin": "deterministic"
+      },
+      {
+        "id": "ac-exposure-04",
+        "statement": "The Kubernetes API server uses golang.org/x/net/http2 via secure_serving.go:180-206 with HTTP/2 enabled by default (DisableHTTP2 defaults false). MaxConcurrentStreams defaults to 100 (line 195) but is configurable via 'http2-max-streams-per-connection' flag (options/serving.go:203). The recommended configuration sets HTTP2MaxStreamsPerConnection to 1000 (options/recommended.go:67), which would increase the attack surface. Build scope: Go module k8s.io/kubernetes, go 1.20. Platform: Linux (vendor/golang.org/x/net/http2/server.go:746 references GOOS windows). Deployment: standard kube-apiserver with HTTPS serving. Unknown: whether DisableHTTP2 is set in the target deployment, actual runtime flag values.",
+        "subject": "",
+        "scope": "agent assessment (snapshot-read scope as stated)",
+        "state": "OPEN",
+        "evidence_refs": [
+          "A-0005"
+        ],
+        "limitations": [],
+        "origin": "agent"
+      }
+    ],
+    "limitations": []
+  },
+  "alternative_paths": {
+    "status": "PARTIAL",
+    "summary": "Checked: Tomcat, Jetty, Akka HTTP (Maven) - no Java build files present. Nginx, Envoy, Node.js - no C/JS build files present. swift-nio-http2 - no Swift Package.swift present. golang.org/x/net is the only affected component from the advisory present in the snapshot. The gRPC server components (vendor/google.golang.org/grpc/internal/transport/http2_server.go) also use the same vendor golang.org/x/net/http2, so the fix applies there too. golang.org/x/net/http2 is also used by api machinery client (staging/src/k8s.io/apimachinery/pkg/util/net/http.go:39) as an HTTP client - RST_STREAM DoS is a server-side vulnerability so client usage is not relevant. Not fully explored: whether the etcd vendored copy has its own HTTP/2 implementation that bypasses golang.org/x/net.",
+    "claims": [
+      {
+        "id": "ac-altpaths-05",
+        "statement": "Checked: Tomcat, Jetty, Akka HTTP (Maven) - no Java build files present. Nginx, Envoy, Node.js - no C/JS build files present. swift-nio-http2 - no Swift Package.swift present. golang.org/x/net is the only affected component from the advisory present in the snapshot. The gRPC server components (vendor/google.golang.org/grpc/internal/transport/http2_server.go) also use the same vendor golang.org/x/net/http2, so the fix applies there too. golang.org/x/net/http2 is also used by api machinery client (staging/src/k8s.io/apimachinery/pkg/util/net/http.go:39) as an HTTP client - RST_STREAM DoS is a server-side vulnerability so client usage is not relevant. Not fully explored: whether the etcd vendored copy has its own HTTP/2 implementation that bypasses golang.org/x/net.",
+        "subject": "",
+        "scope": "agent assessment (snapshot-read scope as stated)",
+        "state": "OPEN",
+        "evidence_refs": [
+          "A-0006"
+        ],
+        "limitations": [],
+        "origin": "agent"
+      }
+    ],
+    "limitations": []
+  },
+  "evidence_quality": {
+    "status": "SUPPORTED",
+    "summary": "evidence base: 14 deterministic check(s) OK, 1 non-OK; evidence is scope-bounded per each observation's scope/limitations; agent stated: The snapshot is a Kubernetes source tree with vendored golang.org/x/net v0.17.0, which is exactly the fixed version per advisory entry adv-02. Coverage: verified Go module declarations, vendor source, and HTTP/2 integration points in the apiserver. Limitations: version pinning verified from go.mod/go.sum and vendor directory; the actual fix implementation in v0.17.0 is inferred from upstream Go release notes rather than explicitly diffed against prior versions in the vendor tree. No other advisory-listed components (Tomcat, Jetty, swift-nio-http2, nginx) found in snapshot.",
+    "references": [
+      {
+        "ref": "adv:GHSA-qppj-fm5r-hxr3",
+        "kind": "advisory",
+        "path": "eval/agent7/advisories/k8s-44487.json",
+        "selector": "frozen document",
+        "sha256": "077330160d3adbbb93b2294e3db541c70a746677a4128a1bd8843dab688dae39",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "eval/agent7/advisories/k8s-44487.json",
+            "sha256": "077330160d3adbbb93b2294e3db541c70a746677a4128a1bd8843dab688dae39",
+            "size_bytes": 0,
+            "selector": "frozen advisory document"
+          },
+          "reproducible_source": {
+            "kind": "FILE",
+            "path": "eval/agent7/advisories/k8s-44487.json",
+            "command": null,
+            "working_dir": null,
+            "tool": null,
+            "tool_version": null,
+            "snapshot_content_hash": null,
+            "input_digest": null,
+            "env": null,
+            "selector": "canonical OSV projection",
+            "output_sha256": "83b852adcd9c692f0712f070359449161ac7883ff4b292d6a8d18b3873da1599"
+          }
+        }
+      },
+      {
+        "ref": "agent-src:/work/go.mod:201-196 - HTTP/2 server configuration: MaxConcurrentStreams, MaxUploadBufferPerStream, MaxReadFrameSize",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "agent-src:/work/go.mod:82 - declares golang.org/x/net v0.17.0",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "agent-src:/work/go.sum:1018 - confirms golang.org/x/net v0.17.0 h1 hash",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "agent-src:/work/staging/src/k8s.io/apiserver/pkg/server/options/recommended.go:67 - recommended default HTTP2MaxStreamsPerConnection=1000",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "agent-src:/work/staging/src/k8s.io/apiserver/pkg/server/options/serving.go:69-71,203 - HTTP2MaxStreamsPerConnection flag definition",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "agent-src:/work/staging/src/k8s.io/apiserver/pkg/server/secure_serving.go:180-206 - http2.ConfigureServer call",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "agent-src:/work/staging/src/k8s.io/apiserver/pkg/server/secure_serving.go:56-58 - DisableHTTP2 configuration",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "agent-src:/work/vendor/golang.org/x/net/http2/server.go:1601-1618 - processResetStream handler (fixed version source)",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "agent-src:/work/vendor/golang.org/x/net/http2/server.go:173-206 - http2.Server configuration fields",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "agent-src:/work/vendor/golang.org/x/net/http2/transport.go:800 - MaxConcurrentStreams field definition",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "agent-stated",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "agent-src:assessment.altpaths",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "agent-src:assessment.attack",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "agent-src:assessment.exposure",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "agent-src:assessment.mechanism",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "agent-src:assessment.rootcause",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "agent-src:final-answer",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "agent-src:residual_questions",
+        "kind": "agent-source",
+        "path": "agent/attempt-0002/answer.txt",
+        "selector": "retained final answer",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+      },
+      {
+        "ref": "obs:OBS-0001",
+        "kind": "observation",
+        "path": "artifacts/obs-0001.json",
+        "selector": "observation",
+        "sha256": "c4ec969c6cb747b0462898e28ca52711bc8a1dc4f9efd4b8ed2c9b4b3dd8f5d7",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0001.json",
+            "sha256": "c4ec969c6cb747b0462898e28ca52711bc8a1dc4f9efd4b8ed2c9b4b3dd8f5d7",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0002",
+        "kind": "observation",
+        "path": "artifacts/obs-0002.json",
+        "selector": "observation",
+        "sha256": "a1fa89ad4915c7b9add89854fb379ad16dadee712892b40fcbac555cc1b06adf",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0002.json",
+            "sha256": "a1fa89ad4915c7b9add89854fb379ad16dadee712892b40fcbac555cc1b06adf",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0003",
+        "kind": "observation",
+        "path": "artifacts/obs-0003.json",
+        "selector": "observation",
+        "sha256": "450cb13a4b7637b60da8d13811a3c21a528c9da41a2eda23b618633a8ff20f85",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0003.json",
+            "sha256": "450cb13a4b7637b60da8d13811a3c21a528c9da41a2eda23b618633a8ff20f85",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0004",
+        "kind": "observation",
+        "path": "artifacts/obs-0004.json",
+        "selector": "observation",
+        "sha256": "8eaf6cacc68ae5c60f9e880f8700974cfe50248042c94ccd0b5516c2dc265453",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0004.json",
+            "sha256": "8eaf6cacc68ae5c60f9e880f8700974cfe50248042c94ccd0b5516c2dc265453",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0005",
+        "kind": "observation",
+        "path": "artifacts/obs-0005.json",
+        "selector": "observation",
+        "sha256": "34578a3379d27bfc1111f28a93e836d15b72b9193f5c5089b1ea7fe22967b5b3",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0005.json",
+            "sha256": "34578a3379d27bfc1111f28a93e836d15b72b9193f5c5089b1ea7fe22967b5b3",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0006",
+        "kind": "observation",
+        "path": "artifacts/obs-0006.json",
+        "selector": "observation",
+        "sha256": "6c8f2bc9916a347055a7d2cdd393bad5be3c70e9d604363c051eacc0af33741b",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0006.json",
+            "sha256": "6c8f2bc9916a347055a7d2cdd393bad5be3c70e9d604363c051eacc0af33741b",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0007",
+        "kind": "observation",
+        "path": "artifacts/obs-0007.json",
+        "selector": "observation",
+        "sha256": "4ef8c3cd3cbd8a086afc07a6fad18be6666648192fb15edb50ab7cc0068fcf76",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0007.json",
+            "sha256": "4ef8c3cd3cbd8a086afc07a6fad18be6666648192fb15edb50ab7cc0068fcf76",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0008",
+        "kind": "observation",
+        "path": "artifacts/obs-0008.json",
+        "selector": "observation",
+        "sha256": "e185371eb4549bdfa163bfc2dc496ae084af72e0fa1bab52a4af6623a3d5dee8",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0008.json",
+            "sha256": "e185371eb4549bdfa163bfc2dc496ae084af72e0fa1bab52a4af6623a3d5dee8",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0009",
+        "kind": "observation",
+        "path": "artifacts/obs-0009.json",
+        "selector": "observation",
+        "sha256": "a3ef9251c7556d529f38626c16c4bc3e85d45300e862e17484f166586ece838f",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0009.json",
+            "sha256": "a3ef9251c7556d529f38626c16c4bc3e85d45300e862e17484f166586ece838f",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0010",
+        "kind": "observation",
+        "path": "artifacts/obs-0010.json",
+        "selector": "observation",
+        "sha256": "4990f20626faafec2787967017887930a9219fe1d0774683b5c46c69fecc192d",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0010.json",
+            "sha256": "4990f20626faafec2787967017887930a9219fe1d0774683b5c46c69fecc192d",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0011",
+        "kind": "observation",
+        "path": "artifacts/obs-0011.json",
+        "selector": "observation",
+        "sha256": "0764a56f1adad56eb17a9eedfa94392c6d3d37c8e358ab4556fb005782b4a345",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0011.json",
+            "sha256": "0764a56f1adad56eb17a9eedfa94392c6d3d37c8e358ab4556fb005782b4a345",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0012",
+        "kind": "observation",
+        "path": "artifacts/obs-0012.json",
+        "selector": "observation",
+        "sha256": "913bb8cf8cbedb605da3dd6b9e910c90339ef6adefb8272dc023df2cd338d3d2",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0012.json",
+            "sha256": "913bb8cf8cbedb605da3dd6b9e910c90339ef6adefb8272dc023df2cd338d3d2",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0013",
+        "kind": "observation",
+        "path": "artifacts/obs-0013.json",
+        "selector": "observation",
+        "sha256": "41b233195c53e4c0b5dc1de2030986875200c3f67642e87848c55e9a2cfc71a3",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0013.json",
+            "sha256": "41b233195c53e4c0b5dc1de2030986875200c3f67642e87848c55e9a2cfc71a3",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0014",
+        "kind": "observation",
+        "path": "artifacts/obs-0014.json",
+        "selector": "observation",
+        "sha256": "68e3e6746b205829dcc26af104f9ae5e20b39b6643fd8c4585309275263d1712",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0014.json",
+            "sha256": "68e3e6746b205829dcc26af104f9ae5e20b39b6643fd8c4585309275263d1712",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      },
+      {
+        "ref": "obs:OBS-0015",
+        "kind": "observation",
+        "path": "artifacts/obs-0015.json",
+        "selector": "observation",
+        "sha256": "a41460401aad91b26e294f0d54d9318bcb73e09da3503584b1b759f0e26aa209",
+        "materiality": {
+          "level": "MATERIAL",
+          "raw_bytes": {
+            "path": "artifacts/obs-0015.json",
+            "sha256": "a41460401aad91b26e294f0d54d9318bcb73e09da3503584b1b759f0e26aa209",
+            "size_bytes": 0,
+            "selector": "observation"
+          },
+          "reproducible_source": null
+        }
+      }
+    ],
+    "coverage": [
+      "repository-preflight: VerifyContained + CheckPathReplacements + ContentHash over the snapshot tree",
+      "repository-snapshot: repository.Service.Snapshot (git/go probes + static release-evidence scan, no repo code executed)",
+      "advisory-load: FileSource(eval/agent7/advisories/k8s-44487.json) with alias enrichment disabled; no network",
+      "get_product_snapshot: this snapshot's build context and module manifest facts",
+      "get_vulnerability: OSV-compatible advisory record for CVE-2023-44487",
+      "get_dependency_graph: module list of <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3 (vendor/modules.txt)",
+      "get_module_version: resolved module list of <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3 (vendor/modules.txt)",
+      "affected-resolve: affected.GoResolver.Resolve over the snapshot module graph and import closure (go list -m, go list -deps under strict toolchain env)",
+      "module_usage: product packages of <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3 calling packages of module golang.org/x/net",
+      "ingress-inventory: goanalysis.IngressInventory over module golang.org/x/net (product boundary + reachable dep cone, 2 hops)",
+      "find_entrypoints: product packages of <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+      "listen-sites: inbound listener binds in product packages (static source scan; runtime reachability is out of scope)",
+      "inbound-auth-facts: authentication/authorization facts around inbound handlers (static source scan; runtime reachability is out of scope)",
+      "dial-sites: outbound endpoints into module golang.org/x/net (static source scan)"
+    ],
+    "conflicts": [],
+    "limitations": [
+      "the frozen advisory names exactly one Go module while the agent's answer names other dependency module(s) of the same mechanism (google.golang.org/grpc/internal, k8s.io/apimachinery/pkg, k8s.io/apiserver/pkg); the advisory's completeness for this CVE is unverified",
+      "run_govulncheck UNSUPPORTED: strict profile requires --govulndb to pin the vulnerability database",
+      "applicability: package/build reachability was not evaluated: the resolved version is outside the affected ranges of every evaluated advisory entry",
+      "applicability: evaluated affected-module entries: golang.org/x/net@v0.17.0"
+    ]
+  },
+  "residual_questions": [
+    {
+      "id": "Q-0001",
+      "question": "component google.golang.org/grpc/internal is named by the agent but is not in the advisory affected entries",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "verify whether the frozen advisory is complete for this CVE before treating any local fixed-version fact as a CVE-wide conclusion",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0002",
+      "question": "component k8s.io/apimachinery/pkg is named by the agent but is not in the advisory affected entries",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "verify whether the frozen advisory is complete for this CVE before treating any local fixed-version fact as a CVE-wide conclusion",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0003",
+      "question": "component k8s.io/apiserver/pkg is named by the agent but is not in the advisory affected entries",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "verify whether the frozen advisory is complete for this CVE before treating any local fixed-version fact as a CVE-wide conclusion",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0004",
+      "question": "run_govulncheck check did not produce a result (UNSUPPORTED)",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "rerun or scope-down the check; its status is UNSUPPORTED, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0015"
+      ]
+    },
+    {
+      "id": "Q-0005",
+      "question": "Is DisableHTTP2 explicitly set to true in the target deployment? This would mean the API server does not use HTTP/2 at all, further reducing exposure. Follow-up: check kube-apiserver startup flags and configuration manifests.",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0006",
+      "question": "What is the actual runtime value of http2-max-streams-per-connection in the deployment? The recommended default is 1000 but clusters may override this. Follow-up: inspect kube-apiserver Deployment args or config.",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0007",
+      "question": "Does the API server expose HTTP/2 to unauthenticated clients? The attack requires L3/L4 reachability to the HTTPS port. Follow-up: verify network policies and whether the API server is exposed externally.",
+      "why": "left unresolved by the lanes' stated scope",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    }
+  ],
+  "triage_recommendation": {
+    "action": "low confirmed risk",
+    "reason": "the research contract forbids authoritative dispositions; a human must adjudicate the recorded claims and unknowns",
+    "bounds": "all findings are scoped to the snapshot tree and the stated build context; no runtime, delivery or deployment claim is made",
+    "evidence_refs": [
+      "adv:GHSA-qppj-fm5r-hxr3"
+    ]
+  },
+  "verified_facts": [
+    {
+      "id": "fact-obs-0001",
+      "statement": "snapshot <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3 contained, replaces confined, content hash 6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "claim": "TRUE",
+      "tool": "repository-preflight",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "repository-preflight {\"snapshot\":\"<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3\"}",
+      "scope": "VerifyContained + CheckPathReplacements + ContentHash over the snapshot tree",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": null,
+      "input_digest": "90ee81c5f8fa68d6cc83b8a765878bcd810bb3918aa25df1d54bc4a78d402cc1",
+      "data_digest": "9cab1cc1848bf8497a0025093d58170537509c4c7d7ac11286d70857dcb1d39c",
+      "artifact": {
+        "path": "artifacts/obs-0001.json",
+        "sha256": "c4ec969c6cb747b0462898e28ca52711bc8a1dc4f9efd4b8ed2c9b4b3dd8f5d7",
+        "size_bytes": 1028,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0001",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T22:38:03Z"
+      },
+      "limitations": [],
+      "materiality": {
+        "level": "SUPPORTING",
+        "raw_bytes": {
+          "path": "artifacts/obs-0001.json",
+          "sha256": "c4ec969c6cb747b0462898e28ca52711bc8a1dc4f9efd4b8ed2c9b4b3dd8f5d7",
+          "size_bytes": 1028,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "repository-preflight {\"snapshot\":\"<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3\"}",
+          "working_dir": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+          "tool": "repository-preflight",
+          "tool_version": "izyan/research-lane go1.26.1",
+          "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+          "input_digest": "90ee81c5f8fa68d6cc83b8a765878bcd810bb3918aa25df1d54bc4a78d402cc1",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "9cab1cc1848bf8497a0025093d58170537509c4c7d7ac11286d70857dcb1d39c"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0002",
+      "statement": "snapshot identity e196d2491087e93bd29f0e5a538aab60667021e3: go directive 1.20, release toolchain \"go1.21.3\", darwin/arm64",
+      "claim": "TRUE",
+      "tool": "repository-snapshot",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "repository-snapshot {\"GOOS\":\"\",\"GOARCH\":\"\",\"BuildTags\":null,\"BinaryPath\":\"\",\"ReleaseGoVersion\":\"\",\"TrustedPeer\":false,\"DeployManifests\":null,\"DeployArchive\":\"\",\"PerimeterOverride\":\"\",\"ExternalCommitSHA\":\"e196d2491087e93bd29f0e5a538aab60667021e3\",\"GoBin\":\"go\",\"Env\":null}",
+      "scope": "repository.Service.Snapshot (git/go probes + static release-evidence scan, no repo code executed)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "b78b94028f251fdfbae1656cfa2e1891cc23455ce54578cbd1f35717af376476",
+      "data_digest": "453fae7ce39a5bc6c129b8e0c5cbb91f6799b9422bb9fe28c35fdb3662084dc7",
+      "artifact": {
+        "path": "artifacts/obs-0002.json",
+        "sha256": "a1fa89ad4915c7b9add89854fb379ad16dadee712892b40fcbac555cc1b06adf",
+        "size_bytes": 1479,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0002",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T22:38:03Z"
+      },
+      "limitations": [],
+      "materiality": {
+        "level": "SUPPORTING",
+        "raw_bytes": {
+          "path": "artifacts/obs-0002.json",
+          "sha256": "a1fa89ad4915c7b9add89854fb379ad16dadee712892b40fcbac555cc1b06adf",
+          "size_bytes": 1479,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "repository-snapshot {\"GOOS\":\"\",\"GOARCH\":\"\",\"BuildTags\":null,\"BinaryPath\":\"\",\"ReleaseGoVersion\":\"\",\"TrustedPeer\":false,\"DeployManifests\":null,\"DeployArchive\":\"\",\"PerimeterOverride\":\"\",\"ExternalCommitSHA\":\"e196d2491087e93bd29f0e5a538aab60667021e3\",\"GoBin\":\"go\",\"Env\":null}",
+          "working_dir": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+          "tool": "repository-snapshot",
+          "tool_version": "izyan/research-lane go1.26.1",
+          "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+          "input_digest": "b78b94028f251fdfbae1656cfa2e1891cc23455ce54578cbd1f35717af376476",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "453fae7ce39a5bc6c129b8e0c5cbb91f6799b9422bb9fe28c35fdb3662084dc7"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0003",
+      "statement": "frozen advisory CVE-2023-44487 resolved to GHSA-qppj-fm5r-hxr3 (22 affected entries, source frozen_file)",
+      "claim": "TRUE",
+      "tool": "advisory-load",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "advisory-load {\"cve\":\"CVE-2023-44487\",\"path\":\"eval/agent7/advisories/k8s-44487.json\",\"source\":\"frozen_file\"}",
+      "scope": "FileSource(eval/agent7/advisories/k8s-44487.json) with alias enrichment disabled; no network",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": null,
+      "input_digest": "ce0e4bdc99e659f4747fbfb0f0cac312ba069dcd943339ea767c0c727ce9824e",
+      "data_digest": "ec339470f35c84fd06ad469ae0961bd9a73a2a984011a7fd2ba4bf48504b1798",
+      "artifact": {
+        "path": "artifacts/obs-0003.json",
+        "sha256": "450cb13a4b7637b60da8d13811a3c21a528c9da41a2eda23b618633a8ff20f85",
+        "size_bytes": 932,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0003",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T22:38:03Z"
+      },
+      "limitations": [
+        "21 non-Go affected entries retained as advisory scope, never as product facts"
+      ],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0003.json",
+          "sha256": "450cb13a4b7637b60da8d13811a3c21a528c9da41a2eda23b618633a8ff20f85",
+          "size_bytes": 932,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "advisory-load {\"cve\":\"CVE-2023-44487\",\"path\":\"eval/agent7/advisories/k8s-44487.json\",\"source\":\"frozen_file\"}",
+          "working_dir": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+          "tool": "advisory-load",
+          "tool_version": "izyan/research-lane go1.26.1",
+          "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+          "input_digest": "ce0e4bdc99e659f4747fbfb0f0cac312ba069dcd943339ea767c0c727ce9824e",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "ec339470f35c84fd06ad469ae0961bd9a73a2a984011a7fd2ba4bf48504b1798"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0004",
+      "statement": "snapshot e196d2491087e93bd29f0e5a538aab60667021e3: content hash 6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072, go directive 1.20, 30 replace directives",
+      "claim": "TRUE",
+      "tool": "get_product_snapshot",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_product_snapshot {}",
+      "scope": "this snapshot's build context and module manifest facts",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "3e0ed3f64637e671a0ac273694ca405aa67eb67d09a64575954e6d108917298f",
+      "artifact": {
+        "path": "artifacts/obs-0004.json",
+        "sha256": "8eaf6cacc68ae5c60f9e880f8700974cfe50248042c94ccd0b5516c2dc265453",
+        "size_bytes": 8663,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0004",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T22:38:03Z"
+      },
+      "limitations": [],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0004.json",
+          "sha256": "8eaf6cacc68ae5c60f9e880f8700974cfe50248042c94ccd0b5516c2dc265453",
+          "size_bytes": 8663,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "get_product_snapshot {}",
+          "working_dir": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+          "tool": "get_product_snapshot",
+          "tool_version": "izyan-evidence-tools/0.1.0",
+          "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+          "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "3e0ed3f64637e671a0ac273694ca405aa67eb67d09a64575954e6d108917298f"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0005",
+      "statement": "normalized advisory record for CVE-2023-44487 (resolved id GHSA-qppj-fm5r-hxr3)",
+      "claim": "TRUE",
+      "tool": "get_vulnerability",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_vulnerability {}",
+      "scope": "OSV-compatible advisory record for CVE-2023-44487",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "83ab456f5454bcb083a4797ed707c6682d1ae925b5ef5919211e1e758e1ff7f0",
+      "artifact": {
+        "path": "artifacts/obs-0005.json",
+        "sha256": "34578a3379d27bfc1111f28a93e836d15b72b9193f5c5089b1ea7fe22967b5b3",
+        "size_bytes": 38170,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0005",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T22:38:03Z"
+      },
+      "limitations": [
+        "advisory declares no affected symbols; symbol-level queries need an explicit subject",
+        "severity provenance not declared by the advisory source"
+      ],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0005.json",
+          "sha256": "34578a3379d27bfc1111f28a93e836d15b72b9193f5c5089b1ea7fe22967b5b3",
+          "size_bytes": 38170,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "get_vulnerability {}",
+          "working_dir": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+          "tool": "get_vulnerability",
+          "tool_version": "izyan-evidence-tools/0.1.0",
+          "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+          "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "83ab456f5454bcb083a4797ed707c6682d1ae925b5ef5919211e1e758e1ff7f0"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0006",
+      "statement": "dependency graph: 263 module(s) resolved via vendor/modules.txt",
+      "claim": "TRUE",
+      "tool": "get_dependency_graph",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_dependency_graph {}",
+      "scope": "module list of <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3 (vendor/modules.txt)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "34e09a0513de55eff2ac34e7e35f02e8d494ce5ab198277bd9dc6fff0a457efd",
+      "artifact": {
+        "path": "artifacts/obs-0006.json",
+        "sha256": "6c8f2bc9916a347055a7d2cdd393bad5be3c70e9d604363c051eacc0af33741b",
+        "size_bytes": 60749,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0006",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T22:38:03Z"
+      },
+      "limitations": [
+        "module list comes from vendor/modules.txt (vendored build); replaces on disk are vendor content, not fetched versions"
+      ],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0006.json",
+          "sha256": "6c8f2bc9916a347055a7d2cdd393bad5be3c70e9d604363c051eacc0af33741b",
+          "size_bytes": 60749,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "get_dependency_graph {}",
+          "working_dir": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+          "tool": "get_dependency_graph",
+          "tool_version": "izyan-evidence-tools/0.1.0",
+          "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+          "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "34e09a0513de55eff2ac34e7e35f02e8d494ce5ab198277bd9dc6fff0a457efd"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0007",
+      "statement": "module golang.org/x/net resolved to version v0.17.0",
+      "claim": "TRUE",
+      "tool": "get_module_version",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_module_version {\"module\":\"golang.org/x/net\"}",
+      "scope": "resolved module list of <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3 (vendor/modules.txt)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": null,
+      "input_digest": "7bb1cab0b699e95a61bcdebff633924b7047ec3b26de2086685c7be00fd28421",
+      "data_digest": "b38342b4bf1cb599f85f0ea97f9c993b11e101b886ea615a9e63f020d484162b",
+      "artifact": {
+        "path": "artifacts/obs-0007.json",
+        "sha256": "4ef8c3cd3cbd8a086afc07a6fad18be6666648192fb15edb50ab7cc0068fcf76",
+        "size_bytes": 4468,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0007",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T22:38:03Z"
+      },
+      "limitations": [],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0007.json",
+          "sha256": "4ef8c3cd3cbd8a086afc07a6fad18be6666648192fb15edb50ab7cc0068fcf76",
+          "size_bytes": 4468,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "get_module_version {\"module\":\"golang.org/x/net\"}",
+          "working_dir": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+          "tool": "get_module_version",
+          "tool_version": "izyan-evidence-tools/0.1.0",
+          "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+          "input_digest": "7bb1cab0b699e95a61bcdebff633924b7047ec3b26de2086685c7be00fd28421",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "b38342b4bf1cb599f85f0ea97f9c993b11e101b886ea615a9e63f020d484162b"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0008",
+      "statement": "applicability chain for GHSA-qppj-fm5r-hxr3: module_present=TRUE version_affected=FALSE package_present=UNKNOWN build_relevant=UNKNOWN (selected [])",
+      "claim": "TRUE",
+      "tool": "affected-resolve",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "affected-resolve {\"vuln\":\"GHSA-qppj-fm5r-hxr3\"}",
+      "scope": "affected.GoResolver.Resolve over the snapshot module graph and import closure (go list -m, go list -deps under strict toolchain env)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "e6c072e5b137ac1b22a778666ed3bde173d7af5c71621a14829383d8da0db015",
+      "data_digest": "50f8ce8051c1c4dd7e608c823048abfd743f7d68074c1b571b508ed92e17c860",
+      "artifact": {
+        "path": "artifacts/obs-0008.json",
+        "sha256": "e185371eb4549bdfa163bfc2dc496ae084af72e0fa1bab52a4af6623a3d5dee8",
+        "size_bytes": 38408,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0008",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T22:38:03Z"
+      },
+      "limitations": [
+        "package/build reachability was not evaluated: the resolved version is outside the affected ranges of every evaluated advisory entry",
+        "evaluated affected-module entries: golang.org/x/net@v0.17.0"
+      ],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0008.json",
+          "sha256": "e185371eb4549bdfa163bfc2dc496ae084af72e0fa1bab52a4af6623a3d5dee8",
+          "size_bytes": 38408,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "affected-resolve {\"vuln\":\"GHSA-qppj-fm5r-hxr3\"}",
+          "working_dir": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+          "tool": "affected-resolve",
+          "tool_version": "izyan/research-lane go1.26.1",
+          "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+          "input_digest": "e6c072e5b137ac1b22a778666ed3bde173d7af5c71621a14829383d8da0db015",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "50f8ce8051c1c4dd7e608c823048abfd743f7d68074c1b571b508ed92e17c860"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0009",
+      "statement": "0 product call site(s) into module golang.org/x/net",
+      "claim": "TRUE",
+      "tool": "module_usage",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "module_usage {\"module\":\"golang.org/x/net\"}",
+      "scope": "product packages of <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3 calling packages of module golang.org/x/net",
+      "status": "OK",
+      "coverage": "PARTIAL",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "7bb1cab0b699e95a61bcdebff633924b7047ec3b26de2086685c7be00fd28421",
+      "data_digest": "504a3a251adcab8db8b802af1ca77e0b86f2c55f2b8380cb96f0cd672ffa1dc4",
+      "artifact": {
+        "path": "artifacts/obs-0009.json",
+        "sha256": "a3ef9251c7556d529f38626c16c4bc3e85d45300e862e17484f166586ece838f",
+        "size_bytes": 4873,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0009",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T22:38:03Z"
+      },
+      "limitations": [
+        "module usage enumerates product call sites whose callee package is owned by the module; nested modules and unresolved owners are surfaced via module_owner rather than silently attributed"
+      ],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0009.json",
+          "sha256": "a3ef9251c7556d529f38626c16c4bc3e85d45300e862e17484f166586ece838f",
+          "size_bytes": 4873,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "module_usage {\"module\":\"golang.org/x/net\"}",
+          "working_dir": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+          "tool": "module_usage",
+          "tool_version": "izyan-evidence-tools/0.1.0",
+          "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+          "input_digest": "7bb1cab0b699e95a61bcdebff633924b7047ec3b26de2086685c7be00fd28421",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "504a3a251adcab8db8b802af1ca77e0b86f2c55f2b8380cb96f0cd672ffa1dc4"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0010",
+      "statement": "ingress inventory for module golang.org/x/net: 0 inventoried item(s), 0 completeness blocker(s) (complete=true)",
+      "claim": "TRUE",
+      "tool": "ingress-inventory",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "ingress-inventory {\"module\":\"golang.org/x/net\",\"subjects\":null}",
+      "scope": "goanalysis.IngressInventory over module golang.org/x/net (product boundary + reachable dep cone, 2 hops)",
+      "status": "OK",
+      "coverage": "PARTIAL",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "3edd35a998429374e2864fadc8b39f5d4752c979fd8fa8d86e25c46df9192f57",
+      "data_digest": "733c551a9338590e5826ada3ce356d955fe0e2677665e5a1051ffcb2f8acb499",
+      "artifact": {
+        "path": "artifacts/obs-0010.json",
+        "sha256": "4990f20626faafec2787967017887930a9219fe1d0774683b5c46c69fecc192d",
+        "size_bytes": 1394,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0010",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T22:38:03Z"
+      },
+      "limitations": [
+        "ingress inventory is bounded to the loaded module cone; a complete inventory is a scope fact, not a reachability verdict"
+      ],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0010.json",
+          "sha256": "4990f20626faafec2787967017887930a9219fe1d0774683b5c46c69fecc192d",
+          "size_bytes": 1394,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "ingress-inventory {\"module\":\"golang.org/x/net\",\"subjects\":null}",
+          "working_dir": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+          "tool": "ingress-inventory",
+          "tool_version": "izyan/research-lane go1.26.1",
+          "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+          "input_digest": "3edd35a998429374e2864fadc8b39f5d4752c979fd8fa8d86e25c46df9192f57",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "733c551a9338590e5826ada3ce356d955fe0e2677665e5a1051ffcb2f8acb499"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0011",
+      "statement": "191 entrypoint(s) recognized in product packages",
+      "claim": "TRUE",
+      "tool": "find_entrypoints",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "find_entrypoints {}",
+      "scope": "product packages of <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+      "status": "OK",
+      "coverage": "PARTIAL",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "2b5ce38b914fc98cd9d5a9b5fac8f69f86487a9c15113394647e87a75c4a5cdd",
+      "artifact": {
+        "path": "artifacts/obs-0011.json",
+        "sha256": "0764a56f1adad56eb17a9eedfa94392c6d3d37c8e358ab4556fb005782b4a345",
+        "size_bytes": 75050,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0011",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T22:38:03Z"
+      },
+      "limitations": [
+        "entrypoint recognition covers main/init functions, exported symbols and net/http handlers; other transports (gRPC, message queues, CLI) are not enumerated by this scan"
+      ],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0011.json",
+          "sha256": "0764a56f1adad56eb17a9eedfa94392c6d3d37c8e358ab4556fb005782b4a345",
+          "size_bytes": 75050,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "find_entrypoints {}",
+          "working_dir": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+          "tool": "find_entrypoints",
+          "tool_version": "izyan-evidence-tools/0.1.0",
+          "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+          "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "2b5ce38b914fc98cd9d5a9b5fac8f69f86487a9c15113394647e87a75c4a5cdd"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0012",
+      "statement": "2 inbound listener binds in product packages observed",
+      "claim": "TRUE",
+      "tool": "listen-sites",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "listen-sites null",
+      "scope": "inbound listener binds in product packages (static source scan; runtime reachability is out of scope)",
+      "status": "OK",
+      "coverage": "PARTIAL",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+      "data_digest": "6d5c37a8dd6e95a16df0fec4933fc20bdf2eb700639df2df6d55cebfbcde7156",
+      "artifact": {
+        "path": "artifacts/obs-0012.json",
+        "sha256": "913bb8cf8cbedb605da3dd6b9e910c90339ef6adefb8272dc023df2cd338d3d2",
+        "size_bytes": 1710,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0012",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T22:38:03Z"
+      },
+      "limitations": [
+        "static exposure scan: a listener/dial site is a code fact, not runtime reachability"
+      ],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0012.json",
+          "sha256": "913bb8cf8cbedb605da3dd6b9e910c90339ef6adefb8272dc023df2cd338d3d2",
+          "size_bytes": 1710,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "listen-sites null",
+          "working_dir": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+          "tool": "listen-sites",
+          "tool_version": "izyan/research-lane go1.26.1",
+          "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+          "input_digest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "6d5c37a8dd6e95a16df0fec4933fc20bdf2eb700639df2df6d55cebfbcde7156"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0013",
+      "statement": "0 authentication/authorization facts around inbound handlers observed",
+      "claim": "TRUE",
+      "tool": "inbound-auth-facts",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "inbound-auth-facts null",
+      "scope": "authentication/authorization facts around inbound handlers (static source scan; runtime reachability is out of scope)",
+      "status": "OK",
+      "coverage": "PARTIAL",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+      "data_digest": "5c700f80e41e7d7596a0e752363123783cb5e7938da0474f7c8b0a37241b7674",
+      "artifact": {
+        "path": "artifacts/obs-0013.json",
+        "sha256": "41b233195c53e4c0b5dc1de2030986875200c3f67642e87848c55e9a2cfc71a3",
+        "size_bytes": 808,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0013",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T22:38:03Z"
+      },
+      "limitations": [
+        "static exposure scan: a listener/dial site is a code fact, not runtime reachability"
+      ],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0013.json",
+          "sha256": "41b233195c53e4c0b5dc1de2030986875200c3f67642e87848c55e9a2cfc71a3",
+          "size_bytes": 808,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "inbound-auth-facts null",
+          "working_dir": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+          "tool": "inbound-auth-facts",
+          "tool_version": "izyan/research-lane go1.26.1",
+          "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+          "input_digest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "5c700f80e41e7d7596a0e752363123783cb5e7938da0474f7c8b0a37241b7674"
+        }
+      }
+    },
+    {
+      "id": "fact-obs-0014",
+      "statement": "0 outbound dial/endpoint site(s) into module golang.org/x/net",
+      "claim": "TRUE",
+      "tool": "dial-sites",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "dial-sites {\"module\":\"golang.org/x/net\"}",
+      "scope": "outbound endpoints into module golang.org/x/net (static source scan)",
+      "status": "OK",
+      "coverage": "PARTIAL",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "7bb1cab0b699e95a61bcdebff633924b7047ec3b26de2086685c7be00fd28421",
+      "data_digest": "43fe627691677232cb5d101214d9797f162156fbdb1c18cb62daa2567adffc72",
+      "artifact": {
+        "path": "artifacts/obs-0014.json",
+        "sha256": "68e3e6746b205829dcc26af104f9ae5e20b39b6643fd8c4585309275263d1712",
+        "size_bytes": 781,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0014",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T22:38:03Z"
+      },
+      "limitations": [
+        "a dial site is a code fact; whether the endpoint is attacker-reachable is out of scope"
+      ],
+      "materiality": {
+        "level": "MATERIAL",
+        "raw_bytes": {
+          "path": "artifacts/obs-0014.json",
+          "sha256": "68e3e6746b205829dcc26af104f9ae5e20b39b6643fd8c4585309275263d1712",
+          "size_bytes": 781,
+          "selector": "observation"
+        },
+        "reproducible_source": {
+          "kind": "COMMAND",
+          "path": null,
+          "command": "dial-sites {\"module\":\"golang.org/x/net\"}",
+          "working_dir": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+          "tool": "dial-sites",
+          "tool_version": "izyan/research-lane go1.26.1",
+          "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+          "input_digest": "7bb1cab0b699e95a61bcdebff633924b7047ec3b26de2086685c7be00fd28421",
+          "env": {
+            "GOENV": "off",
+            "GOEXPERIMENT": "",
+            "GOFLAGS": "-mod=readonly",
+            "GOINSECURE": "",
+            "GONOPROXY": "",
+            "GONOSUMDB": "",
+            "GOPRIVATE": "",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOWORK": "off"
+          },
+          "selector": "observation JSON payload",
+          "output_sha256": "43fe627691677232cb5d101214d9797f162156fbdb1c18cb62daa2567adffc72"
+        }
+      }
+    }
+  ],
+  "agent_assertions": [
+    {
+      "id": "A-0001",
+      "statement": "category=code_not_present: The advisory (GHSA-qppj-fm5r-hxr3, CVE-2023-44487) lists golang.org/x/net with a fix in version 0.17.0 (entry adv-02). The snapshot's go.mod declares golang.org/x/net v0.17.0 at line 82, confirmed in go.sum at line 1018. This is exactly the fixed version, placing it outside the affected range [introduced, 0.17.0). No other components from the advisory (Swift swift-nio-http2, Maven Tomcat/Jetty/Akka) are present in this Go-based Kubernetes repository. The source code in vendor/golang.org/x/net/http2 (including processResetStream at server.go:1601-1618) has no vulnerability because the fix was already applied upstream in v0.17.0.",
+      "subject": "GHSA-qppj-fm5r-hxr3",
+      "scope": "final classification",
+      "state": "OPEN",
+      "basis": "MODEL_HYPOTHESIS",
+      "evidence_refs": [
+        "A-0001"
+      ],
+      "limitations": [],
+      "original_text": "category=code_not_present: The advisory (GHSA-qppj-fm5r-hxr3, CVE-2023-44487) lists golang.org/x/net with a fix in version 0.17.0 (entry adv-02). The snapshot's go.mod declares golang.org/x/net v0.17.0 at line 82, confirmed in go.sum at line 1018. This is exactly the fixed version, placing it outside the affected range [introduced, 0.17.0). No other components from the advisory (Swift swift-nio-http2, Maven Tomcat/Jetty/Akka) are present in this Go-based Kubernetes repository. The source code in vendor/golang.org/x/net/http2 (including processResetStream at server.go:1601-1618) has no vulnerability because the fix was already applied upstream in v0.17.0.",
+      "source_selector": "$.category + $.reasoning"
+    },
+    {
+      "id": "A-0002",
+      "statement": "HTTP/2 Rapid Reset (CVE-2023-44487): An attacker sends RST_STREAM frames immediately after HEADERS frames to cancel streams before completion. The server still allocates stream data structures, parses headers, and performs header decompression, creating a cost asymmetry where the server does significant work per reset while the attacker pays minimal bandwidth. This enables denial-of-service against HTTP/2 servers.",
+      "subject": "",
+      "scope": "agent assessment (snapshot-read scope as stated)",
+      "state": "OPEN",
+      "basis": "MODEL_HYPOTHESIS",
+      "evidence_refs": [
+        "A-0002"
+      ],
+      "limitations": [],
+      "original_text": "HTTP/2 Rapid Reset (CVE-2023-44487): An attacker sends RST_STREAM frames immediately after HEADERS frames to cancel streams before completion. The server still allocates stream data structures, parses headers, and performs header decompression, creating a cost asymmetry where the server does significant work per reset while the attacker pays minimal bandwidth. This enables denial-of-service against HTTP/2 servers.",
+      "source_selector": "$.assessment.vulnerability_mechanism"
+    },
+    {
+      "id": "A-0003",
+      "statement": "The golang.org/x/net@v0.17.0 HTTP/2 server implementation in vendor/golang.org/x/net/http2/server.go handles RST_STREAM frames via processResetStream (line 1601-1618), which calls sc.closeStream(st, streamError(f.StreamID, f.ErrCode)) without rate limiting. The upstream fix in v0.17.0 (bound to advisory entry adv-02) introduces flow control to limit RST_STREAM processing. Since this snapshot is at exactly v0.17.0, the fix is included.",
+      "subject": "",
+      "scope": "agent assessment (snapshot-read scope as stated)",
+      "state": "OPEN",
+      "basis": "EVIDENCE_SUPPORTED",
+      "evidence_refs": [
+        "A-0003"
+      ],
+      "limitations": [],
+      "original_text": "The golang.org/x/net@v0.17.0 HTTP/2 server implementation in vendor/golang.org/x/net/http2/server.go handles RST_STREAM frames via processResetStream (line 1601-1618), which calls sc.closeStream(st, streamError(f.StreamID, f.ErrCode)) without rate limiting. The upstream fix in v0.17.0 (bound to advisory entry adv-02) introduces flow control to limit RST_STREAM processing. Since this snapshot is at exactly v0.17.0, the fix is included.",
+      "source_selector": "$.assessment.root_cause"
+    },
+    {
+      "id": "A-0004",
+      "statement": "1) Attacker establishes an HTTP/2 TLS connection to the Kubernetes API server (entry point via secure_serving.go:201-206, http2.ConfigureServer). 2) Attacker opens streams and sends HEADERS to trigger server-side processing. 3) Immediately after, attacker sends RST_STREAM to cancel each stream before the server completes processing. 4) The server wastes resources on alloc-parse-cancel cycles for each cancelled stream. Required conditions: HTTP/2 enabled (default in kube-apiserver), network access to the API server HTTPS port.",
+      "subject": "",
+      "scope": "agent assessment (snapshot-read scope as stated)",
+      "state": "OPEN",
+      "basis": "MODEL_HYPOTHESIS",
+      "evidence_refs": [
+        "A-0004"
+      ],
+      "limitations": [],
+      "original_text": "1) Attacker establishes an HTTP/2 TLS connection to the Kubernetes API server (entry point via secure_serving.go:201-206, http2.ConfigureServer). 2) Attacker opens streams and sends HEADERS to trigger server-side processing. 3) Immediately after, attacker sends RST_STREAM to cancel each stream before the server completes processing. 4) The server wastes resources on alloc-parse-cancel cycles for each cancelled stream. Required conditions: HTTP/2 enabled (default in kube-apiserver), network access to the API server HTTPS port.",
+      "source_selector": "$.assessment.attack_scenario"
+    },
+    {
+      "id": "A-0005",
+      "statement": "The Kubernetes API server uses golang.org/x/net/http2 via secure_serving.go:180-206 with HTTP/2 enabled by default (DisableHTTP2 defaults false). MaxConcurrentStreams defaults to 100 (line 195) but is configurable via 'http2-max-streams-per-connection' flag (options/serving.go:203). The recommended configuration sets HTTP2MaxStreamsPerConnection to 1000 (options/recommended.go:67), which would increase the attack surface. Build scope: Go module k8s.io/kubernetes, go 1.20. Platform: Linux (vendor/golang.org/x/net/http2/server.go:746 references GOOS windows). Deployment: standard kube-apiserver with HTTPS serving. Unknown: whether DisableHTTP2 is set in the target deployment, actual runtime flag values.",
+      "subject": "",
+      "scope": "agent assessment (snapshot-read scope as stated)",
+      "state": "OPEN",
+      "basis": "MODEL_HYPOTHESIS",
+      "evidence_refs": [
+        "A-0005"
+      ],
+      "limitations": [],
+      "original_text": "The Kubernetes API server uses golang.org/x/net/http2 via secure_serving.go:180-206 with HTTP/2 enabled by default (DisableHTTP2 defaults false). MaxConcurrentStreams defaults to 100 (line 195) but is configurable via 'http2-max-streams-per-connection' flag (options/serving.go:203). The recommended configuration sets HTTP2MaxStreamsPerConnection to 1000 (options/recommended.go:67), which would increase the attack surface. Build scope: Go module k8s.io/kubernetes, go 1.20. Platform: Linux (vendor/golang.org/x/net/http2/server.go:746 references GOOS windows). Deployment: standard kube-apiserver with HTTPS serving. Unknown: whether DisableHTTP2 is set in the target deployment, actual runtime flag values.",
+      "source_selector": "$.assessment.product_exposure"
+    },
+    {
+      "id": "A-0006",
+      "statement": "Checked: Tomcat, Jetty, Akka HTTP (Maven) - no Java build files present. Nginx, Envoy, Node.js - no C/JS build files present. swift-nio-http2 - no Swift Package.swift present. golang.org/x/net is the only affected component from the advisory present in the snapshot. The gRPC server components (vendor/google.golang.org/grpc/internal/transport/http2_server.go) also use the same vendor golang.org/x/net/http2, so the fix applies there too. golang.org/x/net/http2 is also used by api machinery client (staging/src/k8s.io/apimachinery/pkg/util/net/http.go:39) as an HTTP client - RST_STREAM DoS is a server-side vulnerability so client usage is not relevant. Not fully explored: whether the etcd vendored copy has its own HTTP/2 implementation that bypasses golang.org/x/net.",
+      "subject": "",
+      "scope": "agent assessment (snapshot-read scope as stated)",
+      "state": "OPEN",
+      "basis": "MODEL_HYPOTHESIS",
+      "evidence_refs": [
+        "A-0006"
+      ],
+      "limitations": [],
+      "original_text": "Checked: Tomcat, Jetty, Akka HTTP (Maven) - no Java build files present. Nginx, Envoy, Node.js - no C/JS build files present. swift-nio-http2 - no Swift Package.swift present. golang.org/x/net is the only affected component from the advisory present in the snapshot. The gRPC server components (vendor/google.golang.org/grpc/internal/transport/http2_server.go) also use the same vendor golang.org/x/net/http2, so the fix applies there too. golang.org/x/net/http2 is also used by api machinery client (staging/src/k8s.io/apimachinery/pkg/util/net/http.go:39) as an HTTP client - RST_STREAM DoS is a server-side vulnerability so client usage is not relevant. Not fully explored: whether the etcd vendored copy has its own HTTP/2 implementation that bypasses golang.org/x/net.",
+      "source_selector": "$.assessment.alternative_paths"
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-0001",
+      "statement": "UNKNOWN: component google.golang.org/grpc/internal is named by the agent but is not in the advisory affected entries",
+      "reason": "advisory scope gap: the frozen advisory does not name this dependency module; a local fixed-version fact for a covered component cannot be extended to it",
+      "follow_up": "verify whether the frozen advisory is complete for this CVE before treating any local fixed-version fact as a CVE-wide conclusion",
+      "evidence_refs": [],
+      "group": "advisory_scope",
+      "priority": "DECISION_CHANGING",
+      "decision_changing_for": "whether the fixed golang.org/x/net@v0.17.0 entry can be generalized to the CVE-2023-44487 conclusion"
+    },
+    {
+      "id": "U-0002",
+      "statement": "UNKNOWN: component k8s.io/apimachinery/pkg is named by the agent but is not in the advisory affected entries",
+      "reason": "advisory scope gap: the frozen advisory does not name this dependency module; a local fixed-version fact for a covered component cannot be extended to it",
+      "follow_up": "verify whether the frozen advisory is complete for this CVE before treating any local fixed-version fact as a CVE-wide conclusion",
+      "evidence_refs": [],
+      "group": "advisory_scope",
+      "priority": "DECISION_CHANGING",
+      "decision_changing_for": "whether the fixed golang.org/x/net@v0.17.0 entry can be generalized to the CVE-2023-44487 conclusion"
+    },
+    {
+      "id": "U-0003",
+      "statement": "UNKNOWN: component k8s.io/apiserver/pkg is named by the agent but is not in the advisory affected entries",
+      "reason": "advisory scope gap: the frozen advisory does not name this dependency module; a local fixed-version fact for a covered component cannot be extended to it",
+      "follow_up": "verify whether the frozen advisory is complete for this CVE before treating any local fixed-version fact as a CVE-wide conclusion",
+      "evidence_refs": [],
+      "group": "advisory_scope",
+      "priority": "DECISION_CHANGING",
+      "decision_changing_for": "whether the fixed golang.org/x/net@v0.17.0 entry can be generalized to the CVE-2023-44487 conclusion"
+    },
+    {
+      "id": "U-0004",
+      "statement": "UNKNOWN: run_govulncheck check did not produce a result (UNSUPPORTED)",
+      "reason": "strict profile requires --govulndb to pin the vulnerability database",
+      "follow_up": "rerun or scope-down the check; its status is UNSUPPORTED, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0015"
+      ],
+      "group": "evidence",
+      "priority": "APPENDIX",
+      "decision_changing_for": null
+    }
+  ],
+  "open_questions": [
+    {
+      "id": "Q-0001",
+      "question": "component google.golang.org/grpc/internal is named by the agent but is not in the advisory affected entries",
+      "subject": "U-0001",
+      "scope": "report scope",
+      "next_check": "verify whether the frozen advisory is complete for this CVE before treating any local fixed-version fact as a CVE-wide conclusion",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0002",
+      "question": "component k8s.io/apimachinery/pkg is named by the agent but is not in the advisory affected entries",
+      "subject": "U-0002",
+      "scope": "report scope",
+      "next_check": "verify whether the frozen advisory is complete for this CVE before treating any local fixed-version fact as a CVE-wide conclusion",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0003",
+      "question": "component k8s.io/apiserver/pkg is named by the agent but is not in the advisory affected entries",
+      "subject": "U-0003",
+      "scope": "report scope",
+      "next_check": "verify whether the frozen advisory is complete for this CVE before treating any local fixed-version fact as a CVE-wide conclusion",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0004",
+      "question": "run_govulncheck check did not produce a result (UNSUPPORTED)",
+      "subject": "U-0004",
+      "scope": "report scope",
+      "next_check": "rerun or scope-down the check; its status is UNSUPPORTED, never an absence proof",
+      "evidence_refs": [
+        "obs:OBS-0015"
+      ]
+    },
+    {
+      "id": "Q-0005",
+      "question": "Is DisableHTTP2 explicitly set to true in the target deployment? This would mean the API server does not use HTTP/2 at all, further reducing exposure. Follow-up: check kube-apiserver startup flags and configuration manifests.",
+      "subject": "",
+      "scope": "agent assessment",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0006",
+      "question": "What is the actual runtime value of http2-max-streams-per-connection in the deployment? The recommended default is 1000 but clusters may override this. Follow-up: inspect kube-apiserver Deployment args or config.",
+      "subject": "",
+      "scope": "agent assessment",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    },
+    {
+      "id": "Q-0007",
+      "question": "Does the API server expose HTTP/2 to unauthenticated clients? The attack requires L3/L4 reachability to the HTTPS port. Follow-up: verify network policies and whether the API server is exposed externally.",
+      "subject": "",
+      "scope": "agent assessment",
+      "next_check": "agent-stated follow-up",
+      "evidence_refs": []
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "R-0001",
+      "action": "review every verified_fact against its persisted artifact, then adjudicate agent assertions and unknowns",
+      "owner": "human",
+      "reason": "disposition is review-required by contract",
+      "evidence_refs": []
+    },
+    {
+      "id": "R-0002",
+      "action": "adjudicate the advisory scope (whether google.golang.org/grpc/internal, k8s.io/apimachinery/pkg, k8s.io/apiserver/pkg belong to this CVE's affected set) before treating any local fixed-version fact as a CVE conclusion",
+      "owner": "human",
+      "reason": "advisory_scope_status is GAP_DETECTED; conclusion_scope stays AFFECTED_ENTRY_ONLY",
+      "evidence_refs": []
+    }
+  ],
+  "agent_output": {
+    "status": "OK",
+    "category": "code_not_present",
+    "reasoning": "The advisory (GHSA-qppj-fm5r-hxr3, CVE-2023-44487) lists golang.org/x/net with a fix in version 0.17.0 (entry adv-02). The snapshot's go.mod declares golang.org/x/net v0.17.0 at line 82, confirmed in go.sum at line 1018. This is exactly the fixed version, placing it outside the affected range [introduced, 0.17.0). No other components from the advisory (Swift swift-nio-http2, Maven Tomcat/Jetty/Akka) are present in this Go-based Kubernetes repository. The source code in vendor/golang.org/x/net/http2 (including processResetStream at server.go:1601-1618) has no vulnerability because the fix was already applied upstream in v0.17.0.",
+    "raw_artifact": {
+      "path": "agent/attempt-0002/answer.txt",
+      "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71"
+    },
+    "attempt_id": "attempt-0002",
+    "result_artifact": {
+      "path": "agent/attempt-0002/result.json",
+      "sha256": "a9073927ef94049e5b03378902653c660dcd2d2137318ac4b6e8bcdf138402a3",
+      "size_bytes": 157419,
+      "selector": "raw harness result"
+    },
+    "answer_artifact": {
+      "path": "agent/attempt-0002/answer.txt",
+      "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71",
+      "size_bytes": 6623,
+      "selector": "assistant text"
+    },
+    "extraction": {
+      "status": "VALID",
+      "invalid_reason": "NONE",
+      "candidate_count": 1,
+      "candidates": [
+        {
+          "index": 0,
+          "status": "VALID",
+          "category": "code_not_present",
+          "raw_sha256": "ef243bfd063661d3a2607fdf3d98f90c1ed14d374c305c933a9661c7fc8a7f62",
+          "canonical_sha256": "1db75f39df42322dd0501c8f0bf0ad0e55531bc8fd0ce03e0a4a47684d265c70",
+          "selector": "bytes 167..6619 of retained answer"
+        }
+      ],
+      "selected_index": 0,
+      "answer_artifact": {
+        "path": "agent/attempt-0002/answer.txt",
+        "sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71",
+        "size_bytes": 6623,
+        "selector": "assistant text"
+      }
+    },
+    "replayed_from": {
+      "dir": "<VA_REPO>/eval/agent7/e2e/k8s-44487",
+      "answer_sha256": "2fa2bf46aec0cb264bb4078fe2c036fe2a1dd8cdfcf06cd69e957aa90bb4bf71",
+      "result_sha256": "a9073927ef94049e5b03378902653c660dcd2d2137318ac4b6e8bcdf138402a3",
+      "original_run_id": "research-CVE-2023-44487-1791840579",
+      "original_attempt_id": "attempt-0002"
+    }
+  },
+  "contract_extensions": [
+    "slice2-fidelity/2"
+  ],
+  "contradictions": [
+    {
+      "id": "C-0001",
+      "kind": "category_vs_component_scope",
+      "subject": "golang.org/x/net",
+      "agent_assertion_ref": "A-0001",
+      "deterministic_refs": [
+        "fact-obs-0008",
+        "obs:OBS-0008"
+      ],
+      "summary": "the original category is retained for the evaluated fixed golang.org/x/net@v0.17.0 entry, but the deterministic result does not establish that the CVE is absent from every implementation",
+      "resolution": "SCOPE_LIMITS",
+      "limitations": [
+        "a fixed version for the evaluated golang.org/x/net entry is not a CVE-wide conclusion; advisory completeness for CVE-2023-44487 is unverified"
+      ]
+    },
+    {
+      "id": "C-0002",
+      "kind": "advisory_scope_gap",
+      "subject": "google.golang.org/grpc/internal",
+      "agent_assertion_ref": "A-0006",
+      "deterministic_refs": [
+        "adv:GHSA-qppj-fm5r-hxr3"
+      ],
+      "summary": "agent names product-relevant component google.golang.org/grpc/internal outside the advisory's affected entries; the deterministic scope is bounded to the frozen entries",
+      "resolution": "UNRESOLVED",
+      "limitations": [
+        "a detected scope gap, not a proof that the frozen advisory is globally complete or incomplete"
+      ]
+    },
+    {
+      "id": "C-0003",
+      "kind": "advisory_scope_gap",
+      "subject": "k8s.io/apimachinery/pkg",
+      "agent_assertion_ref": "A-0006",
+      "deterministic_refs": [
+        "adv:GHSA-qppj-fm5r-hxr3"
+      ],
+      "summary": "agent names product-relevant component k8s.io/apimachinery/pkg outside the advisory's affected entries; the deterministic scope is bounded to the frozen entries",
+      "resolution": "UNRESOLVED",
+      "limitations": [
+        "a detected scope gap, not a proof that the frozen advisory is globally complete or incomplete"
+      ]
+    },
+    {
+      "id": "C-0004",
+      "kind": "advisory_scope_gap",
+      "subject": "k8s.io/apiserver/pkg",
+      "agent_assertion_ref": null,
+      "deterministic_refs": [
+        "adv:GHSA-qppj-fm5r-hxr3"
+      ],
+      "summary": "agent names product-relevant component k8s.io/apiserver/pkg outside the advisory's affected entries; the deterministic scope is bounded to the frozen entries",
+      "resolution": "UNRESOLVED",
+      "limitations": [
+        "a detected scope gap, not a proof that the frozen advisory is globally complete or incomplete"
+      ]
+    }
+  ],
+  "exploitation_axes": {
+    "code_reachability": {
+      "status": "NOT_ESTABLISHED",
+      "level": "MODULE",
+      "statement": "the evaluated advisory entry for golang.org/x/net resolves to fixed version v0.17.0; vulnerable-code reachability was not evaluated for it under the recorded context",
+      "scope": "resolved module graph / snapshot build context",
+      "basis": "deterministic",
+      "evidence_refs": [
+        "fact-obs-0008",
+        "obs:OBS-0008"
+      ],
+      "limitations": [
+        "reachability not evaluated: the package/build probe did not run because the evaluated entry is fixed",
+        "a fixed version is not evidence of code absence — the module may still be compiled into the product"
+      ]
+    },
+    "attack_surface_availability": {
+      "status": "ESTABLISHED",
+      "level": "STATIC_CAPABILITY",
+      "statement": "static source capability: find_entrypoints records 191 inbound listener/endpoint site(s) in product source at the recorded scope",
+      "scope": "product source tree (static scan scope)",
+      "basis": "deterministic",
+      "evidence_refs": [
+        "fact-obs-0011"
+      ],
+      "limitations": [
+        "static source capability is not runtime availability; a source listener is not a runtime-available socket"
+      ]
+    },
+    "exploitation_established": {
+      "status": "NOT_ESTABLISHED",
+      "level": "NONE",
+      "statement": "attacker exploitability is not established: package reachability and an agent-described scenario do not prove socket availability, attacker access, malformed-message delivery, or a resulting panic",
+      "scope": "whole report scope",
+      "basis": "none",
+      "evidence_refs": [],
+      "limitations": [
+        "NOT_ESTABLISHED means not proven, never proven impossible; it requires a retained dynamic trace, runtime observation, or reproduction"
+      ]
+    }
+  },
+  "classification_review": {
+    "original_category": "code_not_present",
+    "class": "NON_APPLICABLE",
+    "status": "CONFLICTED",
+    "basis_refs": [
+      "fact-obs-0008"
+    ],
+    "limitations": [
+      "the category is retained for the evaluated fixed entry only; the deterministic result does not establish the CVE is absent from every implementation"
+    ]
+  },
+  "disposition": {
+    "class": "REVIEW_REQUIRED",
+    "auto_close": false,
+    "reason": "research lane output supports human triage only: evidence is scope-bounded, agent claims are unverified hypotheses, and the contract forbids VERIFIED/FALSE/AUTO_CLOSE dispositions",
+    "forbidden_classes": [
+      "VERIFIED",
+      "FALSE",
+      "AUTO_CLOSE"
+    ]
+  }
+}

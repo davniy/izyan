@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/fedorovmv/izyan/internal/domain"
 )
@@ -23,6 +24,10 @@ func (ArgumentOrigin) CanEvaluate(cond domain.Condition) bool {
 }
 
 func (ArgumentOrigin) Evaluate(cond domain.Condition, c *domain.AnalysisCase) domain.Claim {
+	return admitNegative(c, cond, evaluateArgumentOrigin(cond, c))
+}
+
+func evaluateArgumentOrigin(cond domain.Condition, c *domain.AnalysisCase) domain.Claim {
 	claim := domain.Claim{
 		ID:          domain.ClaimID("CL-" + string(cond.ID)),
 		ConditionID: cond.ID,
@@ -58,8 +63,14 @@ func (ArgumentOrigin) Evaluate(cond domain.Condition, c *domain.AnalysisCase) do
 			"no argument-provenance data flows recorded for this condition")
 		return claim
 	}
+	// A proven library public-API payload binding is a typed positive: admit
+	// it after the package-absence check and after genuine external origin
+	// precedence below, but before unresolved-origin handling and before the
+	// constant-input FALSE fallback. A rejected witness proves nothing and
+	// leaves the existing provenance logic untouched.
+	_, witness, libraryWitness := admittedLibraryWitness(cond, c)
 	mods := linkedModules(c)
-	var safe, external, unknown, payloadUnproven, deployDependent, coneInternal int
+	var safe, external, unknown, payloadUnproven, deployDependent, coneInternal, configFlows int
 	for _, f := range flows {
 		if cond.ArgIndex < 0 && f.PayloadUnproven &&
 			(f.Origin == domain.OriginExternalUntrusted || f.Origin == domain.OriginExternalAuthenticated) {
@@ -74,6 +85,9 @@ func (ArgumentOrigin) Evaluate(cond domain.Condition, c *domain.AnalysisCase) do
 			// Deployment-controlled sources: trust boundary is a deployment
 			// property — we cannot prove the value is not attacker-influenced.
 			deployDependent++
+			if f.Origin == domain.OriginConfiguration {
+				configFlows++
+			}
 		case domain.OriginConstant, domain.OriginGenerated:
 			safe++
 		default:
@@ -171,6 +185,15 @@ func (ArgumentOrigin) Evaluate(cond domain.Condition, c *domain.AnalysisCase) do
 	case external > 0:
 		claim.Result = domain.ClaimTrue
 		claim.Explanation = fmt.Sprintf("%d call site(s) receive externally controlled input", external)
+	case libraryWitness:
+		out := libraryWitnessClaim(cond, c, witness)
+		// Keep any provenance caveat recorded before the branch (e.g. a
+		// security-relevant transform on another traced site): the positive
+		// rests on the witness, but the audit note must not disappear.
+		for _, l := range claim.Limitations {
+			out.Limitations = appendUnique(out.Limitations, l)
+		}
+		return out
 	case unknown > 0:
 		if unresolved := unknown - payloadUnproven; unresolved > 0 {
 			claim.Limitations = append(claim.Limitations,
@@ -181,33 +204,31 @@ func (ArgumentOrigin) Evaluate(cond domain.Condition, c *domain.AnalysisCase) do
 				fmt.Sprintf("%d externally originated writer-only flow(s); outbound writer capability alone does not establish payload at an unspecified argument index", payloadUnproven))
 		}
 	case deployDependent > 0:
-		allConfig := true
-		for _, f := range flows {
-			if inCaseModules(f.Sink.Package, mods) {
-				continue
-			}
-			if f.Origin != domain.OriginConfiguration {
-				allConfig = false
-				break
-			}
+		allConfig := configFlows == len(flows)
+		if allConfig && external == 0 && unknown == 0 && coneInternal == 0 {
+			// Configuration provenance is a code fact, not the policy
+			// assertion. The post-reach route requires positive exact
+			// sink reach, exact ArgIndex binding at every live site, a
+			// complete advisory-bound sink closure and an admissible
+			// declared config-trust assumption; --trusted-peer is not a
+			// substitute.
+			post, _ := postReachConfigClaim(cond, c, flows, time.Now())
+			return closureGate(c, post, c.EvidenceGraph.IngressClosureFor(cond.ID),
+				c.EvidenceGraph.SinkClosureFor(cond.ID), coneInternal, flows)
 		}
-		if (c.Product.TrustedPeer || allConfig) && external == 0 && unknown == 0 {
+		if c.Product.TrustedPeer && external == 0 && unknown == 0 {
+			// Non-configuration deployment sources (database/internal
+			// service) under an explicit peer-trust declaration keep the
+			// pre-existing code-level falsifier. Configuration origins
+			// never reach this branch: the administrator-trust assertion
+			// is admitted only from declared-assumptions/1.
 			claim.Result = domain.ClaimFalse
 			claim.Falsifier = domain.FalsifierTrustedInfrastructure
-			if allConfig {
-				claim.FalsifierBasis = domain.BasisConfigOrigin
-				claim.Explanation = fmt.Sprintf("all %d call site(s) consume local configuration files from host environment (trusted infrastructure)", deployDependent)
-				claim.NegativeVerification = &domain.NegativeVerification{
-					Status: domain.NegativeVerified,
-					Notes:  "local host configuration files are treated as trusted infrastructure environment",
-				}
-			} else {
-				claim.FalsifierBasis = domain.BasisDeclaredTrust
-				claim.Explanation = fmt.Sprintf("all %d call site(s) receive config/service-provided input from trusted internal deployment infrastructure (--trusted-peer)", deployDependent)
-				claim.NegativeVerification = &domain.NegativeVerification{
-					Status: domain.NegativeVerified,
-					Notes:  "deployment infrastructure declared trusted peer/service communication (--trusted-peer)",
-				}
+			claim.FalsifierBasis = domain.BasisDeclaredTrust
+			claim.Explanation = fmt.Sprintf("all %d call site(s) receive config/service-provided input from trusted internal deployment infrastructure (--trusted-peer)", deployDependent)
+			claim.NegativeVerification = &domain.NegativeVerification{
+				Status: domain.NegativeVerified,
+				Notes:  "deployment infrastructure declared trusted peer/service communication (--trusted-peer)",
 			}
 			return closureGate(c, claim, c.EvidenceGraph.IngressClosureFor(cond.ID),
 				c.EvidenceGraph.SinkClosureFor(cond.ID), coneInternal, flows)
@@ -258,6 +279,33 @@ func closureGate(c *domain.AnalysisCase, claim domain.Claim, cl *domain.IngressC
 			len(sc.Blockers), strings.Join(notes, "; ")))
 	}
 	if claim.Result != domain.ClaimFalse {
+		return claim
+	}
+	// The exact-argument post-reach route has its own closure contract:
+	// only a complete advisory-bound sink closure with every live site
+	// bound to the exact trigger ArgIndex and traced to configuration may
+	// retain the FALSE. Neither ingress items nor direct call-site traces
+	// can substitute — configuration provenance is sink- and
+	// argument-specific, and a deployment-controlled ingress item
+	// (CONFIGURATION/DATABASE/INTERNAL_SERVICE) is not proof that this
+	// trigger stayed administrator-managed.
+	if claim.Producer == postReachProducer {
+		note, ok := postReachStoredClaimValid(c, claim)
+		if !ok {
+			claim.Result = domain.ClaimUnknown
+			claim.Falsifier = ""
+			claim.FalsifierBasis = ""
+			// A demoted claim no longer rests on the policy assumption:
+			// leaving the id behind would let an unfounded claim cite an
+			// owner policy as its basis.
+			claim.AssumptionIDs = nil
+			claim.NegativeVerification = nil
+			claim.Limitations = append(claim.Limitations,
+				"post-reach configuration falsifier demoted: "+note)
+			claim.Explanation += "; post-reach closure no longer supports FALSE: " + note
+			return claim
+		}
+		claim.Limitations = append(claim.Limitations, note)
 		return claim
 	}
 	// Nothing recorded and nothing to absorb: the candidate stands on
@@ -442,16 +490,28 @@ func sinkVerified(sc *domain.SinkClosure, coneInternal int) (string, bool) {
 		return "", false
 	}
 	var live, dead int
+	config := 0
 	for _, s := range sc.Sites {
-		if s.Live {
-			live++
-		} else {
+		if !s.Live {
 			dead++
+			continue
+		}
+		live++
+		// A complete closure may include configuration-origin positions
+		// (a resolved, non-external origin). Such a position grounds the
+		// config-origin route — which has its own exact-site contract —
+		// but never the constant/generated falsifier this gate serves.
+		if s.Origin == domain.OriginConfiguration {
+			config++
+			continue
+		}
+		if !domain.SafeOrigin(s.Origin) {
+			return "", false
 		}
 	}
 	return fmt.Sprintf(
-		"sink closure verified complete: %d live payload position(s) across declared sinks all non-external, %d dead site(s) excluded by call-graph evidence; basis: %s",
-		live, dead, sc.Basis), true
+		"sink closure verified complete: %d live payload position(s) across declared sinks all non-external (%d configuration, %d safe), %d dead site(s) excluded by call-graph evidence; basis: %s",
+		live, config, live-config, dead, sc.Basis), true
 }
 
 func ingressItemLabel(it domain.IngressItem) string {
@@ -590,6 +650,9 @@ func coveringGuards(c *domain.AnalysisCase, f domain.DataFlow) []domain.Validati
 // term's variable, or (when nothing names it) every mutable arg's cover.
 // Returns "" when no bound is declared, else a note: "bound verified"
 // when all terms are excluded, or a limitation describing the gap.
+// The bound is a deterministic condition annotation: model proposals keep
+// their params on ExploitModel.ProposedConditions and never reach here, so
+// a model-supplied bound cannot change the evaluated truth.
 func verifyBound(cond domain.Condition, c *domain.AnalysisCase, flows []domain.DataFlow) string {
 	bound := cond.Params[domain.ParamBound]
 	if bound == "" {
@@ -668,7 +731,9 @@ func verifyBound(cond domain.Condition, c *domain.AnalysisCase, flows []domain.D
 
 // constViolatesBound reports a violation when a constant sink argument's
 // resolved value satisfies one of the bound's disjunct terms — the
-// constraint is then deterministically satisfiable, not falsified.
+// constraint is then deterministically satisfiable, not falsified. Only the
+// authoritative condition carries a bound here; a model proposal never
+// populates it.
 func constViolatesBound(cond domain.Condition, flows []domain.DataFlow) string {
 	terms, leftovers := parseBound(cond.Params[domain.ParamBound])
 	if len(leftovers) > 0 || len(terms) == 0 {
@@ -734,6 +799,9 @@ func isPopulateCallee(callee string) bool {
 	}
 }
 
+// findCondition resolves a condition from the authoritative model buckets
+// only. ProposedConditions are non-authoritative nominations and are
+// deliberately invisible to evaluation.
 func findCondition(m *domain.ExploitModel, id domain.ConditionID) *domain.Condition {
 	if m == nil {
 		return nil

@@ -82,7 +82,7 @@
 * `real-yaml3-http`: остаётся `EXPLOITABLE` (вход поступает из HTTP-запроса).
 * `real-protojson-http`: остаётся `EXPLOITABLE` (вход поступает из HTTP-запроса).
 * `real-jwt-auth`: остаётся `INCONCLUSIVE` (missing-call гейт).
-* `real-micro-xds`: остаётся `INCONCLUSIVE` (интерфейсная диспетчеризация).
+* `real-service-xds`: остаётся `INCONCLUSIVE` (интерфейсная диспетчеризация).
 
 ### 3.3. Итоговая статистика корпуса
 * Доля закрытых кейсов (cleared rate): **20/38** (было 16/38).

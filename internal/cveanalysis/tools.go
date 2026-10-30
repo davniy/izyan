@@ -64,12 +64,18 @@ func (r *DefaultToolRunner) Call(ctx context.Context, caseData *domain.AnalysisC
 		// Budget check
 		if caseData.Workflow.Limits.MaxSourceReads > 0 &&
 			caseData.UsageSnapshot().SourceReads >= caseData.Workflow.Limits.MaxSourceReads {
+			llm.RecordAnalysisBudget(caseData, "MaxSourceReads limit reached")
 			return llm.ToolResult{OK: false, Error: "MaxSourceReads limit reached"}
 		}
 		caseData.IncSourceReads()
 
 		f, err := os.Open(fullPath)
 		if err != nil {
+			llm.RecordAnalysisGap(caseData, domain.AnalysisGap{
+				Owner: domain.GapOwnerInput, Code: domain.GapInputResolutionFailed,
+				Obligation: domain.ObligationAttribution,
+				Message:    "CVE source file could not be read: " + err.Error(),
+			})
 			return llm.ToolResult{OK: false, Error: fmt.Sprintf("failed to open file: %v", err)}
 		}
 		defer f.Close()

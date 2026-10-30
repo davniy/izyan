@@ -1,0 +1,16 @@
+{
+  "affected_result": {
+    "module_present": "TRUE",
+    "resolved_version": "v1.3.6",
+    "version_affected": "FALSE",
+    "package_present": "UNKNOWN",
+    "build_relevant": "UNKNOWN",
+    "checked_modules": ["example.com/dep"]
+  },
+  "observation": {
+    "status": "OK",
+    "completeness": "COMPLETE",
+    "audit_bound": true,
+    "subject": "module:example.com/dep"
+  }
+}

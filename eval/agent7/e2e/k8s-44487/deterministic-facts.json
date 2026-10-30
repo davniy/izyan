@@ -1,0 +1,423 @@
+{
+  "content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+  "facts": [
+    {
+      "id": "fact-obs-0001",
+      "statement": "snapshot <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3 contained, replaces confined, content hash 6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "claim": "TRUE",
+      "tool": "repository-preflight",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "repository-preflight {\"snapshot\":\"<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3\"}",
+      "scope": "VerifyContained + CheckPathReplacements + ContentHash over the snapshot tree",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": null,
+      "input_digest": "90ee81c5f8fa68d6cc83b8a765878bcd810bb3918aa25df1d54bc4a78d402cc1",
+      "data_digest": "9cab1cc1848bf8497a0025093d58170537509c4c7d7ac11286d70857dcb1d39c",
+      "artifact": {
+        "path": "artifacts/obs-0001.json",
+        "sha256": "c4ec969c6cb747b0462898e28ca52711bc8a1dc4f9efd4b8ed2c9b4b3dd8f5d7",
+        "size_bytes": 1028,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0001",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:02:51Z"
+      },
+      "limitations": null
+    },
+    {
+      "id": "fact-obs-0002",
+      "statement": "snapshot identity e196d2491087e93bd29f0e5a538aab60667021e3: go directive 1.20, release toolchain \"go1.21.3\", darwin/arm64",
+      "claim": "TRUE",
+      "tool": "repository-snapshot",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "repository-snapshot {\"GOOS\":\"\",\"GOARCH\":\"\",\"BuildTags\":null,\"BinaryPath\":\"\",\"ReleaseGoVersion\":\"\",\"TrustedPeer\":false,\"DeployManifests\":null,\"DeployArchive\":\"\",\"PerimeterOverride\":\"\",\"ExternalCommitSHA\":\"e196d2491087e93bd29f0e5a538aab60667021e3\",\"GoBin\":\"go\",\"Env\":null}",
+      "scope": "repository.Service.Snapshot (git/go probes + static release-evidence scan, no repo code executed)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "b78b94028f251fdfbae1656cfa2e1891cc23455ce54578cbd1f35717af376476",
+      "data_digest": "453fae7ce39a5bc6c129b8e0c5cbb91f6799b9422bb9fe28c35fdb3662084dc7",
+      "artifact": {
+        "path": "artifacts/obs-0002.json",
+        "sha256": "a1fa89ad4915c7b9add89854fb379ad16dadee712892b40fcbac555cc1b06adf",
+        "size_bytes": 1479,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0002",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:02:51Z"
+      },
+      "limitations": []
+    },
+    {
+      "id": "fact-obs-0003",
+      "statement": "frozen advisory CVE-2023-44487 resolved to GHSA-qppj-fm5r-hxr3 (22 affected entries, source frozen_file)",
+      "claim": "TRUE",
+      "tool": "advisory-load",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "advisory-load {\"cve\":\"CVE-2023-44487\",\"path\":\"eval/agent7/advisories/k8s-44487.json\",\"source\":\"frozen_file\"}",
+      "scope": "FileSource(eval/agent7/advisories/k8s-44487.json) with alias enrichment disabled; no network",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": null,
+      "input_digest": "ce0e4bdc99e659f4747fbfb0f0cac312ba069dcd943339ea767c0c727ce9824e",
+      "data_digest": "ec339470f35c84fd06ad469ae0961bd9a73a2a984011a7fd2ba4bf48504b1798",
+      "artifact": {
+        "path": "artifacts/obs-0003.json",
+        "sha256": "450cb13a4b7637b60da8d13811a3c21a528c9da41a2eda23b618633a8ff20f85",
+        "size_bytes": 932,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0003",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:02:51Z"
+      },
+      "limitations": [
+        "21 non-Go affected entries retained as advisory scope, never as product facts"
+      ]
+    },
+    {
+      "id": "fact-obs-0004",
+      "statement": "snapshot e196d2491087e93bd29f0e5a538aab60667021e3: content hash 6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072, go directive 1.20, 30 replace directives",
+      "claim": "TRUE",
+      "tool": "get_product_snapshot",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_product_snapshot {}",
+      "scope": "this snapshot's build context and module manifest facts",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "980195b473f83755446762d07536dce24b3fda0e1d65a6b2e8f54a28f78a6773",
+      "artifact": {
+        "path": "artifacts/obs-0004.json",
+        "sha256": "bb452972ba839f3e7fcc9948cbae796547dddcfa83da87ae1981a7e2ed37f74a",
+        "size_bytes": 8386,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0004",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:02:51Z"
+      },
+      "limitations": null
+    },
+    {
+      "id": "fact-obs-0005",
+      "statement": "normalized advisory record for CVE-2023-44487 (resolved id GHSA-qppj-fm5r-hxr3)",
+      "claim": "TRUE",
+      "tool": "get_vulnerability",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_vulnerability {}",
+      "scope": "OSV-compatible advisory record for CVE-2023-44487",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "24036f3106c1ebf522bd66705e392380ac256b50d26cad40c801a6ee8c3d6a59",
+      "artifact": {
+        "path": "artifacts/obs-0005.json",
+        "sha256": "f9f8fff45e49acd1201b791abdb58f649307a0d0a66f75e769f4f9cc26b38221",
+        "size_bytes": 37893,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0005",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:02:51Z"
+      },
+      "limitations": [
+        "advisory declares no affected symbols; symbol-level queries need an explicit subject",
+        "severity provenance not declared by the advisory source"
+      ]
+    },
+    {
+      "id": "fact-obs-0006",
+      "statement": "dependency graph: 263 module(s) resolved via vendor/modules.txt",
+      "claim": "TRUE",
+      "tool": "get_dependency_graph",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_dependency_graph {}",
+      "scope": "module list of <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3 (vendor/modules.txt)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "4e7cf10e2f6feb95dd787221704b2835213e952c52ea9e7384ca229261d6b3f3",
+      "artifact": {
+        "path": "artifacts/obs-0006.json",
+        "sha256": "d117b012322309058f9e732c7762fa75e22be8096862fc593527ad5bf21011da",
+        "size_bytes": 60472,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0006",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:02:51Z"
+      },
+      "limitations": [
+        "module list comes from vendor/modules.txt (vendored build); replaces on disk are vendor content, not fetched versions"
+      ]
+    },
+    {
+      "id": "fact-obs-0007",
+      "statement": "module golang.org/x/net resolved to version v0.17.0",
+      "claim": "TRUE",
+      "tool": "get_module_version",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "get_module_version {\"module\":\"golang.org/x/net\"}",
+      "scope": "resolved module list of <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3 (vendor/modules.txt)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": null,
+      "input_digest": "7bb1cab0b699e95a61bcdebff633924b7047ec3b26de2086685c7be00fd28421",
+      "data_digest": "9c7c1331b433732679c146f63bd8e738418dcfd9d8be95f1cd3b4704b3581257",
+      "artifact": {
+        "path": "artifacts/obs-0007.json",
+        "sha256": "3cac8c5cf463867f4a65280f9851b0838bff3457ff94a4e4e3f7a4d9619c5b76",
+        "size_bytes": 4191,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0007",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:02:51Z"
+      },
+      "limitations": null
+    },
+    {
+      "id": "fact-obs-0008",
+      "statement": "applicability chain for GHSA-qppj-fm5r-hxr3: module_present=TRUE version_affected=FALSE package_present=FALSE build_relevant=FALSE (selected [])",
+      "claim": "TRUE",
+      "tool": "affected-resolve",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "affected-resolve {\"vuln\":\"GHSA-qppj-fm5r-hxr3\"}",
+      "scope": "affected.GoResolver.Resolve over the snapshot module graph and import closure (go list -m, go list -deps under strict toolchain env)",
+      "status": "OK",
+      "coverage": "COMPLETE",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "e6c072e5b137ac1b22a778666ed3bde173d7af5c71621a14829383d8da0db015",
+      "data_digest": "eb82ef989b23d542df6d6a853cde5e104ba9f73d2908f6205a75ea5f9e3d05e6",
+      "artifact": {
+        "path": "artifacts/obs-0008.json",
+        "sha256": "917732b46bad93b1572131a33ec45b33f7ea354805a60b7ba469155e39e9acd9",
+        "size_bytes": 38118,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0008",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:02:51Z"
+      },
+      "limitations": [
+        "evaluated affected-module entries: golang.org/x/net@v0.17.0"
+      ]
+    },
+    {
+      "id": "fact-obs-0009",
+      "statement": "2 product call site(s) into module golang.org/x/net",
+      "claim": "TRUE",
+      "tool": "module_usage",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "module_usage {\"module\":\"golang.org/x/net\"}",
+      "scope": "product packages of <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3 calling packages of module golang.org/x/net",
+      "status": "OK",
+      "coverage": "PARTIAL",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "7bb1cab0b699e95a61bcdebff633924b7047ec3b26de2086685c7be00fd28421",
+      "data_digest": "c72411290074c37bace02b021c6ce15a80c7fff9cfe88722aade619c15d2948e",
+      "artifact": {
+        "path": "artifacts/obs-0009.json",
+        "sha256": "738a77c18d23955f240d89e60368ebdba5c5da75c400b182753dc713598855d3",
+        "size_bytes": 5513,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0009",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:02:51Z"
+      },
+      "limitations": [
+        "module usage enumerates product call sites whose callee package is owned by the module; nested modules and unresolved owners are surfaced via module_owner rather than silently attributed"
+      ]
+    },
+    {
+      "id": "fact-obs-0010",
+      "statement": "ingress inventory for module golang.org/x/net: 116 inventoried item(s), 3 completeness blocker(s) (complete=false)",
+      "claim": "TRUE",
+      "tool": "ingress-inventory",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "ingress-inventory {\"module\":\"golang.org/x/net\",\"subjects\":null}",
+      "scope": "goanalysis.IngressInventory over module golang.org/x/net (product boundary + reachable dep cone, 2 hops)",
+      "status": "OK",
+      "coverage": "PARTIAL",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "3edd35a998429374e2864fadc8b39f5d4752c979fd8fa8d86e25c46df9192f57",
+      "data_digest": "cc4a610dbc53784434945d1cad15853b6fcacbb521ba00476e1b5f570e60242b",
+      "artifact": {
+        "path": "artifacts/obs-0010.json",
+        "sha256": "f3f1462cd8128b5be7e8d0565a4ff04ccb1ba1d6fa684bf539c03319a2990d0b",
+        "size_bytes": 57275,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0010",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:02:51Z"
+      },
+      "limitations": [
+        "ingress inventory is bounded to the loaded module cone; a complete inventory is a scope fact, not a reachability verdict"
+      ]
+    },
+    {
+      "id": "fact-obs-0011",
+      "statement": "208 entrypoint(s) recognized in product packages",
+      "claim": "TRUE",
+      "tool": "find_entrypoints",
+      "tool_version": "izyan-evidence-tools/0.1.0",
+      "command": "find_entrypoints {}",
+      "scope": "product packages of <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+      "status": "OK",
+      "coverage": "PARTIAL",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "data_digest": "42bccf3bf0d406149af30bbe6970d35bb74f09b05294da106c1623b31586eb34",
+      "artifact": {
+        "path": "artifacts/obs-0011.json",
+        "sha256": "b85e3518ca8570483f961579186a676fc5c744148c2f3377ed10d8a206aee17c",
+        "size_bytes": 80891,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0011",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:02:51Z"
+      },
+      "limitations": [
+        "entrypoint recognition covers main/init functions, exported symbols and net/http handlers; other transports (gRPC, message queues, CLI) are not enumerated by this scan"
+      ]
+    },
+    {
+      "id": "fact-obs-0012",
+      "statement": "18 inbound listener binds in product packages observed",
+      "claim": "TRUE",
+      "tool": "listen-sites",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "listen-sites null",
+      "scope": "inbound listener binds in product packages (static source scan; runtime reachability is out of scope)",
+      "status": "OK",
+      "coverage": "PARTIAL",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+      "data_digest": "b5795b0e034e57115746cb93dd1f528eda0a289d46abe6465d92aaf03837d3c5",
+      "artifact": {
+        "path": "artifacts/obs-0012.json",
+        "sha256": "b922e1e06321ea39cb070c1ebbc9987df86f0d23141c32c2135a11c487711110",
+        "size_bytes": 9478,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0012",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:02:51Z"
+      },
+      "limitations": [
+        "static exposure scan: a listener/dial site is a code fact, not runtime reachability"
+      ]
+    },
+    {
+      "id": "fact-obs-0013",
+      "statement": "0 authentication/authorization facts around inbound handlers observed",
+      "claim": "TRUE",
+      "tool": "inbound-auth-facts",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "inbound-auth-facts null",
+      "scope": "authentication/authorization facts around inbound handlers (static source scan; runtime reachability is out of scope)",
+      "status": "OK",
+      "coverage": "PARTIAL",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+      "data_digest": "5c700f80e41e7d7596a0e752363123783cb5e7938da0474f7c8b0a37241b7674",
+      "artifact": {
+        "path": "artifacts/obs-0013.json",
+        "sha256": "41b233195c53e4c0b5dc1de2030986875200c3f67642e87848c55e9a2cfc71a3",
+        "size_bytes": 808,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0013",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:02:51Z"
+      },
+      "limitations": [
+        "static exposure scan: a listener/dial site is a code fact, not runtime reachability"
+      ]
+    },
+    {
+      "id": "fact-obs-0014",
+      "statement": "1 outbound dial/endpoint site(s) into module golang.org/x/net",
+      "claim": "TRUE",
+      "tool": "dial-sites",
+      "tool_version": "izyan/research-lane go1.26.1",
+      "command": "dial-sites {\"module\":\"golang.org/x/net\"}",
+      "scope": "outbound endpoints into module golang.org/x/net (static source scan)",
+      "status": "OK",
+      "coverage": "PARTIAL",
+      "snapshot_content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+      "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+      "input_digest": "7bb1cab0b699e95a61bcdebff633924b7047ec3b26de2086685c7be00fd28421",
+      "data_digest": "83c8795671bd528b0ca894a08ce7f23e9908598d1708861348f9ebd0f6c42b8e",
+      "artifact": {
+        "path": "artifacts/obs-0014.json",
+        "sha256": "4d6c95e51bf3a3dd3fe525b6ec85c630b5336bfe1f7a5164262a56b138cd0eb1",
+        "size_bytes": 1332,
+        "selector": "observation"
+      },
+      "provenance": {
+        "observation_id": "OBS-0014",
+        "source": "deterministic-lane",
+        "generated_at": "2026-10-12T10:02:51Z"
+      },
+      "limitations": [
+        "a dial site is a code fact; whether the endpoint is attacker-reachable is out of scope"
+      ]
+    }
+  ],
+  "observations": 15,
+  "schema": "deterministic-facts/1",
+  "snapshot_root": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+  "verified_fact_ids": [
+    "fact-obs-0001",
+    "fact-obs-0002",
+    "fact-obs-0003",
+    "fact-obs-0004",
+    "fact-obs-0005",
+    "fact-obs-0006",
+    "fact-obs-0007",
+    "fact-obs-0008",
+    "fact-obs-0009",
+    "fact-obs-0010",
+    "fact-obs-0011",
+    "fact-obs-0012",
+    "fact-obs-0013",
+    "fact-obs-0014"
+  ]
+}

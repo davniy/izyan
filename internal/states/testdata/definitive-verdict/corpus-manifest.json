@@ -1,0 +1,11 @@
+{
+  "schema": "declared-corpus/1",
+  "reference": "definitive-verdict-corpus",
+  "captured_at": "2026-10-26T15:30:00Z",
+  "expected_digest": "sha256:fc4ffe83e9d628d4f11c084a27331478b59d5eaa36d2352171aab9fc8127d35f",
+  "documents": [
+    {"path": "corpus/GO-2023-2153.json", "sha256": "sha256:e0e6817babaaffa610f5f1386e5cd3817ff53412cb3f7867dffc398c0e7f5a90"}
+  ],
+  "boundary": "Corpus boundary: definitive-verdict-corpus, digest sha256:fc4ffe83e9d628d4f11c084a27331478b59d5eaa36d2352171aab9fc8127d35f, captured 2026-10-26; implementations outside this corpus were not examined.",
+  "note": "Declared, digest-pinned corpus for the hermetic worked-case regression. It contains the real GO-2023-2153 document; the test writes it to a temporary corpus root because a corpus cannot be read from a testdata path without making every fixture file part of the enumeration."
+}

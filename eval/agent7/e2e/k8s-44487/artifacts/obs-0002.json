@@ -1,0 +1,29 @@
+{
+  "id": "OBS-0002",
+  "tool": "repository-snapshot",
+  "fact": "snapshot identity e196d2491087e93bd29f0e5a538aab60667021e3: go directive 1.20, release toolchain \"go1.21.3\", darwin/arm64",
+  "scope": "repository.Service.Snapshot (git/go probes + static release-evidence scan, no repo code executed)",
+  "completeness": "COMPLETE",
+  "tool_status": "OK",
+  "scope_details": {
+    "snapshot_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+    "snapshot_root": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+    "external_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+    "coverage_rule": "single product snapshot probe (go version + manifest scan, no git history when external identity supplied)"
+  },
+  "data": {
+    "repository": "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+    "commit": "e196d2491087e93bd29f0e5a538aab60667021e3",
+    "go_version": "go version go1.26.1 darwin/arm64",
+    "go_mod_directive": "1.20",
+    "release_go_version": "go1.21.3",
+    "goos": "darwin",
+    "goarch": "arm64",
+    "cgo_enabled": false,
+    "vendor_mode": false,
+    "minimum_go_version": "1.20",
+    "go_version_source": "version-file",
+    "external_commit_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+    "content_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072"
+  }
+}

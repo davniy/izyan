@@ -12,7 +12,7 @@ import (
 )
 
 func record(r *eval.Report, c eval.Case, verdict domain.Verdict) {
-	r.Record(c, verdict, "", nil, "", "", nil, nil)
+	r.Record(c, verdict, "", nil, "", "", nil, nil, eval.Projection{})
 }
 
 func TestReportFalseSafe(t *testing.T) {
@@ -71,7 +71,7 @@ func TestReportSignalClearedCountsOnlySafeVerdictsAgainstGovulncheckSignals(t *t
 		{"module", domain.VerdictNotAffected, "module-level", []string{"NOT_AFFECTED"}},
 		{"unsafe", domain.VerdictNoExploitPathFound, eval.BaselineReachable, []string{"EXPLOITABLE"}},
 	} {
-		r.Record(eval.Case{ID: tc.id, Expect: tc.expect}, tc.verdict, "", nil, "", "", nil, nil)
+		r.Record(eval.Case{ID: tc.id, Expect: tc.expect}, tc.verdict, "", nil, "", "", nil, nil, eval.Projection{})
 		r.RecordBaseline(tc.baseline)
 	}
 	if r.Metrics.GovulncheckSignals != 3 || r.Metrics.SignalCleared != 1 {
@@ -91,7 +91,7 @@ func TestReportClaimsAssert(t *testing.T) {
 		Claims: map[string]string{"C-REACH": "TRUE", "C-INPUT": "TRUE"},
 	}, domain.VerdictExploitable, "", map[string]string{
 		"C-REACH": "TRUE", "C-INPUT": "TRUE",
-	}, "", "", nil, nil)
+	}, "", "", nil, nil, eval.Projection{})
 	if r.Metrics.ClaimsFail != 0 {
 		t.Fatalf("claims_fail=%d want 0", r.Metrics.ClaimsFail)
 	}
@@ -100,7 +100,7 @@ func TestReportClaimsAssert(t *testing.T) {
 		Claims: map[string]string{"C-EXPOSED": "FALSE"},
 	}, domain.VerdictNoExploitPathFound, "", map[string]string{
 		"C-EXPOSED": "TRUE",
-	}, "", "", nil, nil)
+	}, "", "", nil, nil, eval.Projection{})
 	if r.Metrics.ClaimsFail != 1 {
 		t.Fatalf("claims_fail=%d want 1", r.Metrics.ClaimsFail)
 	}
@@ -135,6 +135,107 @@ func TestCaseUnmarshalRootCauses(t *testing.T) {
 	}
 }
 
+// TestOutcomeAccounting keeps the three terminal classifications separate: a
+// failed analysis is not a completed analysis, an external dependency is not a
+// definitive answer, and neither can be scored as a success.
+func TestOutcomeAccounting(t *testing.T) {
+	decided := func(verdict domain.Verdict) eval.Projection {
+		return eval.Projection{
+			Available: true, Outcome: domain.OutcomeDecided, Verdict: verdict,
+			RequestedID: "GO-2023-2153", RequestedKind: "ADVISORY_ENTRIES",
+			Profile: "zero_trust", Build: "linux/amd64", FailureCodes: nil,
+		}
+	}
+	var r eval.Report
+	// Decided safe answer satisfies a safe expectation and is a definitive
+	// answer.
+	r.Record(eval.Case{ID: "safe", Expect: []string{"NOT_AFFECTED"}},
+		domain.VerdictNotAffected, "", nil, "", "", nil, nil, decided(domain.VerdictNotAffected))
+	// Decided positive satisfies an EXPLOITABLE expectation.
+	r.Record(eval.Case{ID: "positive", Expect: []string{"EXPLOITABLE"}},
+		domain.VerdictExploitable, "", nil, "", "", nil, nil, decided(domain.VerdictExploitable))
+	// A false positive is counted separately from a false safe.
+	r.Record(eval.Case{ID: "over-call", Expect: []string{"NOT_AFFECTED"}},
+		domain.VerdictExploitable, "", nil, "", "", nil, nil, decided(domain.VerdictExploitable))
+	// A false safe is still counted and is never a decided success.
+	r.Record(eval.Case{ID: "under-call", Expect: []string{"EXPLOITABLE"}},
+		domain.VerdictNoExploitPathFound, "", nil, "", "", nil, nil, decided(domain.VerdictNoExploitPathFound))
+
+	// An external dependency publishes INCONCLUSIVE and satisfies an
+	// INCONCLUSIVE expectation, but never counts as a definitive answer.
+	r.Record(eval.Case{ID: "external", Expect: []string{"INCONCLUSIVE"}},
+		domain.VerdictInconclusive, "", nil, "", "", nil, nil, eval.Projection{
+			Available: true, Outcome: domain.OutcomeExternal, Verdict: domain.VerdictInconclusive,
+			ExternalDependencies: []string{"the shipped Go toolchain is not recorded"},
+		})
+	// An external answer is not the definitive answer the case wanted.
+	r.Record(eval.Case{ID: "external-vs-positive", Expect: []string{"EXPLOITABLE"}},
+		domain.VerdictInconclusive, "", nil, "", "", nil, nil, eval.Projection{
+			Available: true, Outcome: domain.OutcomeExternal, Verdict: domain.VerdictInconclusive,
+			ExternalDependencies: []string{"whether the deployed socket admits hostile peers"},
+		})
+
+	// A failed analysis has no verdict: it is not a completion and not an
+	// abstention.
+	r.Record(eval.Case{ID: "failed", Expect: []string{"INCONCLUSIVE"}},
+		"", "", nil, "", "", nil, nil, eval.Projection{
+			Available: true, Outcome: domain.OutcomeFailed,
+			FailureCodes: []string{"PROOF/TRIGGER_PROOF_INCOMPLETE"},
+		})
+	// A case that expects an explicit failure passes on the FAILED token.
+	r.Record(eval.Case{ID: "failed-expected", Expect: []string{"FAILED"}},
+		"", "", nil, "", "", nil, nil, eval.Projection{
+			Available: true, Outcome: domain.OutcomeFailed,
+			FailureCodes: []string{"SCOPE/UNSUPPORTED_NEGATIVE_SCOPE"},
+		})
+	// A legacy result without a projection keeps verdict-based accounting.
+	record(&r, eval.Case{ID: "legacy", Expect: []string{"NO_EXPLOIT_PATH_FOUND"}},
+		domain.VerdictNoExploitPathFound)
+
+	m := r.Metrics
+	if m.Decided != 4 || m.ExternalDependency != 2 || m.AnalysisFailed != 2 {
+		t.Fatalf("outcome counts = decided %d, external %d, failed %d; want 4/2/2",
+			m.Decided, m.ExternalDependency, m.AnalysisFailed)
+	}
+	if m.FalseSafe != 1 || m.FalsePositive != 1 {
+		t.Fatalf("error counts = false-safe %d, false-positive %d; want 1/1", m.FalseSafe, m.FalsePositive)
+	}
+	if m.Inconclusive != 2 {
+		t.Fatalf("inconclusive = %d, want the 2 external answers only", m.Inconclusive)
+	}
+	if m.ExpectPass != 5 || m.ExpectFail != 4 {
+		t.Fatalf("expect pass/fail = %d/%d; want 5/4", m.ExpectPass, m.ExpectFail)
+	}
+	if got := m.Verdicts[string(domain.VerdictInconclusive)]; got != 2 {
+		t.Fatalf("verdicts[INCONCLUSIVE] = %d, want 2", got)
+	}
+	if _, ok := m.Verdicts[""]; ok {
+		t.Fatal("a failed analysis must not contribute an empty verdict bucket")
+	}
+	// The failure and the external dependency are distinguishable in the
+	// persisted report.
+	var failed, external *eval.Result
+	for i := range r.Results {
+		switch r.Results[i].Case.ID {
+		case "failed":
+			failed = &r.Results[i]
+		case "external":
+			external = &r.Results[i]
+		}
+	}
+	if failed == nil || failed.Verdict != "" || failed.AssessmentOutcome != "FAILED" ||
+		len(failed.FailureCodes) != 1 {
+		t.Fatalf("failed result = %+v", failed)
+	}
+	if external == nil || external.Verdict != string(domain.VerdictInconclusive) ||
+		external.AssessmentOutcome != "EXTERNAL_DEPENDENCY" || len(external.ExternalDependencies) != 1 {
+		t.Fatalf("external result = %+v", external)
+	}
+	if !strings.Contains(r.Markdown(), "analysis failed: 2") {
+		t.Fatalf("markdown lost the failure population:\n%s", r.Markdown())
+	}
+}
+
 func TestMarkdownRenders(t *testing.T) {
 	var r eval.Report
 	record(&r, eval.Case{ID: "c1", Vuln: "V-1", Expect: []string{"EXPLOITABLE"}},
@@ -150,23 +251,23 @@ func TestReportClearedSplits(t *testing.T) {
 	// auto + deeper: locus falsifier, no expert input
 	r.Record(eval.Case{ID: "deep", Expect: []string{"NO_EXPLOIT_PATH_FOUND"}},
 		domain.VerdictNoExploitPathFound, "", nil,
-		domain.FalsifierLocusFunctionUnreached, "", nil, nil)
+		domain.FalsifierLocusFunctionUnreached, "", nil, nil, eval.Projection{})
 	r.RecordBaseline(eval.BaselineReachable)
 	// expert + deeper: non_locus makes it assisted
 	r.Record(eval.Case{ID: "expert",
 		Expect:   []string{"NO_EXPLOIT_PATH_FOUND"},
 		NonLocus: []domain.LocusDecision{{Basis: "test"}},
 	}, domain.VerdictNoExploitPathFound, "", nil,
-		domain.FalsifierLocusPackageAbsent, "", nil, nil)
+		domain.FalsifierLocusPackageAbsent, "", nil, nil, eval.Projection{})
 	r.RecordBaseline(eval.BaselinePackageLevel)
 	// auto + echo: govulncheck-silence reproduces its own contract
 	r.Record(eval.Case{ID: "echo", Expect: []string{"NO_EXPLOIT_PATH_FOUND"}},
 		domain.VerdictNoExploitPathFound, "", nil,
-		domain.FalsifierGovulncheckSilence, "", nil, nil)
+		domain.FalsifierGovulncheckSilence, "", nil, nil, eval.Projection{})
 	r.RecordBaseline(eval.BaselinePackageLevel)
 	// auto + affectedness
 	r.Record(eval.Case{ID: "aff", Expect: []string{"NOT_AFFECTED"}},
-		domain.VerdictNotAffected, "", nil, "", "", nil, nil)
+		domain.VerdictNotAffected, "", nil, "", "", nil, nil, eval.Projection{})
 	r.RecordBaseline(eval.BaselineReachable)
 
 	m := r.Metrics
@@ -189,10 +290,10 @@ func TestWriteAuditPackets_OnlySignalCleared(t *testing.T) {
 	var r eval.Report
 	r.Record(eval.Case{ID: "cleared-case", Vuln: "GO-X", Expect: []string{"NO_EXPLOIT_PATH_FOUND"}},
 		domain.VerdictNoExploitPathFound, "", nil,
-		domain.FalsifierConstantOrGeneratedInput, "", []string{"EV-1"}, nil)
+		domain.FalsifierConstantOrGeneratedInput, "", []string{"EV-1"}, nil, eval.Projection{})
 	r.RecordBaseline(eval.BaselineReachable)
 	r.Record(eval.Case{ID: "loud-case", Vuln: "GO-Y", Expect: []string{"EXPLOITABLE"}},
-		domain.VerdictExploitable, "", nil, "", "", nil, nil)
+		domain.VerdictExploitable, "", nil, "", "", nil, nil, eval.Projection{})
 	r.RecordBaseline(eval.BaselineReachable)
 
 	if err := eval.WriteAuditPackets(dir, "eval/corpus-real.json", "eval/.gen", r,

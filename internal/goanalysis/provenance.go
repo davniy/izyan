@@ -2,6 +2,7 @@ package goanalysis
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/constant"
@@ -9,6 +10,7 @@ import (
 	"go/types"
 	"reflect"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -148,8 +150,38 @@ func (ix *Index) TraceArgument(ctx context.Context, site domain.CallSite, argInd
 		File:    site.File,
 		Content: src,
 	})
+	ev = append(ev, ix.attachLibraryInputLocked(ctx, &flow, site, pkg, enc, call, argIndex)...)
 	return flow, ev, nil
 }
+
+// attachLibraryInputLocked proves and attaches the library public-formal
+// payload witness for one traced argument. The witness never changes the
+// deployment origin and never fails a trace: an unprovable payload path simply
+// carries no witness, which is no proof at all rather than a safety claim.
+func (ix *Index) attachLibraryInputLocked(ctx context.Context, flow *domain.DataFlow, site domain.CallSite, pkg *packages.Package, enc *ast.FuncDecl, call *ast.CallExpr, argIndex int) []domain.Evidence {
+	if flow == nil || flow.PayloadUnproven || argIndex < 0 || call == nil {
+		return nil
+	}
+	shape := ix.libraryShapeLocked()
+	if shape == nil {
+		return nil
+	}
+	if _, ok := ix.exactArgumentSite(site, pkg, enc, call); !ok {
+		return nil
+	}
+	witness, evs, err := ix.traceLibraryInputLocked(ctx, pkg, enc, call, argIndex, shape)
+	if err != nil || witness == nil {
+		return nil
+	}
+	flow.LibraryInput = witness
+	return evs
+}
+
+// ErrCallSiteNotFound marks a supplied position that does not resolve to
+// a call expression in the loaded scope — a scope mismatch, not a check
+// failure. Call-site-only tools translate it to an UNSUPPORTED
+// observation; loader/backend failures return distinct errors.
+var ErrCallSiteNotFound = errors.New("call site not found")
 
 // callAt finds the CallExpr at the File:Line position of site. Product
 // packages are searched first, then dependency packages loaded on demand
@@ -158,24 +190,38 @@ func (ix *Index) TraceArgument(ctx context.Context, site domain.CallSite, argInd
 // its AST is gone from memory — reload the owning package by file query
 // and rescan once before reporting failure.
 func (ix *Index) callAt(site domain.CallSite) (*ast.CallExpr, *ast.FuncDecl, *packages.Package, error) {
-	if call, enc, pkg := ix.scanCallAt(site); call != nil {
+	call, enc, pkg, seen := ix.scanCallAt(site)
+	if call != nil {
 		return call, enc, pkg, nil
 	}
-	if _, err := ix.loadExtra(ix.ctxOr(nil), "file="+site.File); err == nil {
-		if call, enc, pkg := ix.scanCallAt(site); call != nil {
+	if !seen {
+		// The file is outside the loaded scope — its owning package may be
+		// a dep loadable on demand. A load failure here is a real backend
+		// failure and propagates as such, not as "not a call".
+		if _, err := ix.loadExtra(ix.ctxOr(nil), "file="+site.File); err != nil {
+			return nil, nil, nil, err
+		}
+		if call, enc, pkg, _ := ix.scanCallAt(site); call != nil {
 			return call, enc, pkg, nil
 		}
 	}
-	return nil, nil, nil, fmt.Errorf("call site %s:%d not found", site.File, site.Line)
+	return nil, nil, nil, fmt.Errorf("%w: %s:%d", ErrCallSiteNotFound, site.File, site.Line)
 }
 
-func (ix *Index) scanCallAt(site domain.CallSite) (*ast.CallExpr, *ast.FuncDecl, *packages.Package) {
-	for _, pkg := range append(append([]*packages.Package{}, ix.pkgs...), ix.allExtras()...) {
-		for _, f := range pkg.Syntax {
-			var found *ast.CallExpr
-			var enc *ast.FuncDecl
+// scanCallAt searches every loaded file for the CallExpr at the site
+// position. seen reports whether the file itself was present in the
+// loaded scope — distinguishing "position is not an AST call" from
+// "file not loaded at all" for the caller's error choice.
+func (ix *Index) scanCallAt(site domain.CallSite) (call *ast.CallExpr, enc *ast.FuncDecl, pkg *packages.Package, seen bool) {
+	for _, p := range append(append([]*packages.Package{}, ix.pkgs...), ix.allExtras()...) {
+		for _, f := range p.Syntax {
+			fp := ix.fset.Position(f.Pos())
+			if fp.Filename != site.File && !strings.HasSuffix(fp.Filename, "/"+site.File) {
+				continue
+			}
+			seen = true
 			ast.Inspect(f, func(n ast.Node) bool {
-				if found != nil {
+				if call != nil {
 					return false
 				}
 				switch n := n.(type) {
@@ -185,18 +231,18 @@ func (ix *Index) scanCallAt(site domain.CallSite) (*ast.CallExpr, *ast.FuncDecl,
 					p := ix.fset.Position(n.Lparen)
 					if p.Filename == site.File && p.Line == site.Line &&
 						(site.Column == 0 || p.Column == site.Column) {
-						found = n
+						call = n
 						return false
 					}
 				}
 				return true
 			})
-			if found != nil {
-				return found, enc, pkg
+			if call != nil {
+				return call, enc, p, true
 			}
 		}
 	}
-	return nil, nil, nil
+	return nil, nil, nil, seen
 }
 
 // classify resolves the origin of an expression within a function.
@@ -1080,8 +1126,14 @@ func (ix *Index) classifySelector(pkg *packages.Package, enc *ast.FuncDecl, e *a
 			// No textual write sites: a config-tagged (yaml/mapstructure/env) or
 			// config-package field is populated by config-decoding machinery
 			// (viper, yaml.Unmarshal, envconfig) — reflection writes are invisible,
-			// but the tag and package structure are the honest provenance marker.
+			// so the tag fallback is admissible only while no alias, reflect or
+			// unsafe write can have populated the field unseen.
 			if ix.fieldConfigTagged(fv) {
+				if blockers := ix.fieldTagFallbackBlockers(fv); len(blockers) > 0 {
+					return domain.OriginUnknown, fmt.Sprintf(
+						"field %s carries a config-decode tag but cannot be attributed to configuration: %s",
+						e.Sel.Name, strings.Join(blockers, "; "))
+				}
 				why := fmt.Sprintf("field %s carries a config-decode tag (yaml/mapstructure/env)", e.Sel.Name)
 				if fv.Pkg() != nil && isConfigPackage(fv.Pkg()) {
 					why = fmt.Sprintf("field %s belongs to config package %s", e.Sel.Name, fv.Pkg().Path())
@@ -1124,6 +1176,89 @@ func isConfigPackage(pkg *types.Package) bool {
 	return name == "config" || name == "conf" || name == "configuration" ||
 		strings.HasSuffix(path, "/config") || strings.HasSuffix(path, "/conf") ||
 		strings.Contains(path, "/config/") || strings.Contains(path, "/conf/")
+}
+
+// dynamicWriteMarkersIn reports language-level writes that no syntactic
+// field-assignment scan can attribute: reflect.Value.Set* calls and
+// stores through unsafe.Pointer-derived values. Any such marker in the
+// field's member scope means a config-tag fallback cannot claim the field
+// stayed administrator-populated.
+func dynamicWriteMarkersIn(pkgs []*packages.Package) []string {
+	var out []string
+	for _, pkg := range pkgs {
+		if pkg == nil {
+			continue
+		}
+		info := pkg.TypesInfo
+		for _, f := range pkg.Syntax {
+			ast.Inspect(f, func(n ast.Node) bool {
+				switch n := n.(type) {
+				case *ast.AssignStmt:
+					for _, lhs := range n.Lhs {
+						var target ast.Expr
+						switch l := lhs.(type) {
+						case *ast.StarExpr:
+							target = l.X
+						case *ast.IndexExpr:
+							target = l
+						}
+						if target != nil && callsUnsafe(info, target) {
+							out = append(out, "store through unsafe.Pointer-derived value")
+						}
+					}
+				case *ast.CallExpr:
+					sel, ok := n.Fun.(*ast.SelectorExpr)
+					if !ok || info == nil {
+						return true
+					}
+					if (sel.Sel.Name == "Pointer" || sel.Sel.Name == "Add") && isUnsafePkg(info, sel.X) {
+						out = append(out, "unsafe."+sel.Sel.Name+" materializes a raw pointer")
+					}
+					if strings.HasPrefix(sel.Sel.Name, "Set") && isReflectValue(info, sel.X) {
+						out = append(out, "reflect.Value."+sel.Sel.Name+" call")
+					}
+				}
+				return true
+			})
+		}
+	}
+	sort.Strings(out)
+	return dedupStrings(out)
+}
+
+// dedupStrings removes exact duplicates from a sorted slice.
+func dedupStrings(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := in[:1]
+	for _, s := range in[1:] {
+		if s != out[len(out)-1] {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// fieldTagFallbackBlockers lists the reasons a config-tagged field with
+// no syntactic write sites still cannot be treated as
+// administrator-populated. Address-taken fields hand out a writable
+// alias; reflect/unsafe writes in the member scope can mutate the field
+// invisibly. An empty list is the only condition under which the
+// tag-only fallback may return OriginConfiguration.
+func (ix *Index) fieldTagFallbackBlockers(field *types.Var) []string {
+	var blockers []string
+	if ix.fieldAddressTaken(field) {
+		blockers = append(blockers, "its address is taken, so writes through pointer aliases are invisible")
+	}
+	pkgPath := ""
+	if field.Pkg() != nil {
+		pkgPath = field.Pkg().Path()
+	}
+	if markers := dynamicWriteMarkersIn(ix.memberScope(pkgPath)); len(markers) > 0 {
+		blockers = append(blockers, "dynamic write marker(s) that can mutate fields invisibly: "+strings.Join(markers, ", "))
+	}
+	return blockers
 }
 
 // fieldConfigTagged locates the field's declaration and reports whether
@@ -1377,6 +1512,14 @@ func (ix *Index) fieldOriginScan(field *types.Var, depth int) (domain.DataOrigin
 		o, w := ix.classify(s.pkg, s.enc, s.rhs, depth+1)
 		whys = append(whys, w)
 		merged = mergeOrigin(merged, o)
+	}
+	// A writable alias (&x.f) can carry writes the syntactic scan cannot
+	// attribute. The observed writes still contribute their origin, but
+	// the merged result must not claim a more trusted origin than UNKNOWN:
+	// an unseen alias write may be external.
+	if ix.fieldAddressTaken(field) {
+		merged = mergeOrigin(merged, domain.OriginUnknown)
+		whys = append(whys, "address taken: writes through pointer aliases are invisible")
 	}
 	return merged, fmt.Sprintf("%d write site(s): %s", len(sites), capWhy(strings.Join(whys, "; "))), true
 }
@@ -2494,7 +2637,7 @@ func (ix *Index) TraceAllArguments(ctx context.Context, site domain.CallSite) ([
 		ix.paramCache = nil
 		ix.classifyCache = nil
 		ix.evalBudget = 0
-		flows = append(flows, domain.DataFlow{
+		f := domain.DataFlow{
 			Arg:             i,
 			Sink:            site,
 			Source:          site,
@@ -2502,7 +2645,9 @@ func (ix *Index) TraceAllArguments(ctx context.Context, site domain.CallSite) ([
 			PayloadUnproven: payloadUnprovenParameter(pkg, call, i),
 			Transformations: dedupSites(tx),
 			Summary:         fmt.Sprintf("arg%d: %s", i, why),
-		})
+		}
+		ev = append(ev, ix.attachLibraryInputLocked(ctx, &f, site, pkg, enc, call, i)...)
+		flows = append(flows, f)
 	}
 	return flows, ev, nil
 }
@@ -2704,6 +2849,18 @@ func inputScore(t string) int {
 // traceParam resolves an argument bound to an enclosing function parameter by
 // looking at the callers of that function (one hop).
 func (ix *Index) traceParam(pkg *packages.Package, enc *ast.FuncDecl, v *types.Var, depth int) (domain.DataOrigin, string) {
+	// Public library boundary: for a proven LIBRARY product, an exported API's
+	// formal is chosen by the consuming application. Nothing inside the product
+	// can establish its deployment origin, so the trace terminates here —
+	// before caller enumeration and caller-origin merging. Zero, test-only or
+	// constant-only callers do not close the boundary, and a recursive
+	// self-call must not read as constant input. Origin stays UNKNOWN; the
+	// consumer-selectable payload is recorded separately as a payload witness.
+	if ref, idx, ok := ix.publicLibraryFormalLocked(pkg, enc, v); ok {
+		return domain.OriginUnknown, fmt.Sprintf(
+			"public library formal %s.%s arg %d (%s): consumer-selectable payload; deployment origin unknown",
+			ref.Package, ref.Symbol, idx, v.Type())
+	}
 	// find which parameter index this is
 	paramIdx := paramIndexOf(enc, v.Name())
 	if paramIdx < 0 {
@@ -3016,26 +3173,43 @@ var reflectDispatchAPIs = map[string][]string{
 func (ix *Index) methodDispatchExists(pkg *packages.Package, enc *ast.FuncDecl) bool {
 	apis, ok := reflectDispatchAPIs[enc.Name.Name]
 	if !ok {
-		// Not a known reflect-dispatched method — the invocation surface
-		// may still exist (interface wrappers, plugin registries); keep it
-		// unknown-biased rather than claim unreachability.
 		return true
 	}
-	if ix.reflectLookupExists(enc.Name.Name) {
-		return true
+	recv := receiverNamedType(pkg, enc)
+	recvName := ""
+	if recv != nil && recv.Obj() != nil {
+		recvName = recv.Obj().Name()
 	}
-	return ix.marshalAPICarrierExists(pkg, enc, apis)
+	key := pkg.PkgPath + "|" + recvName + "." + enc.Name.Name
+	if ix.methodDispatchCache != nil {
+		if v, ok := ix.methodDispatchCache[key]; ok {
+			return v
+		}
+	}
+	v := ix.reflectLookupExists(enc.Name.Name) || ix.marshalAPICarrierExists(pkg, enc, apis)
+	if ix.methodDispatchCache == nil {
+		ix.methodDispatchCache = map[string]bool{}
+	}
+	if len(ix.methodDispatchCache) < maxAuxCache {
+		ix.methodDispatchCache[key] = v
+	}
+	return v
 }
 
 // reflectLookupExists reports whether any linked package performs a
 // literal reflect Method/MethodByName lookup for the given method name.
 func (ix *Index) reflectLookupExists(name string) bool {
+	if ix.reflectLookupCache != nil {
+		if v, ok := ix.reflectLookupCache[name]; ok {
+			return v
+		}
+	}
+	found := false
 	for _, pkg := range ix.linkedPkgs() {
 		info := pkg.TypesInfo
 		if info == nil {
 			continue
 		}
-		found := false
 		for _, f := range pkg.Syntax {
 			ast.Inspect(f, func(n ast.Node) bool {
 				call, ok := n.(*ast.CallExpr)
@@ -3053,11 +3227,20 @@ func (ix *Index) reflectLookupExists(name string) bool {
 				return true
 			})
 			if found {
-				return true
+				break
 			}
 		}
+		if found {
+			break
+		}
 	}
-	return false
+	if ix.reflectLookupCache == nil {
+		ix.reflectLookupCache = map[string]bool{}
+	}
+	if len(ix.reflectLookupCache) < maxAuxCache {
+		ix.reflectLookupCache[name] = found
+	}
+	return found
 }
 
 // marshalAPICarrierExists reports whether any call site into the given
@@ -3068,17 +3251,25 @@ func (ix *Index) reflectLookupExists(name string) bool {
 func (ix *Index) marshalAPICarrierExists(pkg *packages.Package, enc *ast.FuncDecl, apis []string) bool {
 	recv := receiverNamedType(pkg, enc)
 	if recv == nil {
-		return true // receiver type unresolvable — cannot prove non-carriage
+		return true
+	}
+	recvName := ""
+	if recv.Obj() != nil {
+		recvName = recv.Obj().Name()
+	}
+	key := pkg.PkgPath + "|" + recvName + "." + enc.Name.Name
+	if ix.marshalAPICache != nil {
+		if v, ok := ix.marshalAPICache[key]; ok {
+			return v
+		}
 	}
 	want := enc.Name.Name
-	// Scan linked packages for calls into the API packages; a call is a
-	// carrier only when some argument's type may implement the method.
+	found := false
 	for _, p := range ix.linkedPkgs() {
 		info := p.TypesInfo
 		if info == nil {
 			continue
 		}
-		found := false
 		for _, f := range p.Syntax {
 			ast.Inspect(f, func(n ast.Node) bool {
 				call, ok := n.(*ast.CallExpr)
@@ -3098,11 +3289,20 @@ func (ix *Index) marshalAPICarrierExists(pkg *packages.Package, enc *ast.FuncDec
 				return true
 			})
 			if found {
-				return true
+				break
 			}
 		}
+		if found {
+			break
+		}
 	}
-	return false
+	if ix.marshalAPICache == nil {
+		ix.marshalAPICache = map[string]bool{}
+	}
+	if len(ix.marshalAPICache) < maxAuxCache {
+		ix.marshalAPICache[key] = found
+	}
+	return found
 }
 
 // receiverNamedType resolves the named receiver type of a method decl.
@@ -3123,6 +3323,11 @@ func receiverNamedType(pkg *packages.Package, enc *ast.FuncDecl) *types.Named {
 // hold anything, the receiver type (or pointer to it) dispatches
 // directly, and containers/structs hand their elements upward.
 func typeMayCarry(t types.Type, recv *types.Named, want string) bool {
+	seen := make(map[*types.Named]bool)
+	return typeMayCarrySeen(t, recv, want, seen)
+}
+
+func typeMayCarrySeen(t types.Type, recv *types.Named, want string, seen map[*types.Named]bool) bool {
 	if t == nil {
 		return true
 	}
@@ -3130,26 +3335,30 @@ func typeMayCarry(t types.Type, recv *types.Named, want string) bool {
 	case *types.Interface:
 		return true
 	case *types.Pointer:
-		return typeMayCarry(tt.Elem(), recv, want)
+		return typeMayCarrySeen(tt.Elem(), recv, want, seen)
 	case *types.Named:
 		if tt == recv {
 			return true
 		}
+		if seen[tt] {
+			return false
+		}
+		seen[tt] = true
 		ms := types.NewMethodSet(t)
-		for i := 0; i < ms.Len(); i++ {
+		for i := range ms.Len() {
 			if ms.At(i).Obj().Name() == want {
 				return true
 			}
 		}
 		if st, ok := tt.Underlying().(*types.Struct); ok {
-			for i := 0; i < st.NumFields(); i++ {
-				if typeMayCarry(st.Field(i).Type(), recv, want) {
+			for i := range st.NumFields() {
+				if typeMayCarrySeen(st.Field(i).Type(), recv, want, seen) {
 					return true
 				}
 			}
 		}
 	case *types.Slice, *types.Array, *types.Map, *types.Chan:
-		return typeMayCarry(containerElem(t), recv, want)
+		return typeMayCarrySeen(containerElem(t), recv, want, seen)
 	}
 	return false
 }

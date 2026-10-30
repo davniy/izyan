@@ -21,27 +21,32 @@ func filepathBase(p string) string {
 // CheckMissingCall verifies whether a security check method (e.g. MapClaims.VerifyAudience)
 // is omitted across the active execution path of a reached pipeline (e.g. MapClaims.Valid).
 //
-// Returns:
-//   - omitted = true if pipeline is reached from product code and check has 0 invocations
-//     on that execution path.
-//   - omitted = false if pipeline is unreached, or if check is invoked in product callers,
-//     intermediate dependency callers, the pipeline body, or transitive callees.
-func (ix *Index) CheckMissingCall(ctx context.Context, check, pipeline domain.SymbolRef) (bool, string, []domain.CallSite, error) {
+// Returns a typed status, the human-readable detail and the product call
+// sites that reach the pipeline:
+//   - MissingCallOmitted: the pipeline is reached from product code and the
+//     check has zero invocations on that execution path.
+//   - MissingCallPresent: the check is observed invoked in product callers,
+//     intermediate dependency callers, the pipeline body, or transitive
+//     callees.
+//   - MissingCallNotEstablished: the pipeline is unreached, a declaration
+//     could not be resolved or the callee search was truncated. This is a
+//     measurement limitation, never evidence that the check is present.
+func (ix *Index) CheckMissingCall(ctx context.Context, check, pipeline domain.SymbolRef) (domain.MissingCallStatus, string, []domain.CallSite, error) {
 	if ix == nil {
-		return false, "", nil, nil
+		return domain.MissingCallNotEstablished, "", nil, nil
 	}
 	ix.mu.Lock()
 	defer ix.mu.Unlock()
 
 	if err := ix.load(ctx); err != nil {
-		return false, "", nil, err
+		return domain.MissingCallNotEstablished, "", nil, err
 	}
 	if _, err := ix.loadExtra(ctx, pipeline.Package); err != nil {
-		return false, "", nil, err
+		return domain.MissingCallNotEstablished, "", nil, err
 	}
 	if check.Package != pipeline.Package && check.Package != "" {
 		if _, err := ix.loadExtra(ctx, check.Package); err != nil {
-			return false, "", nil, err
+			return domain.MissingCallNotEstablished, "", nil, err
 		}
 	}
 
@@ -61,7 +66,7 @@ func (ix *Index) CheckMissingCall(ctx context.Context, check, pipeline domain.Sy
 	// 1. Verify pipeline is reached from product code.
 	reached, pathStr, prodCallers, intermediateFns := ix.findPipelineReach(ctx, pipeline, pkgs, mod)
 	if !reached {
-		return false, fmt.Sprintf("pipeline %s is not reached from product code", pipeline.Symbol), nil, nil
+		return domain.MissingCallNotEstablished, fmt.Sprintf("pipeline %s is not reached from product code", pipeline.Symbol), nil, nil
 	}
 
 	// 2. Collect interface refs for check to catch interface dispatches.
@@ -74,14 +79,14 @@ func (ix *Index) CheckMissingCall(ctx context.Context, check, pipeline domain.Sy
 	}
 	if len(prodCheckCalls) > 0 {
 		site := prodCheckCalls[0]
-		return false, fmt.Sprintf("security check %s is invoked in product code at %s:%d (%s.%s)",
+		return domain.MissingCallPresent, fmt.Sprintf("security check %s is invoked in product code at %s:%d (%s.%s)",
 			check.Symbol, filepathBase(site.File), site.Line, site.Package, site.Function), nil, nil
 	}
 
 	// 4. Search for invocations of check in intermediate dependency callers.
 	for _, item := range intermediateFns {
 		if site := callsSymbol(item.pkg, item.fn, check, checkIfaceRefs); site != nil {
-			return false, fmt.Sprintf("security check %s is invoked in dependency caller at %s:%d (%s.%s)",
+			return domain.MissingCallPresent, fmt.Sprintf("security check %s is invoked in dependency caller at %s:%d (%s.%s)",
 				check.Symbol, filepathBase(site.File), site.Line, site.Package, site.Function), nil, nil
 		}
 	}
@@ -89,21 +94,21 @@ func (ix *Index) CheckMissingCall(ctx context.Context, check, pipeline domain.Sy
 	// 5. Search for invocations of check in pipeline body and its dep-internal callees.
 	pipelinePkg, pipelineFn := findFuncDecl(pkgs, pipeline)
 	if pipelineFn == nil {
-		return false, fmt.Sprintf("cannot inspect pipeline: declaration %s not found in analyzed packages", pipeline.Symbol), nil, nil
+		return domain.MissingCallNotEstablished, fmt.Sprintf("cannot inspect pipeline: declaration %s not found in analyzed packages", pipeline.Symbol), nil, nil
 	}
 	if site := callsSymbol(pipelinePkg, pipelineFn, check, checkIfaceRefs); site != nil {
-		return false, fmt.Sprintf("security check %s is invoked in pipeline body at %s:%d (%s.%s)",
+		return domain.MissingCallPresent, fmt.Sprintf("security check %s is invoked in pipeline body at %s:%d (%s.%s)",
 			check.Symbol, filepathBase(site.File), site.Line, site.Package, site.Function), nil, nil
 	}
 
 	// Transitive callees of pipeline within the dependency module.
 	site, truncated := ix.searchCalleesForCheck(pkgs, pipelinePkg, pipelineFn, check, checkIfaceRefs, mod)
 	if site != nil {
-		return false, fmt.Sprintf("security check %s is invoked in pipeline callee at %s:%d (%s.%s)",
+		return domain.MissingCallPresent, fmt.Sprintf("security check %s is invoked in pipeline callee at %s:%d (%s.%s)",
 			check.Symbol, filepathBase(site.File), site.Line, site.Package, site.Function), nil, nil
 	}
 	if truncated {
-		return false, fmt.Sprintf("cannot verify omission: callee search for %s exceeded search depth limit", pipeline.Symbol), nil, nil
+		return domain.MissingCallNotEstablished, fmt.Sprintf("cannot verify omission: callee search for %s exceeded search depth limit", pipeline.Symbol), nil, nil
 	}
 
 	// 6. Pipeline reached and check has 0 invocations on this active path.
@@ -112,7 +117,7 @@ func (ix *Index) CheckMissingCall(ctx context.Context, check, pipeline domain.Sy
 		"security check %s is omitted on active pipeline %s (receiver: %s.%s; product callers: %d); path: %s; check invocations on path: 0",
 		check.Symbol, pipeline.Symbol, check.Package, typeName, len(prodCallers), pathStr,
 	)
-	return true, content, prodCallers, nil
+	return domain.MissingCallOmitted, content, prodCallers, nil
 }
 
 type funcDeclItem struct {

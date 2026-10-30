@@ -1,0 +1,52 @@
+{
+  "exploitable": {
+    "task_id": "caddyserver-caddy-8dc7667-CVE-2025-29785",
+    "attempt_id": null,
+    "overall": "valid",
+    "execution": "ok",
+    "official_parse": "accepted",
+    "assessment_schema": "valid",
+    "parser_audit": "matched",
+    "failure_reason": null
+  },
+  "non_reachable": {
+    "task_id": "aquasecurity-trivy-37da98d-CVE-2024-32473",
+    "attempt_id": null,
+    "overall": "failed",
+    "execution": "nonzero_exit",
+    "official_parse": "no_result",
+    "assessment_schema": "absent",
+    "parser_audit": "not_run",
+    "failure_reason": "container_nonzero_exit"
+  },
+  "configuration": {
+    "task_id": "cilium-cilium-43bff35-CVE-2026-35469",
+    "attempt_id": null,
+    "overall": "failed",
+    "execution": "transport_failure",
+    "official_parse": "no_result",
+    "assessment_schema": "absent",
+    "parser_audit": "not_run",
+    "failure_reason": "docker_create_failed"
+  },
+  "non_reachable@run_002": {
+    "task_id": "aquasecurity-trivy-37da98d-CVE-2024-32473",
+    "attempt_id": "run_002",
+    "overall": "valid",
+    "execution": "ok",
+    "official_parse": "accepted",
+    "assessment_schema": "valid",
+    "parser_audit": "matched",
+    "failure_reason": null
+  },
+  "configuration@run_002": {
+    "task_id": "cilium-cilium-43bff35-CVE-2026-35469",
+    "attempt_id": "run_002",
+    "overall": "valid",
+    "execution": "ok",
+    "official_parse": "accepted",
+    "assessment_schema": "valid",
+    "parser_audit": "matched",
+    "failure_reason": null
+  }
+}

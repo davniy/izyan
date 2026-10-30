@@ -3,6 +3,12 @@
 // about the advisory on the generated product — reachable, package-level
 // import only, silent despite knowing the advisory, not in its DB, or a
 // tool error — so the report can compare it against the analyzer verdict.
+//
+// A label describes one run, never safety: "silent" is emitted only for a
+// successfully completed run whose recorded coverage includes the advisory
+// and the whole measured build. Unknown or narrowed coverage is reported as
+// coverage-incomplete, and a package-level finding is not symbol
+// reachability.
 package eval
 
 import (
@@ -11,24 +17,52 @@ import (
 
 	"github.com/fedorovmv/izyan/internal/domain"
 	"github.com/fedorovmv/izyan/internal/goanalysis"
+	"github.com/fedorovmv/izyan/internal/vulnerability"
 )
 
 // Baseline outcome labels, recorded on Result.Baseline.
 const (
 	BaselineReachable    = "reachable"     // finding with a function-level trace
 	BaselinePackageLevel = "package-level" // imported package, no symbol trace
-	BaselineModuleLevel  = "module-level"
-	BaselineSilent       = "silent"    // advisory in the DB, no finding emitted
-	BaselineNotInDB      = "not-in-db" // advisory absent from the DB snapshot
-	BaselineError        = "error"     // govulncheck did not run cleanly
+	BaselineModuleLevel  = "module-level"  // module referenced, no package/symbol trace
+	BaselineSilent       = "silent"        // advisory covered, full scope, no finding emitted
+	BaselineNotInDB      = "not-in-db"     // advisory absent from the DB snapshot
+	// BaselineCoverageIncomplete is a completed run whose silence cannot
+	// ground a negative: the advisory was not covered or the scope was
+	// narrowed. It is deliberately distinct from both "silent" and "error".
+	BaselineCoverageIncomplete = "coverage-incomplete"
+	BaselineError              = "error" // govulncheck did not run cleanly
 )
 
-// BaselineFromOutput classifies what raw govulncheck JSON output reports
-// about v, avoiding repeated subprocess executions when output is already cached.
-func BaselineFromOutput(raw []byte, v domain.Vulnerability) string {
-	res, err := goanalysis.Parse(raw)
+// BaselineFromEvidence classifies the durable govulncheck record already
+// collected for a case. It never reinterprets a failed run's parseable
+// prefix: the typed outcome is authoritative. A completed record's content
+// must decode; there is no raw-text fallback.
+func BaselineFromEvidence(ev domain.Evidence, v domain.Vulnerability) string {
+	run := ev.Govulncheck
+	if run == nil {
+		return fmt.Sprintf("%s: govulncheck run outcome not recorded (legacy record)", BaselineError)
+	}
+	switch run.Outcome {
+	case domain.GovulncheckFailed:
+		msg := run.Error
+		if msg == "" {
+			msg = "process failed"
+		}
+		return fmt.Sprintf("%s: %s", BaselineError, msg)
+	case domain.GovulncheckNotRun:
+		msg := run.Error
+		if msg == "" {
+			msg = "govulncheck did not run"
+		}
+		return fmt.Sprintf("%s: %s", BaselineError, msg)
+	case domain.GovulncheckCompletedEmpty, domain.GovulncheckCompletedWithResults:
+	default:
+		return fmt.Sprintf("%s: unrecognized govulncheck outcome %q", BaselineError, run.Outcome)
+	}
+	res, err := goanalysis.Parse([]byte(ev.Content))
 	if err != nil {
-		return fmt.Sprintf("%s: %v", BaselineError, err)
+		return fmt.Sprintf("%s: completed run output undecodable: %v", BaselineError, err)
 	}
 	fs := res.ForVulnerability(v)
 	packageLevel := false
@@ -48,19 +82,32 @@ func BaselineFromOutput(raw []byte, v domain.Vulnerability) string {
 	if len(fs) > 0 {
 		return BaselineModuleLevel
 	}
-	if res.Covers(v) {
-		return BaselineSilent
+	// No finding for the advisory. Silence is only a label when the run
+	// recorded both advisory and scope coverage; otherwise the run did not
+	// measure the question being asked.
+	switch run.Coverage.Advisory {
+	case domain.GovulncheckCoverageNotInDB:
+		return BaselineNotInDB
+	case domain.GovulncheckCoverageCovered:
+		if run.Coverage.ScopeComplete {
+			return BaselineSilent
+		}
+		return fmt.Sprintf("%s: advisory covered, but the run used a narrowed scope", BaselineCoverageIncomplete)
+	default:
+		return fmt.Sprintf("%s: advisory coverage unknown", BaselineCoverageIncomplete)
 	}
-	return BaselineNotInDB
 }
 
-// Baseline runs standalone govulncheck on dir and classifies what it
-// reports about v. The runner must not be the corpus-wide caching one —
-// generated products differ per case.
+// Baseline runs one standalone govulncheck on dir through the shared
+// recorder and classifies its durable outcome. The runner must not be the
+// corpus-wide caching one — generated products differ per case.
 func Baseline(ctx context.Context, r goanalysis.Runner, dir string, v domain.Vulnerability, build domain.ProductSnapshot) string {
-	raw, _, err := r.RunGovulncheck(ctx, dir, build)
-	if err != nil {
-		return fmt.Sprintf("%s: %v", BaselineError, err)
+	if dir != "" {
+		build.Repository = dir
 	}
-	return BaselineFromOutput(raw, v)
+	// Calibration classifies one requested advisory. It has no loaded-record
+	// bytes, so the measurement is identity-only: exact own-id coverage, no
+	// byte pin, and no admission authority.
+	ev, _ := goanalysis.CollectGovulncheck(ctx, r, build, vulnerability.LoadedRecord{Vuln: &v})
+	return BaselineFromEvidence(ev, v)
 }

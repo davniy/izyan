@@ -1,0 +1,13 @@
+{
+  "id": "GO-EVAL-RI-STD",
+  "summary": "Stdlib parse defect",
+  "affected": [
+    {
+      "package": {"name": "stdlib", "ecosystem": "Go"},
+      "ranges": [{"type": "SEMVER", "events": [{"introduced": "0"}]}],
+      "ecosystem_specific": {
+        "imports": [{"path": "net/url", "symbols": ["Parse"]}]
+      }
+    }
+  ]
+}

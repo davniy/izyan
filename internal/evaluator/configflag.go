@@ -1,30 +1,19 @@
 package evaluator
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/fedorovmv/izyan/internal/domain"
+	"github.com/fedorovmv/izyan/internal/goanalysis"
 )
 
-// ConfigFlag evaluates check=config_flag / check=config_key conditions —
-// the effective value of a configuration knob the advisory cares about
-// (TLS verification, debug mode, auth toggles).
-//
-//	config_flag — assignments to a pkg.Type.Field knob collected into
-//	  EvidenceGraph.ConfigFlags; a literal/const value equal to
-//	  insecure_value → TRUE, only safe assignments → FALSE candidate,
-//	  unresolved or absent values → UNKNOWN (never-set bool knobs apply
-//	  the Go zero-value rule when insecure_value is non-zero).
-//	config_key — EvidenceGraph.Configuration items matched on the key;
-//	  a hit with the insecure value → TRUE, safe values → FALSE
-//	  candidate, no items → UNKNOWN (env/deployment can set it outside
-//	  the repo).
-//
-// FALSE candidates have no dedicated falsification strategy — the
-// negative-check pass marks them INSUFFICIENT_SCOPE rather than
-// verified, which is honest: "knob set safely in the files we saw" is a
-// weak negative.
+// ConfigFlag retains declaration-wide positive observations for config_flag and
+// config_key. Safe assignments, zero defaults and checked-in safe keys remain
+// UNKNOWN: none closes the effective object or deployment/runtime overrides.
+// The necessary CHECK_TRIGGER configuration-negative helper below uses the
+// separate snapshot-anchored certificate checker, not these observations.
 type ConfigFlag struct{}
 
 func (ConfigFlag) CanEvaluate(cond domain.Condition) bool {
@@ -33,6 +22,10 @@ func (ConfigFlag) CanEvaluate(cond domain.Condition) bool {
 }
 
 func (ConfigFlag) Evaluate(cond domain.Condition, c *domain.AnalysisCase) domain.Claim {
+	return admitNegative(c, cond, evaluateConfigFlagCond(cond, c))
+}
+
+func evaluateConfigFlagCond(cond domain.Condition, c *domain.AnalysisCase) domain.Claim {
 	claim := domain.Claim{
 		ID:          domain.ClaimID("CL-" + string(cond.ID)),
 		ConditionID: cond.ID,
@@ -112,9 +105,7 @@ func evalConfigFlag(cond domain.Condition, c *domain.AnalysisCase, claim domain.
 		return claim
 	}
 	if len(safeSites) > 0 {
-		claim.Result = domain.ClaimFalse
-		claim.Falsifier = domain.FalsifierSafeConfigAssignment
-		claim.Explanation = fmt.Sprintf("knob %s assigned only safe value(s) at %d site(s)", sym, len(safeSites))
+		claim.Limitations = append(claim.Limitations, "safe declaration-wide assignments do not establish a closed effective object")
 		return claim
 	}
 	// Never assigned: Go zero-value semantics apply only when we know the
@@ -123,11 +114,7 @@ func evalConfigFlag(cond domain.Condition, c *domain.AnalysisCase, claim domain.
 	// value the configuration is safe by default.
 	if zero, ok := c.EvidenceGraph.SymbolFieldKind(key); ok && zero == "bool" &&
 		(insecure == "true" || insecure == "1") {
-		claim.Result = domain.ClaimFalse
-		claim.Falsifier = domain.FalsifierZeroValueConfig
-		claim.Explanation = fmt.Sprintf("knob %s never assigned in product code — Go zero value false is not %q", sym, insecure)
-		claim.Limitations = append(claim.Limitations,
-			"zero-value reasoning assumes no runtime default override (struct defaults, env layering)")
+		claim.Limitations = append(claim.Limitations, "zero-value observation does not establish a closed effective object")
 		return claim
 	}
 	claim.Limitations = append(claim.Limitations,
@@ -166,9 +153,7 @@ func evalConfigKey(cond domain.Condition, c *domain.AnalysisCase, claim domain.C
 			key, insecure, hits[0].File, hits[0].Line)
 		return claim
 	}
-	claim.Result = domain.ClaimFalse
-	claim.Falsifier = domain.FalsifierSafeConfigKey
-	claim.Explanation = fmt.Sprintf("config key %q present with safe value(s)", key)
+	claim.Limitations = append(claim.Limitations, "safe configuration-file values do not close runtime/deployment overrides")
 	return claim
 }
 
@@ -198,4 +183,31 @@ func exposureEvidenceIDs(c *domain.AnalysisCase, prefix string) []domain.Evidenc
 		}
 	}
 	return ids
+}
+
+func evaluateConfigTriggerNegative(cond domain.Condition,c *domain.AnalysisCase,claim domain.Claim) domain.Claim {
+	if cond.Kind != domain.ConditionCheckTrigger || !cond.Mandatory { return claim }
+	for _,e := range c.EvidenceGraph.EvidenceList() {
+		if e.Kind != domain.EvidenceConfiguration || e.Tool != goanalysis.ConfigCertificateTool { continue }
+		probe := claim
+		probe.EvidenceIDs = []domain.EvidenceID{e.ID}
+		_,err := goanalysis.ValidateConfigCertificateEvidence(goanalysis.ConfigAdmissionForCase(c),probe,cond)
+		if err == nil {
+			claim.Result = domain.ClaimFalse
+			claim.Falsifier = domain.FalsifierSafeConfigAssignment
+			claim.EvidenceIDs = []domain.EvidenceID{e.ID}
+			claim.Explanation = "every captured invocation's necessary boolean configuration argument has a safe effective value"
+			return admitNegative(c,cond,claim)
+		}
+		status := domain.NegativeInsufficientScope
+		if errors.Is(err,goanalysis.ErrConfigWriterContradicted) { status=domain.NegativeContradicted }
+		claim.NegativeVerification=&domain.NegativeVerification{Status:status,Notes:err.Error(),EvidenceIDs:[]domain.EvidenceID{e.ID}}
+		claim.Limitations=append(claim.Limitations,err.Error())
+		claim.AnalysisGaps=append(claim.AnalysisGaps,domain.AnalysisGap{Owner:domain.GapOwnerProof,Code:domain.GapTriggerProofIncomplete,Obligation:domain.ObligationCondition,ConditionID:cond.ID,Message:err.Error()})
+		return claim
+	}
+	message := "no captured effective-configuration certificate establishes the necessary boolean argument"
+	claim.NegativeVerification = &domain.NegativeVerification{Status:domain.NegativeInsufficientScope,Notes:message}
+	claim.AnalysisGaps = append(claim.AnalysisGaps,domain.AnalysisGap{Owner:domain.GapOwnerProof,Code:domain.GapTriggerProofIncomplete,Obligation:domain.ObligationCondition,ConditionID:cond.ID,Message:message})
+	return claim
 }

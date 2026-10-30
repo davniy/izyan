@@ -1,0 +1,1829 @@
+{
+  "id": "OBS-0006",
+  "tool": "get_dependency_graph",
+  "fact": "dependency graph: 263 module(s) resolved via vendor/modules.txt",
+  "scope": "module list of <VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3 (vendor/modules.txt)",
+  "completeness": "COMPLETE",
+  "tool_status": "OK",
+  "evidence_refs": [
+    "sha256:69eb5cda93f9660ef01b8b38e2a8b77439855e553a34b180f99705eee9ffc263"
+  ],
+  "limitations": [
+    "module list comes from vendor/modules.txt (vendored build); replaces on disk are vendor content, not fetched versions"
+  ],
+  "scope_details": {
+    "snapshot_hash": "6eed0df4ef52c733d0f4f36b147c1fbc1950ef4689fd63bfb224803e37bd2072",
+    "external_sha": "e196d2491087e93bd29f0e5a538aab60667021e3",
+    "build_context": {
+      "goos": "darwin",
+      "goarch": "arm64",
+      "cgo_enabled": false,
+      "go_version": "go1.21.3",
+      "vendor_mode": true
+    },
+    "profile": "strict",
+    "read_roots": [
+      "<VA_VEXBENCH>/repos/kubernetes/kubernetes/e196d2491087e93bd29f0e5a538aab60667021e3",
+      "<VA_REPO>/eval/agent7/advisories"
+    ],
+    "toolchain_env": [
+      "GOENV=off",
+      "GOEXPERIMENT=",
+      "GOINSECURE=",
+      "GOWORK=off",
+      "GOPROXY=off",
+      "GOSUMDB=off",
+      "GONOSUMDB=",
+      "GONOPROXY=",
+      "GOPRIVATE=",
+      "GOFLAGS=-mod=readonly"
+    ],
+    "inherited_env_keys": [
+      "AGENT",
+      "AGY_CLI_DISABLE_AUTO_UPDATE",
+      "ALL_PROXY",
+      "AWS_PAGER",
+      "BAT_PAGER",
+      "BUN_INSTALL",
+      "CARGO_TERM_PROGRESS_WHEN",
+      "CI",
+      "CLAUDECODE",
+      "CLOUDSDK_CORE_DISABLE_PROMPTS",
+      "COLORTERM",
+      "COMMAND_MODE",
+      "COMPOSER_NO_INTERACTION",
+      "DEBIAN_FRONTEND",
+      "DEEPSEEK_API_KEY",
+      "DELTA_PAGER",
+      "DOCKER_HOME",
+      "EDITOR",
+      "FORCE_HYPERLINK",
+      "GH_PAGER",
+      "GH_PROMPT_DISABLED",
+      "GIT_EDITOR",
+      "GIT_PAGER",
+      "GIT_TERMINAL_PROMPT",
+      "GLAB_PAGER",
+      "GPG_TTY",
+      "HOME",
+      "HOMEBREW_PAGER",
+      "HTTPS_PROXY",
+      "HTTP_PROXY",
+      "LANG",
+      "LESS",
+      "LOGNAME",
+      "LSCOLORS",
+      "LS_COLORS",
+      "LaunchInstanceID",
+      "MANPAGER",
+      "MYSQL_PAGER",
+      "MallocNanoZone",
+      "NODE_EXTRA_CA_CERTS",
+      "NODE_OPTIONS",
+      "NODE_TLS_REJECT_UNAUTHORIZED",
+      "NO_COLOR",
+      "NO_PROXY",
+      "OMPCODE",
+      "OPENAI_API_KEY_OMNI_PROXY",
+      "OPENAI_API_KEY_QUOT",
+      "OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS",
+      "OPEN_API_KEY",
+      "ORCA_AGENT_HOOK_ENDPOINT",
+      "ORCA_AGENT_HOOK_ENV",
+      "ORCA_AGENT_HOOK_PORT",
+      "ORCA_AGENT_HOOK_TOKEN",
+      "ORCA_AGENT_HOOK_TRANSPORT",
+      "ORCA_AGENT_HOOK_VERSION",
+      "ORCA_AGENT_PANE",
+      "ORCA_APP_VERSION",
+      "ORCA_IMAGE_PROTOCOL",
+      "ORCA_OMP_FRESH_CONFIG",
+      "ORCA_OMP_SOURCE_AGENT_DIR",
+      "ORCA_OMP_STATUS_EXTENSION",
+      "ORCA_OPENCODE_AGENT",
+      "ORCA_PANE_KEY",
+      "ORCA_PI_SOURCE_AGENT_DIR",
+      "ORCA_PI_STATUS_OWNED",
+      "ORCA_TAB_ID",
+      "ORCA_TERMINAL_HANDLE",
+      "ORCA_USER_DATA_PATH",
+      "ORCA_WORKSPACE_ID",
+      "ORCA_WORKTREE_ID",
+      "OSLogRateLimit",
+      "PAGER",
+      "PATH",
+      "PIP_DISABLE_PIP_VERSION_CHECK",
+      "PIP_NO_INPUT",
+      "PNPM_DISABLE_SELF_UPDATE_CHECK",
+      "PNPM_UPDATE_NOTIFIER",
+      "POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD",
+      "PSQL_PAGER",
+      "PWD",
+      "PYTHONUNBUFFERED",
+      "SCCD_BASIC_TOKEN",
+      "SC_BASIC_TOKEN",
+      "SECURITYSESSIONID",
+      "SHLVL",
+      "SSH_ASKPASS",
+      "SSH_AUTH_SOCK",
+      "SSL_CERT_FILE",
+      "SWTR_BEARER_TOKEN",
+      "SYSTEMD_PAGER",
+      "TERM",
+      "TERM_PROGRAM",
+      "TERM_PROGRAM_VERSION",
+      "TF_INPUT",
+      "TF_IN_AUTOMATION",
+      "TMPDIR",
+      "USER",
+      "VEXBENCH_DURABLE_DIR",
+      "VISUAL",
+      "XPC_FLAGS",
+      "XPC_SERVICE_NAME",
+      "YARN_ENABLE_PROGRESS_BARS",
+      "YARN_ENABLE_TELEMETRY",
+      "ZSH",
+      "_",
+      "__CFBundleIdentifier",
+      "__CF_USER_TEXT_ENCODING",
+      "no_proxy",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_progress",
+      "npm_config_update_notifier",
+      "npm_config_yes"
+    ],
+    "coverage_rule": "enumerated module list of the snapshot's main module graph",
+    "extra": {
+      "module_source": "vendor/modules.txt"
+    }
+  },
+  "data": {
+    "count": 263,
+    "modules": [
+      {
+        "effective_path": "bitbucket.org/bertimus9/systemstat",
+        "effective_version": "v0.5.0",
+        "path": "bitbucket.org/bertimus9/systemstat",
+        "version": "v0.5.0"
+      },
+      {
+        "effective_path": "cloud.google.com/go/compute",
+        "effective_version": "v1.19.0",
+        "path": "cloud.google.com/go/compute",
+        "version": "v1.19.0"
+      },
+      {
+        "effective_path": "cloud.google.com/go/compute/metadata",
+        "effective_version": "v0.2.3",
+        "path": "cloud.google.com/go/compute/metadata",
+        "version": "v0.2.3"
+      },
+      {
+        "effective_path": "github.com/Azure/azure-sdk-for-go",
+        "effective_version": "v68.0.0+incompatible",
+        "path": "github.com/Azure/azure-sdk-for-go",
+        "version": "v68.0.0+incompatible"
+      },
+      {
+        "effective_path": "github.com/Azure/go-ansiterm",
+        "effective_version": "v0.0.0-20210617225240-d185dfc1b5a1",
+        "path": "github.com/Azure/go-ansiterm",
+        "version": "v0.0.0-20210617225240-d185dfc1b5a1"
+      },
+      {
+        "effective_path": "github.com/Azure/go-autorest",
+        "effective_version": "v14.2.0+incompatible",
+        "path": "github.com/Azure/go-autorest",
+        "version": "v14.2.0+incompatible"
+      },
+      {
+        "effective_path": "github.com/Azure/go-autorest/autorest",
+        "effective_version": "v0.11.29",
+        "path": "github.com/Azure/go-autorest/autorest",
+        "version": "v0.11.29"
+      },
+      {
+        "effective_path": "github.com/Azure/go-autorest/autorest/adal",
+        "effective_version": "v0.9.23",
+        "path": "github.com/Azure/go-autorest/autorest/adal",
+        "version": "v0.9.23"
+      },
+      {
+        "effective_path": "github.com/Azure/go-autorest/autorest/date",
+        "effective_version": "v0.3.0",
+        "path": "github.com/Azure/go-autorest/autorest/date",
+        "version": "v0.3.0"
+      },
+      {
+        "effective_path": "github.com/Azure/go-autorest/autorest/mocks",
+        "effective_version": "v0.4.2",
+        "path": "github.com/Azure/go-autorest/autorest/mocks",
+        "version": "v0.4.2"
+      },
+      {
+        "effective_path": "github.com/Azure/go-autorest/autorest/to",
+        "effective_version": "v0.4.0",
+        "path": "github.com/Azure/go-autorest/autorest/to",
+        "version": "v0.4.0"
+      },
+      {
+        "effective_path": "github.com/Azure/go-autorest/autorest/validation",
+        "effective_version": "v0.3.1",
+        "path": "github.com/Azure/go-autorest/autorest/validation",
+        "version": "v0.3.1"
+      },
+      {
+        "effective_path": "github.com/Azure/go-autorest/logger",
+        "effective_version": "v0.2.1",
+        "path": "github.com/Azure/go-autorest/logger",
+        "version": "v0.2.1"
+      },
+      {
+        "effective_path": "github.com/Azure/go-autorest/tracing",
+        "effective_version": "v0.6.0",
+        "path": "github.com/Azure/go-autorest/tracing",
+        "version": "v0.6.0"
+      },
+      {
+        "effective_path": "github.com/GoogleCloudPlatform/k8s-cloud-provider",
+        "effective_version": "v1.18.1-0.20220218231025-f11817397a1b",
+        "path": "github.com/GoogleCloudPlatform/k8s-cloud-provider",
+        "version": "v1.18.1-0.20220218231025-f11817397a1b"
+      },
+      {
+        "effective_path": "github.com/JeffAshton/win_pdh",
+        "effective_version": "v0.0.0-20161109143554-76bb4ee9f0ab",
+        "path": "github.com/JeffAshton/win_pdh",
+        "version": "v0.0.0-20161109143554-76bb4ee9f0ab"
+      },
+      {
+        "effective_path": "github.com/MakeNowJust/heredoc",
+        "effective_version": "v1.0.0",
+        "path": "github.com/MakeNowJust/heredoc",
+        "version": "v1.0.0"
+      },
+      {
+        "effective_path": "github.com/Microsoft/go-winio",
+        "effective_version": "v0.6.0",
+        "path": "github.com/Microsoft/go-winio",
+        "version": "v0.6.0"
+      },
+      {
+        "effective_path": "github.com/Microsoft/hcsshim",
+        "effective_version": "v0.8.25",
+        "path": "github.com/Microsoft/hcsshim",
+        "version": "v0.8.25"
+      },
+      {
+        "effective_path": "github.com/NYTimes/gziphandler",
+        "effective_version": "v1.1.1",
+        "path": "github.com/NYTimes/gziphandler",
+        "version": "v1.1.1"
+      },
+      {
+        "effective_path": "github.com/antlr/antlr4/runtime/Go/antlr/v4",
+        "effective_version": "v4.0.0-20230305170008-8188dc5388df",
+        "path": "github.com/antlr/antlr4/runtime/Go/antlr/v4",
+        "version": "v4.0.0-20230305170008-8188dc5388df"
+      },
+      {
+        "effective_path": "github.com/armon/circbuf",
+        "effective_version": "v0.0.0-20150827004946-bbbad097214e",
+        "path": "github.com/armon/circbuf",
+        "version": "v0.0.0-20150827004946-bbbad097214e"
+      },
+      {
+        "effective_path": "github.com/armon/go-socks5",
+        "effective_version": "v0.0.0-20160902184237-e75332964ef5",
+        "path": "github.com/armon/go-socks5",
+        "version": "v0.0.0-20160902184237-e75332964ef5"
+      },
+      {
+        "effective_path": "github.com/asaskevich/govalidator",
+        "effective_version": "v0.0.0-20190424111038-f61b66f89f4a",
+        "path": "github.com/asaskevich/govalidator",
+        "version": "v0.0.0-20190424111038-f61b66f89f4a"
+      },
+      {
+        "effective_path": "github.com/beorn7/perks",
+        "effective_version": "v1.0.1",
+        "path": "github.com/beorn7/perks",
+        "version": "v1.0.1"
+      },
+      {
+        "effective_path": "github.com/blang/semver/v4",
+        "effective_version": "v4.0.0",
+        "path": "github.com/blang/semver/v4",
+        "version": "v4.0.0"
+      },
+      {
+        "effective_path": "github.com/cenkalti/backoff/v4",
+        "effective_version": "v4.2.1",
+        "path": "github.com/cenkalti/backoff/v4",
+        "version": "v4.2.1"
+      },
+      {
+        "effective_path": "github.com/cespare/xxhash/v2",
+        "effective_version": "v2.2.0",
+        "path": "github.com/cespare/xxhash/v2",
+        "version": "v2.2.0"
+      },
+      {
+        "effective_path": "github.com/chai2010/gettext-go",
+        "effective_version": "v1.0.2",
+        "path": "github.com/chai2010/gettext-go",
+        "version": "v1.0.2"
+      },
+      {
+        "effective_path": "github.com/checkpoint-restore/go-criu/v5",
+        "effective_version": "v5.3.0",
+        "path": "github.com/checkpoint-restore/go-criu/v5",
+        "version": "v5.3.0"
+      },
+      {
+        "effective_path": "github.com/cilium/ebpf",
+        "effective_version": "v0.9.1",
+        "path": "github.com/cilium/ebpf",
+        "version": "v0.9.1"
+      },
+      {
+        "effective_path": "github.com/container-storage-interface/spec",
+        "effective_version": "v1.8.0",
+        "path": "github.com/container-storage-interface/spec",
+        "version": "v1.8.0"
+      },
+      {
+        "effective_path": "github.com/containerd/cgroups",
+        "effective_version": "v1.1.0",
+        "path": "github.com/containerd/cgroups",
+        "version": "v1.1.0"
+      },
+      {
+        "effective_path": "github.com/containerd/console",
+        "effective_version": "v1.0.3",
+        "path": "github.com/containerd/console",
+        "version": "v1.0.3"
+      },
+      {
+        "effective_path": "github.com/containerd/ttrpc",
+        "effective_version": "v1.2.2",
+        "path": "github.com/containerd/ttrpc",
+        "version": "v1.2.2"
+      },
+      {
+        "effective_path": "github.com/coredns/caddy",
+        "effective_version": "v1.1.1",
+        "path": "github.com/coredns/caddy",
+        "version": "v1.1.1"
+      },
+      {
+        "effective_path": "github.com/coredns/corefile-migration",
+        "effective_version": "v1.0.21",
+        "path": "github.com/coredns/corefile-migration",
+        "version": "v1.0.21"
+      },
+      {
+        "effective_path": "github.com/coreos/go-oidc",
+        "effective_version": "v2.2.1+incompatible",
+        "path": "github.com/coreos/go-oidc",
+        "version": "v2.2.1+incompatible"
+      },
+      {
+        "effective_path": "github.com/coreos/go-semver",
+        "effective_version": "v0.3.1",
+        "path": "github.com/coreos/go-semver",
+        "version": "v0.3.1"
+      },
+      {
+        "effective_path": "github.com/coreos/go-systemd/v22",
+        "effective_version": "v22.5.0",
+        "path": "github.com/coreos/go-systemd/v22",
+        "version": "v22.5.0"
+      },
+      {
+        "effective_path": "github.com/cpuguy83/go-md2man/v2",
+        "effective_version": "v2.0.2",
+        "path": "github.com/cpuguy83/go-md2man/v2",
+        "version": "v2.0.2"
+      },
+      {
+        "effective_path": "github.com/cyphar/filepath-securejoin",
+        "effective_version": "v0.2.3",
+        "path": "github.com/cyphar/filepath-securejoin",
+        "version": "v0.2.3"
+      },
+      {
+        "effective_path": "github.com/davecgh/go-spew",
+        "effective_version": "v1.1.1",
+        "path": "github.com/davecgh/go-spew",
+        "version": "v1.1.1"
+      },
+      {
+        "effective_path": "github.com/daviddengcn/go-colortext",
+        "effective_version": "v1.0.0",
+        "path": "github.com/daviddengcn/go-colortext",
+        "version": "v1.0.0"
+      },
+      {
+        "effective_path": "github.com/distribution/reference",
+        "effective_version": "v0.5.0",
+        "path": "github.com/distribution/reference",
+        "version": "v0.5.0"
+      },
+      {
+        "effective_path": "github.com/docker/go-units",
+        "effective_version": "v0.5.0",
+        "path": "github.com/docker/go-units",
+        "version": "v0.5.0"
+      },
+      {
+        "effective_path": "github.com/dustin/go-humanize",
+        "effective_version": "v1.0.1",
+        "path": "github.com/dustin/go-humanize",
+        "version": "v1.0.1"
+      },
+      {
+        "effective_path": "github.com/emicklei/go-restful/v3",
+        "effective_version": "v3.11.0",
+        "path": "github.com/emicklei/go-restful/v3",
+        "version": "v3.11.0"
+      },
+      {
+        "effective_path": "github.com/euank/go-kmsg-parser",
+        "effective_version": "v2.0.0+incompatible",
+        "path": "github.com/euank/go-kmsg-parser",
+        "version": "v2.0.0+incompatible"
+      },
+      {
+        "effective_path": "github.com/evanphx/json-patch",
+        "effective_version": "v4.12.0+incompatible",
+        "path": "github.com/evanphx/json-patch",
+        "version": "v4.12.0+incompatible"
+      },
+      {
+        "effective_path": "github.com/exponent-io/jsonpath",
+        "effective_version": "v0.0.0-20151013193312-d6023ce2651d",
+        "path": "github.com/exponent-io/jsonpath",
+        "version": "v0.0.0-20151013193312-d6023ce2651d"
+      },
+      {
+        "effective_path": "github.com/fatih/camelcase",
+        "effective_version": "v1.0.0",
+        "path": "github.com/fatih/camelcase",
+        "version": "v1.0.0"
+      },
+      {
+        "effective_path": "github.com/felixge/httpsnoop",
+        "effective_version": "v1.0.3",
+        "path": "github.com/felixge/httpsnoop",
+        "version": "v1.0.3"
+      },
+      {
+        "effective_path": "github.com/fsnotify/fsnotify",
+        "effective_version": "v1.6.0",
+        "path": "github.com/fsnotify/fsnotify",
+        "version": "v1.6.0"
+      },
+      {
+        "effective_path": "github.com/fvbommel/sortorder",
+        "effective_version": "v1.1.0",
+        "path": "github.com/fvbommel/sortorder",
+        "version": "v1.1.0"
+      },
+      {
+        "effective_path": "github.com/go-errors/errors",
+        "effective_version": "v1.4.2",
+        "path": "github.com/go-errors/errors",
+        "version": "v1.4.2"
+      },
+      {
+        "effective_path": "github.com/go-logr/logr",
+        "effective_version": "v1.2.4",
+        "path": "github.com/go-logr/logr",
+        "version": "v1.2.4"
+      },
+      {
+        "effective_path": "github.com/go-logr/stdr",
+        "effective_version": "v1.2.2",
+        "path": "github.com/go-logr/stdr",
+        "version": "v1.2.2"
+      },
+      {
+        "effective_path": "github.com/go-logr/zapr",
+        "effective_version": "v1.2.3",
+        "path": "github.com/go-logr/zapr",
+        "version": "v1.2.3"
+      },
+      {
+        "effective_path": "github.com/go-openapi/jsonpointer",
+        "effective_version": "v0.19.6",
+        "path": "github.com/go-openapi/jsonpointer",
+        "version": "v0.19.6"
+      },
+      {
+        "effective_path": "github.com/go-openapi/jsonreference",
+        "effective_version": "v0.20.2",
+        "path": "github.com/go-openapi/jsonreference",
+        "version": "v0.20.2"
+      },
+      {
+        "effective_path": "github.com/go-openapi/swag",
+        "effective_version": "v0.22.3",
+        "path": "github.com/go-openapi/swag",
+        "version": "v0.22.3"
+      },
+      {
+        "effective_path": "github.com/go-task/slim-sprig",
+        "effective_version": "v0.0.0-20230315185526-52ccab3ef572",
+        "path": "github.com/go-task/slim-sprig",
+        "version": "v0.0.0-20230315185526-52ccab3ef572"
+      },
+      {
+        "effective_path": "github.com/godbus/dbus/v5",
+        "effective_version": "v5.1.0",
+        "path": "github.com/godbus/dbus/v5",
+        "version": "v5.1.0"
+      },
+      {
+        "effective_path": "github.com/gofrs/uuid",
+        "effective_version": "v4.4.0+incompatible",
+        "path": "github.com/gofrs/uuid",
+        "version": "v4.4.0+incompatible"
+      },
+      {
+        "effective_path": "github.com/gogo/protobuf",
+        "effective_version": "v1.3.2",
+        "path": "github.com/gogo/protobuf",
+        "version": "v1.3.2"
+      },
+      {
+        "effective_path": "github.com/golang-jwt/jwt/v4",
+        "effective_version": "v4.5.0",
+        "path": "github.com/golang-jwt/jwt/v4",
+        "version": "v4.5.0"
+      },
+      {
+        "effective_path": "github.com/golang/groupcache",
+        "effective_version": "v0.0.0-20210331224755-41bb18bfe9da",
+        "path": "github.com/golang/groupcache",
+        "version": "v0.0.0-20210331224755-41bb18bfe9da"
+      },
+      {
+        "effective_path": "github.com/golang/mock",
+        "effective_version": "v1.6.0",
+        "path": "github.com/golang/mock",
+        "version": "v1.6.0"
+      },
+      {
+        "effective_path": "github.com/golang/protobuf",
+        "effective_version": "v1.5.3",
+        "path": "github.com/golang/protobuf",
+        "version": "v1.5.3"
+      },
+      {
+        "effective_path": "github.com/google/btree",
+        "effective_version": "v1.0.1",
+        "path": "github.com/google/btree",
+        "version": "v1.0.1"
+      },
+      {
+        "effective_path": "github.com/google/cadvisor",
+        "effective_version": "v0.47.3",
+        "path": "github.com/google/cadvisor",
+        "version": "v0.47.3"
+      },
+      {
+        "effective_path": "github.com/google/cel-go",
+        "effective_version": "v0.17.6",
+        "path": "github.com/google/cel-go",
+        "version": "v0.17.6"
+      },
+      {
+        "effective_path": "github.com/google/gnostic-models",
+        "effective_version": "v0.6.8",
+        "path": "github.com/google/gnostic-models",
+        "version": "v0.6.8"
+      },
+      {
+        "effective_path": "github.com/google/go-cmp",
+        "effective_version": "v0.5.9",
+        "path": "github.com/google/go-cmp",
+        "version": "v0.5.9"
+      },
+      {
+        "effective_path": "github.com/google/gofuzz",
+        "effective_version": "v1.2.0",
+        "path": "github.com/google/gofuzz",
+        "version": "v1.2.0"
+      },
+      {
+        "effective_path": "github.com/google/pprof",
+        "effective_version": "v0.0.0-20210720184732-4bb14d4b1be1",
+        "path": "github.com/google/pprof",
+        "version": "v0.0.0-20210720184732-4bb14d4b1be1"
+      },
+      {
+        "effective_path": "github.com/google/shlex",
+        "effective_version": "v0.0.0-20191202100458-e7afc7fbc510",
+        "path": "github.com/google/shlex",
+        "version": "v0.0.0-20191202100458-e7afc7fbc510"
+      },
+      {
+        "effective_path": "github.com/google/uuid",
+        "effective_version": "v1.3.0",
+        "path": "github.com/google/uuid",
+        "version": "v1.3.0"
+      },
+      {
+        "effective_path": "github.com/googleapis/enterprise-certificate-proxy",
+        "effective_version": "v0.2.3",
+        "path": "github.com/googleapis/enterprise-certificate-proxy",
+        "version": "v0.2.3"
+      },
+      {
+        "effective_path": "github.com/googleapis/gax-go/v2",
+        "effective_version": "v2.7.1",
+        "path": "github.com/googleapis/gax-go/v2",
+        "version": "v2.7.1"
+      },
+      {
+        "effective_path": "github.com/gorilla/websocket",
+        "effective_version": "v1.5.0",
+        "path": "github.com/gorilla/websocket",
+        "version": "v1.5.0"
+      },
+      {
+        "effective_path": "github.com/gregjones/httpcache",
+        "effective_version": "v0.0.0-20180305231024-9cad4c3443a7",
+        "path": "github.com/gregjones/httpcache",
+        "version": "v0.0.0-20180305231024-9cad4c3443a7"
+      },
+      {
+        "effective_path": "github.com/grpc-ecosystem/go-grpc-middleware",
+        "effective_version": "v1.3.0",
+        "path": "github.com/grpc-ecosystem/go-grpc-middleware",
+        "version": "v1.3.0"
+      },
+      {
+        "effective_path": "github.com/grpc-ecosystem/go-grpc-prometheus",
+        "effective_version": "v1.2.0",
+        "path": "github.com/grpc-ecosystem/go-grpc-prometheus",
+        "version": "v1.2.0"
+      },
+      {
+        "effective_path": "github.com/grpc-ecosystem/grpc-gateway",
+        "effective_version": "v1.16.0",
+        "path": "github.com/grpc-ecosystem/grpc-gateway",
+        "version": "v1.16.0"
+      },
+      {
+        "effective_path": "github.com/grpc-ecosystem/grpc-gateway/v2",
+        "effective_version": "v2.7.0",
+        "path": "github.com/grpc-ecosystem/grpc-gateway/v2",
+        "version": "v2.7.0"
+      },
+      {
+        "effective_path": "github.com/imdario/mergo",
+        "effective_version": "v0.3.6",
+        "path": "github.com/imdario/mergo",
+        "version": "v0.3.6"
+      },
+      {
+        "effective_path": "github.com/inconshreveable/mousetrap",
+        "effective_version": "v1.1.0",
+        "path": "github.com/inconshreveable/mousetrap",
+        "version": "v1.1.0"
+      },
+      {
+        "effective_path": "github.com/ishidawataru/sctp",
+        "effective_version": "v0.0.0-20230406120618-7ff4192f6ff2",
+        "path": "github.com/ishidawataru/sctp",
+        "version": "v0.0.0-20230406120618-7ff4192f6ff2"
+      },
+      {
+        "effective_path": "github.com/jonboulle/clockwork",
+        "effective_version": "v0.2.2",
+        "path": "github.com/jonboulle/clockwork",
+        "version": "v0.2.2"
+      },
+      {
+        "effective_path": "github.com/josharian/intern",
+        "effective_version": "v1.0.0",
+        "path": "github.com/josharian/intern",
+        "version": "v1.0.0"
+      },
+      {
+        "effective_path": "github.com/json-iterator/go",
+        "effective_version": "v1.1.12",
+        "path": "github.com/json-iterator/go",
+        "version": "v1.1.12"
+      },
+      {
+        "effective_path": "github.com/karrick/godirwalk",
+        "effective_version": "v1.17.0",
+        "path": "github.com/karrick/godirwalk",
+        "version": "v1.17.0"
+      },
+      {
+        "effective_path": "github.com/libopenstorage/openstorage",
+        "effective_version": "v1.0.0",
+        "path": "github.com/libopenstorage/openstorage",
+        "version": "v1.0.0"
+      },
+      {
+        "effective_path": "github.com/liggitt/tabwriter",
+        "effective_version": "v0.0.0-20181228230101-89fcab3d43de",
+        "path": "github.com/liggitt/tabwriter",
+        "version": "v0.0.0-20181228230101-89fcab3d43de"
+      },
+      {
+        "effective_path": "github.com/lithammer/dedent",
+        "effective_version": "v1.1.0",
+        "path": "github.com/lithammer/dedent",
+        "version": "v1.1.0"
+      },
+      {
+        "effective_path": "github.com/mailru/easyjson",
+        "effective_version": "v0.7.7",
+        "path": "github.com/mailru/easyjson",
+        "version": "v0.7.7"
+      },
+      {
+        "effective_path": "github.com/matttproud/golang_protobuf_extensions",
+        "effective_version": "v1.0.4",
+        "path": "github.com/matttproud/golang_protobuf_extensions",
+        "version": "v1.0.4"
+      },
+      {
+        "effective_path": "github.com/mistifyio/go-zfs",
+        "effective_version": "v2.1.2-0.20190413222219-f784269be439+incompatible",
+        "path": "github.com/mistifyio/go-zfs",
+        "version": "v2.1.2-0.20190413222219-f784269be439+incompatible"
+      },
+      {
+        "effective_path": "github.com/mitchellh/go-wordwrap",
+        "effective_version": "v1.0.1",
+        "path": "github.com/mitchellh/go-wordwrap",
+        "version": "v1.0.1"
+      },
+      {
+        "effective_path": "github.com/moby/ipvs",
+        "effective_version": "v1.1.0",
+        "path": "github.com/moby/ipvs",
+        "version": "v1.1.0"
+      },
+      {
+        "effective_path": "github.com/moby/spdystream",
+        "effective_version": "v0.2.0",
+        "path": "github.com/moby/spdystream",
+        "version": "v0.2.0"
+      },
+      {
+        "effective_path": "github.com/moby/sys/mountinfo",
+        "effective_version": "v0.6.2",
+        "path": "github.com/moby/sys/mountinfo",
+        "version": "v0.6.2"
+      },
+      {
+        "effective_path": "github.com/moby/term",
+        "effective_version": "v0.0.0-20221205130635-1aeaba878587",
+        "path": "github.com/moby/term",
+        "version": "v0.0.0-20221205130635-1aeaba878587"
+      },
+      {
+        "effective_path": "github.com/modern-go/concurrent",
+        "effective_version": "v0.0.0-20180306012644-bacd9c7ef1dd",
+        "path": "github.com/modern-go/concurrent",
+        "version": "v0.0.0-20180306012644-bacd9c7ef1dd"
+      },
+      {
+        "effective_path": "github.com/modern-go/reflect2",
+        "effective_version": "v1.0.2",
+        "path": "github.com/modern-go/reflect2",
+        "version": "v1.0.2"
+      },
+      {
+        "effective_path": "github.com/mohae/deepcopy",
+        "effective_version": "v0.0.0-20170603005431-491d3605edfb",
+        "path": "github.com/mohae/deepcopy",
+        "version": "v0.0.0-20170603005431-491d3605edfb"
+      },
+      {
+        "effective_path": "github.com/monochromegane/go-gitignore",
+        "effective_version": "v0.0.0-20200626010858-205db1a8cc00",
+        "path": "github.com/monochromegane/go-gitignore",
+        "version": "v0.0.0-20200626010858-205db1a8cc00"
+      },
+      {
+        "effective_path": "github.com/mrunalp/fileutils",
+        "effective_version": "v0.5.0",
+        "path": "github.com/mrunalp/fileutils",
+        "version": "v0.5.0"
+      },
+      {
+        "effective_path": "github.com/munnerz/goautoneg",
+        "effective_version": "v0.0.0-20191010083416-a7dc8b61c822",
+        "path": "github.com/munnerz/goautoneg",
+        "version": "v0.0.0-20191010083416-a7dc8b61c822"
+      },
+      {
+        "effective_path": "github.com/mxk/go-flowrate",
+        "effective_version": "v0.0.0-20140419014527-cca7078d478f",
+        "path": "github.com/mxk/go-flowrate",
+        "version": "v0.0.0-20140419014527-cca7078d478f"
+      },
+      {
+        "effective_path": "github.com/onsi/ginkgo/v2",
+        "effective_version": "v2.13.0",
+        "path": "github.com/onsi/ginkgo/v2",
+        "version": "v2.13.0"
+      },
+      {
+        "effective_path": "github.com/onsi/gomega",
+        "effective_version": "v1.28.0",
+        "path": "github.com/onsi/gomega",
+        "version": "v1.28.0"
+      },
+      {
+        "effective_path": "github.com/opencontainers/go-digest",
+        "effective_version": "v1.0.0",
+        "path": "github.com/opencontainers/go-digest",
+        "version": "v1.0.0"
+      },
+      {
+        "effective_path": "github.com/opencontainers/runc",
+        "effective_version": "v1.1.9",
+        "path": "github.com/opencontainers/runc",
+        "version": "v1.1.9"
+      },
+      {
+        "effective_path": "github.com/opencontainers/runtime-spec",
+        "effective_version": "v1.0.3-0.20220909204839-494a5a6aca78",
+        "path": "github.com/opencontainers/runtime-spec",
+        "version": "v1.0.3-0.20220909204839-494a5a6aca78"
+      },
+      {
+        "effective_path": "github.com/opencontainers/selinux",
+        "effective_version": "v1.11.0",
+        "path": "github.com/opencontainers/selinux",
+        "version": "v1.11.0"
+      },
+      {
+        "effective_path": "github.com/peterbourgon/diskv",
+        "effective_version": "v2.0.1+incompatible",
+        "path": "github.com/peterbourgon/diskv",
+        "version": "v2.0.1+incompatible"
+      },
+      {
+        "effective_path": "github.com/pkg/errors",
+        "effective_version": "v0.9.1",
+        "path": "github.com/pkg/errors",
+        "version": "v0.9.1"
+      },
+      {
+        "effective_path": "github.com/pmezard/go-difflib",
+        "effective_version": "v1.0.0",
+        "path": "github.com/pmezard/go-difflib",
+        "version": "v1.0.0"
+      },
+      {
+        "effective_path": "github.com/pquerna/cachecontrol",
+        "effective_version": "v0.1.0",
+        "path": "github.com/pquerna/cachecontrol",
+        "version": "v0.1.0"
+      },
+      {
+        "effective_path": "github.com/prometheus/client_golang",
+        "effective_version": "v1.16.0",
+        "path": "github.com/prometheus/client_golang",
+        "version": "v1.16.0"
+      },
+      {
+        "effective_path": "github.com/prometheus/client_model",
+        "effective_version": "v0.4.0",
+        "path": "github.com/prometheus/client_model",
+        "version": "v0.4.0"
+      },
+      {
+        "effective_path": "github.com/prometheus/common",
+        "effective_version": "v0.44.0",
+        "path": "github.com/prometheus/common",
+        "version": "v0.44.0"
+      },
+      {
+        "effective_path": "github.com/prometheus/procfs",
+        "effective_version": "v0.10.1",
+        "path": "github.com/prometheus/procfs",
+        "version": "v0.10.1"
+      },
+      {
+        "effective_path": "github.com/robfig/cron/v3",
+        "effective_version": "v3.0.1",
+        "path": "github.com/robfig/cron/v3",
+        "version": "v3.0.1"
+      },
+      {
+        "effective_path": "github.com/rubiojr/go-vhd",
+        "effective_version": "v0.0.0-20200706105327-02e210299021",
+        "path": "github.com/rubiojr/go-vhd",
+        "version": "v0.0.0-20200706105327-02e210299021"
+      },
+      {
+        "effective_path": "github.com/russross/blackfriday/v2",
+        "effective_version": "v2.1.0",
+        "path": "github.com/russross/blackfriday/v2",
+        "version": "v2.1.0"
+      },
+      {
+        "effective_path": "github.com/seccomp/libseccomp-golang",
+        "effective_version": "v0.10.0",
+        "path": "github.com/seccomp/libseccomp-golang",
+        "version": "v0.10.0"
+      },
+      {
+        "effective_path": "github.com/sirupsen/logrus",
+        "effective_version": "v1.9.0",
+        "path": "github.com/sirupsen/logrus",
+        "version": "v1.9.0"
+      },
+      {
+        "effective_path": "github.com/soheilhy/cmux",
+        "effective_version": "v0.1.5",
+        "path": "github.com/soheilhy/cmux",
+        "version": "v0.1.5"
+      },
+      {
+        "effective_path": "github.com/spf13/cobra",
+        "effective_version": "v1.7.0",
+        "path": "github.com/spf13/cobra",
+        "version": "v1.7.0"
+      },
+      {
+        "effective_path": "github.com/spf13/pflag",
+        "effective_version": "v1.0.5",
+        "path": "github.com/spf13/pflag",
+        "version": "v1.0.5"
+      },
+      {
+        "effective_path": "github.com/stoewer/go-strcase",
+        "effective_version": "v1.2.0",
+        "path": "github.com/stoewer/go-strcase",
+        "version": "v1.2.0"
+      },
+      {
+        "effective_path": "github.com/stretchr/testify",
+        "effective_version": "v1.8.3",
+        "path": "github.com/stretchr/testify",
+        "version": "v1.8.3"
+      },
+      {
+        "effective_path": "github.com/syndtr/gocapability",
+        "effective_version": "v0.0.0-20200815063812-42c35b437635",
+        "path": "github.com/syndtr/gocapability",
+        "version": "v0.0.0-20200815063812-42c35b437635"
+      },
+      {
+        "effective_path": "github.com/tmc/grpc-websocket-proxy",
+        "effective_version": "v0.0.0-20220101234140-673ab2c3ae75",
+        "path": "github.com/tmc/grpc-websocket-proxy",
+        "version": "v0.0.0-20220101234140-673ab2c3ae75"
+      },
+      {
+        "effective_path": "github.com/vishvananda/netlink",
+        "effective_version": "v1.1.0",
+        "path": "github.com/vishvananda/netlink",
+        "version": "v1.1.0"
+      },
+      {
+        "effective_path": "github.com/vishvananda/netns",
+        "effective_version": "v0.0.4",
+        "path": "github.com/vishvananda/netns",
+        "version": "v0.0.4"
+      },
+      {
+        "effective_path": "github.com/vmware/govmomi",
+        "effective_version": "v0.30.6",
+        "path": "github.com/vmware/govmomi",
+        "version": "v0.30.6"
+      },
+      {
+        "effective_path": "github.com/xiang90/probing",
+        "effective_version": "v0.0.0-20190116061207-43a291ad63a2",
+        "path": "github.com/xiang90/probing",
+        "version": "v0.0.0-20190116061207-43a291ad63a2"
+      },
+      {
+        "effective_path": "github.com/xlab/treeprint",
+        "effective_version": "v1.2.0",
+        "path": "github.com/xlab/treeprint",
+        "version": "v1.2.0"
+      },
+      {
+        "effective_path": "go.etcd.io/bbolt",
+        "effective_version": "v1.3.7",
+        "path": "go.etcd.io/bbolt",
+        "version": "v1.3.7"
+      },
+      {
+        "effective_path": "go.etcd.io/etcd/api/v3",
+        "effective_version": "v3.5.9",
+        "path": "go.etcd.io/etcd/api/v3",
+        "version": "v3.5.9"
+      },
+      {
+        "effective_path": "go.etcd.io/etcd/client/pkg/v3",
+        "effective_version": "v3.5.9",
+        "path": "go.etcd.io/etcd/client/pkg/v3",
+        "version": "v3.5.9"
+      },
+      {
+        "effective_path": "go.etcd.io/etcd/client/v2",
+        "effective_version": "v2.305.9",
+        "path": "go.etcd.io/etcd/client/v2",
+        "version": "v2.305.9"
+      },
+      {
+        "effective_path": "go.etcd.io/etcd/client/v3",
+        "effective_version": "v3.5.9",
+        "path": "go.etcd.io/etcd/client/v3",
+        "version": "v3.5.9"
+      },
+      {
+        "effective_path": "go.etcd.io/etcd/pkg/v3",
+        "effective_version": "v3.5.9",
+        "path": "go.etcd.io/etcd/pkg/v3",
+        "version": "v3.5.9"
+      },
+      {
+        "effective_path": "go.etcd.io/etcd/raft/v3",
+        "effective_version": "v3.5.9",
+        "path": "go.etcd.io/etcd/raft/v3",
+        "version": "v3.5.9"
+      },
+      {
+        "effective_path": "go.etcd.io/etcd/server/v3",
+        "effective_version": "v3.5.9",
+        "path": "go.etcd.io/etcd/server/v3",
+        "version": "v3.5.9"
+      },
+      {
+        "effective_path": "go.opencensus.io",
+        "effective_version": "v0.24.0",
+        "path": "go.opencensus.io",
+        "version": "v0.24.0"
+      },
+      {
+        "effective_path": "go.opentelemetry.io/contrib/instrumentation/github.com/emicklei/go-restful/otelrestful",
+        "effective_version": "v0.42.0",
+        "path": "go.opentelemetry.io/contrib/instrumentation/github.com/emicklei/go-restful/otelrestful",
+        "version": "v0.42.0"
+      },
+      {
+        "effective_path": "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc",
+        "effective_version": "v0.42.0",
+        "path": "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc",
+        "version": "v0.42.0"
+      },
+      {
+        "effective_path": "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp",
+        "effective_version": "v0.42.0",
+        "path": "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp",
+        "version": "v0.42.0"
+      },
+      {
+        "effective_path": "go.opentelemetry.io/otel",
+        "effective_version": "v1.16.0",
+        "path": "go.opentelemetry.io/otel",
+        "version": "v1.16.0"
+      },
+      {
+        "effective_path": "go.opentelemetry.io/otel/exporters/otlp/internal/retry",
+        "effective_version": "v1.16.0",
+        "path": "go.opentelemetry.io/otel/exporters/otlp/internal/retry",
+        "version": "v1.16.0"
+      },
+      {
+        "effective_path": "go.opentelemetry.io/otel/exporters/otlp/otlptrace",
+        "effective_version": "v1.16.0",
+        "path": "go.opentelemetry.io/otel/exporters/otlp/otlptrace",
+        "version": "v1.16.0"
+      },
+      {
+        "effective_path": "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc",
+        "effective_version": "v1.16.0",
+        "path": "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc",
+        "version": "v1.16.0"
+      },
+      {
+        "effective_path": "go.opentelemetry.io/otel/metric",
+        "effective_version": "v1.16.0",
+        "path": "go.opentelemetry.io/otel/metric",
+        "version": "v1.16.0"
+      },
+      {
+        "effective_path": "go.opentelemetry.io/otel/sdk",
+        "effective_version": "v1.16.0",
+        "path": "go.opentelemetry.io/otel/sdk",
+        "version": "v1.16.0"
+      },
+      {
+        "effective_path": "go.opentelemetry.io/otel/trace",
+        "effective_version": "v1.16.0",
+        "path": "go.opentelemetry.io/otel/trace",
+        "version": "v1.16.0"
+      },
+      {
+        "effective_path": "go.opentelemetry.io/proto/otlp",
+        "effective_version": "v0.19.0",
+        "path": "go.opentelemetry.io/proto/otlp",
+        "version": "v0.19.0"
+      },
+      {
+        "effective_path": "go.starlark.net",
+        "effective_version": "v0.0.0-20230525235612-a134d8f9ddca",
+        "path": "go.starlark.net",
+        "version": "v0.0.0-20230525235612-a134d8f9ddca"
+      },
+      {
+        "effective_path": "go.uber.org/atomic",
+        "effective_version": "v1.10.0",
+        "path": "go.uber.org/atomic",
+        "version": "v1.10.0"
+      },
+      {
+        "effective_path": "go.uber.org/goleak",
+        "effective_version": "v1.2.1",
+        "path": "go.uber.org/goleak",
+        "version": "v1.2.1"
+      },
+      {
+        "effective_path": "go.uber.org/multierr",
+        "effective_version": "v1.11.0",
+        "path": "go.uber.org/multierr",
+        "version": "v1.11.0"
+      },
+      {
+        "effective_path": "go.uber.org/zap",
+        "effective_version": "v1.19.0",
+        "path": "go.uber.org/zap",
+        "version": "v1.19.0"
+      },
+      {
+        "effective_path": "golang.org/x/crypto",
+        "effective_version": "v0.14.0",
+        "path": "golang.org/x/crypto",
+        "version": "v0.14.0"
+      },
+      {
+        "effective_path": "golang.org/x/exp",
+        "effective_version": "v0.0.0-20220722155223-a9213eeb770e",
+        "path": "golang.org/x/exp",
+        "version": "v0.0.0-20220722155223-a9213eeb770e"
+      },
+      {
+        "effective_path": "golang.org/x/mod",
+        "effective_version": "v0.12.0",
+        "path": "golang.org/x/mod",
+        "version": "v0.12.0"
+      },
+      {
+        "effective_path": "golang.org/x/net",
+        "effective_version": "v0.17.0",
+        "path": "golang.org/x/net",
+        "version": "v0.17.0"
+      },
+      {
+        "effective_path": "golang.org/x/oauth2",
+        "effective_version": "v0.8.0",
+        "path": "golang.org/x/oauth2",
+        "version": "v0.8.0"
+      },
+      {
+        "effective_path": "golang.org/x/sync",
+        "effective_version": "v0.3.0",
+        "path": "golang.org/x/sync",
+        "version": "v0.3.0"
+      },
+      {
+        "effective_path": "golang.org/x/sys",
+        "effective_version": "v0.13.0",
+        "path": "golang.org/x/sys",
+        "version": "v0.13.0"
+      },
+      {
+        "effective_path": "golang.org/x/term",
+        "effective_version": "v0.13.0",
+        "path": "golang.org/x/term",
+        "version": "v0.13.0"
+      },
+      {
+        "effective_path": "golang.org/x/text",
+        "effective_version": "v0.13.0",
+        "path": "golang.org/x/text",
+        "version": "v0.13.0"
+      },
+      {
+        "effective_path": "golang.org/x/time",
+        "effective_version": "v0.3.0",
+        "path": "golang.org/x/time",
+        "version": "v0.3.0"
+      },
+      {
+        "effective_path": "golang.org/x/tools",
+        "effective_version": "v0.12.0",
+        "path": "golang.org/x/tools",
+        "version": "v0.12.0"
+      },
+      {
+        "effective_path": "google.golang.org/api",
+        "effective_version": "v0.114.0",
+        "path": "google.golang.org/api",
+        "version": "v0.114.0"
+      },
+      {
+        "effective_path": "google.golang.org/appengine",
+        "effective_version": "v1.6.7",
+        "path": "google.golang.org/appengine",
+        "version": "v1.6.7"
+      },
+      {
+        "effective_path": "google.golang.org/genproto",
+        "effective_version": "v0.0.0-20230526161137-0005af68ea54",
+        "path": "google.golang.org/genproto",
+        "version": "v0.0.0-20230526161137-0005af68ea54"
+      },
+      {
+        "effective_path": "google.golang.org/genproto/googleapis/api",
+        "effective_version": "v0.0.0-20230525234035-dd9d682886f9",
+        "path": "google.golang.org/genproto/googleapis/api",
+        "version": "v0.0.0-20230525234035-dd9d682886f9"
+      },
+      {
+        "effective_path": "google.golang.org/genproto/googleapis/rpc",
+        "effective_version": "v0.0.0-20230525234030-28d5490b6b19",
+        "path": "google.golang.org/genproto/googleapis/rpc",
+        "version": "v0.0.0-20230525234030-28d5490b6b19"
+      },
+      {
+        "effective_path": "google.golang.org/grpc",
+        "effective_version": "v1.55.0",
+        "path": "google.golang.org/grpc",
+        "version": "v1.55.0"
+      },
+      {
+        "effective_path": "google.golang.org/protobuf",
+        "effective_version": "v1.31.0",
+        "path": "google.golang.org/protobuf",
+        "version": "v1.31.0"
+      },
+      {
+        "effective_path": "gopkg.in/gcfg.v1",
+        "effective_version": "v1.2.3",
+        "path": "gopkg.in/gcfg.v1",
+        "version": "v1.2.3"
+      },
+      {
+        "effective_path": "gopkg.in/inf.v0",
+        "effective_version": "v0.9.1",
+        "path": "gopkg.in/inf.v0",
+        "version": "v0.9.1"
+      },
+      {
+        "effective_path": "gopkg.in/natefinch/lumberjack.v2",
+        "effective_version": "v2.2.1",
+        "path": "gopkg.in/natefinch/lumberjack.v2",
+        "version": "v2.2.1"
+      },
+      {
+        "effective_path": "gopkg.in/square/go-jose.v2",
+        "effective_version": "v2.6.0",
+        "path": "gopkg.in/square/go-jose.v2",
+        "version": "v2.6.0"
+      },
+      {
+        "effective_path": "gopkg.in/warnings.v0",
+        "effective_version": "v0.1.2",
+        "path": "gopkg.in/warnings.v0",
+        "version": "v0.1.2"
+      },
+      {
+        "effective_path": "gopkg.in/yaml.v2",
+        "effective_version": "v2.4.0",
+        "path": "gopkg.in/yaml.v2",
+        "version": "v2.4.0"
+      },
+      {
+        "effective_path": "gopkg.in/yaml.v3",
+        "effective_version": "v3.0.1",
+        "path": "gopkg.in/yaml.v3",
+        "version": "v3.0.1"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/api",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/api",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/api",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/apiextensions-apiserver",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/apiextensions-apiserver",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/apiextensions-apiserver",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/apimachinery",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/apimachinery",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/apimachinery",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/apiserver",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/apiserver",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/apiserver",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/cli-runtime",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/cli-runtime",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/cli-runtime",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/client-go",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/client-go",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/client-go",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/cloud-provider",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/cloud-provider",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/cloud-provider",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/cluster-bootstrap",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/cluster-bootstrap",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/cluster-bootstrap",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/code-generator",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/code-generator",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/code-generator",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/component-base",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/component-base",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/component-base",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/component-helpers",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/component-helpers",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/component-helpers",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/controller-manager",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/controller-manager",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/controller-manager",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/cri-api",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/cri-api",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/cri-api",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/csi-translation-lib",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/csi-translation-lib",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/csi-translation-lib",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/dynamic-resource-allocation",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/dynamic-resource-allocation",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/dynamic-resource-allocation",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/endpointslice",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/endpointslice",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/endpointslice",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "k8s.io/gengo",
+        "effective_version": "v0.0.0-20230829151522-9cce18d56c01",
+        "path": "k8s.io/gengo",
+        "version": "v0.0.0-20230829151522-9cce18d56c01"
+      },
+      {
+        "effective_path": "k8s.io/klog/v2",
+        "effective_version": "v2.100.1",
+        "path": "k8s.io/klog/v2",
+        "version": "v2.100.1"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/kms",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/kms",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/kms",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/kube-aggregator",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/kube-aggregator",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/kube-aggregator",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/kube-controller-manager",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/kube-controller-manager",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/kube-controller-manager",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "k8s.io/kube-openapi",
+        "effective_version": "v0.0.0-20230918164632-68afd615200d",
+        "path": "k8s.io/kube-openapi",
+        "version": "v0.0.0-20230918164632-68afd615200d"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/kube-proxy",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/kube-proxy",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/kube-proxy",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/kube-scheduler",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/kube-scheduler",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/kube-scheduler",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/kubectl",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/kubectl",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/kubectl",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/kubelet",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/kubelet",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/kubelet",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/legacy-cloud-providers",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/legacy-cloud-providers",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/legacy-cloud-providers",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/metrics",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/metrics",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/metrics",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/mount-utils",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/mount-utils",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/mount-utils",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/pod-security-admission",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/pod-security-admission",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/pod-security-admission",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "./staging/src/k8s.io/sample-apiserver",
+        "effective_version": "v0.0.0",
+        "path": "k8s.io/sample-apiserver",
+        "replace_is_local": true,
+        "replace_path": "./staging/src/k8s.io/sample-apiserver",
+        "replaced": true,
+        "version": "v0.0.0"
+      },
+      {
+        "effective_path": "k8s.io/system-validators",
+        "effective_version": "v1.8.0",
+        "path": "k8s.io/system-validators",
+        "version": "v1.8.0"
+      },
+      {
+        "effective_path": "k8s.io/utils",
+        "effective_version": "v0.0.0-20230726121419-3b25d923346b",
+        "path": "k8s.io/utils",
+        "version": "v0.0.0-20230726121419-3b25d923346b"
+      },
+      {
+        "effective_path": "sigs.k8s.io/apiserver-network-proxy/konnectivity-client",
+        "effective_version": "v0.28.0",
+        "path": "sigs.k8s.io/apiserver-network-proxy/konnectivity-client",
+        "version": "v0.28.0"
+      },
+      {
+        "effective_path": "sigs.k8s.io/json",
+        "effective_version": "v0.0.0-20221116044647-bc3834ca7abd",
+        "path": "sigs.k8s.io/json",
+        "version": "v0.0.0-20221116044647-bc3834ca7abd"
+      },
+      {
+        "effective_path": "sigs.k8s.io/kustomize/api",
+        "effective_version": "v0.13.5-0.20230601165947-6ce0bf390ce3",
+        "path": "sigs.k8s.io/kustomize/api",
+        "version": "v0.13.5-0.20230601165947-6ce0bf390ce3"
+      },
+      {
+        "effective_path": "sigs.k8s.io/kustomize/kustomize/v5",
+        "effective_version": "v5.0.4-0.20230601165947-6ce0bf390ce3",
+        "path": "sigs.k8s.io/kustomize/kustomize/v5",
+        "version": "v5.0.4-0.20230601165947-6ce0bf390ce3"
+      },
+      {
+        "effective_path": "sigs.k8s.io/kustomize/kyaml",
+        "effective_version": "v0.14.3-0.20230601165947-6ce0bf390ce3",
+        "path": "sigs.k8s.io/kustomize/kyaml",
+        "version": "v0.14.3-0.20230601165947-6ce0bf390ce3"
+      },
+      {
+        "effective_path": "sigs.k8s.io/structured-merge-diff/v4",
+        "effective_version": "v4.3.0",
+        "path": "sigs.k8s.io/structured-merge-diff/v4",
+        "version": "v4.3.0"
+      },
+      {
+        "effective_path": "sigs.k8s.io/yaml",
+        "effective_version": "v1.3.0",
+        "path": "sigs.k8s.io/yaml",
+        "version": "v1.3.0"
+      },
+      {
+        "effective_path": "k8s.io/api",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/api",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/apiextensions-apiserver",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/apiextensions-apiserver",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/apimachinery",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/apimachinery",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/apiserver",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/apiserver",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/cli-runtime",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/cli-runtime",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/client-go",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/client-go",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/cloud-provider",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/cloud-provider",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/cluster-bootstrap",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/cluster-bootstrap",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/code-generator",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/code-generator",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/component-base",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/component-base",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/component-helpers",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/component-helpers",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/controller-manager",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/controller-manager",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/cri-api",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/cri-api",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/csi-translation-lib",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/csi-translation-lib",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/dynamic-resource-allocation",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/dynamic-resource-allocation",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/endpointslice",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/endpointslice",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/kms",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/kms",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/kube-aggregator",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/kube-aggregator",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/kube-controller-manager",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/kube-controller-manager",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/kube-proxy",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/kube-proxy",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/kube-scheduler",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/kube-scheduler",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/kubectl",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/kubectl",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/kubelet",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/kubelet",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/legacy-cloud-providers",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/legacy-cloud-providers",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/metrics",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/metrics",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/mount-utils",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/mount-utils",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/pod-security-admission",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/pod-security-admission",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/sample-apiserver",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/sample-apiserver",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/sample-cli-plugin",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/sample-cli-plugin",
+        "version": "=\u003e"
+      },
+      {
+        "effective_path": "k8s.io/sample-controller",
+        "effective_version": "=\u003e",
+        "path": "k8s.io/sample-controller",
+        "version": "=\u003e"
+      }
+    ],
+    "source": "vendor/modules.txt"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "schema": "research-safety-policy/1",
+  "required_rules": [
+    "applicability-first-ordering",
+    "advisory-wide-subject-coverage",
+    "exact-subject-identity-and-granularity",
+    "request-audit-argument-binding",
+    "matching-snapshot-and-build-context",
+    "digest-resolved-evidence-references",
+    "complete-observation-coverage",
+    "positive-contradiction-check",
+    "empty-limitations-for-terminal-negative",
+    "trusted-infrastructure-only-mitigation",
+    "no-agent-assertion-to-fact",
+    "no-environment-assertion-as-falsifier"
+  ],
+  "required_checks": [
+    "affected-resolve",
+    "package-usage",
+    "usage-scope"
+  ],
+  "forbidden_promotions": [
+    "agent-assertion-to-verified-fact",
+    "agent-proposal-to-verdict",
+    "environment-assertion-to-claim-false",
+    "trusted-infrastructure-to-close-no-exploit-path",
+    "declared-trust-to-close-not-affected",
+    "unknown-to-false",
+    "partial-observation-to-verified-fact",
+    "confidence-to-verdict"
+  ]
+}

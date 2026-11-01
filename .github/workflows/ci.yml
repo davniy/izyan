@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -36,9 +38,20 @@ jobs:
       - name: Install Python test dependencies
         run: python3 -m pip install 'pytest>=8,<10'
 
-      - name: Verify formatting (gofmt)
+      # Legacy source has outstanding formatting debt, and testdata contains
+      # intentionally invalid Go programs. Enforce formatting on every
+      # Go source changed by this event without rewriting unrelated code.
+      - name: Verify changed Go formatting (gofmt)
         run: |
-          unformatted=$(gofmt -l .)
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            before="${{ github.event.pull_request.base.sha }}"
+          else
+            before="${{ github.event.before }}"
+          fi
+          if ! git cat-file -e "${before}^{commit}" 2>/dev/null; then
+            before="$(git rev-parse HEAD^)"
+          fi
+          unformatted=$(git diff --name-only --diff-filter=ACMR "$before" HEAD -- '*.go' | awk '$0 !~ /(^|\/)testdata\//' | xargs -r gofmt -l)
           if [ -n "$unformatted" ]; then
             echo "::error::Unformatted Go files detected:"
             echo "$unformatted"

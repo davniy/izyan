@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [ master ]
+    branches: [ master, develop ]
   push:
-    branches: [ master ]
+    branches: [ master, develop ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -24,6 +24,17 @@ jobs:
           go-version-file: 'go.mod'
           check-latest: true
           cache: true
+
+      # The compiled CLI preservation matrix invokes Python's offline
+      # controller tests through `python3 -m pytest`. Go alone is not a
+      # complete test environment for the merged A/B workflow.
+      - name: Set up Python test runner
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python test dependencies
+        run: python3 -m pip install 'pytest>=8,<10'
 
       - name: Verify formatting (gofmt)
         run: |
@@ -45,6 +56,9 @@ jobs:
         run: |
           go test -count=1 ./internal/goanalysis ./internal/evidencetools ./internal/productb/... ./cmd/...
           go test -v ./...
+
+      - name: Run offline evaluation controller tests
+        run: python3 -m pytest eval/decision_ready -q
 
   # Blocking gate on protected branches: the adapter boundary, schema
   # registry and the product's deterministic policy surface (exit codes,

@@ -88,6 +88,62 @@ Affected version 1.4.2. Severity: high.`
 
 const stage0ProposalJSON = `{"schema_version":"intake-proposal.v1","vulnerability_ids":["CVE-2099-0001"],"aliases":["GHSA-xxxx-yyyy-zzzz"],"package":"example.org/library/parser","version":"1.4.2","component":"service-example","product":"Example Service","release":"v1.4.0","go_version":"go1.25.1","severity":"high","summary":"parser overflow"}`
 
+// A trusted scanner ticket may supply the release Go version. The LLM must
+// still extract that value from the ticket rather than inventing another one:
+// an UNVERIFIED proposal is retained for audit but never reaches the finding,
+// release toolchain or package applicability check.
+func TestStage0GoVersionRequiresConfirmedTicketExtraction(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		ticket string
+		status IntakeFieldStatus
+		wantGo string
+	}{
+		{
+			name:   "trusted ticket version",
+			ticket: stage0TicketText,
+			status: IntakeValid,
+			wantGo: "go1.25.1",
+		},
+		{
+			name:   "LLM version absent from ticket",
+			ticket: strings.Replace(stage0TicketText, ", built with go1.25.1", "", 1),
+			status: IntakeUnverified,
+		},
+		{
+			name:   "LLM version contradicts ticket",
+			ticket: strings.Replace(stage0TicketText, "go1.25.1", "go1.24.2", 1),
+			status: IntakeUnverified,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			in := stage0Input(t, tc.ticket, stage0Chat(stage0ProposalJSON, "tag:v1.4.0"))
+			res, err := ResolveStage0(context.Background(), in)
+			if err != nil {
+				t.Fatalf("ResolveStage0: %v", err)
+			}
+			defer res.Source.Cleanup()
+
+			fv, ok := res.Validation.Field("go_version")
+			if !ok || fv.Status != tc.status {
+				t.Fatalf("go_version validation = %+v (found=%v), want %s", fv, ok, tc.status)
+			}
+			if res.Proposal.GoVersion != "go1.25.1" {
+				t.Fatalf("original LLM proposal was lost: %+v", res.Proposal)
+			}
+			if got := res.Input.Finding.Target.Toolchain; got != tc.wantGo {
+				t.Fatalf("finding target toolchain = %q, want %q", got, tc.wantGo)
+			}
+			if res.ReleaseToolchain.Version != tc.wantGo {
+				t.Fatalf("release toolchain = %+v, want version %q", res.ReleaseToolchain, tc.wantGo)
+			}
+			if res.Materials.Toolchain == nil || res.Materials.Toolchain.Version != tc.wantGo {
+				t.Fatalf("material toolchain = %+v, want version %q", res.Materials.Toolchain, tc.wantGo)
+			}
+		})
+	}
+}
+
 // stage0Chat returns a scripted client answering the intake extraction and
 // then the ref selection naming selectedID (empty means use fallback).
 func stage0Chat(proposal, selectedID string) *stubIntakeChat {

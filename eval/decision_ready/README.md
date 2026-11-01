@@ -104,7 +104,7 @@ python3 eval/decision_ready/regression_guard.py --run-dir <persisted run dir> \
   --case-label case-01 [--expect-verdict NOT_AFFECTED] [--expect-coverage COMPLETE]
 ```
 
-## Tracked census and CI
+## Tracked census (outside public OSS CI)
 
 ```bash
 python3 eval/decision_ready/run_census.py --corpus "$CENSUS_CORPUS" \
@@ -128,8 +128,9 @@ fallback or mismatch is a technical failure, not a comparable result. Only absen
 optional external-commit encodings (`null` versus empty) normalize together; a
 nonempty identity mismatch still fails. The current guard rechecks retained pins.
 
-CI invokes this tracked controller, stops on technical failure before running
-the guard, and passes only the fresh comparison to:
+An external private evaluation environment may invoke this tracked controller,
+stop on technical failure before running the guard, and pass only the fresh
+comparison to:
 
 ```bash
 python3 eval/decision_ready/regression_guard.py \
@@ -140,10 +141,11 @@ python3 eval/decision_ready/regression_guard.py \
 
 The guard preserves the measured 18-case baseline/count and false-safe gates,
 then checks the complete current invocation, bound output directories, inputs,
-run IDs, evidence references and `auto_close=false`. Only the existing four
-S-05 drift exceptions (`case-03`, `case-04`, `case-09`, `case-10`) remain in CI,
-and only after safety passes. Historical `/4` support is newly explicit: the
-previous guard accepted only `/2` and `/3`, not `/4`.
+run IDs, evidence references and `auto_close=false`. The historical four
+S-05 drift exceptions (`case-03`, `case-04`, `case-09`, `case-10`) apply only
+to external census evaluation after safety passes, never to public CI.
+Historical `/4` support is newly explicit: the previous guard accepted only
+`/2` and `/3`, not `/4`.
 
 Focused checks (synthetic/fake subprocess only):
 

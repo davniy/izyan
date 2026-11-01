@@ -203,7 +203,9 @@ func TestCoverageSegmentMerge(t *testing.T) {
 	if err := json.Unmarshal(b, &doc); err != nil {
 		t.Fatalf("coverage doc: %v", err)
 	}
-	if len(doc.Segments) != 2 || doc.Segments[0].RunDir != seg1 || doc.Segments[1].RunDir != seg2 {
+	// Coverage is a publishable artifact: the writer deliberately strips
+	// ephemeral absolute run paths, so compare their published projections.
+	if len(doc.Segments) != 2 || doc.Segments[0].RunDir != scrubPaths(seg1) || doc.Segments[1].RunDir != scrubPaths(seg2) {
 		t.Fatalf("segments: %+v", doc.Segments)
 	}
 	if doc.Segments[0].InfraErrors != 1 || doc.Segments[1].InfraErrors != 0 {
@@ -221,8 +223,8 @@ func TestCoverageSegmentMerge(t *testing.T) {
 			aVerdict, aSeg = c.Verdict, c.Segment
 		}
 	}
-	if aVerdict != "EXPLOITABLE" || aSeg != seg2 {
-		t.Errorf("case-a verdict/segment = %q/%q, want EXPLOITABLE/%q (later segment wins)", aVerdict, aSeg, seg2)
+	if aVerdict != "EXPLOITABLE" || aSeg != scrubPaths(seg2) {
+		t.Errorf("case-a verdict/segment = %q/%q, want EXPLOITABLE/%q (later segment wins)", aVerdict, aSeg, scrubPaths(seg2))
 	}
 
 	// --require-complete over the merged set: seg2 has no case-b → the

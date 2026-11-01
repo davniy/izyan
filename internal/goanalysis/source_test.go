@@ -1274,6 +1274,10 @@ func Gone() { fmt.Println("x") }
 		t.Skipf("cannot drop read permission: %v", err)
 	}
 	t.Cleanup(func() { os.Chmod(gone, 0o644) })
+	if f, err := os.Open(gone); err == nil {
+		_ = f.Close()
+		t.Skip("test process can read mode-000 files; unreadable-source precondition is unavailable")
+	}
 
 	ix := &Index{Dir: dir}
 	diags, err := ix.SkippedPackageDiagnostics(context.Background())

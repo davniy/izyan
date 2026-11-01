@@ -15,8 +15,9 @@
 > без модели; исторические `/2`–`/4` воспроизводятся отдельно через
 > `izyan eval research-replay` без current admission. Offline producers
 > `eval/decision_ready/runner.py` сохраняют `runs.jsonl`, artifact index и summary.
-> CI census вызывает tracked `eval/decision_ready/run_census.py`; provisioned
-> directory содержит только immutable baseline/material inputs. Каждый вызов
+> Закрытый census может запускаться только вне публичного OSS CI через tracked
+> `eval/decision_ready/run_census.py`; внешняя директория содержит immutable
+> baseline/material inputs. Каждый вызов
 > использует новый output, проверяет run/input identity и не читает report после
 > command failure. Exit 1 — label drift, exit 2 — technical failure; baseline
 > labels и safety gates не переписываются. См. [offline harness](decision_ready/README.md).

@@ -30,17 +30,6 @@ jobs:
           check-latest: true
           cache: true
 
-      # The compiled CLI preservation matrix invokes Python's offline
-      # controller tests through `python3 -m pytest`. Go alone is not a
-      # complete test environment for the merged A/B workflow.
-      - name: Set up Python test runner
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install Python test dependencies
-        run: python3 -m pip install 'pytest>=8,<10'
-
       # Legacy source has outstanding formatting debt, and testdata contains
       # intentionally invalid Go programs. Enforce formatting on every
       # Go source changed by this event without rewriting unrelated code.
@@ -73,8 +62,29 @@ jobs:
           go test -count=1 ./internal/goanalysis ./internal/evidencetools ./internal/productb/... ./cmd/...
           go test -v ./...
 
-      - name: Run offline evaluation controller tests
-        run: python3 -m pytest eval/decision_ready -q
+  # Isolated evaluation harness checks. Synthetic subprocess fixtures and the
+  # open repository snapshot only; no private census or heldout corpus.
+  evaluation-tests:
+    name: Public evaluation harness tests (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go for compiled CLI integration smoke
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python3 -m pip install 'pytest>=8,<10'
+      - name: Compile CLI for offline consumer smoke
+        run: go build -o "$RUNNER_TEMP/izyan" ./cmd/izyan
+      - name: Test offline evaluation controllers and compiled CLI consumer
+        run: IZYAN_SMOKE_BIN="$RUNNER_TEMP/izyan" IZYAN_OSV_URL= python3 -m pytest eval/decision_ready -q
 
   # Blocking gate on protected branches: the adapter boundary, schema
   # registry and the product's deterministic policy surface (exit codes,

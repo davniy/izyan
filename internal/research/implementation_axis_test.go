@@ -30,13 +30,18 @@ const implAxisAdvisory = `{
   }]
 }`
 
-// implscopeRoot resolves the generic implementation-scope fixture: a
-// package with a BSD-gated vulnerable implementation and a Linux
-// alternate that carries no marker.
+// implscopeRoot gives each test an isolated copy of the generic
+// implementation-scope fixture. The lane hashes its snapshot both before
+// investigation and again at proof admission, so other tests must not be
+// able to change its source tree between those checks.
 func implscopeRoot(t *testing.T) string {
 	t.Helper()
-	root, err := filepath.Abs(filepath.Join("..", "..", "testdata", "implscope"))
+	src, err := filepath.Abs(filepath.Join("..", "..", "testdata", "implscope"))
 	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	if err := os.CopyFS(root, os.DirFS(src)); err != nil {
 		t.Fatal(err)
 	}
 	return root

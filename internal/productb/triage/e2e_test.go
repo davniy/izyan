@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -37,7 +38,7 @@ type e2eChat struct {
 
 func (c *e2eChat) Chat(_ context.Context, _ llm.ModelRole, _ string, _ []llm.ChatMessage, _ []llm.ToolDefinition) (llm.ChatMessage, string, error) {
 	if c.calls >= len(c.responses) {
-		return llm.ChatMessage{Role: "assistant", Content: `{"schema_version":"`+triage.AssessmentSchemaVersion+`","verdict":"INCONCLUSIVE","summary":"out of script","claims":[{"id":"c1","statement":"the scripted material was exhausted","basis":"UNRESOLVED","subject":"investigation completeness","scope":"scripted fixture","reason":"the response script ended","decision_relevant":true}],"proposed_action":{"kind":"OBTAIN_EVIDENCE","instruction":"continue the investigation","rationale":"the scripted material ended before a conclusion","scope":"scripted fixture","decisive_claim_ids":["c1"],"reconsider_when":["the investigation completes"]}}`}, "stop", nil
+		return llm.ChatMessage{Role: "assistant", Content: `{"schema_version":"` + triage.AssessmentSchemaVersion + `","verdict":"INCONCLUSIVE","summary":"out of script","claims":[{"id":"c1","statement":"the scripted material was exhausted","basis":"UNRESOLVED","subject":"investigation completeness","scope":"scripted fixture","reason":"the response script ended","decision_relevant":true}],"proposed_action":{"kind":"OBTAIN_EVIDENCE","instruction":"continue the investigation","rationale":"the scripted material ended before a conclusion","scope":"scripted fixture","decisive_claim_ids":["c1"],"reconsider_when":["the investigation completes"]}}`}, "stop", nil
 	}
 	m := c.responses[c.calls]
 	c.calls++
@@ -47,12 +48,8 @@ func (c *e2eChat) Chat(_ context.Context, _ llm.ModelRole, _ string, _ []llm.Cha
 // e2eKernelSession opens a real evidencetools session over the recorded
 // unreachability fixture — the same session shape the production adapter
 // binds through ClientCaller.
-func e2eKernelSession(t *testing.T) *evidencetools.Session {
+func e2eKernelSession(t *testing.T, root string) *evidencetools.Session {
 	t.Helper()
-	root, err := filepath.Abs(filepath.Join("..", "..", "testdata", "e2e-product"))
-	if err != nil {
-		t.Fatal(err)
-	}
 	s, err := evidencetools.NewSession(evidencetools.SessionConfig{
 		SnapshotRoot: root, Audit: evidencetools.NopAudit{}, GOOS: "darwin", GOARCH: "arm64",
 	})
@@ -60,6 +57,35 @@ func e2eKernelSession(t *testing.T) *evidencetools.Session {
 		t.Fatal(err)
 	}
 	return s
+}
+
+// e2eVersionedProduct gives the snapshot a real, immutable release ref.
+// A plain source directory cannot claim revision v0.5.0: C05 must reject it.
+func e2eVersionedProduct(t *testing.T) string {
+	t.Helper()
+	src := filepath.Join("..", "..", "testdata", "e2e-product")
+	root := t.TempDir()
+	for _, name := range []string{"go.mod", "main.go"} {
+		content, err := os.ReadFile(filepath.Join(src, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, name), content, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "add", "--all"},
+		{"-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-q", "-m", "e2e fixture"},
+		{"tag", "v0.5.0"},
+	} {
+		cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+	return root
 }
 
 // e2eStage0 builds the Stage 0 projection the kernel run binds to: the
@@ -160,12 +186,8 @@ func e2eFalsifierSource(subjects []triage.FalsifierSubject, snapshotHash, buildH
 // policy, byte-identical replay and the universal verification pass.
 func TestE2ETriageChain(t *testing.T) {
 	ctx := context.Background()
-	sess := e2eKernelSession(t)
-	root := filepath.Join("..", "..", "testdata", "e2e-product")
-	absRoot, err := filepath.Abs(root)
-	if err != nil {
-		t.Fatal(err)
-	}
+	absRoot := e2eVersionedProduct(t)
+	sess := e2eKernelSession(t, absRoot)
 
 	// --- finding.v1 ingress ---
 	findingJSON := `{"schema_version":"finding.v1","finding_id":"e2e-001",` +
@@ -445,7 +467,7 @@ func TestE2ENegativeChain(t *testing.T) {
 	ctx := context.Background()
 
 	// malformed: authority fields smuggled into a proposal fail at decode.
-	bad := `{"schema_version":"`+triage.AssessmentSchemaVersion+`","finding_id":"e2e-001","verdict":"NOT_EXPLOITABLE",` +
+	bad := `{"schema_version":"` + triage.AssessmentSchemaVersion + `","finding_id":"e2e-001","verdict":"NOT_EXPLOITABLE",` +
 		`"falsifier_proposals":[{"id":"fp","claim_id":"c","condition_id":"c1","kind":"code_absent",` +
 		`"subjects":[{"package":"p","symbol":"s"}],"verified":true}]}`
 	if _, err := triage.DecodeAssessment(bad, "e2e-001"); err == nil {

@@ -516,6 +516,9 @@ done
 	t.Setenv("GOVULN_FAKE_ENV", envPath)
 
 	runner.Bin = bin
+	// ExecRunner is stored by value in the session's interface. Update the
+	// session too: mutating this local copy does not replace its executable.
+	s.GVRunner = runner
 	if _, _, err := runner.RunGovulncheck(context.Background(), root, domain.ProductSnapshot{}); err != nil {
 		t.Fatalf("fake run: %v", err)
 	}
@@ -685,7 +688,15 @@ func TestGovulnDBUnreadableOrEmptyIsUnsupported(t *testing.T) {
 	empty := filepath.Join(parent, "empty-db")
 	must(t, os.MkdirAll(empty, 0o755))
 
-	for _, dbRoot := range []string{unreadable, empty} {
+	dbRoots := []string{empty}
+	if _, err := os.ReadDir(unreadable); err != nil {
+		dbRoots = append(dbRoots, unreadable)
+	} else {
+		// Privileged test runners may read mode-000 directories. In that
+		// environment the precondition of the unreadability case is false.
+		t.Log("skipping unreadable DB case: test process can list mode-000 directory")
+	}
+	for _, dbRoot := range dbRoots {
 		s, err := NewSession(SessionConfig{
 			SnapshotRoot: root, CVEID: "GO-TEST-0001", Strict: true, AllowToolchain: true,
 			GovulnDBRoot: dbRoot, ModCacheRoot: mc, GVRunner: stubGVRunner{},

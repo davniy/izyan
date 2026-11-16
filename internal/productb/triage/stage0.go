@@ -174,6 +174,13 @@ func ResolveStage0(ctx context.Context, in Stage0Input) (Stage0Result, error) {
 		return fail("intake validation: %s", strings.Join(res.Validation.Errors, "; "))
 	}
 	emit(IntakeAuditEvent(in.Raw, proposal, res.Validation, "ok"))
+	// The ticket is an admitted source of release Go version, but the LLM's
+	// extraction is not: only a value confirmed in the raw ticket may become
+	// a product/toolchain fact. Keep the original proposal for the audit trail.
+	admittedProposal := proposal
+	if fv, ok := res.Validation.Field("go_version"); !ok || fv.Status != IntakeValid {
+		admittedProposal.GoVersion = ""
+	}
 
 	// 3. Vulnerability ids: proposal claims first; when the LLM proposed
 	// none, the deterministic text/embedded scan supplies the admission the
@@ -304,7 +311,7 @@ func ResolveStage0(ctx context.Context, in Stage0Input) (Stage0Result, error) {
 	// The normalized finding is synthesized only after the source root
 	// exists: Target.Repository pins the materialized root, Revision the
 	// selected ref, Toolchain the intake's claimed release toolchain.
-	res.Input = synthesizeFinding(in.Raw, proposal, vulnIDs, entry, cand, src.Root)
+	res.Input = synthesizeFinding(in.Raw, admittedProposal, vulnIDs, entry, cand, src.Root)
 	manifest, err := (LocalSnapshotBuilder{}).BuildMaterialized(ctx, res.Input, src)
 	if err != nil {
 		return fail("snapshot: %w", err)
@@ -381,7 +388,7 @@ func ResolveStage0(ctx context.Context, in Stage0Input) (Stage0Result, error) {
 	}
 	res.Limitations = append(res.Limitations, materials.Limitations...)
 
-	fact := DiscoverReleaseToolchain(ctx, proposal, manifest)
+	fact := DiscoverReleaseToolchain(ctx, admittedProposal, manifest)
 	res.ReleaseToolchain = fact
 	res.Limitations = append(res.Limitations, fact.Limitations...)
 	materials.Toolchain = &fact

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -12,8 +11,9 @@ import (
 )
 
 // TestHumanCapabilityPreservationMatrix exercises the real owners, not source
-// spelling or schema presence. Retained package-private historical fixtures and
-// Python controllers run in focused subprocesses; no corpus or real model runs.
+// spelling or schema presence. Retained package-private historical fixtures
+// run in focused Go subprocesses; Python controller tests run separately in CI.
+// No corpus or real model runs.
 func TestHumanCapabilityPreservationMatrix(t *testing.T) {
 	t.Run("unconditional_action", TestTriageHumanResultDoesNotPublishMachineSafe)
 	t.Run("one_question_accept_reject_without_narrative_no_model_replay", TestBranchReviewCLIOfflineSmoke)
@@ -49,15 +49,6 @@ func TestHumanCapabilityPreservationMatrix(t *testing.T) {
 		output, err := exec.Command(binary, "research-b1").CombinedOutput()
 		if err == nil || strings.Contains(string(output), "\n  izyan research-b1 ") || !strings.Contains(string(output), "izyan eval research-b1") {
 			t.Fatalf("obsolete top-level B1 route: %v\n%s", err, output)
-		}
-		// Real Go JSON uses null in the report and empty string in the
-		// manifest for an absent optional commit; the offline consumer must
-		// accept that encoding without accepting nonempty identity drift.
-		command := exec.Command("python3", "-m", "pytest", "eval/decision_ready/test_runner.py::test_compiled_cli_without_optional_commit", "-q")
-		command.Dir = filepath.Join("..", "..")
-		command.Env = append(os.Environ(), "IZYAN_SMOKE_BIN="+binary, "IZYAN_OSV_URL=")
-		if output, err := command.CombinedOutput(); err != nil {
-			t.Fatalf("compiled CLI consumer smoke: %v\n%s", err, output)
 		}
 	})
 	t.Run("prepared_two_questions_and_bounds", func(t *testing.T) {
@@ -100,8 +91,6 @@ func TestHumanCapabilityPreservationMatrix(t *testing.T) {
 	}{
 		{"unknown_not_reasked_contradiction_and_review_history", []string{"go", "test", "./internal/productb/triage", "-run", "^Test(EnvironmentAnswerTwoQuestionsAndUnknown|AnsweredVariableIsNotReasked|EnvironmentAnswerDeterministicConflict|EnvironmentAssertionSupersession|BranchReviewReplayCopiesHistoryVerbatim|BranchReviewRejectsRehashedV1Downgrade|BranchReviewHistoricalV1FieldIsolation|AcceptRejectNeedsNoTechnicalNarrative|HumanReviewFirstScreenBounds|PromptBuildAssignmentsComposePreparedUniverse|EnvironmentQuestionsBuildModeDoesNotFollowFiles)$", "-count=1"}},
 		{"historical_3_4_no_authority_upgrade", []string{"go", "test", "./internal/research", "-run", "^TestHistorical(DecisionArtifactPlayback|RequestCompositionPlayback|ReplayCannotPublishCurrentAuthority)$", "-count=1"}},
-		{"offline_indexes_and_failed_census_stale_report", []string{"python3", "-m", "pytest", "eval/decision_ready/test_runner.py::test_offline_runner_rebuilds_metric_inputs", "eval/decision_ready/test_census.py::test_census_rejects_stale_report_after_failure", "-q"}},
-		{"census_digest_build_toolchain_and_optional_commit", []string{"python3", "-m", "pytest", "eval/decision_ready/test_census.py::test_census_rejects_material_drift_at_same_path", "eval/decision_ready/test_census.py::test_census_preserves_effective_build_and_toolchain", "eval/decision_ready/test_census.py::test_census_preserves_recorded_host_effective_build", "eval/decision_ready/test_census.py::test_retained_toolchain_fallback_is_technical_failure", "eval/decision_ready/test_census.py::test_guard_rechecks_retained_digest_pins", "eval/decision_ready/test_census.py::test_optional_commit_real_go_encoding_is_absent_only", "-q"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := exec.Command(tc.argv[0], tc.argv[1:]...)

@@ -32,7 +32,8 @@ func gitTestRepo(t *testing.T) string {
 		t.Fatal(err)
 	}
 	run("add", "f.txt")
-	run("commit", "-m", "init")
+	// CI runners do not necessarily have a global author identity.
+	run("-c", "user.name=Izyan Test", "-c", "user.email=test@example.invalid", "commit", "-m", "init")
 	return dir
 }
 
